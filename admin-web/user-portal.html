@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOC Operations Portal — RosterX</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <!-- Immediate Anti-FOUC Auth Guard & Security Cloak -->
+  <style id="auth-cloak">
+    html, body {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      background: #090d16 !important;
+    }
+  </style>
+  <script>
+    (function() {
+      try {
+        var raw = localStorage.getItem('rosterx_auth_user');
+        var user = raw ? JSON.parse(raw) : null;
+        if (!user) {
+          window.location.replace('login.html');
+          return;
+        }
+        var cloak = document.getElementById('auth-cloak');
+        if (cloak) cloak.remove();
+        document.documentElement.style.visibility = 'visible';
+        document.documentElement.style.opacity = '1';
+      } catch (e) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS & Phosphor Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <!-- Excel Libraries for Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="js/vendor/exceljs.min.js"></script>
+  <script>if (typeof ExcelJS === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"><\\/script>')</script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-outfit {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    /* Ambient Space Glow Background */
+    .bg-noc-space {
+      background: radial-gradient(circle at 10% 10%, rgba(14, 165, 233, 0.12) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 15%, rgba(99, 102, 241, 0.14) 0%, transparent 40%),
+                  radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.10) 0%, transparent 45%),
+                  #090d16;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Glass Panels */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Floating Cutout 3D Bot Keyframes */
+    @keyframes bot-float {
+      0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 10px 18px rgba(6, 182, 212, 0.45)); }
+      50% { transform: translateY(-8px) scale(1.03); filter: drop-shadow(0 16px 26px rgba(6, 182, 212, 0.65)); }
+    }
+    .animate-bot-float {
+      animation: bot-float 4s ease-in-out infinite;
+    }
+
+    /* Strict Cell Geometry for Month Matrix Table */
+    .cell-box-portal {
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
+      height: 38px;
+      font-size: 12px;
+      font-weight: 800;
+      position: relative;
+    }
+    .name-col-portal {
+      width: 195px;
+      min-width: 195px;
+      max-width: 195px;
+    }
+    .stat-col-portal {
+      width: 48px;
+      min-width: 48px;
+      max-width: 48px;
+    }
+
+    /* Standard High-Contrast Shift Palette */
+    .shift-FS    { background-color: #bbf7d0; color: #064e3b; font-weight: 800; }
+    .shift-FG    { background-color: #166534; color: #ffffff; font-weight: 800; }
+    .shift-G     { background-color: #bae6fd; color: #0c4a6e; font-weight: 800; }
+    .shift-SG    { background-color: #ea580c; color: #ffffff; font-weight: 800; }
+    .shift-SS    { background-color: #fed7aa; color: #7c2d12; font-weight: 800; }
+    .shift-NS    { background-color: #1e293b; color: #ffffff; font-weight: 800; }
+    .shift-OFF   { background-color: #fef08a; color: #713f12; font-weight: 800; }
+    .shift-SWOFF { background-color: #fef08a; color: #713f12; font-weight: 800; }
+    .shift-L     { background-color: #fecaca; color: #991b1b; font-weight: 800; }
+  </style>
+</head>
+<body class="bg-noc-space min-h-screen text-slate-100 flex flex-col antialiased selection:bg-cyan-500 selection:text-white">
+
+  <!-- ============================================================== -->
+  <!-- TOP NAVIGATION BAR -->
+  <!-- ============================================================== -->
+  <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-5 py-3 shadow-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+      
+      <!-- Brand & Official Logo -->
+      <div class="flex items-center gap-3">
+        <div class="relative w-10 h-10 shrink-0">
+          <img src="assets/logo.png" alt="RosterX Logo" class="w-full h-full object-contain drop-shadow" />
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-extrabold tracking-tight font-outfit text-white">
+              RosterX NOC Portal
+            </h1>
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700/50 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live Operations
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">24/7 Shift Rotation & Real-time Duty Briefings</p>
+        </div>
+      </div>
+
+      <!-- Header Controls: User Pill, Sign Out -->
+      <div class="flex items-center gap-3">
+
+        <!-- User Profile Pill (Clickable -> Opens Account Profile & Security Modal) -->
+        <div id="userProfileBtn" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700 shadow-sm cursor-pointer transition group" title="View Account Profile & Change Password">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-black shadow-xs group-hover:scale-105 transition">
+            <i class="ph ph-user"></i>
+          </div>
+          <div class="text-left hidden sm:block">
+            <div id="userDisplayName" class="text-xs font-bold text-slate-200 leading-tight group-hover:text-cyan-300 transition">Engineer</div>
+            <div id="userRoleBadge" class="text-[10px] text-cyan-400 font-semibold leading-tight">NOC ENGINEER</div>
+          </div>
+          <i class="ph ph-caret-down text-slate-400 text-xs ml-0.5 group-hover:text-white transition"></i>
+        </div>
+
+        <!-- Sign Out Button -->
+        <button id="btnSignOut" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-semibold transition cursor-pointer shadow-sm">
+          <i class="ph ph-sign-out text-sm"></i>
+          <span class="hidden sm:inline">Sign Out</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================== -->
+  <!-- MAIN CONTENT CONTAINER -->
+  <!-- ============================================================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- HERO WELCOME DASHBOARD BANNER -->
+    <section class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+      <!-- Glow ambient background -->
+      <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-800 text-[11px] font-semibold text-cyan-300 mb-2">
+            <i class="ph ph-calendar-check text-xs"></i>
+            <span id="heroCurrentDate">Saturday, October 24, 2026</span>
+          </div>
+          <h2 class="text-2xl font-black font-outfit text-white">
+            Welcome, <span id="heroWelcomeName" class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Engineer</span>! 👋
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">
+            24/7 operational shift overview and live verified team duty briefing.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div id="heroDutyBadge" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            Checking Duty Status...
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- PERSONAL SHIFT SPOTLIGHT (FEATURED & NEXT DAY) -->
+    <!-- ============================================================== -->
+    <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- CARD 1: FEATURED / TODAY'S SHIFT -->
+      <div id="todayShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-cyan-400 relative overflow-hidden group hover:border-slate-600 transition">
+        <div class="flex items-center justify-between mb-3">
+          <span id="todayCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i class="ph ph-clock text-cyan-400 text-sm"></i> Duty Shift
+          </span>
+          <span id="todayCardStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">Scheduled</span>
+        </div>
+        <div class="flex items-baseline gap-3">
+          <span id="todayShiftCode" class="text-2xl font-black px-3 py-1 rounded-xl shadow-sm shift-FS">
+            --
+          </span>
+          <div>
+            <div id="todayShiftName" class="text-sm font-bold text-white">Loading...</div>
+            <div id="todayShiftTimings" class="text-xs font-mono text-cyan-300 mt-0.5">--:-- AM – --:-- PM</div>
+          </div>
+        </div>
+        <p id="todayShiftDesc" class="text-xs text-slate-400 mt-3 line-clamp-2">
+          Scheduled operational duty assignment for current period.
+        </p>
+      </div>
+
+      <!-- CARD 2: NEXT DAY'S SHIFT -->
+      <div id="tomorrowShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-indigo-400 relative overflow-hidden group hover:border-slate-600 transition">
+        <div class="flex items-center justify-between mb-3">
+          <span id="tomorrowCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i class="ph ph-calendar-plus text-indigo-400 text-sm"></i> Next Shift
+          </span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Next</span>
+        </div>
+        <div class="flex items-baseline gap-3">
+          <span id="tomorrowShiftCode" class="text-2xl font-black px-3 py-1 rounded-xl shadow-sm shift-G">
+            --
+          </span>
+          <div>
+            <div id="tomorrowShiftName" class="text-sm font-bold text-white">Loading...</div>
+            <div id="tomorrowShiftTimings" class="text-xs font-mono text-indigo-300 mt-0.5">--:-- AM – --:-- PM</div>
+          </div>
+        </div>
+        <p id="tomorrowShiftDesc" class="text-xs text-slate-400 mt-3 line-clamp-2">
+          Upcoming rotation sequence for following day.
+        </p>
+      </div>
+
+      <!-- CARD 3: MONTHLY DUTY STATS -->
+      <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-emerald-400 flex flex-col justify-between">
+        <div>
+          <span class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5 mb-2">
+            <i class="ph ph-chart-donut text-emerald-400 text-sm"></i> Monthly Duties
+          </span>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
+              <div class="text-[10px] text-slate-400 uppercase font-semibold">Day Shifts</div>
+              <div id="metricDayCount" class="text-lg font-black text-emerald-400">0</div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
+              <div class="text-[10px] text-slate-400 uppercase font-semibold">Night Shifts</div>
+              <div id="metricNightCount" class="text-lg font-black text-indigo-400">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-2 text-center">
+          Total Assigned Duties: <strong id="metricTotalDuty" class="text-white">0</strong> days
+        </div>
+      </div>
+
+      <!-- CARD 4: SCHEDULED REST DAYS -->
+      <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-amber-400 flex flex-col justify-between">
+        <div>
+          <span class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5 mb-2">
+            <i class="ph ph-sun-horizon text-amber-400 text-sm"></i> Scheduled Rest Days
+          </span>
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between mt-2">
+            <div>
+              <div class="text-xs text-slate-300 font-bold">Weekly Offs (OFF)</div>
+              <div class="text-[10px] text-slate-500">Full 24h rest window</div>
+            </div>
+            <div id="metricOffCount" class="text-2xl font-black text-amber-400">0</div>
+          </div>
+        </div>
+        <div class="text-[11px] text-slate-400 text-center mt-2">
+          Strict fatigue compliance enabled
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SECTION: LIVE TEAM DUTY SCHEDULE (TODAY & TOMORROW) -->
+    <!-- ============================================================== -->
+    <section class="glass-panel rounded-2xl p-5 relative">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <h3 class="text-base font-bold font-outfit text-white flex items-center gap-2">
+            <i class="ph ph-users-three text-cyan-400 text-lg"></i>
+            24/7 Team Duty Schedule
+          </h3>
+          <p class="text-xs text-slate-400">Real-time duty overview across all personnel. Your row is prominently highlighted.</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 font-semibold tracking-wide">
+            <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+            <i class="ph-fill ph-star text-amber-400 text-xs"></i> Your Schedule (Highlighted)
+          </span>
+        </div>
+      </div>
+
+      <!-- Team Duty Table -->
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="w-full text-left border-collapse" id="teamDutyTable">
+          <thead>
+            <tr class="bg-slate-900/90 text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-800">
+              <th class="py-3 px-4 font-bold text-left">Engineer</th>
+              <th class="py-3 px-4 font-bold text-center" id="teamHeaderToday">Current Duty</th>
+              <th class="py-3 px-4 font-bold text-center" id="teamHeaderTomorrow">Next Duty</th>
+              <th class="py-3 px-4 font-bold text-right pr-6">Operational Status</th>
+            </tr>
+          </thead>
+          <tbody id="teamDutyTableBody" class="divide-y divide-slate-800 text-xs text-slate-300">
+            <!-- Dynamic Rows injected via userPortal.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- SECTION: FULL MONTH SHIFT MASTER GRID -->
+    <!-- ============================================================== -->
+    <section class="glass-panel rounded-2xl p-5 relative">
+      
+      <!-- Grid Toolbar -->
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h3 class="text-base font-bold font-outfit text-white flex items-center gap-2">
+            <i class="ph ph-table text-indigo-400 text-lg"></i>
+            Month Shift Master Grid
+          </h3>
+          <p class="text-xs text-slate-400">Complete month operational matrix with standard NOC color codes</p>
+        </div>
+
+        <div class="flex items-center gap-3 flex-wrap">
+          <!-- Month Navigator with Left & Right Arrows -->
+          <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden shadow-sm">
+            <button id="btnPortalPrevMonth" type="button" title="Previous Month" class="px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition border-r border-slate-800 cursor-pointer">
+              <i class="ph ph-caret-left font-bold text-sm"></i>
+            </button>
+            <div class="flex items-center gap-1.5 px-3 py-1 bg-slate-900/90">
+              <i class="ph ph-calendar text-cyan-400 text-sm"></i>
+              <select id="portalMonthSelect" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
+                <option value="2026-10" selected class="bg-slate-900 text-white">OCTOBER 2026</option>
+                <option value="2026-11" class="bg-slate-900 text-white">NOVEMBER 2026</option>
+                <option value="2026-12" class="bg-slate-900 text-white">DECEMBER 2026</option>
+                <option value="2027-01" class="bg-slate-900 text-white">JANUARY 2027</option>
+                <option value="2027-02" class="bg-slate-900 text-white">FEBRUARY 2027</option>
+              </select>
+            </div>
+            <button id="btnPortalNextMonth" type="button" title="Next Month" class="px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition border-l border-slate-800 cursor-pointer">
+              <i class="ph ph-caret-right font-bold text-sm"></i>
+            </button>
+          </div>
+
+          <!-- Filter Search -->
+          <div class="relative">
+            <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+            <input 
+              type="text" 
+              id="portalSearchInput" 
+              placeholder="Filter engineer..."
+              class="pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-44"
+            />
+          </div>
+
+          <!-- Export to Excel Button -->
+          <button 
+            type="button" 
+            id="btnPortalExportMonthGrid"
+            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+          >
+            <i class="ph ph-file-xls text-base"></i>
+            <span>Export to Excel (Month Grid)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 31 Days Scrollable Matrix Table (Strict Fixed Table Layout) -->
+      <div class="overflow-x-auto relative rounded-xl border border-slate-800 max-h-[560px]">
+        <table class="border-collapse text-center text-xs select-none w-max min-w-full" id="monthGridTable" style="table-layout: fixed;">
+          
+          <!-- Sticky Dual Header -->
+          <thead class="sticky top-0 z-30 bg-slate-900 shadow-sm">
+            <tr id="gridHeaderDatesRow"></tr>
+            <tr id="gridHeaderDaysRow"></tr>
+          </thead>
+
+          <!-- Table Body -->
+          <tbody id="monthGridTableBody">
+            <!-- Injected by userPortal.js -->
+          </tbody>
+
+        </table>
+      </div>
+
+      <!-- Color Codes Legend -->
+      <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-3 text-[11px] font-semibold flex-wrap text-slate-400">
+        <span class="font-bold text-slate-300">Shift Codes Legend:</span>
+        <span class="px-2 py-0.5 rounded shift-FS">FS (07:30-16:30)</span>
+        <span class="px-2 py-0.5 rounded shift-FG">FG (08:30-17:30)</span>
+        <span class="px-2 py-0.5 rounded shift-G">G (09:30-18:30)</span>
+        <span class="px-2 py-0.5 rounded shift-SG">SG (11:00-20:00)</span>
+        <span class="px-2 py-0.5 rounded shift-SS">SS (13:00-22:00)</span>
+        <span class="px-2 py-0.5 rounded shift-NS">NS (21:00-07:30)</span>
+        <span class="px-2 py-0.5 rounded shift-OFF">OFF (Weekly Off)</span>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ACCOUNT PROFILE & SECURITY -->
+  <!-- ============================================================== -->
+  <div id="accountProfileModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="glass-panel rounded-2xl w-full max-w-lg p-6 relative border border-slate-700 shadow-2xl">
+      
+      <!-- Close Button -->
+      <button id="btnCloseAccountModal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer">
+        <i class="ph ph-x text-lg"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-800">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xl font-black shadow-md shrink-0">
+          <i class="ph ph-user-circle"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white font-outfit" id="modalAccountName">User Profile</h3>
+          <p class="text-xs text-slate-400">Account Credentials, Contact Data & Password Management</p>
+        </div>
+      </div>
+
+      <!-- Account Navigation Tabs -->
+      <div class="flex border-b border-slate-800 mb-4 gap-2">
+        <button type="button" id="tabBtnProfile" class="pb-2 px-3 text-xs font-bold text-cyan-400 border-b-2 border-cyan-400 cursor-pointer">
+          <i class="ph ph-identification-card mr-1"></i> Profile Information
+        </button>
+        <button type="button" id="tabBtnSecurity" class="pb-2 px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent cursor-pointer">
+          <i class="ph ph-shield-key mr-1"></i> Security & Password
+        </button>
+      </div>
+
+      <!-- TAB 1: Profile Information -->
+      <div id="accountTabProfile" class="space-y-3.5">
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Full Name</span>
+            <span id="profileFullName" class="font-bold text-slate-100 text-xs">--</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Username / Staff ID</span>
+            <span id="profileUsername" class="font-mono font-bold text-cyan-300 text-xs">--</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Official Email</span>
+            <span id="profileEmail" class="font-semibold text-slate-200 text-xs break-all">--</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Contact Phone</span>
+            <span id="profilePhone" class="font-semibold text-slate-200 text-xs">--</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Operational Role</span>
+            <span id="profileRole" class="font-bold text-cyan-400 text-xs">--</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Scheduled Weekly Offs</span>
+            <span id="profileOffs" class="font-semibold text-amber-300 text-xs">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Change Password -->
+      <div id="accountTabSecurity" class="hidden space-y-3.5">
+        
+        <!-- Feedback Alert Banner -->
+        <div id="changePassAlert" class="hidden p-3 rounded-xl text-xs flex items-start gap-2">
+          <i class="ph ph-info text-base shrink-0 mt-0.5"></i>
+          <span id="changePassAlertText"></span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Current Password</label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="currentPassInput" 
+              placeholder="Enter current password"
+              class="w-full pl-3.5 pr-10 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+            <button type="button" id="toggleCurrentPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white cursor-pointer">
+              <i class="ph ph-eye text-sm" id="eyeCurrentPass"></i>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">New Password</label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="newPassChangeInput" 
+              placeholder="Min 4 characters"
+              class="w-full pl-3.5 pr-10 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+            <button type="button" id="toggleNewPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white cursor-pointer">
+              <i class="ph ph-eye text-sm" id="eyeNewPass"></i>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Confirm New Password</label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="confirmPassChangeInput" 
+              placeholder="Confirm new password"
+              class="w-full pl-3.5 pr-10 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
+        </div>
+
+        <button 
+          type="button" 
+          id="btnSubmitChangePass" 
+          class="w-full py-2.5 rounded-xl font-bold text-white text-xs bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 transition shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          <i class="ph ph-key text-sm"></i>
+          <span>Update Account Password</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- FLOATING CUTOUT 3D BOT AI ASSISTANT -->
+  <!-- ============================================================== -->
+  <div class="fixed bottom-6 right-6 z-50">
+    
+    <!-- Bot Avatar Trigger Button (Cutout 3D Bot) -->
+    <button 
+      type="button" 
+      id="floatingAiBotTrigger"
+      class="w-16 h-16 rounded-full bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 p-1 shadow-2xl flex items-center justify-center cursor-pointer group hover:scale-105 transition relative border-2 border-cyan-400/80"
+      title="Open RosterX Operations Assistant"
+    >
+      <img 
+        src="assets/bot-3d-cutout.png" 
+        alt="AI Bot" 
+        class="w-full h-full object-contain animate-bot-float drop-shadow"
+      />
+      <!-- Active pulsing beacon -->
+      <span class="absolute top-0 right-0 w-4 h-4 rounded-full bg-emerald-400 border-2 border-slate-950 animate-ping"></span>
+      <span class="absolute top-0 right-0 w-4 h-4 rounded-full bg-emerald-400 border-2 border-slate-950"></span>
+    </button>
+
+  </div>
+
+  <!-- FLOATING CHAT DRAWER / POPUP -->
+  <div 
+    id="aiChatDrawer" 
+    class="hidden fixed bottom-24 right-6 w-96 max-w-[calc(100vw-32px)] glass-panel rounded-2xl border border-cyan-500/40 shadow-2xl z-50 flex flex-col overflow-hidden max-h-[540px]"
+  >
+    <!-- Chat Header -->
+    <div class="bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 p-3.5 border-b border-slate-700/80 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-slate-800 border border-cyan-500/30 flex items-center justify-center shrink-0">
+          <img src="assets/bot-3d-cutout.png" alt="Bot Icon" class="w-7 h-7 object-contain" />
+        </div>
+        <div>
+          <h4 class="text-xs font-bold text-white font-outfit">RosterX AI Assistant</h4>
+          <span class="text-[10px] text-cyan-400 font-medium">NOC Operations Assistant</span>
+        </div>
+      </div>
+      <button id="btnCloseAiChat" class="text-slate-400 hover:text-white p-1 transition cursor-pointer">
+        <i class="ph ph-x text-base"></i>
+      </button>
+    </div>
+
+    <!-- Quick Prompt Chips -->
+    <div class="p-2.5 bg-slate-900/60 border-b border-slate-800 flex gap-1.5 overflow-x-auto text-[11px]">
+      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer" data-prompt="What is my shift today and tomorrow?">
+        📌 My Shifts
+      </button>
+      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 cursor-pointer" data-prompt="Who is on night duty today?">
+        🌙 Night Shift
+      </button>
+      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 cursor-pointer" data-prompt="Who is covering day shift tomorrow?">
+        ☀️ Day Duty
+      </button>
+      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer" data-prompt="How many OFF days do I have this month?">
+        🏖️ Off Days
+      </button>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="aiMessagesContainer" class="p-3.5 space-y-3 overflow-y-auto flex-1 min-h-[220px] max-h-[300px]">
+      <!-- Messages dynamically populated by userPortal.js -->
+    </div>
+
+    <!-- Chat Input Box -->
+    <div class="p-3 bg-slate-900/90 border-t border-slate-800 flex items-center gap-2">
+      <input 
+        type="text" 
+        id="aiChatInput" 
+        placeholder="Ask about your shifts or team duties..."
+        class="flex-1 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+      />
+      <button 
+        type="button" 
+        id="btnSendAiChat"
+        class="w-8 h-8 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center transition cursor-pointer shrink-0"
+      >
+        <i class="ph ph-paper-plane-right text-sm"></i>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Main User Portal Controller Module -->
+  <script type="module" src="js/userPortal.js?v=5.0"></script>
+
+</body>
+</html>

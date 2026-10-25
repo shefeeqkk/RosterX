@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RosterX — Dynamic Admin Engine & AI Smart Roster Generator</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  
+  <!-- Immediate Anti-FOUC Auth Guard & Security Cloak -->
+  <style id="auth-cloak">
+    html, body {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      background: #0b0f19 !important;
+    }
+  </style>
+  <script>
+    (function() {
+      try {
+        var raw = localStorage.getItem('rosterx_auth_user');
+        var user = raw ? JSON.parse(raw) : null;
+        if (!user) {
+          window.location.replace('login.html');
+          return;
+        }
+        if (user.role !== 'admin') {
+          window.location.replace('user-portal.html');
+          return;
+        }
+        var cloak = document.getElementById('auth-cloak');
+        if (cloak) cloak.remove();
+        document.documentElement.style.visibility = 'visible';
+        document.documentElement.style.opacity = '1';
+      } catch (e) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
+
+  <!-- Module Listener for Admin UI State -->
+  <script type="module">
+    import { authService } from './js/authService.js?v=5.0';
+    const user = authService.getCurrentUser();
+    if (user) {
+      document.addEventListener('DOMContentLoaded', () => {
+        const adminNameEl = document.getElementById('adminUserName');
+        if (adminNameEl) adminNameEl.textContent = user.name || user.username;
+        const btnLogout = document.getElementById('btnAdminLogout');
+        if (btnLogout) btnLogout.addEventListener('click', () => authService.logout());
+      });
+    }
+  </script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons CDN for enterprise UI icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- SheetJS CDN for parsing imported Excel files -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- ExcelJS for Enterprise-Grade Cell-Colored Excel (.xlsx) Generation -->
+  <script src="js/vendor/exceljs.min.js"></script>
+  <script>if (typeof ExcelJS === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"><\\/script>')</script>
+
+  <style>
+    /* Custom Scrollbar for Dense Roster Table */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Strict Cell Geometry matching Excel density with enhanced readability */
+    .cell-box {
+      width: 48px;
+      min-width: 48px;
+      max-width: 48px;
+      height: 42px;
+      font-size: 13px;
+      user-select: none;
+      position: relative;
+    }
+    .name-col {
+      width: 195px;
+      min-width: 195px;
+      max-width: 195px;
+    }
+    .status-col {
+      width: 105px;
+      min-width: 105px;
+      max-width: 105px;
+    }
+
+    /* Shift Color Themes - High-Contrast Standard NOC Scheme */
+    .shift-FS    { background-color: #bbf7d0; color: #064e3b; font-weight: 800; } /* Soft Mint - Deep Emerald Text */
+    .shift-FG    { background-color: #166534; color: #ffffff; font-weight: 800; } /* Rich Forest Green - Pure White Text */
+    .shift-G     { background-color: #bae6fd; color: #0c4a6e; font-weight: 800; } /* Clean Sky Blue - Deep Navy Text */
+    .shift-SG    { background-color: #ea580c; color: #ffffff; font-weight: 800; } /* Terracotta Orange - Pure White Text */
+    .shift-SS    { background-color: #fed7aa; color: #7c2d12; font-weight: 800; } /* Warm Peach - Deep Rust Text */
+    .shift-NS    { background-color: #1e293b; color: #ffffff; font-weight: 800; } /* Midnight Slate - Pure White Text */
+    .shift-OFF   { background-color: #fef08a; color: #713f12; font-weight: 800; } /* Warm Gold - Dark Amber Text */
+    .shift-SW, [class*="shift-SW"] { background-color: #f1f5f9; color: #0f172a; font-weight: 800; border: 1.5px dashed #64748b; } /* Swap Off - Crisp Slate */
+    .shift-L     { background-color: #dc2626; color: #ffffff; font-weight: 800; } /* Vivid Crimson Red - Pure White Text */
+    .shift-CUSTOM{ background-color: #f3e8ff; color: #581c87; font-weight: 800; }
+    .shift-EMPTY { background-color: #ffffff; color: transparent; }
+
+    /* Hidden / Cleared Shift Cells for Selective View Filter */
+    .shift-cell-hidden {
+      background-color: #f8fafc !important;
+      color: transparent !important;
+      border-right: 1px solid #e2e8f0 !important;
+      user-select: none;
+    }
+    .shift-cell-hidden:hover {
+      background-color: #f1f5f9 !important;
+      color: #94a3b8 !important;
+      outline: 1.5px dashed #cbd5e1;
+      outline-offset: -2px;
+    }
+    .shift-cell-hidden.cell-locked::after {
+      opacity: 0.15 !important;
+    }
+
+    /* Locked Cell Pin Icon */
+    .cell-locked::after {
+      content: '🔒';
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      font-size: 9px;
+      line-height: 1;
+      opacity: 0.95;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Top Navigation Bar (Section 4 Layout) -->
+  <header class="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center justify-between shadow-sm sticky top-0 z-40 no-print">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 shrink-0">
+        <img src="assets/logo.png" alt="RosterX Logo" class="w-full h-full object-contain drop-shadow" />
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          RosterX Operations Console
+        </h1>
+        <p class="text-xs text-slate-500">Dynamic 24/7 NOC Roster • Zero-Hardcoding • Gemini AI Smart Swaps</p>
+      </div>
+    </div>
+
+    <!-- Actions & Modals Triggers -->
+    <div class="flex items-center gap-2 mt-2 lg:mt-0 flex-wrap">
+      <!-- Month & Year Selector -->
+      <select id="monthSelect" class="bg-slate-50 border border-slate-300 font-bold px-3 py-1.5 rounded-lg text-xs text-slate-800 shadow-sm focus:ring-2 focus:ring-emerald-500">
+        <option value="2026-10" selected>OCTOBER 2026 (OCT-26)</option>
+        <option value="2026-11">NOVEMBER 2026 (NOV-26)</option>
+        <option value="2026-12">DECEMBER 2026 (DEC-26)</option>
+        <option value="2027-01">JANUARY 2027 (JAN-27)</option>
+        <option value="2027-02">FEBRUARY 2027 (FEB-27)</option>
+        <option value="2027-03">MARCH 2027 (MAR-27)</option>
+        <option value="2027-04">APRIL 2027 (APR-27)</option>
+        <option value="2027-05">MAY 2027 (MAY-27)</option>
+        <option value="2027-06">JUNE 2027 (JUN-27)</option>
+        <option value="2027-07">JULY 2027 (JUL-27)</option>
+        <option value="2027-08">AUGUST 2027 (AUG-27)</option>
+        <option value="2027-09">SEPTEMBER 2027 (SEP-27)</option>
+        <option value="2027-10">OCTOBER 2027 (OCT-27)</option>
+        <option value="2027-11">NOVEMBER 2027 (NOV-27)</option>
+        <option value="2027-12">DECEMBER 2027 (DEC-27)</option>
+      </select>
+
+      <!-- ⚙️ Constraints Button -->
+      <button id="btnOpenConstraintsModal" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 transition shadow-sm">
+        <i class="ph ph-sliders text-base text-purple-600"></i> ⚙️ Constraints
+      </button>
+
+      <!-- 👥 Team Management Button -->
+      <button id="btnOpenTeamModal" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 transition shadow-sm">
+        <i class="ph ph-users-three text-base text-blue-600"></i> 👥 Team (<span id="activeTeamBadge">10</span>)
+      </button>
+
+      <!-- 🔄 Swaps & Absences Button -->
+      <button id="btnOpenSwapsModal" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 transition shadow-sm">
+        <i class="ph ph-arrows-clockwise text-base text-amber-600"></i> 🔄 Swaps & Leaves
+      </button>
+
+      <!-- 🤖 AI Assistant -->
+      <button id="btnOpenAiModal" class="flex items-center gap-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-cyan-500/20 cursor-pointer group border border-slate-700">
+        <div class="w-6 h-6 shrink-0 flex items-center justify-center">
+          <img src="assets/bot-3d.png" alt="AI Assistant" class="w-full h-full object-contain group-hover:scale-110 transition drop-shadow-xs" />
+        </div>
+        <span class="tracking-wide">AI Assistant</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+      </button>
+
+      <!-- 📊 Export Data -->
+      <button id="btnExportXlsx" class="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-300 transition shadow-sm cursor-pointer">
+        <i class="ph ph-file-xls text-base"></i> Export Data
+      </button>
+
+      <!-- 📥 Import Data -->
+      <button id="btnOpenImportModal" onclick="if(window.rosterApp && window.rosterApp.openImportModal){ window.rosterApp.openImportModal(); }" class="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 transition shadow-sm cursor-pointer">
+        <i class="ph ph-file-arrow-up text-base text-blue-600"></i> Import Data
+      </button>
+
+      <!-- 💾 Save & Publish -->
+      <button id="btnSaveAtlasDirect" class="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow">
+        <i class="ph ph-cloud-arrow-up text-base"></i> Save & Publish
+      </button>
+
+      <!-- 👑 Admin User Pill & Sign Out -->
+      <div class="flex items-center gap-2 pl-2 border-l border-slate-300">
+        <div id="adminUserPill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs text-slate-700 cursor-pointer transition" title="View Admin Profile & Change Password">
+          <i class="ph ph-shield-check text-emerald-600 text-sm"></i>
+          <span id="adminUserName" class="font-bold">Admin</span>
+          <i class="ph ph-caret-down text-slate-400 text-xs ml-0.5"></i>
+        </div>
+        <button id="btnAdminLogout" title="Sign Out" class="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition cursor-pointer">
+          <i class="ph ph-sign-out text-base"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Active Rules & Policies Bar (Section 4 Layout) -->
+  <section class="bg-slate-50 border-b border-slate-200 px-6 py-2 flex items-center justify-between text-xs text-slate-600 no-print flex-wrap gap-2">
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="font-bold text-slate-800 flex items-center gap-1">
+        <i class="ph ph-info text-blue-600"></i> Active Rules:
+      </span>
+      <span class="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono">Night: <strong id="ruleNightText">1/night</strong></span>
+      <span class="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono">FS: <strong id="ruleFsText">≥1</strong></span>
+      <span class="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono">SS: <strong id="ruleSsText">≥1</strong></span>
+      <span class="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono">Post-NS Rest: <strong id="ruleRestText">48h (2d)</strong></span>
+      <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-300">Policy: Swap-First</span>
+      <span class="text-slate-400 italic" id="ruleDirectivesSnippet"></span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="btnQuickEditRules" class="text-purple-700 hover:text-purple-900 font-bold underline text-xs">
+        [Edit Policies]
+      </button>
+      <span id="syncBadgeIndicator" class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 cursor-pointer">
+        <span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span>
+        <span id="syncBadgeText">Local Storage</span>
+      </span>
+    </div>
+  </section>
+
+  <!-- Main Content Body -->
+  <main class="flex-1 p-5 max-w-[1720px] w-full mx-auto" id="printArea">
+    
+    <!-- Rule Audit Alert Banner (Real-time Validator) -->
+    <div id="ruleAuditAlertBanner" class="hidden mb-3 bg-red-100 border border-red-300 text-red-800 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs font-semibold shadow-sm">
+      <div class="flex items-center gap-2 flex-wrap">
+        <i class="ph ph-warning-circle text-lg text-red-600"></i>
+        <span id="ruleAuditSummaryText">Rule Violation Detected:</span>
+        <div class="flex items-center gap-1.5 ml-2 flex-wrap" id="ruleAuditChipsContainer"></div>
+      </div>
+      <button id="btnViewAuditDetails" class="text-xs text-red-700 underline font-semibold hover:text-red-900">
+        Inspect Details
+      </button>
+    </div>
+
+    <!-- Sticky Master Roster Matrix Container (Section 4 Layout) -->
+    <div class="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden flex flex-col">
+      
+      <!-- Filter and Info Bar -->
+      <div class="px-4 py-2 bg-slate-50 border-b border-slate-300 flex items-center justify-between text-xs flex-wrap gap-2">
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="relative">
+            <i class="ph ph-magnifying-glass absolute left-2.5 top-2 text-slate-400"></i>
+            <input type="text" id="searchInput" placeholder="Filter engineer..."
+                   class="pl-8 pr-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-40">
+          </div>
+
+          <!-- Month Navigator with Left & Right Arrows -->
+          <div class="flex items-center bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden">
+            <button id="btnPrevMonth" type="button" title="Previous Month" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition border-r border-slate-200 cursor-pointer">
+              <i class="ph ph-caret-left font-bold text-sm"></i>
+            </button>
+            <span id="activeMonthDisplay" class="px-3 py-1 font-black text-slate-800 text-xs tracking-wide uppercase select-none min-w-[130px] text-center bg-amber-50/50">
+              OCTOBER 2026
+            </span>
+            <button id="btnNextMonth" type="button" title="Next Month" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition border-l border-slate-200 cursor-pointer">
+              <i class="ph ph-caret-right font-bold text-sm"></i>
+            </button>
+          </div>
+
+          <span class="text-slate-500 hidden xl:inline">• Click cell to override shift or lock `🔒`</span>
+        </div>
+        <div class="flex items-center gap-3 font-semibold text-slate-600">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> Weekend</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Duty Shift</span>
+          <span class="flex items-center gap-1">🔒 Locked</span>
+        </div>
+      </div>
+
+      <!-- Shift Visibility & Selective View Filter Toolbar -->
+      <div id="shiftFilterToolbar" class="px-4 py-2 bg-gradient-to-r from-slate-100 via-indigo-50/20 to-slate-100 border-b border-slate-300 flex items-center justify-between text-xs flex-wrap gap-2.5">
+        
+        <!-- Left: Presets and Shift Toggle Chips -->
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <div class="flex items-center gap-1.5 font-black text-slate-700 tracking-wide select-none">
+            <i class="ph-fill ph-funnel text-indigo-600 text-sm"></i>
+            <span class="uppercase text-[11px] font-bold">Shift Filter:</span>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs text-xs font-semibold">
+            <button type="button" id="btnPresetAllShifts" class="px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-2xs" title="Show all shifts without filtering">
+              All
+            </button>
+            <button type="button" id="btnPresetSwOffNs" class="px-2.5 py-1 rounded-md text-xs font-extrabold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Focus view: Only Swaps (SW*), Weekly Offs (OFF), and Night Shifts (NS)">
+              🎯 SW* + OFF + NS
+            </button>
+            <button type="button" id="btnPresetNsOnly" class="px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Show only Night Shifts (NS)">
+              🌙 NS
+            </button>
+            <button type="button" id="btnPresetOffOnly" class="px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Show only Weekly Offs (OFF)">
+              🏖️ OFF
+            </button>
+            <button type="button" id="btnPresetSwOnly" class="px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Show only Swapped Shifts (SW*)">
+              🔄 SW*
+            </button>
+          </div>
+
+          <div class="h-4 w-px bg-slate-300 mx-0.5 hidden sm:block"></div>
+
+          <!-- Individual Shift Toggle Chips -->
+          <div class="flex items-center gap-1.5 flex-wrap" id="shiftFilterPillsContainer">
+            <!-- Chip SW* -->
+            <button type="button" data-shift-cat="SW" data-bg="#f1f5f9" data-text="#0f172a" data-border="#cbd5e1" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #f1f5f9; color: #0f172a; border-color: #cbd5e1;" title="Toggle Swaps (SW*)">
+              <span class="chip-check text-indigo-600 font-black">✓</span>
+              <span>SW*</span>
+            </button>
+            <!-- Chip OFF -->
+            <button type="button" data-shift-cat="OFF" data-bg="#fef08a" data-text="#713f12" data-border="#fde047" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #fef08a; color: #713f12; border-color: #fde047;" title="Toggle Weekly Offs (OFF)">
+              <span class="chip-check text-amber-800 font-black">✓</span>
+              <span>OFF</span>
+            </button>
+            <!-- Chip NS -->
+            <button type="button" data-shift-cat="NS" data-bg="#1e293b" data-text="#ffffff" data-border="#334155" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #1e293b; color: #ffffff; border-color: #334155;" title="Toggle Night Shifts (NS)">
+              <span class="chip-check text-indigo-400 font-black">✓</span>
+              <span>NS</span>
+            </button>
+            <!-- Chip FS -->
+            <button type="button" data-shift-cat="FS" data-bg="#bbf7d0" data-text="#064e3b" data-border="#86efac" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #bbf7d0; color: #064e3b; border-color: #86efac;" title="Toggle First Shift (FS)">
+              <span class="chip-check text-emerald-700 font-black">✓</span>
+              <span>FS</span>
+            </button>
+            <!-- Chip FG -->
+            <button type="button" data-shift-cat="FG" data-bg="#166534" data-text="#ffffff" data-border="#15803d" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #166534; color: #ffffff; border-color: #15803d;" title="Toggle First General Shift (FG)">
+              <span class="chip-check text-emerald-300 font-black">✓</span>
+              <span>FG</span>
+            </button>
+            <!-- Chip G -->
+            <button type="button" data-shift-cat="G" data-bg="#bae6fd" data-text="#0c4a6e" data-border="#7dd3fc" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #bae6fd; color: #0c4a6e; border-color: #7dd3fc;" title="Toggle General Shift (G)">
+              <span class="chip-check text-sky-700 font-black">✓</span>
+              <span>G</span>
+            </button>
+            <!-- Chip SG -->
+            <button type="button" data-shift-cat="SG" data-bg="#ea580c" data-text="#ffffff" data-border="#c2410c" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #ea580c; color: #ffffff; border-color: #c2410c;" title="Toggle Second General Shift (SG)">
+              <span class="chip-check text-orange-200 font-black">✓</span>
+              <span>SG</span>
+            </button>
+            <!-- Chip SS -->
+            <button type="button" data-shift-cat="SS" data-bg="#fed7aa" data-text="#7c2d12" data-border="#fdba74" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #fed7aa; color: #7c2d12; border-color: #fdba74;" title="Toggle Second Shift (SS)">
+              <span class="chip-check text-amber-900 font-black">✓</span>
+              <span>SS</span>
+            </button>
+            <!-- Chip L -->
+            <button type="button" data-shift-cat="L" data-bg="#dc2626" data-text="#ffffff" data-border="#b91c1c" class="shift-filter-chip active flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black border transition cursor-pointer shadow-2xs" style="background-color: #dc2626; color: #ffffff; border-color: #b91c1c;" title="Toggle Leave (L)">
+              <span class="chip-check text-rose-200 font-black">✓</span>
+              <span>L</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Filter Status Indicator & Reset -->
+        <div class="flex items-center gap-2.5">
+          <span id="shiftFilterActiveBadge" class="hidden text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-2xs">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+            <span id="shiftFilterActiveText">Filtered View</span>
+          </span>
+          <button type="button" id="btnResetShiftFilter" class="hidden text-xs text-indigo-700 hover:text-indigo-900 hover:underline font-extrabold flex items-center gap-1 cursor-pointer">
+            <i class="ph ph-arrow-counter-clockwise"></i> Reset View
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Table -->
+      <div class="overflow-x-auto relative max-h-[640px]">
+        <table class="border-collapse text-center text-sm w-max min-w-full select-none" id="rosterTable">
+          
+          <!-- Sticky Dual Header -->
+          <thead class="sticky top-0 z-30 bg-slate-100 shadow-[0_2px_6px_rgba(0,0,0,0.08)]">
+            <!-- Row 1: Engineer Name & Day Numbers (Dynamically Sized to Total Days) -->
+            <tr class="border-b border-slate-300 font-black">
+              <th class="name-col sticky left-0 z-40 bg-slate-200 border-r border-slate-300 text-slate-900 uppercase tracking-wider py-2.5 px-3 text-left text-xs font-black">
+                ENGG NAME
+              </th>
+              <!-- Dynamically populated 1 to totalDays (28/29/30/31) -->
+              <th id="headerDatesColTh" colspan="31" class="p-0">
+                <div class="flex" id="headerDatesRow"></div>
+              </th>
+              <!-- Row totals -->
+              <th class="cell-box bg-slate-200 text-slate-900 border-l border-slate-300 text-xs font-black" title="Total Working Days">WRK</th>
+              <th class="cell-box bg-slate-200 text-indigo-950 border-l border-slate-300 text-xs font-black" title="Total Night Shifts">NS</th>
+              <th class="cell-box bg-slate-200 text-amber-950 border-l border-slate-300 text-xs font-black" title="Total Rest Days">OFF</th>
+              <th class="status-col bg-slate-200 text-slate-900 border-l border-slate-300 text-xs font-black">STATUS</th>
+            </tr>
+
+            <!-- Row 2: Days of the Week (THU, FRI, SAT, SUN...) -->
+            <tr class="border-b-2 border-slate-400 text-xs font-black" id="headerDaysOfWeekRow">
+              <th class="name-col sticky left-0 z-40 bg-slate-200 border-r border-slate-300 text-slate-700 py-1.5 px-3 text-left text-xs font-bold">
+                (Total: <span id="engineerCountLabel">10</span>)
+              </th>
+              <th id="headerDaysColTh" colspan="31" class="p-0">
+                <div class="flex" id="headerDaysRow"></div>
+              </th>
+              <th colspan="3" class="bg-slate-200 border-l border-slate-300 text-slate-800 font-black text-xs">STATS</th>
+              <th class="status-col bg-slate-200 border-l border-slate-300 text-slate-800 font-black text-xs">LIFECYCLE</th>
+            </tr>
+          </thead>
+
+          <!-- Table Body: Engineers -->
+          <tbody id="rosterTableBody" class="divide-y divide-slate-200 bg-white font-mono">
+            <!-- Populated via Javascript -->
+          </tbody>
+
+          <!-- Table Footer: Staffing Summary Bar (Sticky Footer) -->
+          <tfoot class="sticky bottom-0 z-20 bg-slate-100 border-t-2 border-slate-400 font-sans text-[11px] font-bold">
+            <!-- Row: Day Shift Staff (Combined Shifts Except NS, Apprentice Excluded) -->
+            <tr class="border-b border-slate-300">
+              <td class="name-col sticky left-0 z-30 bg-slate-200 border-r border-slate-300 text-left px-3 text-slate-800">
+                Coverage: Day Shift <span class="text-[10px] text-slate-500 font-normal block leading-tight">(Combined Excl. NS)</span>
+              </td>
+              <td id="footerDayColTd" colspan="31" class="p-0">
+                <div class="flex" id="coverageDayRow"></div>
+              </td>
+              <td colspan="4" class="bg-slate-200 border-l border-slate-300 text-slate-600 text-left px-2 font-mono text-[10px]" id="footerTargetDay">Day Target: ≥3</td>
+            </tr>
+
+            <!-- Row: Active Night Staff (NS == nightHeadcount, Apprentice Excluded) -->
+            <tr class="border-b border-slate-300">
+              <td class="name-col sticky left-0 z-30 bg-slate-200 border-r border-slate-300 text-left px-3 text-slate-800">
+                Coverage: Night Shift <span class="text-[10px] text-slate-500 font-normal block leading-tight">(NS)</span>
+              </td>
+              <td id="footerNightColTd" colspan="31" class="p-0">
+                <div class="flex" id="coverageNightRow"></div>
+              </td>
+              <td colspan="4" class="bg-slate-200 border-l border-slate-300 text-slate-600 text-left px-2 font-mono text-[10px]" id="footerTargetNs">Target: 1</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: 👥 Team Management Modal (Module A: CRUD & Lifecycle)             -->
+  <!-- ========================================================================= -->
+  <div id="teamModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl w-full max-w-6xl flex flex-col max-h-[92vh] overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="bg-blue-600 text-white p-2 rounded-xl">
+            <i class="ph ph-users-three text-2xl"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Engineer Directory & Lifecycle Management</h2>
+            <p class="text-xs text-slate-500">Add, edit, retire engineers, configure weekly off anchors and lifecycle statuses</p>
+          </div>
+        </div>
+        <button id="btnCloseTeamModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm">Active & Historical Engineers</h3>
+            <p class="text-[11px] text-slate-500">Configure team lifecycle, roles (Admin, Engineer, Apprentice) and shift off anchors</p>
+          </div>
+          <button id="btnAddNewEngineer" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 cursor-pointer">
+            <i class="ph ph-user-plus text-sm"></i> + Add Engineer
+          </button>
+        </div>
+
+        <!-- Inline Add/Edit Form (Positioned above table for instant visibility & convenience) -->
+        <div id="engineerFormContainer" class="hidden bg-gradient-to-b from-blue-50/90 to-slate-50 border-2 border-blue-400 rounded-xl p-4 space-y-3.5 shadow-md transition-all">
+          <div class="flex items-center justify-between pb-2 border-b border-blue-200">
+            <h4 class="font-bold text-blue-950 text-sm flex items-center gap-2" id="engineerFormTitle">
+              <i class="ph ph-pencil-simple text-blue-600 text-base"></i> Edit Engineer Details
+            </h4>
+            <div class="flex items-center gap-2">
+              <button type="button" id="btnResetEngineerForm" class="text-xs text-slate-500 hover:text-slate-800 font-semibold flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-100/50 transition">
+                <i class="ph ph-arrow-counter-clockwise"></i> Reset
+              </button>
+              <button type="button" id="btnCloseEngineerFormHeader" class="text-xs text-slate-600 hover:text-red-700 font-bold flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-slate-300 hover:border-red-300 transition shadow-2xs" title="Clear and dismiss form">
+                <i class="ph ph-x text-sm"></i> Close / Clear
+              </button>
+            </div>
+          </div>
+
+          <input type="hidden" id="formEngId" value="">
+
+          <div class="grid grid-cols-4 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Roster Display Name:</label>
+              <input type="text" id="formEngName" placeholder="Enter display name (e.g. JOHN)" class="w-full border border-slate-300 rounded-lg p-2 uppercase font-bold text-xs bg-white focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Username (Portal Login):</label>
+              <div class="relative">
+                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-indigo-500 font-bold font-mono text-xs">@</span>
+                <input type="text" id="formEngUsername" placeholder="e.g. john" class="w-full pl-6 border border-slate-300 rounded-lg p-2 font-mono font-bold text-xs text-indigo-700 bg-indigo-50/40 focus:bg-white focus:ring-2 focus:ring-indigo-500">
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Official Full Name:</label>
+              <input type="text" id="formEngFullName" placeholder="Enter full name" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Work Email (OTP):</label>
+              <input type="email" id="formEngEmail" placeholder="engineer@noc.company.com" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-4 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Phone Number:</label>
+              <input type="text" id="formEngPhone" placeholder="+919876543210" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">System Role:</label>
+              <select id="formEngRole" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="engineer">NOC Engineer</option>
+                <option value="apprentice">Apprentice</option>
+                <option value="admin">Lead Admin</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Status:</label>
+              <select id="formEngStatus" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="Active">Active</option>
+                <option value="Resigned">Resigned</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Join Date:</label>
+              <input type="date" id="formEngJoinDate" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono bg-white focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Resignation / Exit Date:</label>
+              <input type="date" id="formEngResignDate" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono bg-white focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Weekly Off Day 1:</label>
+              <select id="formEngOff1" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="Sunday">Sunday</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Weekly Off Day 2:</label>
+              <select id="formEngOff2" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2.5 border-t border-blue-200">
+            <button id="btnCancelEngineerForm" type="button" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">
+              Cancel / Clear
+            </button>
+            <button id="btnSaveEngineerForm" type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer">
+              <i class="ph ph-check"></i> Save Engineer Record
+            </button>
+          </div>
+        </div>
+
+        <!-- Engineers Table -->
+        <div class="border border-slate-200 rounded-xl overflow-x-auto shadow-sm bg-white">
+          <table class="w-full min-w-[960px] text-left text-xs">
+            <thead class="bg-slate-100 border-b border-slate-200 font-bold text-slate-700">
+              <tr>
+                <th class="p-2.5">Name / Full Name</th>
+                <th class="p-2.5">Username</th>
+                <th class="p-2.5">Email / Phone</th>
+                <th class="p-2.5">Role</th>
+                <th class="p-2.5">Status</th>
+                <th class="p-2.5">Weekly Offs</th>
+                <th class="p-2.5">Lifecycle Dates</th>
+                <th class="p-2.5 text-right sticky right-0 bg-slate-100 z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] min-w-[140px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teamTableBody" class="divide-y divide-slate-200">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: ⚙️ Rules & Constraints Modal (Module B: Dynamic Policies)          -->
+  <!-- ========================================================================= -->
+  <div id="constraintsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="bg-purple-600 text-white p-2 rounded-xl">
+            <i class="ph ph-sliders text-2xl"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Operational Constraints & Policy Engine</h2>
+            <p class="text-xs text-slate-500">Configure headcount thresholds, rest policies, and custom directives</p>
+          </div>
+        </div>
+        <button id="btnCloseConstraintsModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Night Shift (NS) Headcount:</label>
+            <input type="number" id="cfgNightHeadcount" min="1" max="3" value="1" class="w-full border border-slate-300 rounded-lg p-2 font-mono">
+            <p class="text-[11px] text-slate-400 mt-0.5">Strictly 1 engineer per night recommended for 24/7 coverage.</p>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Minimum First Shift (FS):</label>
+            <input type="number" id="cfgFsMin" min="1" max="3" value="1" class="w-full border border-slate-300 rounded-lg p-2 font-mono">
+            <p class="text-[11px] text-slate-400 mt-0.5">Morning core desk coverage target.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Minimum Second Shift (SS):</label>
+            <input type="number" id="cfgSsMin" min="1" max="3" value="1" class="w-full border border-slate-300 rounded-lg p-2 font-mono">
+            <p class="text-[11px] text-slate-400 mt-0.5">Evening core desk coverage target.</p>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Daytime Overlap Target (FG+G+SG):</label>
+            <input type="number" id="cfgDaytimeOverlap" min="2" max="6" value="3" class="w-full border border-slate-300 rounded-lg p-2 font-mono">
+            <p class="text-[11px] text-slate-400 mt-0.5">Midday coverage between 08:30 and 20:00.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Post-Night Mandatory Rest:</label>
+            <select id="cfgPostNightRest" class="w-full border border-slate-300 rounded-lg p-2 font-semibold">
+              <option value="2" selected>2 Days (48 Hours Mandatory Rest)</option>
+              <option value="1">1 Day (24 Hours Rest)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Consecutive Working Days Cap:</label>
+            <input type="number" id="cfgMaxConsecutive" min="4" max="7" value="6" class="w-full border border-slate-300 rounded-lg p-2 font-mono">
+            <p class="text-[11px] text-slate-400 mt-0.5">Fatigue guard: max days before mandatory rest day.</p>
+          </div>
+        </div>
+
+        <!-- Custom Directives -->
+        <div>
+          <label class="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span>Lead Engineer Custom Directives:</span>
+            <span class="text-[11px] text-purple-600 font-semibold">Dynamically injected into Gemini Prompt</span>
+          </label>
+          <textarea id="cfgCustomDirectives" rows="3" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-sans text-slate-800" placeholder="e.g. Maintenance window on Nov 14: Ensure senior engineer on SS..."></textarea>
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+        <button id="btnSaveConstraints" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow">
+          Save Operational Policies
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: 🔄 Swaps & Absences Ledger (Module D: Swap-First Policy)           -->
+  <!-- ========================================================================= -->
+  <div id="swapsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="bg-amber-600 text-white p-2 rounded-xl">
+            <i class="ph ph-arrows-clockwise text-2xl"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Swaps & Absences Ledger — "Swap-First" Policy</h2>
+            <p class="text-xs text-slate-500">Prioritize AI-negotiated peer swaps before unstaffed Leave (`L`)</p>
+          </div>
+        </div>
+        <button id="btnCloseSwapsModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="flex border-b border-slate-200 bg-white px-6 text-xs font-semibold text-slate-600">
+        <button id="tabBtnMutualSwaps" class="px-4 py-2.5 border-b-2 border-amber-600 text-amber-700 font-bold flex items-center gap-1.5" data-tab="tabMutual">
+          <i class="ph ph-handshake"></i> Pre-Locked Mutual Swaps (Manual)
+        </button>
+        <button id="tabBtnSmartAbsences" class="px-4 py-2.5 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-1.5" data-tab="tabSmart">
+          <i class="ph ph-sparkle"></i> AI-Arbitrated Absence Requests
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+        
+        <!-- Tab 1: Mutual Swaps -->
+        <div id="tabMutual" class="tab-swaps-content space-y-3">
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+            <h4 class="font-bold text-slate-800">Add Pre-Locked Mutual Swap Pair:</h4>
+            <div class="grid grid-cols-4 gap-2">
+              <div>
+                <label class="block text-[10px] text-slate-500">Day (Swap Date):</label>
+                <input type="number" id="mutSwapDay1" min="1" max="31" value="10" class="w-full border border-slate-300 rounded p-1 font-mono">
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-500">Engineer A (Gets Swap OFF):</label>
+                <select id="mutSwapEngA" class="w-full border border-slate-300 rounded p-1"></select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-500">Engineer B (Covers Shift):</label>
+                <select id="mutSwapEngB" class="w-full border border-slate-300 rounded p-1"></select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-500">Day (Re-Swap Payback):</label>
+                <input type="number" id="mutSwapDay2" min="1" max="31" value="22" class="w-full border border-slate-300 rounded p-1 font-mono">
+              </div>
+            </div>
+            <button id="btnAddMutualSwap" class="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-1.5 rounded-lg transition shadow">
+              Register Pre-Locked Mutual Swap Pair
+            </button>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-700 mb-2">Registered Mutual Swap Pairs:</h4>
+            <div id="mutualSwapsList" class="space-y-1.5">
+              <span class="text-slate-400 italic">No mutual swaps registered.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Smart Absence Requests -->
+        <div id="tabSmart" class="tab-swaps-content hidden space-y-3">
+          <div class="bg-purple-50 p-3.5 rounded-xl border border-purple-200 space-y-2 text-purple-900">
+            <h4 class="font-bold flex items-center gap-1.5">
+              <i class="ph ph-sparkle text-base text-purple-600"></i> Smart Swap-First Absence Request:
+            </h4>
+            <p class="text-[11px] text-purple-700">
+              Submit single absence requests. Gemini automatically searches for eligible peers to cover and sets reciprocal payback dates before defaulting to Leave (`L`).
+            </p>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[10px] text-purple-700">Requesting Engineer:</label>
+                <select id="absReqEngineer" class="w-full border border-purple-300 rounded p-1 bg-white"></select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-purple-700">Day of Absence (1–31):</label>
+                <input type="number" id="absReqDay" min="1" max="31" value="18" class="w-full border border-purple-300 rounded p-1 bg-white font-mono">
+              </div>
+              <div class="flex items-end">
+                <button id="btnAddAbsenceRequest" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 rounded transition shadow">
+                  Submit Absence Request
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-700 mb-2">Pending Absence Requests for AI Arbitration:</h4>
+            <div id="absenceRequestsList" class="space-y-1.5">
+              <span class="text-slate-400 italic">No absence requests registered.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: ✨ AI Roster Generator Modal (Gemini API Integration)             -->
+  <!-- ========================================================================= -->
+  <div id="aiModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-2 rounded-xl shadow-sm">
+            <i class="ph ph-sparkle text-2xl"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Gemini AI Smart Roster Generator</h2>
+            <p class="text-xs text-slate-500">Structured JSON Output • Swap-First Policy • 24/7 Night Coverage</p>
+          </div>
+        </div>
+        <button id="btnCloseAiModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-800">Target Generation Period:</div>
+          <div class="text-sm font-extrabold text-purple-700 font-mono" id="aiModalPeriodLabel">NOVEMBER 2026 (30 Days)</div>
+          <div class="text-[11px] text-slate-500">Engineers in active roster: <span id="aiActiveEngineersCount">10</span></div>
+        </div>
+
+        <div id="aiProgressBox" class="hidden p-3.5 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl flex items-center gap-3">
+          <i class="ph ph-spinner animate-spin text-xl text-emerald-400"></i>
+          <span id="aiProgressText">Compiling prompt & calling Gemini API...</span>
+        </div>
+
+        <!-- Compliance & Arbitrated Swaps Result -->
+        <div id="aiScorecard" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+          <div class="font-bold text-slate-800 text-xs flex items-center justify-between">
+            <span>Gemini Compliance Audit</span>
+            <span id="aiScoreBadge" class="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">100% Score</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-white p-2 rounded-lg border border-slate-200">
+              <div class="text-base font-extrabold text-emerald-600" id="aiNightCov">100%</div>
+              <div class="text-[10px] text-slate-500 uppercase">24/7 Night Cov</div>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200">
+              <div class="text-base font-extrabold text-emerald-600" id="aiFatigueViolations">0</div>
+              <div class="text-[10px] text-slate-500 uppercase">Fatigue Violations</div>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200">
+              <div class="text-base font-extrabold text-purple-600" id="aiEngineLabel">Gemini 1.5</div>
+              <div class="text-[10px] text-slate-500 uppercase">Engine Source</div>
+            </div>
+          </div>
+
+          <!-- AI Arbitrated Swaps List -->
+          <div id="aiArbitratedSwapsBox" class="hidden pt-2 border-t border-slate-200 space-y-1.5">
+            <h5 class="font-bold text-purple-900">AI-Arbitrated Swaps Executed:</h5>
+            <div id="aiArbitratedSwapsList" class="space-y-1 text-[11px] text-purple-800"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+        <button id="btnOpenGeminiSettingsInline" class="text-xs text-slate-500 hover:text-slate-800 font-semibold flex items-center gap-1">
+          <i class="ph ph-gear"></i> Model Settings
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="btnRunAiGeneration" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow flex items-center gap-1.5">
+            <i class="ph ph-lightning text-base"></i> Run Gemini Generator
+          </button>
+          <button id="btnApplyAiDraft" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow flex items-center gap-1.5">
+            <i class="ph ph-check-circle text-base"></i> Apply to Active Grid
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 5: ✏️ Cell Override Popover (Module 4)                               -->
+  <!-- ========================================================================= -->
+  <div id="shiftPickerModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+    <div class="bg-white rounded-xl border border-slate-300 shadow-2xl p-4 w-84">
+      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+        <div>
+          <div class="text-xs text-slate-500 font-bold uppercase tracking-wider" id="pickerSubHeader">Oct 21 • SHEFEEQ</div>
+          <div class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+            <span>Select Shift Code</span>
+            <span id="pickerLockIndicator" class="hidden text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono">🔒 Locked</span>
+          </div>
+        </div>
+        <button id="btnClosePicker" class="text-slate-400 hover:text-slate-600 p-1 rounded-md text-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Standard Shift Buttons Grid (Core Shifts) -->
+      <div class="grid grid-cols-4 gap-2 mb-2">
+        <button data-code="FS" class="btn-picker p-2 rounded shift-FS text-xs border border-emerald-400 hover:scale-105 transition">
+          FS <span class="block text-[9px] font-normal">07:30 - 16:30</span>
+        </button>
+        <button data-code="FG" class="btn-picker p-2 rounded shift-FG text-xs hover:scale-105 transition">
+          FG <span class="block text-[9px] font-normal">08:30 - 17:30</span>
+        </button>
+        <button data-code="G" class="btn-picker p-2 rounded shift-G text-xs border border-blue-400 hover:scale-105 transition">
+          G <span class="block text-[9px] font-normal">09:30 - 18:30</span>
+        </button>
+        <button data-code="SG" class="btn-picker p-2 rounded shift-SG text-xs hover:scale-105 transition">
+          SG <span class="block text-[9px] font-normal">11:00 - 20:00</span>
+        </button>
+        <button data-code="SS" class="btn-picker p-2 rounded shift-SS text-xs border border-amber-400 hover:scale-105 transition">
+          SS <span class="block text-[9px] font-normal">13:00 - 22:00</span>
+        </button>
+        <button data-code="NS" class="btn-picker p-2 rounded shift-NS text-xs hover:scale-105 transition">
+          NS <span class="block text-[9px] font-normal">21:00 - 07:30</span>
+        </button>
+        <button data-code="OFF" class="btn-picker p-2 rounded shift-OFF text-xs border border-yellow-400 hover:scale-105 transition">
+          OFF <span class="block text-[9px] font-normal">Weekly Off</span>
+        </button>
+        <button data-code="L" class="btn-picker p-2 rounded shift-L text-xs hover:scale-105 transition">
+          L <span class="block text-[9px] font-normal">Leave</span>
+        </button>
+      </div>
+
+      <!-- Clear / Blank Shift Button -->
+      <div class="mb-3">
+        <button data-code="" class="btn-picker w-full py-1.5 px-3 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 transition flex items-center justify-center gap-1.5">
+          <i class="ph ph-eraser text-sm text-slate-500"></i> Clear Shift (Make Blank)
+        </button>
+      </div>
+
+      <!-- Swap Shift Section (Treated as OFF) -->
+      <div class="border-t border-slate-200 pt-2.5">
+        <div class="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+          <span class="flex items-center gap-1"><i class="ph ph-arrows-clockwise text-amber-600"></i> Swap with Peer (OFF):</span>
+          <span class="text-[10px] text-slate-400 font-normal">Peer covers shift</span>
+        </div>
+        <div id="pickerSwapButtonsContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 bg-slate-50 rounded-lg border border-slate-200">
+          <!-- Dynamically populated peer swap buttons (SWM, SWDY, SWSH, etc.) -->
+        </div>
+      </div>
+
+      <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between">
+        <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+          <input type="checkbox" id="pickerLockCheckbox" class="rounded text-purple-600">
+          <span>Lock Cell (🔒 Immutable)</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modals (Gemini & Atlas) -->
+  <div id="geminiSettingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+    <div class="bg-white rounded-xl border border-slate-300 shadow-2xl p-5 w-full max-w-md">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="ph ph-sparkle text-purple-600 text-xl"></i> Google Gemini API Settings
+        </h3>
+        <button id="btnCloseGeminiSettings" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="space-y-3.5 my-3.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Google Gemini API Key:</label>
+          <input type="password" id="geminiApiKeyInput" value="" placeholder="AIzaSy... / AQ..." class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs">
+          <p class="text-[11px] text-slate-400 mt-1">Configured for Google Gemini API structured generation.</p>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Model Selection:</label>
+          <select id="geminiModelSelect" class="w-full border border-slate-300 rounded-lg p-2 font-semibold">
+            <option value="gemini-1.5-flash" selected>gemini-1.5-flash (Fast & Structured)</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Reasoning & Complex Rules)</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="gemini-3.8-flash">gemini-3.8-flash (Latest Model)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+        <button id="btnSaveGeminiSettings" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-1.5 rounded-lg text-xs transition shadow">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MongoDB Atlas Settings Modal -->
+  <div id="atlasConfigModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+    <div class="bg-white rounded-xl border border-slate-300 shadow-2xl p-5 w-full max-w-lg">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="ph ph-database text-emerald-600 text-xl"></i> MongoDB Atlas M0 Integration
+        </h3>
+        <button id="btnCloseAtlasConfig" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="space-y-3.5 my-3.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">MongoDB Atlas Connection URI:</label>
+          <input type="password" id="atlasUriInput" value="" placeholder="mongodb+srv://<username>:<password>@cluster0.mongodb.net/rosterx" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-[11px]">
+          <p class="text-[11px] text-slate-400 mt-1">Configured via .env on server • Masked for security</p>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Atlas Native REST API Endpoint:</label>
+          <input type="text" id="atlasEndpointInput" value="http://localhost:8000/api" placeholder="http://localhost:8000/api" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs">
+          <p class="text-[11px] text-slate-400 mt-1">Native Python PyMongo bridge URL (auto-proxied via server.py)</p>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Atlas Data API Key / User API Key:</label>
+          <input type="password" id="atlasApiKeyInput" placeholder="API key or token" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Cluster Name:</label>
+            <input type="text" id="atlasClusterInput" value="Cluster0" class="w-full border border-slate-300 rounded-lg p-2 text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Database:</label>
+            <input type="text" id="atlasDatabaseInput" value="rosterx" class="w-full border border-slate-300 rounded-lg p-2 text-xs">
+          </div>
+        </div>
+        <div id="atlasTestFeedback" class="hidden p-2 rounded text-xs"></div>
+      </div>
+      <div class="flex items-center justify-between pt-3 border-t border-slate-200">
+        <button id="btnTestAtlasConn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg text-xs border border-slate-300">
+          Test Connection
+        </button>
+        <button id="btnSaveAtlasConfig" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-1.5 rounded-lg text-xs transition shadow">
+          Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: 📥 Import Roster from Excel (.xlsx)                                 -->
+  <!-- ========================================================================= -->
+  <div id="importModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh] overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="bg-blue-600 text-white p-2 rounded-xl shadow-sm">
+            <i class="ph ph-file-arrow-up text-2xl"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Import Roster from Excel</h2>
+            <p class="text-xs text-slate-500">Upload .xlsx spreadsheet or download pre-formatted monthly template</p>
+          </div>
+        </div>
+        <button id="btnCloseImportModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+        
+        <!-- Target Date / Month Selector -->
+        <div class="p-4 bg-blue-50/80 rounded-xl border border-blue-200 space-y-2.5">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex-1 min-w-[240px]">
+              <label class="block font-bold text-blue-950 mb-1 flex items-center gap-1.5">
+                <i class="ph ph-calendar-check text-blue-600 text-base"></i>
+                <span>Target Month & Year (Date Input):</span>
+              </label>
+              <div class="flex items-center gap-2">
+                <input type="month" id="importTargetMonthInput" value="2026-10" class="bg-white border border-blue-300 font-bold px-2.5 py-1.5 rounded-lg text-xs text-blue-900 shadow-sm focus:ring-2 focus:ring-blue-500 font-mono">
+                <select id="importTargetMonthSelect" class="flex-1 bg-white border border-blue-300 font-bold px-2.5 py-1.5 rounded-lg text-xs text-blue-900 shadow-sm focus:ring-2 focus:ring-blue-500">
+                  <option value="2026-10">OCTOBER 2026 (31 Days)</option>
+                  <option value="2026-11">NOVEMBER 2026 (30 Days)</option>
+                  <option value="2026-12">DECEMBER 2026 (31 Days)</option>
+                  <option value="2027-01">JANUARY 2027 (31 Days)</option>
+                  <option value="2027-02">FEBRUARY 2027 (28 Days)</option>
+                  <option value="2027-03">MARCH 2027 (31 Days)</option>
+                  <option value="2027-04">APRIL 2027 (30 Days)</option>
+                  <option value="2027-05">MAY 2027 (31 Days)</option>
+                  <option value="2027-06">JUNE 2027 (30 Days)</option>
+                  <option value="2027-07">JULY 2027 (31 Days)</option>
+                  <option value="2027-08">AUGUST 2027 (31 Days)</option>
+                  <option value="2027-09">SEPTEMBER 2027 (30 Days)</option>
+                  <option value="2027-10">OCTOBER 2027 (31 Days)</option>
+                  <option value="2027-11">NOVEMBER 2027 (30 Days)</option>
+                  <option value="2027-12">DECEMBER 2027 (31 Days)</option>
+                </select>
+              </div>
+            </div>
+            <div class="bg-white p-2.5 rounded-lg border border-blue-200 text-blue-950 text-right min-w-[170px] shadow-2xs">
+              <span class="text-[10px] text-blue-500 uppercase font-bold block">Selected Period</span>
+              <strong id="importModalPeriodLabel" class="text-sm font-black text-blue-700 font-mono">OCTOBER 2026 (31 Days)</strong>
+            </div>
+          </div>
+          <p class="text-[11px] text-blue-700/80">Template download and imported shifts will apply directly to this selected month. Choose from calendar or quick dropdown.</p>
+        </div>
+
+        <!-- Engineer Name Input & Verification -->
+        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between flex-wrap gap-1">
+            <label class="font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="ph ph-users-three text-blue-600 text-base"></i>
+              <span>Active Engineers for Import:</span>
+            </label>
+            <span class="text-[11px] text-slate-500">
+              <span id="importActiveEngCount" class="font-bold text-emerald-700">10</span> Active (Resigned engineers excluded)
+            </span>
+          </div>
+
+          <div class="flex gap-2">
+            <input type="text" id="importEngineerInput" placeholder="Enter engineer name (e.g. JOHN DOE) and press Enter to add..." class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 font-semibold">
+            <button id="btnAddImportEngineer" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
+              <i class="ph ph-user-plus"></i> Add to List
+            </button>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-white border border-slate-200 rounded-lg" id="importEngineerTagsContainer">
+            <!-- Dynamically populated with active engineer pills with remove button -->
+          </div>
+        </div>
+
+        <!-- Step 1: Download Blank Template -->
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="ph ph-download-simple text-emerald-600 text-base"></i>
+                <span>Step 1: Download Blank Excel Template</span>
+              </h4>
+              <p class="text-[11px] text-slate-500 mt-0.5">
+                Pre-configured with Active engineers and blank shift cells ready to fill. Resigned staff excluded.
+              </p>
+            </div>
+            <button id="btnDownloadSampleTemplate" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs transition shadow-sm">
+              <i class="ph ph-download-simple text-sm"></i> Download Blank Template (.xlsx)
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Upload Area -->
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+          <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+            <i class="ph ph-cloud-arrow-up text-blue-600 text-base"></i>
+            <span>Step 2: Upload Filled Excel File</span>
+          </h4>
+          
+          <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-5 text-center bg-white cursor-pointer transition">
+            <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden">
+            <i class="ph ph-file-xls text-4xl text-blue-600 mx-auto block mb-1.5"></i>
+            <span class="font-bold text-slate-800 block text-xs">Click to browse or drag and drop your .xlsx file here</span>
+            <span class="text-[11px] text-slate-400 block mt-0.5">Supports Microsoft Excel (.xlsx, .xls)</span>
+          </div>
+
+          <div id="selectedFileInfo" class="hidden p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="ph ph-file-text text-lg text-emerald-600"></i>
+              <div>
+                <span class="font-bold text-slate-800 block" id="selectedFileName">roster.xlsx</span>
+                <span class="text-[10px] text-slate-400" id="selectedFileSize">0 KB</span>
+              </div>
+            </div>
+            <button id="btnClearFile" class="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-0.5">
+              <i class="ph ph-trash"></i> Remove
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Live Preview & Inspection Container -->
+        <div id="importPreviewBox" class="hidden space-y-2.5 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="ph ph-check-circle text-emerald-600 text-base"></i>
+              <span>Parsed Preview & Validation</span>
+            </h4>
+            <span id="importSummaryBadge" class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Ready to Apply
+            </span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-white p-2 rounded-lg border border-slate-200">
+              <div class="text-sm font-extrabold text-blue-600" id="previewEngCount">0</div>
+              <div class="text-[10px] text-slate-500 uppercase">Engineers</div>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200">
+              <div class="text-sm font-extrabold text-blue-600" id="previewDaysCount">0</div>
+              <div class="text-[10px] text-slate-500 uppercase">Days Parsed</div>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200">
+              <div class="text-sm font-extrabold text-emerald-600" id="previewStatus">Valid</div>
+              <div class="text-[10px] text-slate-500 uppercase">Format Check</div>
+            </div>
+          </div>
+
+          <!-- Warnings Box (if any) -->
+          <div id="importWarningsBox" class="hidden p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-[11px] space-y-1">
+            <div class="font-bold flex items-center gap-1">
+              <i class="ph ph-warning"></i> Notices:
+            </div>
+            <ul id="importWarningsList" class="list-disc pl-4 space-y-0.5 text-[10px]"></ul>
+          </div>
+
+          <!-- Mini Table Preview -->
+          <div class="border border-slate-200 rounded-lg overflow-x-auto max-h-40 bg-white">
+            <table class="w-full text-center text-[10px] font-mono divide-y divide-slate-200">
+              <thead class="bg-slate-100 text-slate-700 font-bold sticky top-0" id="previewTableHead">
+                <!-- Dynamically generated -->
+              </thead>
+              <tbody class="divide-y divide-slate-100" id="previewTableBody">
+                <!-- Dynamically generated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+        <button id="btnCancelImport" class="text-xs text-slate-600 hover:text-slate-800 font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-white">
+          Cancel
+        </button>
+        <button id="btnApplyImportedRoster" disabled class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow flex items-center gap-1.5">
+          <i class="ph ph-check text-base"></i> Apply to Active Grid
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Options Modal (Module: Grid vs AppSheet Export) -->
+  <div id="exportModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center gap-2.5">
+          <div class="bg-emerald-100 text-emerald-800 p-2 rounded-xl">
+            <i class="ph ph-file-xls text-2xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Export Roster Data</h3>
+            <p class="text-xs text-slate-500" id="exportModalPeriodLabel">Select your desired spreadsheet format</p>
+          </div>
+        </div>
+        <button id="btnCloseExportModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg cursor-pointer">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="py-4 space-y-3">
+        <!-- Option 1: Month Grid -->
+        <button id="btnExportMonthGrid" class="w-full text-left p-3.5 rounded-xl border-2 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition group flex items-start gap-3.5 cursor-pointer shadow-2xs">
+          <div class="bg-emerald-600 text-white p-2.5 rounded-lg shrink-0 mt-0.5 shadow-sm group-hover:scale-105 transition">
+            <i class="ph ph-table text-xl"></i>
+          </div>
+          <div class="flex-1">
+            <div class="text-sm font-bold text-slate-900 group-hover:text-emerald-900 flex items-center justify-between">
+              <span>1. Export as Month Grid</span>
+              <span class="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">Standard</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1 leading-snug">
+              Formatted multi-color 24/7 NOC matrix with current week-off order, shift color palette, and staffing coverage summaries.
+            </p>
+          </div>
+        </button>
+
+        <!-- Option 2: AppSheet Format -->
+        <button id="btnExportAppSheet" class="w-full text-left p-3.5 rounded-xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition group flex items-start gap-3.5 cursor-pointer shadow-2xs">
+          <div class="bg-blue-600 text-white p-2.5 rounded-lg shrink-0 mt-0.5 shadow-sm group-hover:scale-105 transition">
+            <i class="ph ph-google-drive-logo text-xl"></i>
+          </div>
+          <div class="flex-1">
+            <div class="text-sm font-bold text-slate-900 group-hover:text-blue-900 flex items-center justify-between">
+              <span>2. Export for AppSheet Data</span>
+              <span class="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-300">GDrive / Master</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1 leading-snug">
+              Normalized tabular data (<span class="font-mono text-slate-700 font-bold">Roster_AppSheet_Final</span> & <span class="font-mono text-slate-700 font-bold">REF DATA</span>) with Date, MonthKey, SWOFF, Given OFF, and Covering Swap mappings.
+            </p>
+          </div>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-end pt-3 border-t border-slate-200">
+        <button id="btnCancelExportModal" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Rule Audit Modal -->
+  <div id="auditDetailsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+    <div class="bg-white rounded-xl border border-slate-300 shadow-2xl p-5 w-full max-w-lg">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="ph ph-shield-check text-red-600 text-xl"></i> Rule Audit & Fatigue Violations Log
+        </h3>
+        <button id="btnCloseAuditDetails" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="my-3 max-h-72 overflow-y-auto space-y-2 text-xs" id="auditDetailsList"></div>
+      <div class="flex items-center justify-end pt-3 border-t border-slate-200">
+        <button id="btnCloseAuditDetailsFooter" class="bg-slate-800 text-white font-bold px-4 py-1.5 rounded-lg text-xs">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification (Positioned safely above AI Assistant floating bot) -->
+  <div id="toast" class="fixed bottom-24 right-6 z-[9999] bg-slate-900/95 backdrop-blur-md text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl border border-slate-700/60 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2.5">
+    <i class="ph ph-check-circle text-emerald-400 text-base"></i>
+    <span id="toastMsg" class="font-medium">Action complete</span>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ADMIN ACCOUNT PROFILE & SECURITY -->
+  <!-- ============================================================== -->
+  <div id="adminAccountModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 w-full max-w-lg relative">
+      <button id="btnCloseAdminAccountModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+        <i class="ph ph-x text-lg"></i>
+      </button>
+
+      <div class="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-200">
+        <div class="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-xl font-bold shadow-sm">
+          <i class="ph ph-shield-check"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900" id="adminModalName">Administrator Profile</h3>
+          <p class="text-xs text-slate-500">Security Credentials & Password Management</p>
+        </div>
+      </div>
+
+      <div class="flex border-b border-slate-200 mb-4 gap-2">
+        <button type="button" id="tabBtnAdminProfile" class="pb-2 px-3 text-xs font-bold text-purple-700 border-b-2 border-purple-700 cursor-pointer">
+          <i class="ph ph-identification-card mr-1"></i> Profile Information
+        </button>
+        <button type="button" id="tabBtnAdminSecurity" class="pb-2 px-3 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent cursor-pointer">
+          <i class="ph ph-shield-key mr-1"></i> Security & Password
+        </button>
+      </div>
+
+      <div id="tabContentAdminProfile" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Full Name</span>
+            <span id="adminProfileFullName" class="font-bold text-slate-800 text-xs">System Administrator</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Username</span>
+            <span id="adminProfileUsername" class="font-mono font-bold text-purple-700 text-xs">admin</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Email</span>
+            <span id="adminProfileEmail" class="font-semibold text-slate-700 text-xs">admin@rosterx.dev</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Contact Phone</span>
+            <span id="adminProfilePhone" class="font-semibold text-slate-700 text-xs">+91 98110 01100</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Access Role</span>
+            <span class="font-bold text-purple-700 text-xs">Full Administrative Root</span>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">System Status</span>
+            <span class="font-bold text-emerald-700 text-xs">Active Live</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="tabContentAdminSecurity" class="hidden space-y-3.5">
+        <div id="adminChangePassAlert" class="hidden p-3 rounded-xl text-xs flex items-start gap-2">
+          <i class="ph ph-info text-base shrink-0 mt-0.5"></i>
+          <span id="adminChangePassAlertText"></span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Current Password</label>
+          <input type="password" id="adminCurrentPassInput" placeholder="Enter current password" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">New Password</label>
+          <input type="password" id="adminNewPassInput" placeholder="Min 4 characters" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Confirm New Password</label>
+          <input type="password" id="adminConfirmPassInput" placeholder="Confirm new password" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600">
+        </div>
+
+        <button type="button" id="btnAdminSubmitChangePass" class="w-full py-2.5 rounded-xl font-bold text-white text-xs bg-purple-700 hover:bg-purple-800 transition shadow-md cursor-pointer flex items-center justify-center gap-1.5">
+          <i class="ph ph-key text-sm"></i>
+          <span>Update Admin Password</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { authService } from './js/authService.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const adminPill = document.getElementById('adminUserPill');
+      const modal = document.getElementById('adminAccountModal');
+      const btnClose = document.getElementById('btnCloseAdminAccountModal');
+      const tabProfile = document.getElementById('tabBtnAdminProfile');
+      const tabSecurity = document.getElementById('tabBtnAdminSecurity');
+      const contentProfile = document.getElementById('tabContentAdminProfile');
+      const contentSecurity = document.getElementById('tabContentAdminSecurity');
+
+      if (adminPill && modal) {
+        adminPill.addEventListener('click', () => {
+          const u = authService.getCurrentUser() || {};
+          const engList = (typeof window !== 'undefined' && window.rosterApp?.state?.engineersList) ? window.rosterApp.state.engineersList : [];
+          const engMeta = engList.find(e => (u.engineerId && e.id === u.engineerId) || (e.name && (e.name === u.name || e.name === u.username)) || (u.role === 'admin' && e.role === 'admin')) || {};
+
+          document.getElementById('adminProfileFullName').textContent = engMeta.full_name || u.name || 'System Administrator';
+          document.getElementById('adminProfileUsername').textContent = u.username || 'admin';
+          document.getElementById('adminProfileEmail').textContent = engMeta.email || u.email || 'admin@rosterx.dev';
+          document.getElementById('adminProfilePhone').textContent = engMeta.phone || u.phone || '+91 98110 01100';
+          document.getElementById('adminCurrentPassInput').value = '';
+          document.getElementById('adminNewPassInput').value = '';
+          document.getElementById('adminConfirmPassInput').value = '';
+          document.getElementById('adminChangePassAlert').classList.add('hidden');
+          tabProfile.click();
+          modal.classList.remove('hidden');
+        });
+
+        btnClose?.addEventListener('click', () => modal.classList.add('hidden'));
+
+        tabProfile?.addEventListener('click', () => {
+          tabProfile.className = 'pb-2 px-3 text-xs font-bold text-purple-700 border-b-2 border-purple-700 cursor-pointer';
+          tabSecurity.className = 'pb-2 px-3 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent cursor-pointer';
+          contentProfile.classList.remove('hidden');
+          contentSecurity.classList.add('hidden');
+        });
+
+        tabSecurity?.addEventListener('click', () => {
+          tabSecurity.className = 'pb-2 px-3 text-xs font-bold text-purple-700 border-b-2 border-purple-700 cursor-pointer';
+          tabProfile.className = 'pb-2 px-3 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent cursor-pointer';
+          contentSecurity.classList.remove('hidden');
+          contentProfile.classList.add('hidden');
+        });
+
+        const btnSubmit = document.getElementById('btnAdminSubmitChangePass');
+        const alertBox = document.getElementById('adminChangePassAlert');
+        const alertText = document.getElementById('adminChangePassAlertText');
+
+        btnSubmit?.addEventListener('click', async () => {
+          const currentPass = document.getElementById('adminCurrentPassInput').value.trim();
+          const newPass = document.getElementById('adminNewPassInput').value.trim();
+          const confirmPass = document.getElementById('adminConfirmPassInput').value.trim();
+
+          alertBox.classList.remove('hidden');
+
+          if (!currentPass || !newPass || !confirmPass) {
+            alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-700';
+            alertText.textContent = 'Please fill in all password fields.';
+            return;
+          }
+
+          if (newPass !== confirmPass) {
+            alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-700';
+            alertText.textContent = 'New Password and Confirm New Password do not match.';
+            return;
+          }
+
+          const u = authService.getCurrentUser() || { username: 'admin' };
+          const res = await authService.changePassword(u.username, currentPass, newPass);
+
+          if (!res.success) {
+            alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-700';
+            alertText.textContent = res.error || 'Failed to update password.';
+          } else {
+            alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold';
+            alertText.textContent = '✅ ' + res.message;
+            document.getElementById('adminCurrentPassInput').value = '';
+            document.getElementById('adminNewPassInput').value = '';
+            document.getElementById('adminConfirmPassInput').value = '';
+          }
+        });
+      }
+    });
+  </script>
+
+  <!-- Master Application Script (ES Module) -->
+  <script type="module" src="js/app.js?v=5.0"></script>
+</body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — RosterX Operations & NOC Portal</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <script>
+    (function() {
+      try {
+        var raw = localStorage.getItem('rosterx_auth_user');
+        var user = raw ? JSON.parse(raw) : null;
+        if (user && user.role) {
+          if (user.role === 'admin') {
+            window.location.replace('index.html');
+          } else {
+            window.location.replace('user-portal.html');
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-outfit {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    /* Ambient animated mesh background */
+    .bg-mesh {
+      background: radial-gradient(circle at 15% 20%, rgba(14, 165, 233, 0.22) 0%, transparent 45%),
+                  radial-gradient(circle at 85% 25%, rgba(99, 102, 241, 0.28) 0%, transparent 45%),
+                  radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.20) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(217, 70, 239, 0.18) 0%, transparent 40%),
+                  #070b14;
+    }
+
+    /* Ambient floating orb animation */
+    @keyframes orb-float {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-20px) scale(1.05); }
+    }
+    .animate-orb {
+      animation: orb-float 8s ease-in-out infinite;
+    }
+    .animate-orb-slow {
+      animation: orb-float 12s ease-in-out infinite reverse;
+    }
+
+    /* Glassmorphic card styling */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px rgba(14, 165, 233, 0.15);
+    }
+
+    /* Glow button gradient */
+    .btn-gradient {
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.35);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-gradient:hover {
+      box-shadow: 0 6px 28px rgba(37, 99, 235, 0.55), 0 0 15px rgba(56, 189, 248, 0.4);
+      transform: translateY(-1px);
+    }
+
+    /* Logo floating animation */
+    @keyframes logo-breathe {
+      0%, 100% { transform: translateY(0); filter: drop-shadow(0 10px 20px rgba(14, 165, 233, 0.35)); }
+      50% { transform: translateY(-6px); filter: drop-shadow(0 16px 28px rgba(14, 165, 233, 0.55)); }
+    }
+    .animate-logo {
+      animation: logo-breathe 4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-mesh min-h-screen text-slate-100 flex flex-col items-center justify-center p-4 relative overflow-x-hidden selection:bg-cyan-500 selection:text-white">
+
+  <!-- Ambient Light Orbs -->
+  <div class="absolute top-10 left-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none animate-orb"></div>
+  <div class="absolute bottom-10 right-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none animate-orb-slow"></div>
+
+  <!-- Main Login Container -->
+  <div class="w-full max-w-md relative z-10 py-6">
+
+    <!-- Brand Header -->
+    <div class="text-center mb-8">
+      <div class="inline-block relative">
+        <img src="assets/logo.png" alt="RosterX Logo" class="w-24 h-24 mx-auto object-contain animate-logo mb-3" />
+      </div>
+      <h1 class="text-3xl font-extrabold tracking-tight font-outfit text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-cyan-300">
+        RosterX
+      </h1>
+      <p class="text-xs uppercase tracking-widest font-semibold text-cyan-400 mt-1">
+        24/7 Intelligent NOC Operations Portal
+      </p>
+    </div>
+
+    <!-- Login Glass Card -->
+    <div class="glass-card rounded-2xl p-7 relative overflow-hidden">
+      
+      <!-- Top Accent Line -->
+      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600"></div>
+
+      <!-- Card Title & Welcome -->
+      <div class="mb-5">
+        <h2 class="text-lg font-bold text-white font-outfit">Sign In to Continue</h2>
+        <p class="text-xs text-slate-400">Admin Console & NOC Engineer Portal</p>
+      </div>
+
+      <!-- Feedback Alert Banner -->
+      <div id="loginAlert" class="hidden mb-4 p-3 rounded-xl text-xs flex items-start gap-2.5 transition">
+        <i id="loginAlertIcon" class="ph ph-warning-circle text-base shrink-0 mt-0.5"></i>
+        <div id="loginAlertText" class="font-medium"></div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="space-y-4">
+        
+        <!-- Username/Email Field -->
+        <div>
+          <label for="usernameInput" class="block text-xs font-semibold text-slate-300 mb-1.5">
+            Username / Staff Name / Email
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              <i class="ph ph-user text-base"></i>
+            </span>
+            <input 
+              type="text" 
+              id="usernameInput" 
+              required
+              placeholder="Enter username or registered email"
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-900/70 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition shadow-inner"
+            />
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="passwordInput" class="text-xs font-semibold text-slate-300">
+              Password
+            </label>
+            <button 
+              type="button" 
+              id="btnForgotPass" 
+              class="text-xs text-cyan-400 hover:text-cyan-300 font-medium transition cursor-pointer hover:underline"
+            >
+              Forgot Password?
+            </button>
+          </div>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              <i class="ph ph-lock-key text-base"></i>
+            </span>
+            <input 
+              type="password" 
+              id="passwordInput" 
+              required
+              placeholder="••••••••"
+              class="w-full pl-10 pr-10 py-2.5 bg-slate-900/70 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition shadow-inner"
+            />
+            <button 
+              type="button" 
+              id="togglePassword" 
+              class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            >
+              <i class="ph ph-eye text-base" id="eyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Remember Me Checkbox -->
+        <div class="flex items-center justify-between pt-1">
+          <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-400 select-none">
+            <input type="checkbox" id="rememberMe" checked class="rounded border-slate-700 bg-slate-900 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-slate-900">
+            <span>Keep me logged in</span>
+          </label>
+        </div>
+
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          id="btnSubmit" 
+          class="w-full btn-gradient py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer group mt-2"
+        >
+          <span id="btnText">Sign In to Dashboard</span>
+          <i class="ph ph-arrow-right text-base group-hover:translate-x-1 transition"></i>
+        </button>
+      </form>
+
+
+
+    </div>
+
+    <!-- Security & Compliance Footer -->
+    <div class="text-center mt-6 text-xs text-slate-500">
+      <span>RosterX • &copy; 2026 All rights reserved</span>
+    </div>
+
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: FORGOT PASSWORD WITH OTP VERIFICATION -->
+  <!-- ============================================================== -->
+  <div id="forgotPasswordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="glass-card rounded-2xl w-full max-w-md p-6 relative border border-slate-700/80 shadow-2xl">
+      
+      <!-- Close Button -->
+      <button id="btnCloseForgotModal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition p-1 cursor-pointer">
+        <i class="ph ph-x text-lg"></i>
+      </button>
+
+      <!-- Modal Title -->
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+          <i class="ph ph-key text-xl"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white font-outfit">Reset Account Password</h3>
+          <p class="text-xs text-slate-400">Secure verification using 6-digit OTP</p>
+        </div>
+      </div>
+
+      <!-- OTP Flow Alert -->
+      <div id="otpAlert" class="hidden mb-4 p-3 rounded-xl text-xs flex items-start gap-2">
+        <i class="ph ph-info text-base shrink-0 mt-0.5"></i>
+        <div id="otpAlertText" class="font-medium"></div>
+      </div>
+
+      <!-- STEP 1: Enter Username/Email to Request OTP -->
+      <div id="otpStep1" class="space-y-4">
+        <p class="text-xs text-slate-300">
+          Enter your username, registered engineer name, or email. We will generate a secure One-Time Password (OTP) for your identity.
+        </p>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Account Identifier</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="ph ph-user text-base"></i>
+            </span>
+            <input 
+              type="text" 
+              id="resetIdentifierInput" 
+              placeholder="Enter username or registered email"
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
+        </div>
+
+        <button 
+          type="button" 
+          id="btnSendOtp" 
+          class="w-full btn-gradient py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <span>Send Verification OTP</span>
+          <i class="ph ph-paper-plane-tilt text-base"></i>
+        </button>
+      </div>
+
+      <!-- STEP 2: Enter OTP & Set New Password -->
+      <div id="otpStep2" class="hidden space-y-4">
+
+        <!-- 6-digit OTP Input -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">
+            Enter 6-Digit OTP Code
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="ph ph-password text-base"></i>
+            </span>
+            <input 
+              type="text" 
+              id="otpInput" 
+              maxlength="6"
+              placeholder="Enter 6-digit code"
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm font-mono tracking-widest text-center text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
+        </div>
+
+        <!-- New Password Input -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">
+            New Password
+          </label>
+          <input 
+            type="password" 
+            id="newPassInput" 
+            placeholder="Min 6 characters"
+            class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          />
+        </div>
+
+        <!-- Confirm Password Input -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">
+            Confirm New Password
+          </label>
+          <input 
+            type="password" 
+            id="confirmPassInput" 
+            placeholder="Confirm new password"
+            class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          />
+        </div>
+
+        <button 
+          type="button" 
+          id="btnSubmitReset" 
+          class="w-full btn-gradient py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <span>Verify OTP & Update Password</span>
+          <i class="ph ph-check-circle text-base"></i>
+        </button>
+
+        <div class="text-center pt-1">
+          <button 
+            type="button" 
+            id="btnBackToStep1" 
+            class="text-xs text-slate-400 hover:text-white transition cursor-pointer"
+          >
+            ← Change username / Resend OTP
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Login Logic Script -->
+  <script type="module">
+    import { authService } from './js/authService.js?v=5.0';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Warm users cache from backend Atlas/server
+      if (typeof authService.refreshUsersFromBackend === 'function') {
+        authService.refreshUsersFromBackend().catch(() => {});
+      }
+
+      const loginForm = document.getElementById('loginForm');
+      const usernameInput = document.getElementById('usernameInput');
+      const passwordInput = document.getElementById('passwordInput');
+      const togglePassword = document.getElementById('togglePassword');
+      const eyeIcon = document.getElementById('eyeIcon');
+      const loginAlert = document.getElementById('loginAlert');
+      const loginAlertText = document.getElementById('loginAlertText');
+      const loginAlertIcon = document.getElementById('loginAlertIcon');
+      const btnSubmit = document.getElementById('btnSubmit');
+      const btnText = document.getElementById('btnText');
+
+      // Toggle password visibility
+      togglePassword.addEventListener('click', () => {
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          eyeIcon.className = 'ph ph-eye-slash text-base text-cyan-400';
+        } else {
+          passwordInput.type = 'password';
+          eyeIcon.className = 'ph ph-eye text-base';
+        }
+      });
+
+      function showAlert(msg, isError = true) {
+        loginAlert.classList.remove('hidden');
+        if (isError) {
+          loginAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2.5 transition bg-rose-950/60 border border-rose-500/40 text-rose-200';
+          loginAlertIcon.className = 'ph ph-warning-circle text-base shrink-0 mt-0.5 text-rose-400';
+        } else {
+          loginAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2.5 transition bg-emerald-950/60 border border-emerald-500/40 text-emerald-200';
+          loginAlertIcon.className = 'ph ph-check-circle text-base shrink-0 mt-0.5 text-emerald-400';
+        }
+        loginAlertText.innerHTML = msg;
+      }
+
+      // Handle Login Submit
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+
+        if (!username || !password) {
+          showAlert('Please provide both username and password.');
+          return;
+        }
+
+        btnSubmit.disabled = true;
+        btnText.innerHTML = '<i class="ph ph-spinner animate-spin mr-1"></i> Authenticating...';
+
+        try {
+          const result = await authService.login(username, password);
+          if (!result.success) {
+            showAlert(result.error);
+            btnSubmit.disabled = false;
+            btnText.textContent = 'Sign In to Dashboard';
+            return;
+          }
+
+          const user = result.user;
+          showAlert(`Welcome, <strong>${user.name}</strong>! Redirecting...`, false);
+
+          setTimeout(() => {
+            if (user.role === 'admin') {
+              window.location.href = 'index.html';
+            } else {
+              window.location.href = 'user-portal.html';
+            }
+          }, 800);
+
+        } catch (err) {
+          showAlert('An unexpected authentication error occurred.');
+          btnSubmit.disabled = false;
+          btnText.textContent = 'Sign In to Dashboard';
+        }
+      });
+
+      // ==========================================
+      // FORGOT PASSWORD MODAL & OTP LOGIC
+      // ==========================================
+      const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+      const btnForgotPass = document.getElementById('btnForgotPass');
+      const btnCloseForgotModal = document.getElementById('btnCloseForgotModal');
+      const otpStep1 = document.getElementById('otpStep1');
+      const otpStep2 = document.getElementById('otpStep2');
+      const resetIdentifierInput = document.getElementById('resetIdentifierInput');
+      const btnSendOtp = document.getElementById('btnSendOtp');
+      const otpAlert = document.getElementById('otpAlert');
+      const otpAlertText = document.getElementById('otpAlertText');
+      const otpInput = document.getElementById('otpInput');
+      const newPassInput = document.getElementById('newPassInput');
+      const confirmPassInput = document.getElementById('confirmPassInput');
+      const btnSubmitReset = document.getElementById('btnSubmitReset');
+      const btnBackToStep1 = document.getElementById('btnBackToStep1');
+
+      let currentResetIdentifier = '';
+
+      function showOtpAlert(msg, isError = true) {
+        otpAlert.classList.remove('hidden');
+        if (isError) {
+          otpAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2 bg-rose-950/60 border border-rose-500/40 text-rose-200';
+        } else {
+          otpAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2 bg-emerald-950/60 border border-emerald-500/40 text-emerald-200';
+        }
+        otpAlertText.innerHTML = msg;
+      }
+
+      btnForgotPass.addEventListener('click', () => {
+        otpAlert.classList.add('hidden');
+        otpStep1.classList.remove('hidden');
+        otpStep2.classList.add('hidden');
+        resetIdentifierInput.value = usernameInput.value || '';
+        forgotPasswordModal.classList.remove('hidden');
+      });
+
+      btnCloseForgotModal.addEventListener('click', () => {
+        forgotPasswordModal.classList.add('hidden');
+      });
+
+      // Step 1: Request OTP
+      btnSendOtp.addEventListener('click', async () => {
+        const identifier = resetIdentifierInput.value.trim();
+        if (!identifier) {
+          showOtpAlert('Please enter your username, engineer name, or email.');
+          return;
+        }
+
+        btnSendOtp.disabled = true;
+        btnSendOtp.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Generating OTP...';
+
+        const res = await authService.requestPasswordResetOtp(identifier);
+        btnSendOtp.disabled = false;
+        btnSendOtp.innerHTML = '<span>Send Verification OTP</span><i class="ph ph-paper-plane-tilt text-base"></i>';
+
+        if (!res.success) {
+          showOtpAlert(res.error || 'Failed to request OTP');
+          return;
+        }
+
+        currentResetIdentifier = identifier;
+
+        // Switch to Step 2
+        otpStep1.classList.add('hidden');
+        otpStep2.classList.remove('hidden');
+        const recipient = res.delivered_to || res.user?.email || res.user?.name || identifier;
+        const noticeExtra = res.notice ? `<div class="mt-1 text-[11px] text-cyan-300 font-normal">ℹ️ ${res.notice}</div>` : '';
+        showOtpAlert(`Verification OTP successfully sent to <strong>${recipient}</strong>. Please check your email inbox.${noticeExtra}`, false);
+        otpInput.value = '';
+        newPassInput.value = '';
+        confirmPassInput.value = '';
+        setTimeout(() => otpInput.focus(), 50);
+      });
+
+      btnBackToStep1.addEventListener('click', () => {
+        otpStep2.classList.add('hidden');
+        otpStep1.classList.remove('hidden');
+        otpAlert.classList.add('hidden');
+      });
+
+      // Step 2: Verify & Reset
+      btnSubmitReset.addEventListener('click', async () => {
+        const otp = otpInput.value.trim();
+        const newPass = newPassInput.value.trim();
+        const confirmPass = confirmPassInput.value.trim();
+
+        if (!otp || otp.length < 6) {
+          showOtpAlert('Please enter the full 6-digit OTP code.');
+          return;
+        }
+
+        if (!newPass || newPass.length < 4) {
+          showOtpAlert('Password must be at least 4 characters long.');
+          return;
+        }
+
+        if (newPass !== confirmPass) {
+          showOtpAlert('New Password and Confirm Password do not match.');
+          return;
+        }
+
+        btnSubmitReset.disabled = true;
+        btnSubmitReset.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Updating password...';
+
+        const resetRes = await authService.resetPassword({
+          identifier: currentResetIdentifier,
+          otp: otp,
+          newPassword: newPass
+        });
+
+        btnSubmitReset.disabled = false;
+        btnSubmitReset.innerHTML = '<span>Verify OTP & Update Password</span><i class="ph ph-check-circle text-base"></i>';
+
+        if (!resetRes.success) {
+          showOtpAlert(resetRes.error || 'Password reset failed.');
+          return;
+        }
+
+        // Success
+        showOtpAlert('✅ Password reset successful! You can now log in with your new password.', false);
+        setTimeout(() => {
+          forgotPasswordModal.classList.add('hidden');
+          usernameInput.value = currentResetIdentifier;
+          passwordInput.value = newPass;
+          showAlert('Password updated! Click "Sign In to Dashboard" to log in.', false);
+        }, 1600);
+      });
+
+    });
+  </script>
+</body>
+</html>

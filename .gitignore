@@ -1,0 +1,16 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Node / dependencies
+node_modules/
+.npm/
+
+# OS metadata
+.DS_Store
+Thumbs.db
