@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rosterx.R
+import com.rosterx.ui.neumorphic.*
+import com.rosterx.presentation.components.*
 import com.rosterx.presentation.admin.tabs.*
 import com.rosterx.presentation.portal.EngineerPortalScreen
 
@@ -123,72 +125,33 @@ fun AdminMainScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.primary
+                        containerColor = NeumorphicTokens.Canvas,
+                        titleContentColor = NeumorphicTokens.AccentSalmon
                     )
                 )
             },
             bottomBar = {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                    tonalElevation = 8.dp
-                ) {
-                    NavigationBar(
-                        containerColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ) {
-                        val tabs = listOf(
-                            Triple(0, "Dashboard", Icons.Default.Dashboard),
-                            Triple(1, "Manage Team", Icons.Default.Group),
-                            Triple(2, "Month Rosters", Icons.Default.CalendarMonth),
-                            Triple(3, "Broadcast", Icons.Default.Campaign),
-                            Triple(4, "Settings", Icons.Default.Settings)
-                        )
-
-                        tabs.forEach { (index, title, icon) ->
-                            val selected = selectedTab == index
-                            val iconScale by animateFloatAsState(
-                                targetValue = if (selected) 1.25f else 1.0f,
-                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                                label = "TabIconScale"
-                            )
-
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { selectedTab = index },
-                                icon = { 
-                                    Icon(
-                                        icon, 
-                                        contentDescription = title,
-                                        modifier = Modifier.scale(iconScale),
-                                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    ) 
-                                },
-                                label = { 
-                                    Text(
-                                        text = title, 
-                                        fontSize = 9.sp, 
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    ) 
-                                },
-                                colors = NavigationBarItemDefaults.colors(
-                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                )
-                            )
-                        }
-                    }
+                val adminNavItems = remember {
+                    listOf(
+                        NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
+                        NavTabItem(1, "Team", Icons.Default.Group),
+                        NavTabItem(2, "Rosters", Icons.Default.CalendarMonth),
+                        NavTabItem(3, "Broadcast", Icons.Default.Campaign),
+                        NavTabItem(4, "Settings", Icons.Default.Settings)
+                    )
                 }
+
+                FluidNeumorphicBottomNav(
+                    items = adminNavItems,
+                    selectedIndex = selectedTab,
+                    onTabSelected = { selectedTab = it }
+                )
             }
         ) { paddingValues ->
             Box(modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
+                .background(NeumorphicTokens.Canvas)
             ) {
                 if (state.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))

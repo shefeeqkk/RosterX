@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rosterx.BuildConfig
 import com.rosterx.R
+import com.rosterx.ui.neumorphic.*
+import com.rosterx.presentation.components.*
 import com.rosterx.util.NetworkUtils
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerStatus
@@ -231,18 +233,20 @@ fun EngineerPortalScreen(
                             text = "RosterX",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 20.sp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = NeumorphicTokens.AccentSalmon
                         )
                     }
                 },
                 actions = {
                     if (state.loggedInEngineer != null) {
-                        Surface(
-                            onClick = { selectedTab = 4 },
+                        NeumorphicCard(
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .clickable { selectedTab = 4 },
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
-                            modifier = Modifier.padding(end = 12.dp)
+                            style = NeumorphicElevationStyle.RaisedSubtle,
+                            surfaceColor = NeumorphicTokens.Surface,
+                            contentPadding = 0.dp
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -252,14 +256,14 @@ fun EngineerPortalScreen(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
+                                        .background(NeumorphicTokens.AccentGradient),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = state.loggedInEngineer!!.name.take(1).uppercase(),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onPrimary
+                                        color = Color.White
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -267,15 +271,15 @@ fun EngineerPortalScreen(
                                     text = state.loggedInEngineer!!.name.split(" ")[0],
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = NeumorphicTokens.TextMain
                                 )
                             }
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.primary
+                    containerColor = NeumorphicTokens.Canvas,
+                    titleContentColor = NeumorphicTokens.TextMain
                 )
             )
         },
@@ -285,73 +289,34 @@ fun EngineerPortalScreen(
                     onClick = { viewModel.selectDate(LocalDate.now()) },
                     icon = { Icon(Icons.Default.Today, contentDescription = null) },
                     text = { Text("Jump to Today", fontWeight = FontWeight.Bold) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = NeumorphicTokens.AccentSalmon,
+                    contentColor = Color.White,
                     elevation = FloatingActionButtonDefaults.elevation(8.dp)
                 )
             }
         },
         bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                tonalElevation = 8.dp
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ) {
-                    val tabs = listOf(
-                        Triple(0, "Dashboard", Icons.Default.Dashboard),
-                        Triple(1, "Team Shifts", Icons.Default.Group),
-                        Triple(2, "My Calendar", Icons.Default.CalendarMonth),
-                        Triple(3, "Month Roster", Icons.Default.GridView),
-                        Triple(4, "Settings", Icons.Default.Settings)
-                    )
-
-                    tabs.forEach { (index, title, icon) ->
-                        val selected = selectedTab == index
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (selected) 1.25f else 1.0f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                            label = "TabIconScale"
-                        )
-
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { selectedTab = index },
-                            icon = { 
-                                Icon(
-                                    icon, 
-                                    contentDescription = title,
-                                    modifier = Modifier.scale(iconScale),
-                                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                ) 
-                            },
-                            label = { 
-                                Text(
-                                    text = title, 
-                                    fontSize = 9.sp, 
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                ) 
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                            )
-                        )
-                    }
-                }
+            val portalNavItems = remember {
+                listOf(
+                    NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
+                    NavTabItem(1, "Team Shifts", Icons.Default.Group),
+                    NavTabItem(2, "My Calendar", Icons.Default.CalendarMonth),
+                    NavTabItem(3, "Month Roster", Icons.Default.GridView),
+                    NavTabItem(4, "Settings", Icons.Default.Settings)
+                )
             }
+
+            FluidNeumorphicBottomNav(
+                items = portalNavItems,
+                selectedIndex = selectedTab,
+                onTabSelected = { selectedTab = it }
+            )
         }
     ) { paddingValues ->
         Box(modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .background(MaterialTheme.colorScheme.background)
+            .background(NeumorphicTokens.Canvas)
         ) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -440,46 +405,33 @@ fun DashboardView(
     ) {
         // Hero Welcome Banner
         item {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.5f)),
-                modifier = Modifier.fillMaxWidth()
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 20.dp
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFF0284C7).copy(alpha = 0.22f),
-                                    Color(0xFF4F46E5).copy(alpha = 0.15f)
-                                )
-                            )
-                        )
-                        .padding(20.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Welcome, ${engineer?.name ?: "Engineer"}! \uD83D\uDC4B",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "24/7 operational shift overview and live verified team duty briefing.",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                Column {
+                    Text(
+                        text = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
+                        color = NeumorphicTokens.AccentSalmon,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Welcome, ${engineer?.name ?: "Engineer"}! \uD83D\uDC4B",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeumorphicTokens.TextMain
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "24/7 operational shift overview and live verified team duty briefing.",
+                        fontSize = 13.sp,
+                        color = NeumorphicTokens.TextMuted
+                    )
                 }
             }
         }
@@ -700,46 +652,42 @@ fun DashboardView(
 
 @Composable
 fun VibrantShiftCard(title: String, shift: ShiftCode?, accentColor: Color, modifier: Modifier = Modifier) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)),
-        modifier = modifier.height(135.dp)
+    NeumorphicCard(
+        modifier = modifier.height(135.dp),
+        shape = RoundedCornerShape(22.dp),
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 14.dp
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(accentColor.copy(alpha = 0.10f))
-                .padding(14.dp)
-        ) {
-            Column {
-                Text(text = title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (shift != null) Color(parseColor(shift.bgColorHex)) else Color.DarkGray),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = shift?.code ?: "--",
-                            color = if (shift != null) Color(parseColor(shift.textColorHex)) else Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 18.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(text = shift?.name ?: "Rest Day", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(
-                            text = if (shift != null && shift !is ShiftCode.OFF) "Active Duty" else "Rest Day",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = accentColor
-                        )
-                    }
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(text = title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .neumorphicInset(
+                            shape = RoundedCornerShape(14.dp),
+                            surfaceColor = if (shift != null) Color(parseColor(shift.bgColorHex)).copy(alpha = 0.35f) else NeumorphicTokens.SurfaceContrast
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = shift?.code ?: "--",
+                        color = if (shift != null) Color(parseColor(shift.textColorHex)) else NeumorphicTokens.TextMuted,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(text = shift?.name ?: "Rest Day", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = NeumorphicTokens.TextMain)
+                    Text(
+                        text = if (shift != null && shift !is ShiftCode.OFF) "Active Duty" else "Rest Day",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor
+                    )
                 }
             }
         }
@@ -748,33 +696,48 @@ fun VibrantShiftCard(title: String, shift: ShiftCode?, accentColor: Color, modif
 
 @Composable
 fun VibrantMetricsCard(title: String, metrics: List<Pair<String, Int>>, bottomText: String, accentColor: Color, modifier: Modifier = Modifier) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)),
-        modifier = modifier.height(135.dp)
+    NeumorphicCard(
+        modifier = modifier.height(135.dp),
+        shape = RoundedCornerShape(22.dp),
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 14.dp
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(accentColor.copy(alpha = 0.10f))
-                .padding(14.dp)
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxSize()) {
-                Text(text = title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    metrics.forEach { (label, count) ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = label, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(text = count.toString(), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = accentColor)
-                        }
+            Text(text = title, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                metrics.forEach { (label, count) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = label,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeumorphicTokens.TextMuted
+                        )
+                        Text(
+                            text = count.toString(),
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = accentColor
+                        )
                     }
                 }
-                Text(text = bottomText, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            Text(
+                text = bottomText,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = NeumorphicTokens.TextMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

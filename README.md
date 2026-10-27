@@ -103,7 +103,7 @@ RESEND_API_KEY=re_your_resend_key
 ALERT_EMAIL=admin@yourdomain.com
 ```
 
-### 3. Launch Backend & Web Server
+### 3. Launch Backend & Web Server (Local / Self-Hosted)
 ```bash
 # Start server with integrated Cloudflare Tunnel
 python server.py --tunnel
@@ -117,6 +117,12 @@ Once started, the interactive console displays:
 - **🏠 Local Wi-Fi URL**: `http://192.168.x.x:8000`
 - **💻 Local Web App**: `http://localhost:8000`
 - **📱 Android Synced Base URL**: Automatically written to `android/app/src/main/assets/server_url.txt`
+
+### 4. Deploy 24/7 to Render (Free Tier $0/mo)
+Deploy directly from your GitHub repository to Render with 1-click:
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+See the complete step-by-step instructions in [`RENDER_DEPLOYMENT_GUIDE.md`](./RENDER_DEPLOYMENT_GUIDE.md).
 
 ---
 

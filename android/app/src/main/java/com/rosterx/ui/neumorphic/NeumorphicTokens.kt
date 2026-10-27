@@ -33,9 +33,9 @@ object NeumorphicTokens {
     val ShadowLightSubtle: Color = Color(0xA6FFFFFF) // rgba(255, 255, 255, 0.65)
 
     /** Bottom-Right Shadow Vector (+X, +Y): Soft desaturated occlusion shadow */
-    val ShadowDark: Color = Color(0xA6A6B4C8) // rgba(166, 180, 200, 0.65)
-    val ShadowDarkSubtle: Color = Color(0x66A6B4C8) // rgba(166, 180, 200, 0.40)
-    val ShadowDarkAmbient: Color = Color(0x40A6B4C8) // rgba(166, 180, 200, 0.25)
+    val ShadowDark: Color = Color(0x8C92A3B8) // rgba(146, 163, 184, 0.55) - Deep soft drop shadow
+    val ShadowDarkSubtle: Color = Color(0x5992A3B8) // rgba(146, 163, 184, 0.35)
+    val ShadowDarkAmbient: Color = Color(0x3392A3B8) // rgba(166, 180, 200, 0.25)
 
     // ==========================================
     // 3. Kinetic Energy Accent & Accessibility

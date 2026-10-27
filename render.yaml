@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: rosterx
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py --no-tunnel --no-open
+    healthCheckPath: /api/server-info
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MONGODB_URI
+        sync: false
+      - key: ATLAS_CLUSTER
+        value: Cluster0
+      - key: ATLAS_DATABASE
+        value: rosterx
+      - key: RESEND_API_KEY
+        sync: false
+      - key: ALERT_EMAIL
+        value: kkshefeeq005@gmail.com
+      - key: ENABLE_TUNNEL
+        value: "false"

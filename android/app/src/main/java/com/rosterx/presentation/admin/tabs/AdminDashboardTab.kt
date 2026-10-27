@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rosterx.presentation.admin.AdminRosterState
 import com.rosterx.presentation.portal.getRosterForEngineer
+import com.rosterx.ui.neumorphic.*
+import com.rosterx.presentation.components.*
 
 data class RuleViolation(
     val rawEngineerName: String,
@@ -270,71 +272,58 @@ fun AdminDashboardTab(
     ) {
         // 1. Server Health Card
         item {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, Color(0xFF0284C7).copy(alpha = 0.5f)),
-                modifier = Modifier.fillMaxWidth()
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 20.dp
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFF0284C7).copy(alpha = 0.2f),
-                                    Color(0xFF4F46E5).copy(alpha = 0.12f)
-                                )
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (state.isConnected) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = if (state.isConnected) NeumorphicTokens.StatusEmerald else Color(0xFFEF4444),
+                                modifier = Modifier.size(20.dp)
                             )
-                        )
-                        .padding(20.dp)
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (state.isConnected) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = if (state.isConnected) Color(0xFF10B981) else Color(0xFFEF4444),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (state.isConnected) "MONGODB ATLAS CONNECTED" else "SERVER DISCONNECTED",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = if (state.isConnected) Color(0xFF10B981) else Color(0xFFEF4444)
-                                )
-                            }
-
-                            IconButton(onClick = onRefreshDiagnostics) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = MaterialTheme.colorScheme.primary)
-                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (state.isConnected) "MONGODB ATLAS CONNECTED" else "SERVER DISCONNECTED",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (state.isConnected) NeumorphicTokens.StatusEmerald else Color(0xFFEF4444)
+                            )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        IconButton(onClick = onRefreshDiagnostics) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = NeumorphicTokens.AccentSalmon)
+                        }
+                    }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text("Atlas Cluster", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(state.clusterName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                            Column {
-                                Text("Database", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(state.databaseName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                            Column {
-                                Text("Latency", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                val latencyText = if (state.latencyMs > 0) "${state.latencyMs} ms" else if (state.isConnected) "< 25 ms" else "--"
-                                Text(latencyText, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Atlas Cluster", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                            Text(state.clusterName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
+                        }
+                        Column {
+                            Text("Database", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                            Text(state.databaseName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
+                        }
+                        Column {
+                            Text("Latency", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                            val latencyText = if (state.latencyMs > 0) "${state.latencyMs} ms" else if (state.isConnected) "< 25 ms" else "--"
+                            Text(latencyText, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.StatusCyan)
                         }
                     }
                 }
@@ -343,33 +332,34 @@ fun AdminDashboardTab(
 
         // 2. AI Copilot & Policy Specs
         item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 16.dp
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("OPERATIONAL POLICY & AI ENGINE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("OPERATIONAL POLICY & AI ENGINE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon)
                             Spacer(modifier = Modifier.width(6.dp))
                             IconButton(
                                 onClick = { showEditPolicyDialog = true },
                                 modifier = Modifier.size(26.dp)
                             ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit Policy", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Edit, contentDescription = "Edit Policy", tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp))
                             }
                         }
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f)
                         ) {
-                            Text(activeModel, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                            Text(activeModel, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
                         }
                     }
 
@@ -390,13 +380,14 @@ fun AdminDashboardTab(
 
         // 3. Real-Time Rule Violation Auditor (Compact Header so Counter is not squeezed)
         item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 16.dp
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -406,24 +397,24 @@ fun AdminDashboardTab(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Shield, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 "RULE AUDITOR ($currentMonthShort)",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = NeumorphicTokens.AccentSalmon
                             )
                         }
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (violations.isEmpty()) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
+                            color = if (violations.isEmpty()) NeumorphicTokens.StatusEmerald.copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
                         ) {
                             Text(
                                 text = if (violations.isEmpty()) "0 Clean" else "${violations.size} Issues",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (violations.isEmpty()) Color(0xFF10B981) else Color(0xFFEF4444),
+                                color = if (violations.isEmpty()) NeumorphicTokens.StatusEmerald else Color(0xFFEF4444),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
@@ -497,15 +488,17 @@ fun AdminDashboardTab(
 
 @Composable
 fun PolicyBadge(title: String, value: String, bg: Color, fg: Color) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = bg,
+    NeumorphicCard(
         modifier = Modifier
             .defaultMinSize(minHeight = 62.dp, minWidth = 115.dp)
-            .wrapContentHeight()
+            .wrapContentHeight(),
+        shape = RoundedCornerShape(14.dp),
+        style = NeumorphicElevationStyle.RaisedSubtle,
+        surfaceColor = bg,
+        contentPadding = 10.dp
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
             verticalArrangement = Arrangement.Center
         ) {
             Text(

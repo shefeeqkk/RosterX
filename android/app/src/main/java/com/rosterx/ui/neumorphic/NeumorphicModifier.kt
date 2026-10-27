@@ -49,8 +49,6 @@ fun Modifier.neumorphicRaised(
     surfaceColor: Color = NeumorphicTokens.Surface
 ): Modifier = this.drawBehind {
     val outline = shape.createOutline(size, layoutDirection, this)
-    val width = size.width
-    val height = size.height
     val offsetX = elevation.offsetX.toPx()
     val offsetY = elevation.offsetY.toPx()
     val blurRadius = elevation.blurRadius.toPx()
@@ -58,34 +56,36 @@ fun Modifier.neumorphicRaised(
     drawIntoCanvas { canvas ->
         val frameworkCanvas = canvas.nativeCanvas
 
-        // 1. Bottom-Right Occlusion Shadow (+X, +Y)
+        // 1. Bottom-Right Soft Occlusion Drop Shadow (+X, +Y)
         val darkPaint = android.graphics.Paint().apply {
             isAntiAlias = true
             color = elevation.darkShadow.toArgb()
+            setShadowLayer(blurRadius, offsetX, offsetY, elevation.darkShadow.toArgb())
             if (blurRadius > 0f) {
                 maskFilter = BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL)
             }
         }
         frameworkCanvas.save()
-        frameworkCanvas.translate(offsetX, offsetY)
+        frameworkCanvas.translate(offsetX * 0.5f, offsetY * 0.5f)
         drawOutlineIntoCanvas(frameworkCanvas, outline, darkPaint)
         frameworkCanvas.restore()
 
-        // 2. Top-Left Specular Highlight (-X, -Y)
+        // 2. Top-Left Diffuse Specular Highlight (-X, -Y)
         val lightPaint = android.graphics.Paint().apply {
             isAntiAlias = true
             color = elevation.lightShadow.toArgb()
+            setShadowLayer(blurRadius, -offsetX, -offsetY, elevation.lightShadow.toArgb())
             if (blurRadius > 0f) {
                 maskFilter = BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL)
             }
         }
         frameworkCanvas.save()
-        frameworkCanvas.translate(-offsetX, -offsetY)
+        frameworkCanvas.translate(-offsetX * 0.5f, -offsetY * 0.5f)
         drawOutlineIntoCanvas(frameworkCanvas, outline, lightPaint)
         frameworkCanvas.restore()
     }
 
-    // 3. Base Surface Molded Fill
+    // 3. Molded Canvas Surface Body
     drawOutline(outline, surfaceColor)
 }
 

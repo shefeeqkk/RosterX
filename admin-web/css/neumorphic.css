@@ -480,3 +480,93 @@ body.nm-theme,
 .nm-tr:hover .nm-td {
   background: rgba(255, 255, 255, 0.4);
 }
+
+/* --- 9. Animated Fluid Bottom Navigation Dock (Soft UI Wave Notch & Floating Bubble) --- */
+.nm-fluid-dock-container {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 500px;
+  height: 82px;
+  z-index: 990;
+  pointer-events: none;
+}
+
+.nm-fluid-dock-surface {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 68px;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised);
+  border-radius: 24px 24px 0 0;
+  pointer-events: auto;
+}
+
+.nm-floating-bubble {
+  position: absolute;
+  top: 0;
+  width: 54px;
+  height: 54px;
+  background: var(--nm-surface);
+  border-radius: 50%;
+  box-shadow: var(--nm-elevation-raised), var(--nm-accent-glow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-20px) scale(1);
+  transition: left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s ease;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.nm-floating-pip {
+  width: 5px;
+  height: 5px;
+  background: var(--nm-accent-salmon);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--nm-accent-salmon);
+  margin-top: 3px;
+}
+
+.nm-fluid-tabs-row {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  pointer-events: auto;
+  z-index: 5;
+}
+
+.nm-fluid-tab-btn {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--nm-text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.2s ease;
+}
+
+.nm-fluid-tab-btn:active {
+  transform: scale(0.90);
+}
+
+.nm-fluid-tab-btn.active {
+  color: var(--nm-accent-salmon);
+  font-weight: 800;
+}
