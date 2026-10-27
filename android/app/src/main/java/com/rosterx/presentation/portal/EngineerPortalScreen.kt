@@ -1181,28 +1181,37 @@ fun MonthRosterView(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        val configuration = LocalConfiguration.current
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = if (isLandscape) 2.dp else 12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onPreviousMonth) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Prev Month")
+                        IconButton(
+                            onClick = onPreviousMonth,
+                            modifier = Modifier.size(if (isLandscape) 30.dp else 48.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Prev Month", modifier = Modifier.size(if (isLandscape) 18.dp else 24.dp))
                         }
                         Text(
                             text = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")).uppercase(Locale.US),
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 15.sp,
+                            fontSize = if (isLandscape) 13.sp else 15.sp,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        IconButton(onClick = onNextMonth) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Month")
+                        IconButton(
+                            onClick = onNextMonth,
+                            modifier = Modifier.size(if (isLandscape) 30.dp else 48.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Month", modifier = Modifier.size(if (isLandscape) 18.dp else 24.dp))
                         }
                     }
 
@@ -1213,7 +1222,7 @@ fun MonthRosterView(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .width(140.dp)
-                            .height(38.dp)
+                            .height(if (isLandscape) 30.dp else 38.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1279,7 +1288,7 @@ fun MonthRosterView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(if (isLandscape) 34.dp else 48.dp)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         // Corner Sticky Header
@@ -1371,7 +1380,7 @@ fun MonthRosterView(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(40.dp)
+                                    .height(if (isLandscape) 32.dp else 40.dp)
                                     .background(if (isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface)
                             ) {
                                 Box(
@@ -1500,7 +1509,7 @@ fun MonthRosterView(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(36.dp)
+                                        .height(if (isLandscape) 32.dp else 38.dp)
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                                 ) {
                                     Box(
@@ -1508,12 +1517,12 @@ fun MonthRosterView(
                                             .width(120.dp)
                                             .fillMaxHeight()
                                             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-                                            .padding(horizontal = 8.dp),
+                                            .padding(horizontal = 4.dp, vertical = 2.dp),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
-                                        Column {
-                                            Text("DAY COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.5.sp, color = MaterialTheme.colorScheme.primary)
-                                            Text("≥$minDayStaff (Appr. Excl.)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Column(verticalArrangement = Arrangement.Center) {
+                                            Text("DAY COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text("Target: ≥$minDayStaff (Excl. Appr)", fontSize = 7.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                     Row(
@@ -1551,7 +1560,7 @@ fun MonthRosterView(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(36.dp)
+                                        .height(if (isLandscape) 32.dp else 38.dp)
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                                 ) {
                                     Box(
@@ -1559,12 +1568,12 @@ fun MonthRosterView(
                                             .width(120.dp)
                                             .fillMaxHeight()
                                             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-                                            .padding(horizontal = 8.dp),
+                                            .padding(horizontal = 4.dp, vertical = 2.dp),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
-                                        Column {
-                                            Text("NIGHT COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.5.sp, color = MaterialTheme.colorScheme.primary)
-                                            Text("=$targetNight NS (Appr. Excl.)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Column(verticalArrangement = Arrangement.Center) {
+                                            Text("NIGHT COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text("Target: $targetNight NS (Excl. Appr)", fontSize = 7.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                     Row(
