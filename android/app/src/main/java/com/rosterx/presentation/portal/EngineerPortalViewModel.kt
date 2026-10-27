@@ -88,8 +88,18 @@ class EngineerPortalViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, errorMessage = null)
             
-            // 1. Load Engineers directory from database
             val engineersResult = repository.getEngineers()
+            
+            // If connection failed immediately, abort loading logic to clear spinner faster
+            if (engineersResult.isFailure) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    isConnected = false,
+                    errorMessage = engineersResult.exceptionOrNull()?.message ?: "Failed to connect to backend server."
+                )
+                return@launch
+            }
+            
             val engineers = engineersResult.getOrElse { emptyList() }
 
             // Merge details (like defaultWeeklyOffs) into loggedInEngineer
@@ -161,8 +171,15 @@ class EngineerPortalViewModel @Inject constructor(
                 gridRoster = gridRosterMap,
                 constraints = loadedConstraints,
                 notifications = notifs,
-                dismissedNotificationIds = savedDismissed
+                dismissedNotificationIds = savedDismissed,
+                isConnected = engineersResult.isSuccess
             )
+            
+            if (engineersResult.isFailure) {
+                _state.value = _state.value.copy(
+                    errorMessage = engineersResult.exceptionOrNull()?.message ?: "Failed to load data. Please check connection."
+                )
+            }
         }
     }
 
