@@ -1,0 +1,482 @@
+/* ==========================================================================
+   RosterX — Unified Neumorphic (Soft UI) Design System Architecture
+   Surface: Desktop Web Admin Panel & Universal Web Surfaces
+   Universal Light Physics: 135° Ambient Key Light (Top-Left Highlight / Bottom-Right Shadow)
+   ========================================================================== */
+
+:root {
+  /* ==========================================
+     1. Monochromatic Canvas & Surface Baseline
+     ========================================== */
+  --nm-surface: #eef2f6;
+  --nm-surface-rgb: 238, 242, 246;
+  --nm-surface-contrast: #e2e8f0;
+
+  /* ==========================================
+     2. Dual-Opposite Light-Source Coordinates (135° Key Light)
+     ========================================== */
+  /* Top-Left Light Vector (-X, -Y): Specular Highlight */
+  --nm-shadow-light: rgba(255, 255, 255, 0.90);
+  --nm-shadow-light-subtle: rgba(255, 255, 255, 0.65);
+  
+  /* Bottom-Right Shadow Vector (+X, +Y): Occlusion Shadow */
+  --nm-shadow-dark: rgba(166, 180, 200, 0.65);
+  --nm-shadow-dark-subtle: rgba(166, 180, 200, 0.40);
+  --nm-shadow-dark-ambient: rgba(166, 180, 200, 0.25);
+
+  /* ==========================================
+     3. Standard Elevation Strata
+     ========================================== */
+  /* Level 1 — Extruded / Raised (Default Interactive & Surface Containers) */
+  --nm-elevation-raised: 6px 6px 14px var(--nm-shadow-dark), -6px -6px 14px var(--nm-shadow-light);
+  --nm-elevation-raised-hover: 8px 8px 18px var(--nm-shadow-dark), -8px -8px 18px var(--nm-shadow-light);
+  --nm-elevation-raised-subtle: 3px 3px 8px var(--nm-shadow-dark-subtle), -3px -3px 8px var(--nm-shadow-light-subtle);
+
+  /* Level 2 — Sunken / Inset (Recessed Depressions: Text inputs, active toggles) */
+  --nm-elevation-inset: inset 4px 4px 8px var(--nm-shadow-dark), inset -4px -4px 8px var(--nm-shadow-light);
+  --nm-elevation-inset-subtle: inset 2px 2px 5px var(--nm-shadow-dark-subtle), inset -2px -2px 5px var(--nm-shadow-light-subtle);
+
+  /* Level 3 — Deep Well (Engraved / Slotted States: Progress tracks, counter wells) */
+  --nm-elevation-deep-well: inset 6px 6px 12px var(--nm-shadow-dark), inset -6px -6px 12px var(--nm-shadow-light);
+
+  /* Level 4 — High-Floating Layer (Modals, Action Drawers, Sticky Overlays) */
+  --nm-elevation-floating: 14px 14px 28px var(--nm-shadow-dark), -14px -14px 28px var(--nm-shadow-light);
+  --nm-elevation-floating-hover: 18px 18px 36px var(--nm-shadow-dark), -18px -18px 36px var(--nm-shadow-light);
+
+  /* ==========================================
+     4. Geometry & Organic Curvature
+     ========================================== */
+  --nm-radius-sm: 14px;      /* Badges, chips, shift pills (12px - 16px) */
+  --nm-radius-md: 20px;      /* Buttons, text inputs, tile cards (18px - 22px) */
+  --nm-radius-lg: 28px;      /* Containers, dialogs, bottom sheets (26px - 32px) */
+  --nm-radius-full: 9999px;  /* Circular action buttons, radio pills */
+
+  /* ==========================================
+     5. Kinetic Energy Accent & Accessibility
+     ========================================== */
+  --nm-accent-start: #ff6b6b;
+  --nm-accent-end: #ff5252;
+  --nm-accent-gradient: linear-gradient(135deg, var(--nm-accent-start) 0%, var(--nm-accent-end) 100%);
+  --nm-accent-glow: 0 8px 20px rgba(255, 82, 82, 0.35);
+  --nm-accent-active: inset 3px 3px 6px rgba(0, 0, 0, 0.3), inset -3px -3px 6px rgba(255, 255, 255, 0.3);
+
+  /* Secondary Accents (NOC Status Identifiers) */
+  --nm-cyan-accent: #0284c7;
+  --nm-emerald-accent: #10b981;
+  --nm-amber-accent: #f59e0b;
+
+  /* ==========================================
+     6. Typography & High-Contrast Guard
+     ========================================== */
+  --nm-text-main: #2d3748;      /* High contrast dark slate */
+  --nm-text-muted: #718096;     /* Secondary / hints */
+  --nm-text-light: #a0aec0;     /* Placeholder & disabled */
+  --nm-text-accent: #ff5252;
+  --nm-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* ==========================================
+     7. Tactile Motion & Kinetics
+     ========================================== */
+  --nm-transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --nm-transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --nm-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ==========================================================================
+   Base Canvas & Structural Resets
+   ========================================================================== */
+body.nm-theme,
+[data-theme="neumorphic"],
+.nm-canvas {
+  background-color: var(--nm-surface) !important;
+  color: var(--nm-text-main) !important;
+  font-family: var(--nm-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure smooth surface blending */
+.nm-surface {
+  background-color: var(--nm-surface);
+  color: var(--nm-text-main);
+}
+
+/* ==========================================================================
+   Elevation Utility Classes
+   ========================================================================== */
+.nm-raised {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised);
+  border: none !important;
+  transition: var(--nm-transition);
+}
+
+.nm-raised:hover {
+  box-shadow: var(--nm-elevation-raised-hover);
+}
+
+.nm-raised-subtle {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised-subtle);
+  border: none !important;
+}
+
+.nm-inset {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-inset) !important;
+  border: none !important;
+  transition: var(--nm-transition-fast);
+}
+
+.nm-deep-well {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-deep-well) !important;
+  border: none !important;
+}
+
+.nm-floating {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-floating) !important;
+  border: none !important;
+  transition: var(--nm-transition);
+}
+
+.nm-floating:hover {
+  box-shadow: var(--nm-elevation-floating-hover) !important;
+}
+
+/* ==========================================================================
+   Radii Utilities
+   ========================================================================== */
+.nm-rounded-sm   { border-radius: var(--nm-radius-sm) !important; }
+.nm-rounded-md   { border-radius: var(--nm-radius-md) !important; }
+.nm-rounded-lg   { border-radius: var(--nm-radius-lg) !important; }
+.nm-rounded-full { border-radius: var(--nm-radius-full) !important; }
+
+/* ==========================================================================
+   Molded Component Design Library
+   ========================================================================== */
+
+/* --- 1. Molded Cards & Containers --- */
+.nm-card {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised);
+  border-radius: var(--nm-radius-lg);
+  border: none;
+  padding: 1.5rem;
+  transition: var(--nm-transition);
+  position: relative;
+}
+
+.nm-card:hover {
+  box-shadow: var(--nm-elevation-raised-hover);
+}
+
+.nm-card-inset {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-inset);
+  border-radius: var(--nm-radius-lg);
+  padding: 1.5rem;
+}
+
+/* --- 2. Tactile Neumorphic Buttons --- */
+.nm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--nm-radius-md);
+  background: var(--nm-surface);
+  color: var(--nm-text-main);
+  box-shadow: var(--nm-elevation-raised);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition: var(--nm-transition-fast);
+}
+
+.nm-btn:hover {
+  box-shadow: var(--nm-elevation-raised-hover);
+  color: var(--nm-text-main);
+}
+
+.nm-btn:active,
+.nm-btn.active {
+  box-shadow: var(--nm-elevation-inset) !important;
+  transform: translateY(1px);
+}
+
+/* Primary Kinetic Accent Button */
+.nm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.35rem;
+  border-radius: var(--nm-radius-md);
+  background: var(--nm-accent-gradient);
+  color: #ffffff !important;
+  box-shadow: var(--nm-elevation-raised), var(--nm-accent-glow);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition: var(--nm-transition-fast);
+}
+
+.nm-btn-primary:hover {
+  filter: brightness(1.05);
+  box-shadow: var(--nm-elevation-raised-hover), 0 10px 24px rgba(255, 82, 82, 0.45);
+}
+
+.nm-btn-primary:active {
+  box-shadow: var(--nm-accent-active) !important;
+  transform: translateY(1px);
+}
+
+/* Circular Icon Button */
+.nm-btn-icon {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: var(--nm-radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised);
+  border: none;
+  cursor: pointer;
+  color: var(--nm-text-main);
+  transition: var(--nm-transition-fast);
+}
+
+.nm-btn-icon:hover {
+  box-shadow: var(--nm-elevation-raised-hover);
+}
+
+.nm-btn-icon:active,
+.nm-btn-icon.active {
+  box-shadow: var(--nm-elevation-inset) !important;
+  transform: scale(0.96);
+}
+
+/* --- 3. Sunken / Inset Form Inputs --- */
+.nm-input,
+.nm-select,
+.nm-textarea {
+  width: 100%;
+  padding: 0.75rem 1.125rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--nm-text-main);
+  background: var(--nm-surface);
+  border: none;
+  border-radius: var(--nm-radius-md);
+  box-shadow: var(--nm-elevation-inset);
+  outline: none;
+  transition: var(--nm-transition);
+}
+
+.nm-input::placeholder,
+.nm-textarea::placeholder {
+  color: var(--nm-text-light);
+}
+
+.nm-input:focus,
+.nm-select:focus,
+.nm-textarea:focus {
+  box-shadow: var(--nm-elevation-inset), 0 0 0 2px rgba(255, 82, 82, 0.35);
+}
+
+/* Search Wells */
+.nm-search-well {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--nm-surface);
+  border-radius: var(--nm-radius-full);
+  box-shadow: var(--nm-elevation-inset);
+  padding: 0.35rem 1rem;
+}
+
+.nm-search-well input {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  color: var(--nm-text-main);
+  font-size: 0.875rem;
+}
+
+/* --- 4. Badges, Chips & Shift Indicators --- */
+.nm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: var(--nm-radius-sm);
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised-subtle);
+  color: var(--nm-text-main);
+  border: none;
+}
+
+.nm-chip-inset {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-inset-subtle);
+}
+
+.nm-chip-accent {
+  background: var(--nm-accent-gradient);
+  color: #ffffff;
+  box-shadow: var(--nm-accent-glow);
+}
+
+/* --- 5. Toggle Switch & Segmented Controls --- */
+.nm-segmented-track {
+  display: inline-flex;
+  padding: 4px;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-inset);
+  border-radius: var(--nm-radius-full);
+  gap: 4px;
+}
+
+.nm-segmented-item {
+  padding: 0.5rem 1rem;
+  border-radius: var(--nm-radius-full);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--nm-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: var(--nm-transition-fast);
+}
+
+.nm-segmented-item.active {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised-subtle);
+  color: var(--nm-text-main);
+}
+
+/* Molded Toggle Switch */
+.nm-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+}
+
+.nm-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.nm-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--nm-surface);
+  box-shadow: var(--nm-elevation-inset);
+  border-radius: var(--nm-radius-full);
+  transition: var(--nm-transition-fast);
+}
+
+.nm-switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised-subtle);
+  border-radius: 50%;
+  transition: var(--nm-transition-fast);
+}
+
+.nm-switch input:checked + .nm-switch-slider {
+  background: rgba(255, 82, 82, 0.15);
+}
+
+.nm-switch input:checked + .nm-switch-slider:before {
+  transform: translateX(24px);
+  background: var(--nm-accent-gradient);
+  box-shadow: var(--nm-accent-glow);
+}
+
+/* --- 6. Deep Wells & Progress Tracks --- */
+.nm-progress-track {
+  width: 100%;
+  height: 10px;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-deep-well);
+  border-radius: var(--nm-radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.nm-progress-bar {
+  height: 100%;
+  background: var(--nm-accent-gradient);
+  box-shadow: var(--nm-accent-glow);
+  border-radius: var(--nm-radius-full);
+  transition: width 0.3s ease;
+}
+
+/* --- 7. Modals & Floating Overlays --- */
+.nm-modal-container {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-floating);
+  border-radius: var(--nm-radius-lg);
+  border: none;
+  padding: 2rem;
+  max-width: 560px;
+  width: 100%;
+}
+
+.nm-modal-backdrop {
+  background: rgba(45, 55, 72, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* --- 8. Data Tables & Grids in Soft UI --- */
+.nm-table-container {
+  background: var(--nm-surface);
+  box-shadow: var(--nm-elevation-raised);
+  border-radius: var(--nm-radius-lg);
+  overflow: hidden;
+}
+
+.nm-th {
+  background: var(--nm-surface);
+  color: var(--nm-text-muted);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.875rem 1rem;
+  border-bottom: 2px solid var(--nm-surface-contrast);
+}
+
+.nm-td {
+  padding: 0.875rem 1rem;
+  color: var(--nm-text-main);
+  border-bottom: 1px solid var(--nm-surface-contrast);
+  transition: background 0.15s;
+}
+
+.nm-tr:hover .nm-td {
+  background: rgba(255, 255, 255, 0.4);
+}

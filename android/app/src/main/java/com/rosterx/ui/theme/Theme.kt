@@ -6,13 +6,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.rosterx.ui.neumorphic.NeumorphicTokens
 
-// Ambient Space Theme Colors
+val LocalNeumorphicTokens = staticCompositionLocalOf { NeumorphicTokens }
+
+// Ambient Space Theme Colors (Legacy Dark Mode NOC Command Center)
 private val AmbientDarkBackground = Color(0xFF090D16)
 private val AmbientCyan = Color(0xFF0284C7)
 private val AmbientIndigo = Color(0xFF4F46E5)
@@ -32,19 +37,20 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = Color(0xFFD1D5DB)
 )
 
+// Universal Neumorphic Soft UI Light Color Scheme
 private val LightColorScheme = lightColorScheme(
-    primary = AmbientCyan,
-    secondary = AmbientIndigo,
-    tertiary = Color(0xFF0284C7),
-    background = Color(0xFFF3F4F6),
-    surface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFFE5E7EB),
+    primary = NeumorphicTokens.AccentSalmon,
+    secondary = NeumorphicTokens.AccentCoral,
+    tertiary = NeumorphicTokens.StatusCyan,
+    background = NeumorphicTokens.Canvas,
+    surface = NeumorphicTokens.Surface,
+    surfaceVariant = NeumorphicTokens.SurfaceContrast,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFF111827),
-    onSurface = Color(0xFF111827),
-    onSurfaceVariant = Color(0xFF374151)
+    onBackground = NeumorphicTokens.TextMain,
+    onSurface = NeumorphicTokens.TextMain,
+    onSurfaceVariant = NeumorphicTokens.TextMuted
 )
 
 @Composable
@@ -63,8 +69,10 @@ fun RosterXTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
-    )
+    CompositionLocalProvider(LocalNeumorphicTokens provides NeumorphicTokens) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            content = content
+        )
+    }
 }

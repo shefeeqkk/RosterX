@@ -26,6 +26,8 @@ import collections
 from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+SERVER_VERSION = "1.5.0"
+
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
     try:

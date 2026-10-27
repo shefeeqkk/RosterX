@@ -1,20 +1,52 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-10-27 13:15 IST** ☕⚡
+> *Last Synced by Aunty:* **2026-10-27 14:15 IST** ☕⚡
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.4.5`** (Android `versionCode: 15`, Server `SERVER_VERSION = "1.4.5"`)
+- **Semantic Version**: **`1.5.0`** (Android `versionCode: 16`, Server `SERVER_VERSION = "1.5.0"`)
 - **Active Cloudflare Public Gateway**:  
   🌐 `https://such-anonymous-out-stopping.trycloudflare.com`  
   📱 **Android Base URL**: `https://such-anonymous-out-stopping.trycloudflare.com/api/`
 - **Local Asset Sync File**: `app/src/main/assets/server_url.txt` (Synced with active Cloudflare URL)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collection: `engineers`, `notifications`, `operational_policies`, Status: `CONNECTED`)
 - **Notification Engine**: Resend API active, alerts routed to `kkshefeeq005@gmail.com`
+
+---
+
+## 🎨 Unified Neumorphic (Soft UI) Design System Architecture (👵⚡ v1.5.0)
+
+Kunjappan, my brilliant boy! Look at the gorgeous new visual architecture Aunty just established across both the Web Portal and our Compose screens:
+
+1. **Light Physics & Baseline Canvas**:
+   - Monochromatic cool-slate off-white baseline: `#EEF2F6` (Color `0xFFEEF2F6`).
+   - 135° Ambient Key Light: Top-Left specular highlight (`rgba(255,255,255,0.90)` / `0xE6FFFFFF`) and Bottom-Right occlusion shadow (`rgba(166,180,200,0.65)` / `0xA6A6B4C8`).
+   - Primary Kinetic Energy Accent: Dynamic Coral/Salmon gradient (`#FF6B6B` $\rightarrow$ `#FF5252`) with ambient glow (`rgba(255, 82, 82, 0.35)`).
+   - Strict contrast guard: Dark slate text (`#2D3748`) on the `#EEF2F6` surface canvas.
+
+2. **Compose Neumorphic Engine (`com.rosterx.ui.neumorphic`)**:
+   - `NeumorphicTokens.kt`: All light-source vectors, elevation strata (`ElevationRaised`, `ElevationInset`, `ElevationDeepWell`, `ElevationFloating`), corner radii (`CornerSmall = 14dp`, `CornerMedium = 20dp`, `CornerContainer = 28dp`), and accent gradients.
+   - `NeumorphicModifier.kt`:
+     - `.neumorphicRaised(shape, elevation, surfaceColor)`: Dual-opposite Canvas rendering (-X, -Y specular, +X, +Y occlusion).
+     - `.neumorphicInset(shape, elevation, surfaceColor)`: Sunken well inner shadow simulation with hardware-accelerated clipping.
+     - `.neumorphicFloating(shape, surfaceColor)`: Diffuse elevation for modals/dialogs.
+     - `.neumorphicClickable(...)`: Tactile press physics with spring transition between Raised and Inset.
+     - `.neumorphicAccentGlow(...)`: Ambient kinetic glow.
+
+3. **Soft UI Reusable Components (`com.rosterx.presentation.components`)**:
+   - `NeumorphicCard`: Molded surface container with configurable elevation styles.
+   - `NeumorphicButton`: Tactile button with primary kinetic accent or surface variants and loading states.
+   - `NeumorphicTextField`: Sunken well text input with high contrast text and placeholder.
+   - `NeumorphicBadge`: Molded or inset shift pills and counter chips.
+   - `NeumorphicSwitch`: Recessed track with molded sliding thumb.
+   - `NeumorphicDialog`: High-floating layer modal wrapper with ambient backdrop.
+
+4. **Web Neumorphic Tokens (`admin-web/css/neumorphic.css` & `admin-web/js/tailwind-neumorphic.js`)**:
+   - Mirrors all tokens, classes (`.nm-raised`, `.nm-inset`, `.nm-btn`, `.nm-card`, `.nm-input`), and Tailwind extensions (`shadow-nm-raised`, `bg-nm-surface`).
 
 ---
 
