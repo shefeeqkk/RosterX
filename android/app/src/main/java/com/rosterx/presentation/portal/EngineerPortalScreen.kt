@@ -691,7 +691,7 @@ fun VibrantShiftCard(title: String, shift: ShiftCode?, accentColor: Color, modif
                         .size(52.dp)
                         .neumorphicInset(
                             shape = RoundedCornerShape(14.dp),
-                            surfaceColor = NeumorphicTokens.Surface
+                            surfaceColor = if (shift != null) Color(parseColor(shift.bgColorHex)) else NeumorphicTokens.Surface
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -866,7 +866,7 @@ fun TeamShiftsView(
                                         .size(36.dp)
                                         .neumorphicInset(
                                             shape = RoundedCornerShape(10.dp),
-                                            surfaceColor = NeumorphicTokens.Surface
+                                            surfaceColor = Color(parseColor(shift.bgColorHex))
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
