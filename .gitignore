@@ -14,3 +14,21 @@ node_modules/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Android Studio & Gradle
+android/.gradle/
+android/build/
+android/*/build/
+android/.idea/
+android/*.iml
+android/*/*.iml
+android/local.properties
+android/.navigation/
+android/captures/
+android/**/generated/
+android/**/intermediates/
+android/**/outputs/
+android/**/tmp/
+android/.kotlin/
+.kotlin/
+

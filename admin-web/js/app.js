@@ -298,7 +298,16 @@ class RosterXApp {
     await this.syncEngineersFromAtlas();
     this.ensureEngineerUsernames();
 
-    // 2. Initialize Grid Roster for current period (with Atlas sync)
+    // 1b. Sync operational policies/constraints from MongoDB Atlas
+    await this.syncConstraintsFromAtlas();
+
+    // 2. Synchronize month selector dropdown with active period
+    const activePeriodKey = `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
+    if (this.dom.monthSelect) {
+      this.dom.monthSelect.value = activePeriodKey;
+    }
+
+    // 3. Initialize Grid Roster for current period (with Atlas sync)
     await this.loadGridRosterForPeriod(this.state.currentYear, this.state.currentMonth);
 
     // Apply and display active policies
@@ -345,6 +354,22 @@ class RosterXApp {
     this.dom.btnOpenImportModal = document.getElementById('btnOpenImportModal');
     this.dom.btnSaveAtlasDirect = document.getElementById('btnSaveAtlasDirect');
     this.dom.btnQuickEditRules = document.getElementById('btnQuickEditRules');
+
+    // Recovery & Publish Confirmation Modals
+    this.dom.btnOpenRecoveryModal = document.getElementById('btnOpenRecoveryModal');
+    this.dom.recoveryModal = document.getElementById('recoveryModal');
+    this.dom.recoveryModalPeriodLabel = document.getElementById('recoveryModalPeriodLabel');
+    this.dom.btnCloseRecoveryModal = document.getElementById('btnCloseRecoveryModal');
+    this.dom.btnCloseRecoveryModalFooter = document.getElementById('btnCloseRecoveryModalFooter');
+    this.dom.recoverySnapshotsLoading = document.getElementById('recoverySnapshotsLoading');
+    this.dom.recoverySnapshotsEmpty = document.getElementById('recoverySnapshotsEmpty');
+    this.dom.recoverySnapshotsList = document.getElementById('recoverySnapshotsList');
+
+    this.dom.publishConfirmModal = document.getElementById('publishConfirmModal');
+    this.dom.publishConfirmPeriod = document.getElementById('publishConfirmPeriod');
+    this.dom.publishConfirmEngCount = document.getElementById('publishConfirmEngCount');
+    this.dom.btnCancelPublishConfirm = document.getElementById('btnCancelPublishConfirm');
+    this.dom.btnExecutePublishConfirm = document.getElementById('btnExecutePublishConfirm');
 
     // Shift Visibility Filter Elements
     this.dom.shiftFilterToolbar = document.getElementById('shiftFilterToolbar');
@@ -412,6 +437,7 @@ class RosterXApp {
     this.dom.formEngOff2 = document.getElementById('formEngOff2');
     this.dom.btnCancelEngineerForm = document.getElementById('btnCancelEngineerForm');
     this.dom.btnSaveEngineerForm = document.getElementById('btnSaveEngineerForm');
+    this.dom.btnDeleteEngineerForm = document.getElementById('btnDeleteEngineerForm');
 
     // MODAL 2: Constraints Modal
     this.dom.constraintsModal = document.getElementById('constraintsModal');
@@ -498,6 +524,8 @@ class RosterXApp {
     this.dom.importActiveEngCount = document.getElementById('importActiveEngCount');
     this.dom.importEngineerInput = document.getElementById('importEngineerInput');
     this.dom.btnAddImportEngineer = document.getElementById('btnAddImportEngineer');
+    this.dom.importEngineerSuggestions = document.getElementById('importEngineerSuggestions');
+    this.dom.btnClearImportEngineerInput = document.getElementById('btnClearImportEngineerInput');
     this.dom.importEngineerTagsContainer = document.getElementById('importEngineerTagsContainer');
     this.dom.btnDownloadSampleTemplate = document.getElementById('btnDownloadSampleTemplate');
     this.dom.dropZone = document.getElementById('dropZone');
@@ -580,6 +608,9 @@ class RosterXApp {
       this.dom.btnResetEngineerForm.addEventListener('click', () => this.resetEngineerFormFields());
     }
     this.dom.btnSaveEngineerForm.addEventListener('click', () => this.handleSaveEngineer());
+    if (this.dom.btnDeleteEngineerForm) {
+      this.dom.btnDeleteEngineerForm.addEventListener('click', () => this.handleDeleteEngineer());
+    }
     if (this.dom.teamTableBody) {
       this.dom.teamTableBody.addEventListener('click', (e) => {
         const editBtn = e.target.closest('[data-action="edit-engineer"]');
@@ -675,13 +706,49 @@ class RosterXApp {
       this.dom.btnAddImportEngineer.addEventListener('click', () => this.handleAddImportEngineer());
     }
     if (this.dom.importEngineerInput) {
+      this.dom.importEngineerInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (this.dom.btnClearImportEngineerInput) {
+          this.dom.btnClearImportEngineerInput.classList.toggle('hidden', !val);
+        }
+        this.renderImportEngineerSuggestions(val);
+      });
+
+      this.dom.importEngineerInput.addEventListener('focus', (e) => {
+        this.renderImportEngineerSuggestions(e.target.value);
+      });
+
       this.dom.importEngineerInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
           this.handleAddImportEngineer();
+        } else if (e.key === 'Escape') {
+          this.closeImportEngineerSuggestions();
         }
       });
     }
+
+    if (this.dom.btnClearImportEngineerInput) {
+      this.dom.btnClearImportEngineerInput.addEventListener('click', () => {
+        if (this.dom.importEngineerInput) {
+          this.dom.importEngineerInput.value = '';
+          this.dom.importEngineerInput.focus();
+        }
+        this.dom.btnClearImportEngineerInput.classList.add('hidden');
+        this.closeImportEngineerSuggestions();
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (this.dom.importEngineerSuggestions && !this.dom.importEngineerSuggestions.classList.contains('hidden')) {
+        const isClickInside = this.dom.importEngineerInput?.contains(e.target) || 
+                              this.dom.importEngineerSuggestions?.contains(e.target) ||
+                              this.dom.btnAddImportEngineer?.contains(e.target);
+        if (!isClickInside) {
+          this.closeImportEngineerSuggestions();
+        }
+      }
+    });
     if (this.dom.btnDownloadSampleTemplate) {
       this.dom.btnDownloadSampleTemplate.addEventListener('click', () => this.downloadSampleTemplate());
     }
@@ -714,8 +781,37 @@ class RosterXApp {
       this.dom.btnApplyImportedRoster.addEventListener('click', () => this.applyImportedRoster());
     }
 
-    this.dom.btnSaveAtlasDirect.addEventListener('click', () => this.saveAndPublishToAtlas());
-    this.dom.syncBadgeIndicator.addEventListener('click', () => this.openAtlasConfig());
+    if (this.dom.btnSaveAtlasDirect) {
+      this.dom.btnSaveAtlasDirect.addEventListener('click', () => this.openPublishConfirmation());
+    }
+    if (this.dom.btnCancelPublishConfirm) {
+      this.dom.btnCancelPublishConfirm.addEventListener('click', () => {
+        if (this.dom.publishConfirmModal) this.dom.publishConfirmModal.classList.add('hidden');
+      });
+    }
+    if (this.dom.btnExecutePublishConfirm) {
+      this.dom.btnExecutePublishConfirm.addEventListener('click', () => {
+        if (this.dom.publishConfirmModal) this.dom.publishConfirmModal.classList.add('hidden');
+        this.saveAndPublishToAtlas();
+      });
+    }
+
+    if (this.dom.btnOpenRecoveryModal) {
+      this.dom.btnOpenRecoveryModal.addEventListener('click', () => this.openRecoveryModal());
+    }
+    if (this.dom.btnCloseRecoveryModal) {
+      this.dom.btnCloseRecoveryModal.addEventListener('click', () => {
+        if (this.dom.recoveryModal) this.dom.recoveryModal.classList.add('hidden');
+      });
+    }
+    if (this.dom.btnCloseRecoveryModalFooter) {
+      this.dom.btnCloseRecoveryModalFooter.addEventListener('click', () => {
+        if (this.dom.recoveryModal) this.dom.recoveryModal.classList.add('hidden');
+      });
+    }
+    if (this.dom.syncBadgeIndicator) {
+      this.dom.syncBadgeIndicator.addEventListener('click', () => this.openAtlasConfig());
+    }
 
     // Rule Audit Details
     this.dom.btnViewAuditDetails.addEventListener('click', () => this.openAuditDetailsModal());
@@ -873,7 +969,11 @@ class RosterXApp {
 
     const isComingMonth = (year > 2026 || (year === 2026 && month > 10));
 
-    if (loaded && Array.isArray(loaded) && loaded.length >= 5) {
+    // Verify loaded actually contains valid shift assignments (not all empty strings)
+    const hasValidShifts = loaded && Array.isArray(loaded) && loaded.length >= 5 &&
+      loaded.some(eng => Array.isArray(eng.shifts) && eng.shifts.some(s => s && String(s).trim() !== ''));
+
+    if (hasValidShifts) {
       if (isComingMonth) {
         // Exclude resigned engineers in coming months
         this.state.gridRoster = loaded.filter(eng => {
@@ -886,6 +986,40 @@ class RosterXApp {
       this.state.gridRoster = this.sortGridRosterByWeekOffs(this.state.gridRoster);
       this.atlasService.notifyStatusChange('draft');
       return;
+    }
+
+    // 3. Direct relative fetch fallback (e.g., when served via local server or reverse proxy)
+    if (typeof fetch !== 'undefined' && typeof window !== 'undefined' && window.location) {
+      try {
+        const directRes = await fetch(`/api/roster/${monthKey}`, { headers: { 'Accept': 'application/json' } });
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          const doc = directData.document || directData.data || directData;
+          if (doc && doc.engineers && doc.engineers.length >= 5) {
+            const remoteEngineers = doc.engineers.map(e => {
+              let shifts = e.shifts;
+              if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
+                shifts = shiftsMapToArray(shifts, this.state.totalDays);
+              }
+              const defEng = this.state.engineersList.find(x => x.name === e.name || x.id === e.engineer_id || x.id === e.id) || {};
+              return {
+                id: e.engineer_id || e.id || defEng.id || `eng_${e.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
+                name: e.name,
+                shifts: Array.isArray(shifts) ? [...shifts] : [],
+                status: e.status || defEng.status || 'Active',
+                role: e.role || defEng.role || 'engineer',
+                default_weekly_offs: defEng.default_weekly_offs || ['Saturday', 'Sunday']
+              };
+            });
+            this.state.gridRoster = this.sortGridRosterByWeekOffs(remoteEngineers);
+            this.saveCurrentGridRoster();
+            this.atlasService.notifyStatusChange('synced');
+            return;
+          }
+        }
+      } catch (eDirect) {
+        console.warn('Direct relative fallback fetch failed:', eDirect);
+      }
     }
 
 
@@ -1546,6 +1680,7 @@ class RosterXApp {
       const offs = eng.default_weekly_offs || ['Saturday', 'Sunday'];
       this.dom.formEngOff1.value = offs[0] || 'Saturday';
       this.dom.formEngOff2.value = offs[1] || 'Sunday';
+      if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.remove('hidden');
     } else {
       this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-user-plus text-blue-600"></i> Add New Engineer`;
       this.dom.formEngId.value = `eng_${Date.now().toString().slice(-4)}`;
@@ -1560,6 +1695,7 @@ class RosterXApp {
       this.dom.formEngResignDate.value = '';
       this.dom.formEngOff1.value = 'Saturday';
       this.dom.formEngOff2.value = 'Sunday';
+      if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.add('hidden');
     }
 
     // Auto-scroll directly to editing section with smooth animation
@@ -1575,7 +1711,55 @@ class RosterXApp {
   closeEngineerForm() {
     this.state.editingEngineerId = null;
     this.dom.engineerFormContainer.classList.add('hidden');
+    if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.add('hidden');
     this.renderTeamTable();
+  }
+
+  async handleDeleteEngineer() {
+    const id = this.dom.formEngId.value.trim();
+    const name = this.dom.formEngName.value.trim().toUpperCase();
+    const username = this.dom.formEngUsername ? this.dom.formEngUsername.value.trim().toLowerCase() : '';
+
+    if (!id && !name) {
+      alert('Unable to identify engineer to delete.');
+      return;
+    }
+
+    const confirmMsg = `Are you sure you want to permanently delete engineer "${name}"?\n\nThis will remove them from the active directory, MongoDB Atlas database, and roster grids.`;
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/engineers/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, username })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        console.log(`[DeleteEngineer] Server confirmed deletion: ${data.message}`);
+      }
+    } catch (err) {
+      console.warn(`[DeleteEngineer] Server delete request warning:`, err);
+    }
+
+    // Remove from local state
+    this.state.engineersList = this.state.engineersList.filter(e => {
+      const matchId = id && e.id === id;
+      const matchName = name && e.name.toUpperCase() === name;
+      const matchUser = username && e.username && e.username.toLowerCase() === username;
+      return !(matchId || matchName || matchUser);
+    });
+
+    this.saveEngineersList();
+    if (typeof window !== 'undefined' && window.authService && typeof window.authService.syncEngineersList === 'function') {
+      window.authService.syncEngineersList(this.state.engineersList);
+    }
+
+    this.closeEngineerForm();
+    this.renderTeamTable();
+    this.showToast(`Engineer "${name}" has been permanently deleted.`);
   }
 
   resetEngineerFormFields() {
@@ -1768,6 +1952,18 @@ class RosterXApp {
     this.runRuleAudit();
     this.dom.constraintsModal.classList.add('hidden');
     this.showToast('Operational policies saved & applied to live validator!');
+
+    // Asynchronously sync operational constraints to MongoDB Atlas backend
+    try {
+      const base = this.atlasService.getApiBase();
+      fetch(`${base}/constraints`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.state.constraints)
+      }).catch(err => console.warn('Atlas constraints sync background notice:', err));
+    } catch (e) {
+      console.warn('Failed to dispatch constraints sync:', e);
+    }
   }
 
   // --- MODAL 3: Swaps & Absences Ledger (Module D) ---
@@ -2312,44 +2508,182 @@ class RosterXApp {
     this.showToast(`${eng.name} marked as Resigned (excluded from template and coming months).`);
   }
 
+  // --- Autocomplete & Configured Engineer Suggestion Engine for Import Modal ---
+  renderImportEngineerSuggestions(query = '') {
+    if (!this.dom.importEngineerSuggestions) return;
+    const term = (query || '').trim().toUpperCase();
+    const allConfigured = this.state.engineersList || [];
+
+    let filtered = allConfigured;
+    if (term) {
+      filtered = allConfigured.filter(e => {
+        const name = (e.name || '').toUpperCase();
+        const fullName = (e.full_name || '').toUpperCase();
+        const username = (e.username || '').toUpperCase();
+        return name.includes(term) || fullName.includes(term) || username.includes(term);
+      });
+    } else {
+      // If empty query, prioritize engineers who are currently excluded (Resigned) so they can be easily re-added!
+      filtered = [...allConfigured].sort((a, b) => {
+        if (a.status === 'Resigned' && b.status !== 'Resigned') return -1;
+        if (a.status !== 'Resigned' && b.status === 'Resigned') return 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+
+    if (filtered.length === 0) {
+      this.dom.importEngineerSuggestions.innerHTML = `
+        <div class="px-3.5 py-3 text-slate-500 text-xs flex items-center gap-2 bg-amber-50/50">
+          <i class="ph ph-warning-circle text-amber-600 text-base shrink-0"></i>
+          <div>
+            <p class="font-bold text-slate-800">No configured engineer matches "${query.trim()}"</p>
+            <p class="text-[11px] text-slate-500">Only configured team engineers can be added to the import roster.</p>
+          </div>
+        </div>
+      `;
+      this.dom.importEngineerSuggestions.classList.remove('hidden');
+      return;
+    }
+
+    const rowsHtml = filtered.map(e => {
+      const isAlreadyActive = e.status !== 'Resigned';
+      const roleText = (e.role || 'engineer').toUpperCase();
+      const offsText = (e.default_weekly_offs || []).join(', ') || 'Sat, Sun';
+
+      return `
+        <div data-eng-id="${e.id}" class="suggestion-row flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-b-0 cursor-pointer ${isAlreadyActive ? 'bg-white' : 'bg-emerald-50/30 hover:bg-emerald-50/70'}">
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full ${isAlreadyActive ? 'bg-slate-200 text-slate-700' : 'bg-emerald-600 text-white'} flex items-center justify-center font-bold text-[10px] shrink-0">
+              ${e.name.charAt(0)}
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-slate-900 leading-tight">${e.name}</span>
+                ${e.username ? `<span class="text-[10px] text-slate-400 font-mono">@${e.username}</span>` : ''}
+              </div>
+              <p class="text-[10px] text-slate-500">${roleText} • Offs: ${offsText}</p>
+            </div>
+          </div>
+          <div>
+            ${isAlreadyActive 
+              ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200"><i class="ph ph-check"></i> Already in List</span>`
+              : `<button type="button" class="btn-add-suggested px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-2xs transition cursor-pointer"><i class="ph ph-plus-circle"></i> Add to List</button>`
+            }
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.dom.importEngineerSuggestions.innerHTML = `
+      <div class="px-3 py-1 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+        <span>Matching Configured Engineers (${filtered.length})</span>
+        <span class="text-[9px] text-slate-400 lowercase">click name to add</span>
+      </div>
+      <div class="divide-y divide-slate-100">
+        ${rowsHtml}
+      </div>
+    `;
+
+    this.dom.importEngineerSuggestions.querySelectorAll('.suggestion-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const engId = row.dataset.engId;
+        this.addConfiguredEngineerToImport(engId);
+      });
+    });
+
+    this.dom.importEngineerSuggestions.classList.remove('hidden');
+  }
+
+  closeImportEngineerSuggestions() {
+    if (this.dom.importEngineerSuggestions) {
+      this.dom.importEngineerSuggestions.classList.add('hidden');
+    }
+  }
+
+  addConfiguredEngineerToImport(engId) {
+    if (!engId) return;
+    const eng = this.state.engineersList.find(e => e.id === engId || e.name.toUpperCase() === engId.toUpperCase());
+    if (!eng) {
+      this.showToast('⚠️ Selected engineer is not in the configured team list.');
+      return;
+    }
+
+    if (eng.status === 'Resigned') {
+      eng.status = 'Active';
+      eng.resignation_date = null;
+
+      const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));
+      if (isComingMonth && !this.state.gridRoster.some(r => r.name === eng.name || r.id === eng.id)) {
+        this.state.gridRoster.push({
+          id: eng.id,
+          name: eng.name,
+          shifts: new Array(this.state.totalDays).fill('EMPTY'),
+          status: 'Active',
+          role: eng.role || 'engineer',
+          default_weekly_offs: eng.default_weekly_offs || ['Saturday', 'Sunday']
+        });
+        this.state.gridRoster = this.sortGridRosterByWeekOffs(this.state.gridRoster);
+        this.saveCurrentGridRoster();
+        this.renderHeaders();
+        this.renderRoster();
+        this.runRuleAudit();
+      }
+
+      this.saveEngineersList();
+      this.updateTeamBadge();
+      this.renderTeamTable();
+      this.renderImportEngineerTags();
+      this.showToast(`✅ Added ${eng.name} to active import list!`);
+    } else {
+      this.showToast(`ℹ️ ${eng.name} is already in the active import list.`);
+    }
+
+    if (this.dom.importEngineerInput) {
+      this.dom.importEngineerInput.value = '';
+    }
+    if (this.dom.btnClearImportEngineerInput) {
+      this.dom.btnClearImportEngineerInput.classList.add('hidden');
+    }
+    this.closeImportEngineerSuggestions();
+  }
+
   handleAddImportEngineer() {
     const input = this.dom.importEngineerInput;
     if (!input) return;
-    const name = input.value.trim().toUpperCase();
-    if (!name) return;
+    const rawVal = input.value.trim();
+    if (!rawVal) return;
+    const clean = rawVal.toUpperCase();
 
-    let eng = this.state.engineersList.find(e => e.name === name);
-    if (eng) {
-      if (eng.status === 'Resigned') {
-        eng.status = 'Active';
-        eng.resignation_date = null;
-        this.showToast(`Reactivated engineer ${name} for imports!`);
-      } else {
-        this.showToast(`Engineer ${name} is already active.`);
+    // 1. Exact match on name, full_name, username, or id
+    let eng = this.state.engineersList.find(e => 
+      e.name.trim().toUpperCase() === clean || 
+      (e.full_name && e.full_name.trim().toUpperCase() === clean) ||
+      (e.username && e.username.trim().toUpperCase() === clean) ||
+      e.id === rawVal
+    );
+
+    // 2. Partial match if unambiguous
+    if (!eng) {
+      const partials = this.state.engineersList.filter(e => 
+        e.name.toUpperCase().includes(clean) || 
+        (e.full_name && e.full_name.toUpperCase().includes(clean))
+      );
+      if (partials.length === 1) {
+        eng = partials[0];
       }
-    } else {
-      eng = {
-        id: `eng_${Date.now().toString().slice(-4)}`,
-        name,
-        full_name: name,
-        email: `${name.toLowerCase()}@noc.company.com`,
-        phone: '',
-        role: 'engineer',
-        status: 'Active',
-        join_date: new Date().toISOString().split('T')[0],
-        resignation_date: null,
-        default_weekly_offs: ['Saturday', 'Sunday'],
-        preferred_shifts: ['FS', 'SS']
-      };
-      this.state.engineersList.push(eng);
-      this.saveEngineersList();
-      this.updateTeamBadge();
-      this.showToast(`Added new active engineer: ${name}`);
     }
 
-    input.value = '';
-    this.renderImportEngineerTags();
+    // 3. Strict guard: If NOT in configured engineers, REJECT!
+    if (!eng) {
+      this.showToast(`⚠️ "${rawVal}" is not in the configured engineer list. Only configured engineers can be added.`);
+      this.renderImportEngineerSuggestions(rawVal);
+      return;
+    }
+
+    // 4. Add the configured engineer
+    this.addConfiguredEngineerToImport(eng.id);
   }
+
 
   closeImportModal() {
     if (!this.dom.importModal) {
@@ -2359,6 +2693,9 @@ class RosterXApp {
     this.dom.importModal.classList.add('hidden');
     this.dom.importModal.style.display = 'none';
     this.clearImportFile();
+    if (this.dom.importEngineerInput) this.dom.importEngineerInput.value = '';
+    if (this.dom.btnClearImportEngineerInput) this.dom.btnClearImportEngineerInput.classList.add('hidden');
+    this.closeImportEngineerSuggestions();
   }
 
   async downloadSampleTemplate() {
@@ -2583,6 +2920,106 @@ class RosterXApp {
       this.atlasService.notifyStatusChange('synced');
     }
     this.showToast(res.message || 'Synced to Atlas M0');
+  }
+
+  // --- Publish Confirmation Dialog ---
+  openPublishConfirmation() {
+    if (!this.dom.publishConfirmModal) {
+      this.saveAndPublishToAtlas();
+      return;
+    }
+    const val = this.dom.monthSelect ? this.dom.monthSelect.value : `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
+    const selectedOption = this.dom.monthSelect?.options[this.dom.monthSelect.selectedIndex];
+    const monthText = selectedOption ? selectedOption.text : val;
+    if (this.dom.publishConfirmPeriod) this.dom.publishConfirmPeriod.textContent = monthText;
+    if (this.dom.publishConfirmEngCount) this.dom.publishConfirmEngCount.textContent = `${this.state.gridRoster.length} Engineers`;
+    this.dom.publishConfirmModal.classList.remove('hidden');
+  }
+
+  // --- Project Recovery Snapshots Modal ---
+  async openRecoveryModal() {
+    if (!this.dom.recoveryModal) return;
+    const val = this.dom.monthSelect ? this.dom.monthSelect.value : `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
+    const selectedOption = this.dom.monthSelect?.options[this.dom.monthSelect.selectedIndex];
+    const monthText = selectedOption ? selectedOption.text : val;
+    if (this.dom.recoveryModalPeriodLabel) {
+      this.dom.recoveryModalPeriodLabel.textContent = `Auto-saved recovery points for ${monthText}`;
+    }
+
+    this.dom.recoveryModal.classList.remove('hidden');
+    if (this.dom.recoverySnapshotsLoading) this.dom.recoverySnapshotsLoading.classList.remove('hidden');
+    if (this.dom.recoverySnapshotsEmpty) this.dom.recoverySnapshotsEmpty.classList.add('hidden');
+    if (this.dom.recoverySnapshotsList) this.dom.recoverySnapshotsList.innerHTML = '';
+
+    const backups = await this.atlasService.getRosterBackups(val);
+    if (this.dom.recoverySnapshotsLoading) this.dom.recoverySnapshotsLoading.classList.add('hidden');
+
+    if (!backups || backups.length === 0) {
+      if (this.dom.recoverySnapshotsEmpty) this.dom.recoverySnapshotsEmpty.classList.remove('hidden');
+      return;
+    }
+
+    if (this.dom.recoverySnapshotsList) {
+      this.dom.recoverySnapshotsList.innerHTML = backups.map(b => {
+        const dateStr = b.created_at ? new Date(b.created_at).toLocaleString() : 'Recent Snapshot';
+        const engCount = b.total_engineers || (b.document?.engineers?.length || 0);
+        const reason = b.reason || 'Auto-saved before overwrite';
+        return `
+          <div class="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">
+                <i class="ph ph-clock-counter-clockwise"></i>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-800">${dateStr}</p>
+                <p class="text-[11px] text-slate-500">${reason} • <span class="font-semibold text-slate-700">${engCount} Engineers</span></p>
+              </div>
+            </div>
+            <button type="button" data-backup-id="${b.backup_id}" class="btn-restore-snapshot px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition cursor-pointer">
+              <i class="ph ph-arrow-counter-clockwise"></i> Restore
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      this.dom.recoverySnapshotsList.querySelectorAll('.btn-restore-snapshot').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const backupId = btn.dataset.backupId;
+          if (confirm(`Restore snapshot from ${backupId}? This will replace current grid changes.`)) {
+            const res = await this.atlasService.restoreRosterBackup(backupId, val);
+            if (res.success) {
+              await this.loadGridRosterForPeriod(this.state.currentYear, this.state.currentMonth);
+              this.renderHeaders();
+              this.renderRoster();
+              this.renderDailyCoverage();
+              this.runRuleAudit();
+              this.dom.recoveryModal.classList.add('hidden');
+              this.showToast('✅ Snapshot restored successfully!');
+            } else {
+              alert(res.message || 'Failed to restore snapshot.');
+            }
+          }
+        });
+      });
+    }
+  }
+
+  // --- Operational Policies Atlas Sync ---
+  async syncConstraintsFromAtlas() {
+    try {
+      const base = this.atlasService.getApiBase();
+      const res = await fetch(`${base}/constraints`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.constraints) {
+          this.state.constraints = { ...this.state.constraints, ...data.constraints };
+          this.saveConstraints();
+          this.updateActiveRulesBanner();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to sync constraints from Atlas:', e);
+    }
   }
 
   // --- Settings Modals ---

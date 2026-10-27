@@ -26,16 +26,25 @@ export class AtlasService {
   }
 
   getApiBase() {
-    let url = this.config.endpointUrl || '';
-    if (!url || url.includes('data.mongodb-api.com')) {
-      const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
-        ? window.location.origin
-        : 'http://localhost:8000';
-      url = `${origin}/api`;
-      this.config.endpointUrl = url;
-      this.saveConfig(this.config);
+    if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+      const currentOriginApi = `${window.location.origin}/api`.replace(/\/+$/, '');
+      let url = (this.config.endpointUrl || '').trim().replace(/\/+$/, '');
+
+      // Auto-heal condition:
+      // If no url, or points to mongo data-api, or points to a trycloudflare.com tunnel that doesn't match current origin,
+      // or if running on localhost/127.0.0.1 while url points to an external host
+      const isStaleTunnel = url.includes('trycloudflare.com') && !url.startsWith(window.location.origin);
+      const isLocalhostMisaligned = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && 
+        url && !url.includes('localhost') && !url.includes('127.0.0.1');
+
+      if (!url || url.includes('data.mongodb-api.com') || isStaleTunnel || isLocalhostMisaligned) {
+        url = currentOriginApi;
+        this.config.endpointUrl = url;
+        this.saveConfig(this.config);
+      }
+      return url;
     }
-    return url.replace(/\/+$/, '');
+    return (this.config.endpointUrl || 'http://localhost:8000/api').replace(/\/+$/, '');
   }
 
   loadConfig() {
@@ -57,10 +66,16 @@ export class AtlasService {
       const stored = localStorage.getItem(STORAGE_KEYS.CONFIG);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (!parsed.endpointUrl || parsed.endpointUrl.includes('data.mongodb-api.com')) {
+        const url = parsed.endpointUrl || '';
+        const isStaleTunnel = url.includes('trycloudflare.com') && typeof window !== 'undefined' && window.location && !url.startsWith(window.location.origin);
+        const isLocalhostMisaligned = typeof window !== 'undefined' && window.location && 
+          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && 
+          url && !url.includes('localhost') && !url.includes('127.0.0.1');
+
+        if (!url || url.includes('data.mongodb-api.com') || isStaleTunnel || isLocalhostMisaligned) {
           parsed.endpointUrl = `${origin}/api`;
         }
-        return { ...defaultCfg, ...parsed };
+        return { ...defaultCfg, ...parsed, isLiveConnected: true };
       }
       return defaultCfg;
     } catch {
@@ -147,23 +162,39 @@ export class AtlasService {
    */
   async getEngineers() {
     const base = this.getApiBase();
-    if (this.config.isLiveConnected) {
-      try {
-        const res = await fetch(`${base}/engineers`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.documents && Array.isArray(data.documents) && data.documents.length > 0) {
-            const merged = this.mergeEngineers(data.documents, ENGINEERS);
-            localStorage.setItem(STORAGE_KEYS.ENGINEERS, JSON.stringify(merged));
-            localStorage.setItem(STORAGE_KEYS.ENGINEERS_LEGACY, JSON.stringify(merged));
-            return merged;
-          }
+    try {
+      const res = await fetch(`${base}/engineers`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.documents && Array.isArray(data.documents) && data.documents.length > 0) {
+          const merged = this.mergeEngineers(data.documents, ENGINEERS);
+          localStorage.setItem(STORAGE_KEYS.ENGINEERS, JSON.stringify(merged));
+          localStorage.setItem(STORAGE_KEYS.ENGINEERS_LEGACY, JSON.stringify(merged));
+          return merged;
         }
-      } catch (err) {
-        console.warn('Atlas live fetch engineers failed, fallback to local cache:', err);
+      }
+    } catch (err) {
+      console.warn('Atlas live fetch engineers failed, checking relative fallback:', err);
+      // Secondary relative origin fallback
+      if (typeof window !== 'undefined' && window.location && window.location.origin) {
+        const rel = `${window.location.origin}/api/engineers`;
+        if (`${base}/engineers` !== rel) {
+          try {
+            const r2 = await fetch(rel, { headers: { 'Accept': 'application/json' } });
+            if (r2.ok) {
+              const d2 = await r2.json();
+              if (d2.documents && Array.isArray(d2.documents) && d2.documents.length > 0) {
+                const merged = this.mergeEngineers(d2.documents, ENGINEERS);
+                localStorage.setItem(STORAGE_KEYS.ENGINEERS, JSON.stringify(merged));
+                localStorage.setItem(STORAGE_KEYS.ENGINEERS_LEGACY, JSON.stringify(merged));
+                return merged;
+              }
+            }
+          } catch (e2) {}
+        }
       }
     }
 
@@ -216,31 +247,59 @@ export class AtlasService {
    */
   async getRoster(rosterId) {
     const base = this.getApiBase();
-    if (this.config.isLiveConnected) {
-      try {
-        const res = await fetch(`${base}/roster/${rosterId}`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const doc = data.document || data.data || data;
-          if (doc && (doc.engineers || doc._id)) {
-            this.saveLocalRoster(doc);
-            this.notifyStatusChange('synced');
-            return doc;
-          }
+    // 1. Attempt primary API base
+    try {
+      const res = await fetch(`${base}/roster/${rosterId}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const doc = data.document || data.data || data;
+        if (doc && (doc.engineers || doc._id)) {
+          this.config.isLiveConnected = true;
+          this.saveLocalRoster(doc);
+          this.notifyStatusChange('synced');
+          return doc;
         }
-      } catch (err) {
-        console.warn('Atlas live fetch roster failed, fallback to local cache:', err);
+      }
+    } catch (err) {
+      console.warn('Atlas live fetch roster failed on base ' + base + ':', err);
+    }
+
+    // 2. Relative Origin Fallback (if base was different from current origin)
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+      const relativeBase = `${window.location.origin}/api`;
+      if (base !== relativeBase) {
+        try {
+          const res = await fetch(`${relativeBase}/roster/${rosterId}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const doc = data.document || data.data || data;
+            if (doc && (doc.engineers || doc._id)) {
+              this.config.endpointUrl = relativeBase;
+              this.config.isLiveConnected = true;
+              this.saveConfig(this.config);
+              this.saveLocalRoster(doc);
+              this.notifyStatusChange('synced');
+              return doc;
+            }
+          }
+        } catch (e2) {
+          console.warn('Fallback fetch to relativeBase ' + relativeBase + ' failed:', e2);
+        }
       }
     }
 
-    // LocalStorage cache fallback
+    // 3. LocalStorage cache fallback
     try {
       const rostersMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.ROSTERS) || '{}');
-      if (rostersMap[rosterId] && Array.isArray(rostersMap[rosterId].engineers) && rostersMap[rosterId].engineers.length >= 5) {
-        return rostersMap[rosterId];
+      const cached = rostersMap[rosterId];
+      if (cached && Array.isArray(cached.engineers) && cached.engineers.length >= 5) {
+        return cached;
       }
     } catch (e) {
       console.warn('Error reading local rosters cache:', e);
@@ -285,6 +344,49 @@ export class AtlasService {
   }
 
   /**
+   * Fetch project recovery snapshots for a month from /api/roster-backups/<monthId>
+   */
+  async getRosterBackups(monthId) {
+    const base = this.getApiBase();
+    try {
+      const res = await fetch(`${base}/roster-backups/${monthId}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.backups || [];
+      }
+    } catch (err) {
+      console.warn('Failed to fetch roster backups:', err);
+    }
+    return [];
+  }
+
+  /**
+   * Restore a prior published roster snapshot via /api/roster-backups/restore
+   */
+  async restoreRosterBackup(backupId, monthId) {
+    const base = this.getApiBase();
+    try {
+      const res = await fetch(`${base}/roster-backups/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ backup_id: backupId, month_id: monthId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.document) {
+        this.saveLocalRoster(data.document);
+        this.notifyStatusChange('synced');
+        return { success: true, message: data.message, document: data.document };
+      }
+      return { success: false, message: data.message || `Restore failed with HTTP ${res.status}` };
+    } catch (err) {
+      return { success: false, message: `Restore network error: ${err.message}` };
+    }
+  }
+
+  /**
    * Export database JSON backup file
    */
   exportJsonBackup(rosterDoc) {
@@ -320,3 +422,4 @@ export class AtlasService {
     });
   }
 }
+

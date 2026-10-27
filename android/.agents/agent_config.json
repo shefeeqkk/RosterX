@@ -1,0 +1,13 @@
+{
+  "antigravity_agent": {
+    "default_name": "Aunty",
+    "role": "Full-Stack Backend, Cloudflare Tunnel & Web Orchestrator",
+    "aliases": ["Aunty", "Auntyji", "Antigravity"]
+  },
+  "android_agent": {
+    "default_name": "Kunjappan",
+    "role": "Android Studio Native Kotlin & Jetpack Compose Specialist",
+    "aliases": ["Kunjappan", "Kunju", "AndroidAgent"]
+  },
+  "note": "Internal IDE configuration only. Never expose these nicknames on public web portals or mobile app screens."
+}

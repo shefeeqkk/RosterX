@@ -220,8 +220,13 @@
       </button>
 
       <!-- 💾 Save & Publish -->
-      <button id="btnSaveAtlasDirect" class="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow">
+      <button id="btnSaveAtlasDirect" class="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow cursor-pointer">
         <i class="ph ph-cloud-arrow-up text-base"></i> Save & Publish
+      </button>
+
+      <!-- 🕘 Recovery / History Snapshots -->
+      <button id="btnOpenRecoveryModal" class="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-300 transition shadow-sm cursor-pointer" title="View automatic recovery snapshots & restore prior versions">
+        <i class="ph ph-clock-counter-clockwise text-base text-amber-700"></i> Recovery
       </button>
 
       <!-- 👑 Admin User Pill & Sign Out -->
@@ -602,13 +607,20 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-end gap-2 pt-2.5 border-t border-blue-200">
-            <button id="btnCancelEngineerForm" type="button" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">
-              Cancel / Clear
-            </button>
-            <button id="btnSaveEngineerForm" type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer">
-              <i class="ph ph-check"></i> Save Engineer Record
-            </button>
+          <div class="flex items-center justify-between pt-2.5 border-t border-blue-200">
+            <div>
+              <button id="btnDeleteEngineerForm" type="button" class="hidden bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 hover:border-rose-400 px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
+                <i class="ph ph-trash"></i> Delete Engineer
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="btnCancelEngineerForm" type="button" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">
+                Cancel / Clear
+              </button>
+              <button id="btnSaveEngineerForm" type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer">
+                <i class="ph ph-check"></i> Save Engineer Record
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1129,11 +1141,20 @@
             </span>
           </div>
 
-          <div class="flex gap-2">
-            <input type="text" id="importEngineerInput" placeholder="Enter engineer name (e.g. JOHN DOE) and press Enter to add..." class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 font-semibold">
-            <button id="btnAddImportEngineer" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1">
-              <i class="ph ph-user-plus"></i> Add to List
-            </button>
+          <div class="relative">
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input type="text" id="importEngineerInput" autocomplete="off" placeholder="Search configured engineer (e.g. DYANI, RAJ KUMAR)..." class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 font-semibold pr-7">
+                <button type="button" id="btnClearImportEngineerInput" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1 cursor-pointer">✕</button>
+              </div>
+              <button id="btnAddImportEngineer" type="button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer shrink-0">
+                <i class="ph ph-user-plus"></i> Add to List
+              </button>
+            </div>
+            <!-- Auto-suggest Dropdown -->
+            <div id="importEngineerSuggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto py-1 text-xs">
+              <!-- Dynamically populated suggestion rows -->
+            </div>
           </div>
 
           <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-white border border-slate-200 rounded-lg" id="importEngineerTagsContainer">
@@ -1419,6 +1440,84 @@
     </div>
   </div>
 
+  <!-- MODAL: Publish to Atlas Confirmation -->
+  <div id="publishConfirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 m-4 animate-scale-in">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl shrink-0">
+          <i class="ph ph-cloud-arrow-up"></i>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-900 text-base">Publish Live Roster</h3>
+          <p class="text-xs text-slate-500">Confirm publishing to MongoDB Atlas</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs">
+        <div class="flex justify-between">
+          <span class="text-slate-500 font-semibold">Target Period:</span>
+          <span id="publishConfirmPeriod" class="font-bold text-slate-900">OCTOBER 2026</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500 font-semibold">Total Engineers:</span>
+          <span id="publishConfirmEngCount" class="font-bold text-slate-900">10 Engineers</span>
+        </div>
+        <div class="p-2.5 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+          <i class="ph ph-shield-check text-amber-700 font-bold mr-1"></i>
+          <strong>Automatic Recovery:</strong> An automatic snapshot will be saved in MongoDB Atlas & disk before overwriting. If published wrongly, you can restore previous versions at any time using <strong>Recovery</strong>.
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button id="btnCancelPublishConfirm" type="button" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition cursor-pointer">
+          Cancel
+        </button>
+        <button id="btnExecutePublishConfirm" type="button" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow cursor-pointer">
+          <i class="ph ph-check-circle"></i> Confirm & Publish Live
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Project Recovery Snapshots -->
+  <div id="recoveryModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl p-6 m-4 max-h-[85vh] flex flex-col animate-scale-in">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg">
+            <i class="ph ph-clock-counter-clockwise font-bold"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-slate-900 text-base">Roster Recovery Snapshots</h3>
+            <p id="recoveryModalPeriodLabel" class="text-xs text-slate-500">Auto-saved recovery points for active month</p>
+          </div>
+        </div>
+        <button id="btnCloseRecoveryModal" type="button" class="text-slate-400 hover:text-slate-600 text-lg p-1.5 rounded-lg cursor-pointer">✕</button>
+      </div>
+
+      <div class="py-3 flex-1 overflow-y-auto min-h-[160px]">
+        <div id="recoverySnapshotsLoading" class="hidden py-8 text-center text-xs text-slate-500">
+          <i class="ph ph-spinner animate-spin text-2xl text-amber-600 mb-2 inline-block"></i>
+          <p>Fetching recovery snapshots from MongoDB Atlas...</p>
+        </div>
+        <div id="recoverySnapshotsEmpty" class="hidden py-8 text-center text-xs text-slate-500">
+          <i class="ph ph-archive text-3xl text-slate-300 mb-2 inline-block"></i>
+          <p>No snapshots found for this period yet. Snapshots are auto-created each time a roster is published.</p>
+        </div>
+        <div id="recoverySnapshotsList" class="space-y-2.5">
+          <!-- Dynamically populated snapshot rows -->
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
+        <span>Restoring safely replaces active grid with historical snapshot.</span>
+        <button id="btnCloseRecoveryModalFooter" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 transition cursor-pointer">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { authService } from './js/authService.js';
 
@@ -1507,6 +1606,6 @@
   </script>
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=5.0"></script>
+  <script type="module" src="js/app.js?v=5.2"></script>
 </body>
 </html>

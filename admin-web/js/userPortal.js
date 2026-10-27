@@ -84,6 +84,13 @@ export class UserPortalController {
     await this.loadLiveRoster(this.liveState.year, this.liveState.month);
     this.matchCurrentUserToEngineer();
 
+    // Sync portalMonthSelect dropdown to grid period
+    const portalMonthEl = document.getElementById('portalMonthSelect');
+    if (portalMonthEl) {
+      const activeKey = `${this.gridState.year}-${String(this.gridState.month).padStart(2, '0')}`;
+      portalMonthEl.value = activeKey;
+    }
+
     // 4. Load Initial Month Grid Roster (Initially October 2026)
     await this.loadGridRoster(this.gridState.year, this.gridState.month);
 
@@ -178,18 +185,49 @@ export class UserPortalController {
       console.warn('UserPortal: failed to fetch live roster from Atlas:', e);
     }
 
-    // 2. Fallback to LocalStorage
+    // 2. Direct relative fetch fallback
+    if (!loaded && typeof fetch !== 'undefined' && typeof window !== 'undefined' && window.location) {
+      try {
+        const directRes = await fetch(`/api/roster/${monthKey}`, { headers: { 'Accept': 'application/json' } });
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          const doc = directData.document || directData.data || directData;
+          if (doc && doc.engineers && doc.engineers.length > 0) {
+            loaded = doc.engineers.map(e => {
+              let shifts = e.shifts;
+              if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
+                shifts = shiftsMapToArray(shifts, this.liveState.totalDays);
+              }
+              const defEng = this.engineersList.find(x => x.name === e.name || x.id === e.engineer_id || x.id === e.id) || {};
+              return {
+                id: e.engineer_id || e.id || defEng.id || `eng_${e.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
+                name: e.name,
+                shifts: Array.isArray(shifts) ? [...shifts] : new Array(this.liveState.totalDays).fill(''),
+                status: e.status || defEng.status || 'Active',
+                role: e.role || defEng.role || 'engineer',
+                default_weekly_offs: defEng.default_weekly_offs || e.default_weekly_offs || ['Saturday', 'Sunday']
+              };
+            });
+            localStorage.setItem(cacheKey, JSON.stringify(loaded));
+          }
+        }
+      } catch (eDirect) {}
+    }
+
+    // 3. Fallback to LocalStorage (must have valid shifts)
     if (!loaded) {
       try {
         const stored = localStorage.getItem(cacheKey);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) loaded = parsed;
+          const hasValid = Array.isArray(parsed) && parsed.length > 0 && 
+            parsed.some(e => Array.isArray(e.shifts) && e.shifts.some(s => s && String(s).trim() !== ''));
+          if (hasValid) loaded = parsed;
         }
       } catch (e) {}
     }
 
-    // 3. Fallback: Dynamic blank roster with active directory personnel
+    // 4. Fallback: Dynamic blank roster with active directory personnel
     if (!loaded) {
       const active = this.engineersList.filter(e => e.status !== 'Resigned');
       loaded = active.map(e => ({
@@ -242,18 +280,49 @@ export class UserPortalController {
       console.warn('UserPortal: failed to fetch grid roster from Atlas:', e);
     }
 
-    // 2. Fallback to LocalStorage
+    // 2. Direct relative fetch fallback
+    if (!loaded && typeof fetch !== 'undefined' && typeof window !== 'undefined' && window.location) {
+      try {
+        const directRes = await fetch(`/api/roster/${monthKey}`, { headers: { 'Accept': 'application/json' } });
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          const doc = directData.document || directData.data || directData;
+          if (doc && doc.engineers && doc.engineers.length > 0) {
+            loaded = doc.engineers.map(e => {
+              let shifts = e.shifts;
+              if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
+                shifts = shiftsMapToArray(shifts, this.gridState.totalDays);
+              }
+              const defEng = this.engineersList.find(x => x.name === e.name || x.id === e.engineer_id || x.id === e.id) || {};
+              return {
+                id: e.engineer_id || e.id || defEng.id || `eng_${e.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
+                name: e.name,
+                shifts: Array.isArray(shifts) ? [...shifts] : new Array(this.gridState.totalDays).fill(''),
+                status: e.status || defEng.status || 'Active',
+                role: e.role || defEng.role || 'engineer',
+                default_weekly_offs: defEng.default_weekly_offs || e.default_weekly_offs || ['Saturday', 'Sunday']
+              };
+            });
+            localStorage.setItem(cacheKey, JSON.stringify(loaded));
+          }
+        }
+      } catch (eDirect) {}
+    }
+
+    // 3. Fallback to LocalStorage (must have valid shifts)
     if (!loaded) {
       try {
         const stored = localStorage.getItem(cacheKey);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) loaded = parsed;
+          const hasValid = Array.isArray(parsed) && parsed.length > 0 && 
+            parsed.some(e => Array.isArray(e.shifts) && e.shifts.some(s => s && String(s).trim() !== ''));
+          if (hasValid) loaded = parsed;
         }
       } catch (e) {}
     }
 
-    // 3. Fallback: Dynamic blank roster with active directory personnel
+    // 4. Fallback: Dynamic blank roster with active directory personnel
     if (!loaded) {
       const active = this.engineersList.filter(e => e.status !== 'Resigned');
       loaded = active.map(e => ({
