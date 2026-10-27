@@ -31,4 +31,5 @@ android/**/outputs/
 android/**/tmp/
 android/.kotlin/
 .kotlin/
-
+# Scratch scripts
+scratch/
