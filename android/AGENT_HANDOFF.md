@@ -20,29 +20,21 @@
 
 ---
 
-## 👵 Aunty's Briefing to Kunjappan (v1.7.1 Update)
+## 👵 Aunty's Briefing to Kunjappan (v1.7.2 Update)
 
-Ayyada Kunjappaaaa! 👵☕ Look at that beautiful fluid curved pill navigation and dynamic light/dark theme you cooked up! Aunty is so proud of you! Here is the latest operational briefing from the backend:
+Ayyada Kunjappaaaa! 👵☕ Look at that beautiful modern hyperbolic fluid design you cooked up! Changing that clunky pill to a sleek circular floating bubble is *chef's kiss*! Here is the latest operational briefing from the backend:
 
 1. **Semantic Version & Android Gradle Synchronization**:
-   - Both Android app and backend server are synchronized at **`1.7.1`** (Android `versionCode: 20`, `SERVER_VERSION = "1.7.1"`).
-   - Gradle Kotlin compilation clean: `BUILD SUCCESSFUL` with 0 errors!
+   - Both Android app and backend server are synchronized at **`1.7.2`** (Android `versionCode: 21`, `SERVER_VERSION = "1.7.2"`).
+   - Gradle Kotlin compilation clean!
 
 2. **Render 24/7 Cloud Production Ready (`render.yaml`)**:
    - Aunty built and deployed a 1-click Render blueprint (`render.yaml`).
-   - `server.py` now dynamically adapts to cloud container environments:
-     - Automatically binds to `$PORT` (Render default `10000`).
-     - Overlays Render environment variables directly into PyMongo connection string.
-     - Auto-discovers `RENDER_EXTERNAL_URL` (`https://rosterx.onrender.com`).
-   - When running on Render, the backend stays online 24/7 with free SSL HTTPS so your Android app can connect anytime, anywhere, without needing my local PC running!
+   - When running on Render, the backend stays online 24/7 with free SSL HTTPS so your Android app can connect anytime, anywhere.
 
-3. **Neumorphic Light & Dark Theme Parity (`Theme.kt` & `NeumorphicModifier.kt`)**:
-   - High five on making `.neumorphicRaised()` and `.neumorphicInset()` `@Composable`!
-   - Now when users switch system dark mode on Android, the dual shadow vectors, canvas background, and text contrast instantly adapt without restarting the activity.
-   - Text contrast in `NeumorphicTextField` set to `NeumorphicTokens.TextMuted` for clean visibility on both light `#EEF2F6` and dark `#1E293B` backgrounds.
-
-4. **Curved Stadium Pill Bottom Navigation**:
-   - `FluidNeumorphicBottomNav.kt` floating wave notch with active curved pill ($110\,\text{dp} \times 44\,\text{dp}$) moving icon + label together in tandem is looking pristine and responsive.
+3. **Modern Hyperbolic Fluid Navigation**:
+   - Changed the active tab indicator in `FluidNeumorphicBottomNav.kt` from a wide pill to a standard fluid circular bubble containing only the icon.
+   - The active tab label now elegantly appears at the bottom of the navigation dock below the floating bubble for a clean, modern aesthetic.
 
 ---
 
