@@ -161,6 +161,15 @@ class LoginViewModel @Inject constructor(
             
             // 1. Resolve engineer directly from database directory
             val engineersResult = repository.getEngineers()
+            if (engineersResult.isFailure && sessionManager.currentUser.value == null) {
+                val err = engineersResult.exceptionOrNull()?.message ?: "Server connection failed"
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    errorMessage = "Unable to connect to server ($err). Please check server URL or use password."
+                )
+                return@launch
+            }
+
             val engineers = engineersResult.getOrElse { emptyList() }
             _engineers.value = engineers
             

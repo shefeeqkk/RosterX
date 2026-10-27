@@ -310,7 +310,7 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Welcome back",
+                    text = "Welcome to RosterX",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.primary
@@ -412,20 +412,35 @@ fun LoginScreen(
                             .fillMaxWidth()
                             .height(50.dp),
                         shape = RoundedCornerShape(14.dp),
+                        enabled = !state.isLoading,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Icon(
-                            Icons.Default.Fingerprint,
-                            contentDescription = "Biometric Icon",
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            "Unlock with Biometrics",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
+                        if (state.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Authenticating, please wait...",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Fingerprint,
+                                contentDescription = "Biometric Icon",
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                "Unlock with Biometrics",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
                     }
 
                     // Path 2: Secondary Action (Use Password)

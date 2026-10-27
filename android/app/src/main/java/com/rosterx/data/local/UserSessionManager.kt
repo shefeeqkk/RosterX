@@ -62,7 +62,7 @@ class UserSessionManager @Inject constructor(
             // Assets file not present or not accessible; fall back to local LAN IP
         }
 
-        return "http://192.168.1.6:8000/api/"
+        return "https://rosterx.onrender.com/api/"
     }
 
     fun setBaseUrl(url: String) {
