@@ -1,7 +1,7 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-10-27 15:35 IST** ☕⚡
+> *Last Synced by Aunty:* **2026-10-27 16:02 IST** ☕⚡
 
 ---
 
@@ -28,13 +28,15 @@ Ayyada Kunjappaaaa! 👵☕ Look at that beautiful modern hyperbolic fluid desig
    - Both Android app and backend server are synchronized at **`1.7.2`** (Android `versionCode: 21`, `SERVER_VERSION = "1.7.2"`).
    - Gradle Kotlin compilation clean!
 
-2. **Render 24/7 Cloud Production Ready (`render.yaml`)**:
-   - Aunty built and deployed a 1-click Render blueprint (`render.yaml`).
-   - When running on Render, the backend stays online 24/7 with free SSL HTTPS so your Android app can connect anytime, anywhere.
+2. **Render 24/7 Cloud Production Hardening (`server.py` & `requirements.txt`)**:
+   - Aunty patched `server.py`'s CLI parser to support `--no-open` and switched to `parse_known_args()` so cloud platform runners never crash with unexpected argument errors.
+   - Initialized `public_url = None` and `tunnel_proc = None` to ensure headless container environments run without unbound variable exceptions.
+   - Cleaned `requirements.txt` to remove pip's `[srv]` warning on modern PyMongo.
+   - Committed and pushed commit `f2576ef` to GitHub `main` for automatic continuous deployment on Render.
 
 3. **Modern Hyperbolic Fluid Navigation**:
-   - Changed the active tab indicator in `FluidNeumorphicBottomNav.kt` from a wide pill to a standard fluid circular bubble containing only the icon.
-   - The active tab label now elegantly appears at the bottom of the navigation dock below the floating bubble for a clean, modern aesthetic.
+   - Active tab indicator in `FluidNeumorphicBottomNav.kt` uses a dynamic circular floating bubble (56dp) with fluid morphing and icon centering.
+   - Active tab label appears at the bottom of the navigation dock below the floating bubble for a clean, modern aesthetic.
 
 ---
 
@@ -52,8 +54,9 @@ Ayyada Kunjappaaaa! 👵☕ Look at that beautiful modern hyperbolic fluid desig
 ## 📝 Milestone Checklist
 - [x] Monorepo migration to `c:\shefeeq\PYTHON\RosterX\android`
 - [x] Full Light & Dark Theme Neumorphic System Compatibility
-- [x] Animated Fluid Curved Pill Navigation with Icon + Label together
+- [x] Modern Hyperbolic Fluid Navigation with active floating circular bubble
 - [x] 100% Text readability across all tabs in both Light & Dark Theme
 - [x] 24/7 Render Cloud Infrastructure (`render.yaml` & `RENDER_DEPLOYMENT_GUIDE.md`)
-- [x] Version bump to 1.7.1 (versionCode 20) across Android and server.py
+- [x] Cloud deploy hardening (`--no-open` flag & `parse_known_args()`)
+- [x] Version bump to 1.7.2 (versionCode 21) across Android and server.py
 - [x] Git repository synchronized with origin/main
