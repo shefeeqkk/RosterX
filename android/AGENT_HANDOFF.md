@@ -1,17 +1,17 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-10-27 11:55 IST** ☕⚡
+> *Last Synced by Aunty:* **2026-10-27 12:35 IST** ☕⚡
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.4.3`** (Android `versionCode: 13`, Server `SERVER_VERSION = "1.4.3"`)
+- **Semantic Version**: **`1.4.4`** (Android `versionCode: 14`, Server `SERVER_VERSION = "1.4.4"`)
 - **Active Cloudflare Public Gateway**:  
-  🌐 `https://wines-glow-tapes-dig.trycloudflare.com`  
-  📱 **Android Base URL**: `https://wines-glow-tapes-dig.trycloudflare.com/api/`
+  🌐 `https://processing-reflect-duplicate-head.trycloudflare.com`  
+  📱 **Android Base URL**: `https://processing-reflect-duplicate-head.trycloudflare.com/api/`
 - **Local Asset Sync File**: `app/src/main/assets/server_url.txt` (Synced with active Cloudflare URL)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collection: `engineers`, `notifications`, `operational_policies`, Status: `CONNECTED`)
 - **Notification Engine**: Resend API active, alerts routed to `kkshefeeq005@gmail.com`

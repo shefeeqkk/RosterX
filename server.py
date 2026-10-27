@@ -36,6 +36,8 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+SERVER_VERSION = "1.4.4"
+
 # Base Paths
 ROOT_DIR = Path(__file__).resolve().parent
 WEB_DIR = ROOT_DIR / "admin-web"

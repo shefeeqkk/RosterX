@@ -36,7 +36,8 @@ data class PortalState(
     val isConnected: Boolean = false,
     val latencyMs: Long = 0L,
     val currentBaseUrl: String = "",
-    val notifications: List<com.rosterx.data.remote.NotificationDto> = emptyList()
+    val notifications: List<com.rosterx.data.remote.NotificationDto> = emptyList(),
+    val dismissedNotificationIds: Set<String> = emptySet()
 )
 
 @HiltViewModel
@@ -149,13 +150,15 @@ class EngineerPortalViewModel @Inject constructor(
             }
 
             val notifs = repository.getNotifications().getOrElse { emptyList() }
+            val savedDismissed = sessionManager.getDismissedNotifications()
 
             _state.value = _state.value.copy(
                 isLoading = false,
                 engineers = engineers,
                 liveRoster = liveRosterMap,
                 gridRoster = gridRosterMap,
-                notifications = notifs
+                notifications = notifs,
+                dismissedNotificationIds = savedDismissed
             )
         }
     }
@@ -264,6 +267,21 @@ class EngineerPortalViewModel @Inject constructor(
         _state.value = _state.value.copy(
             successMessage = "Password updated successfully!",
             errorMessage = null
+        )
+    }
+
+    fun dismissNotification(id: String) {
+        sessionManager.dismissNotification(id)
+        _state.value = _state.value.copy(
+            dismissedNotificationIds = _state.value.dismissedNotificationIds + id
+        )
+    }
+
+    fun clearAllNotifications() {
+        val ids = _state.value.notifications.mapIndexed { idx, n -> n.id ?: "notif_$idx" }
+        sessionManager.clearAllNotifications(ids)
+        _state.value = _state.value.copy(
+            dismissedNotificationIds = _state.value.dismissedNotificationIds + ids
         )
     }
 

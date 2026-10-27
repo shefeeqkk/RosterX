@@ -383,7 +383,11 @@ fun EngineerPortalScreen(
                     label = "TabTransition"
                 ) { tab ->
                     when (tab) {
-                        0 -> DashboardView(state)
+                        0 -> DashboardView(
+                            state = state,
+                            onDismissNotification = viewModel::dismissNotification,
+                            onClearAllNotifications = viewModel::clearAllNotifications
+                        )
                         1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                         2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
                         3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
@@ -402,7 +406,11 @@ fun EngineerPortalScreen(
 }
 
 @Composable
-fun DashboardView(state: PortalState) {
+fun DashboardView(
+    state: PortalState,
+    onDismissNotification: (String) -> Unit = {},
+    onClearAllNotifications: () -> Unit = {}
+) {
     val engineer = state.loggedInEngineer
     val roster = getRosterForEngineer(state.liveRoster, engineer)
     val today = LocalDate.now()
@@ -476,103 +484,6 @@ fun DashboardView(state: PortalState) {
             }
         }
 
-        // In-App Operations Broadcasts Banner (Live App Notifications)
-        if (state.notifications.isNotEmpty()) {
-            val engName = engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Engineer"
-            val engUsername = engineer?.username ?: engName.lowercase().replace(" ", "")
-
-            items(state.notifications.take(2)) { notif ->
-                val pColor = when (notif.priority?.lowercase()) {
-                    "urgent" -> Color(0xFFEF4444)
-                    "shift_update" -> Color(0xFFF59E0B)
-                    "broadcast" -> Color(0xFF8B5CF6)
-                    else -> Color(0xFF3B82F6)
-                }
-
-                val resolvedMsg = (notif.rawMessage ?: "")
-                    .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
-                    .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
-                    .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = pColor.copy(alpha = 0.08f)
-                    ),
-                    border = BorderStroke(1.dp, pColor.copy(alpha = 0.4f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Campaign, 
-                                    contentDescription = null, 
-                                    tint = pColor, 
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = notif.title ?: "Broadcast Announcement",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = pColor.copy(alpha = 0.2f)
-                            ) {
-                                Text(
-                                    text = (notif.priority ?: "INFO").uppercase(),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = pColor,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = resolvedMsg,
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "By ${notif.sender ?: "Operations Desk"}",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                            if (!notif.createdAt.isNullOrBlank()) {
-                                Text(
-                                    text = notif.createdAt,
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.outline
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // Today & Tomorrow Shift Cards
         item {
             Row(
@@ -614,6 +525,174 @@ fun DashboardView(state: PortalState) {
                     accentColor = Color(0xFFF59E0B),
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+
+        // Operational Broadcast Notifications Card (Positioned below dashboard metrics)
+        val activeNotifs = state.notifications.mapIndexed { idx, n ->
+            val id = n.id ?: "notif_$idx"
+            id to n
+        }.filter { (id, _) -> id !in state.dismissedNotificationIds }
+
+        if (activeNotifs.isNotEmpty()) {
+            val engName = engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Engineer"
+            val engUsername = engineer?.username ?: engName.lowercase().replace(" ", "")
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF8B5CF6).copy(alpha = 0.20f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Campaign,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            text = "OPERATIONAL NOTIFICATIONS (${activeNotifs.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+
+                    TextButton(
+                        onClick = onClearAllNotifications,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ClearAll,
+                            contentDescription = "Clear All",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Clear All",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            items(activeNotifs) { (notifId, notif) ->
+                val pColor = when (notif.priority?.lowercase()) {
+                    "urgent" -> Color(0xFFEF4444)
+                    "shift_update" -> Color(0xFFF59E0B)
+                    "broadcast" -> Color(0xFF8B5CF6)
+                    else -> Color(0xFF3B82F6)
+                }
+
+                val resolvedMsg = (notif.rawMessage ?: "")
+                    .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
+                    .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
+                    .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = pColor.copy(alpha = 0.08f)
+                    ),
+                    border = BorderStroke(1.dp, pColor.copy(alpha = 0.40f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = pColor.copy(alpha = 0.20f)
+                                ) {
+                                    Text(
+                                        text = (notif.priority ?: "INFO").uppercase(),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = pColor,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                Text(
+                                    text = notif.title ?: "Broadcast Announcement",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // Dismiss / Clear Button
+                            IconButton(
+                                onClick = { onDismissNotification(notifId) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear Notification",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = resolvedMsg,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "By ${notif.sender ?: "Operations Desk"}",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                            if (!notif.createdAt.isNullOrBlank()) {
+                                Text(
+                                    text = notif.createdAt,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -72,4 +72,20 @@ class UserSessionManager @Inject constructor(
         }
         prefs.edit().putString("custom_base_url", cleanUrl).apply()
     }
+
+    fun getDismissedNotifications(): Set<String> {
+        return prefs.getStringSet("dismissed_notifications", emptySet()) ?: emptySet()
+    }
+
+    fun dismissNotification(id: String) {
+        val current = getDismissedNotifications().toMutableSet()
+        current.add(id)
+        prefs.edit().putStringSet("dismissed_notifications", current).apply()
+    }
+
+    fun clearAllNotifications(ids: Collection<String>) {
+        val current = getDismissedNotifications().toMutableSet()
+        current.addAll(ids)
+        prefs.edit().putStringSet("dismissed_notifications", current).apply()
+    }
 }
