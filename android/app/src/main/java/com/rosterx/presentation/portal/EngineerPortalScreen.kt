@@ -285,14 +285,25 @@ fun EngineerPortalScreen(
         },
         floatingActionButton = {
             if (selectedTab == 1 && state.selectedDate != LocalDate.now()) {
-                ExtendedFloatingActionButton(
-                    onClick = { viewModel.selectDate(LocalDate.now()) },
-                    icon = { Icon(Icons.Default.Today, contentDescription = null) },
-                    text = { Text("Jump to Today", fontWeight = FontWeight.Bold) },
-                    containerColor = NeumorphicTokens.AccentSalmon,
-                    contentColor = Color.White,
-                    elevation = FloatingActionButtonDefaults.elevation(8.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .neumorphicRaised(
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = NeumorphicTokens.ElevationRaised
+                        )
+                        .background(
+                            NeumorphicTokens.AccentSalmon.copy(alpha = 0.90f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .clickable { viewModel.selectDate(LocalDate.now()) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Today, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Jump to Today", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
             }
         },
         bottomBar = {
@@ -810,22 +821,6 @@ fun TeamShiftsView(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (state.selectedDate != today) {
-                        Surface(
-                            onClick = onJumpToToday,
-                            shape = RoundedCornerShape(8.dp),
-                            color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Text(
-                                text = "Today",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = NeumorphicTokens.AccentSalmon,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
                     IconButton(onClick = onNextDay) {
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Day", tint = NeumorphicTokens.TextMain)
                     }
@@ -1320,6 +1315,36 @@ fun MonthRosterView(
                                     )
                                 }
                             }
+                            // Stats Headers
+                            val statHeaders = listOf(
+                                Triple("WRK", "Working", Color(0xFF10B981)),
+                                Triple("NS", "Night", Color(0xFF818CF8)),
+                                Triple("OFF", "Rest", Color(0xFFFBBF24))
+                            )
+                            statHeaders.forEach { (title, subtitle, bgColor) ->
+                                Column(
+                                    modifier = Modifier
+                                        .width(48.dp)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = title, 
+                                        fontWeight = FontWeight.ExtraBold, 
+                                        fontSize = 12.sp,
+                                        color = bgColor
+                                    )
+                                    Text(
+                                        text = subtitle, 
+                                        fontSize = 9.sp, 
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -1364,8 +1389,20 @@ fun MonthRosterView(
                                         .fillMaxHeight()
                                         .horizontalScroll(scrollState)
                                 ) {
+                                    var wrkCount = 0
+                                    var nsCount = 0
+                                    var offCount = 0
+
                                     for (day in 1..daysInMonth) {
                                         val shift = engRoster[day.toString()]
+                                        
+                                        // Calculate stats
+                                        if (shift != null) {
+                                            if (shift.code == "NS") nsCount++
+                                            else if (shift.code == "OFF" || shift.code == "CO" || shift.code == "AL" || shift.code == "SL" || shift.code == "ML") offCount++
+                                            else if (shift.code.isNotEmpty()) wrkCount++
+                                        }
+
                                         Box(
                                             modifier = Modifier
                                                 .width(42.dp)
@@ -1384,6 +1421,30 @@ fun MonthRosterView(
                                                     color = Color(parseColor(shift.textColorHex))
                                                 )
                                             }
+                                        }
+                                    }
+                                    
+                                    // Render Stats Cells
+                                    val statCells = listOf(
+                                        Pair(wrkCount, Color(0xFF10B981)),
+                                        Pair(nsCount, Color(0xFF818CF8)),
+                                        Pair(offCount, Color(0xFFFBBF24))
+                                    )
+                                    statCells.forEach { (count, color) ->
+                                        Box(
+                                            modifier = Modifier
+                                                .width(48.dp)
+                                                .fillMaxHeight()
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = count.toString(),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = color
+                                            )
                                         }
                                     }
                                 }

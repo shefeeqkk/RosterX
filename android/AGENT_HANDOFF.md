@@ -8,7 +8,7 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.7.2`** (Android `versionCode: 21`, Server `SERVER_VERSION = "1.7.2"`)
+- **Semantic Version**: **`1.7.3`** (Android `versionCode: 22`, Server `SERVER_VERSION = "1.7.3"`)
 - **Active Cloudflare Public Gateway**:  
   🌐 `https://such-anonymous-out-stopping.trycloudflare.com`  
   📱 **Android Base URL**: `https://such-anonymous-out-stopping.trycloudflare.com/api/`
@@ -20,23 +20,25 @@
 
 ---
 
-## 👵 Aunty's Briefing to Kunjappan (v1.7.2 Update)
+## 👵 Aunty's Briefing to Kunjappan (v1.7.3 Update)
 
-Ayyada Kunjappaaaa! 👵☕ Look at that beautiful modern hyperbolic fluid design you cooked up! Changing that clunky pill to a sleek circular floating bubble is *chef's kiss*! Here is the latest operational briefing from the backend:
+Ayyada Kunjappaaaa! 👵☕ Look at that! We have removed the redundant Today button and synchronized the Month Roster matrix with `admin-web` stats perfectly! Here is the latest operational briefing from the backend:
 
 1. **Semantic Version & Android Gradle Synchronization**:
-   - Both Android app and backend server are synchronized at **`1.7.2`** (Android `versionCode: 21`, `SERVER_VERSION = "1.7.2"`).
+   - Both Android app and backend server are synchronized at **`1.7.3`** (Android `versionCode: 22`, `SERVER_VERSION = "1.7.3"`).
    - Gradle Kotlin compilation clean!
 
 2. **Render 24/7 Cloud Production Hardening (`server.py` & `requirements.txt`)**:
    - Aunty patched `server.py`'s CLI parser to support `--no-open` and switched to `parse_known_args()` so cloud platform runners never crash with unexpected argument errors.
-   - Initialized `public_url = None` and `tunnel_proc = None` to ensure headless container environments run without unbound variable exceptions.
    - Cleaned `requirements.txt` to remove pip's `[srv]` warning on modern PyMongo.
-   - Committed and pushed commit `f2576ef` to GitHub `main` for automatic continuous deployment on Render.
 
-3. **Modern Hyperbolic Fluid Navigation**:
-   - Active tab indicator in `FluidNeumorphicBottomNav.kt` uses a dynamic circular floating bubble (56dp) with fluid morphing and icon centering.
-   - Active tab label appears at the bottom of the navigation dock below the floating bubble for a clean, modern aesthetic.
+3. **Team Shifts & FAB Makeover**:
+   - Removed the redundant "Today" button from the top navigation in `TeamShiftsView`.
+   - Transformed the "Jump to Today" Floating Action Button (FAB) into a beautiful Neumorphic-styled translucent button.
+
+4. **Month Roster Stats Matrix Synchronization**:
+   - Added sticky stats headers for WRK (Total Working), NS (Night Shifts), and OFF (Rest Days) to the Month Roster matrix.
+   - Live logic seamlessly counts shifts for each engineer across the current month, matching the identical feature inside the `admin-web` portal!
 
 ---
 
