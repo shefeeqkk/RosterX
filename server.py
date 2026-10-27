@@ -26,7 +26,7 @@ import collections
 from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-SERVER_VERSION = "1.6.0"
+SERVER_VERSION = "1.7.0"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -53,7 +53,7 @@ ATLAS_CLUSTER = "Cluster0"
 ATLAS_DB_NAME = "rosterx"
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.6.0"
+SERVER_VERSION = "1.7.0"
 
 # Global Public Tunnel & Internet Gateway State
 PUBLIC_TUNNEL_URL = None

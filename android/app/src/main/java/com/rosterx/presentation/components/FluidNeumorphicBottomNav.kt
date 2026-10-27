@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -16,10 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -31,7 +30,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rosterx.ui.neumorphic.NeumorphicTokens
@@ -46,12 +44,12 @@ data class NavTabItem(
 )
 
 /**
- * RosterX — Animated Fluid Bottom Navigation Bar (Neumorphic Notch & Floating Bubble)
+ * RosterX — Animated Fluid Bottom Navigation Bar (Neumorphic Wave Notch & Floating Curved Pill)
  *
- * Features:
- * 1. Monochromatic Neumorphic `#EEF2F6` floating dock surface.
- * 2. Continuous, fluid concave cubic-bezier wave cutout notch hugging active index.
- * 3. Elevated active circular bubble floating -22dp above notch with coral accent icon & glowing pip.
+ * Design Features:
+ * 1. Monochromatic Neumorphic surface floating dock matching system Light/Dark theme.
+ * 2. Continuous, fluid concave cubic-bezier wave cutout notch centered beneath active selection.
+ * 3. Elevated active Curved Stadium/Pill floating -18dp above notch, containing BOTH active Icon + Text Label together!
  * 4. Spring-dampened motion curve with lateral squash & stretch physics deformation.
  */
 @Composable
@@ -85,19 +83,26 @@ fun FluidNeumorphicBottomNav(
     // Physics Squash & Stretch deformation during transition
     val isMoving = abs(targetNotchCenterX - animatedNotchCenterX) > with(density) { 4.dp.toPx() }
     val bubbleScaleX by animateFloatAsState(
-        targetValue = if (isMoving) 1.18f else 1.0f,
+        targetValue = if (isMoving) 1.15f else 1.0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "bubbleScaleX"
     )
     val bubbleScaleY by animateFloatAsState(
-        targetValue = if (isMoving) 0.82f else 1.0f,
+        targetValue = if (isMoving) 0.85f else 1.0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "bubbleScaleY"
     )
 
-    val notchWidthPx = with(density) { 88.dp.toPx() }
+    val notchWidthPx = with(density) { 120.dp.toPx() }
     val notchDepthPx = with(density) { 22.dp.toPx() }
     val cornerRadiusPx = with(density) { 24.dp.toPx() }
+
+    val canvasColor = NeumorphicTokens.Canvas
+    val surfaceColor = NeumorphicTokens.Surface
+    val textMainColor = NeumorphicTokens.TextMain
+    val textMutedColor = NeumorphicTokens.TextMuted
+    val shadowDarkColor = NeumorphicTokens.ShadowDark
+    val shadowLightColor = NeumorphicTokens.ShadowLight
 
     Box(
         modifier = modifier
@@ -130,8 +135,8 @@ fun FluidNeumorphicBottomNav(
                         // 1. Bottom-Right Soft Occlusion Shadow (+X, +Y)
                         val darkPaint = android.graphics.Paint().apply {
                             isAntiAlias = true
-                            color = NeumorphicTokens.ShadowDark.toArgb()
-                            setShadowLayer(14.dp.toPx(), 6.dp.toPx(), 6.dp.toPx(), NeumorphicTokens.ShadowDark.toArgb())
+                            color = shadowDarkColor.toArgb()
+                            setShadowLayer(14.dp.toPx(), 6.dp.toPx(), 6.dp.toPx(), shadowDarkColor.toArgb())
                             maskFilter = BlurMaskFilter(14.dp.toPx(), BlurMaskFilter.Blur.NORMAL)
                         }
                         nativeCanvas.drawPath(path.asAndroidPath(), darkPaint)
@@ -139,62 +144,66 @@ fun FluidNeumorphicBottomNav(
                         // 2. Top-Left Diffuse Specular Highlight (-X, -Y)
                         val lightPaint = android.graphics.Paint().apply {
                             isAntiAlias = true
-                            color = NeumorphicTokens.ShadowLight.toArgb()
-                            setShadowLayer(12.dp.toPx(), -4.dp.toPx(), -4.dp.toPx(), NeumorphicTokens.ShadowLight.toArgb())
+                            color = shadowLightColor.toArgb()
+                            setShadowLayer(12.dp.toPx(), -4.dp.toPx(), -4.dp.toPx(), shadowLightColor.toArgb())
                             maskFilter = BlurMaskFilter(12.dp.toPx(), BlurMaskFilter.Blur.NORMAL)
                         }
                         nativeCanvas.drawPath(path.asAndroidPath(), lightPaint)
                     }
 
                     // 3. Molded Canvas Base Fill
-                    drawPath(path = path, color = NeumorphicTokens.Surface)
+                    drawPath(path = path, color = surfaceColor)
                 }
         )
 
-        // B. Floating Active Circular Icon Bubble
+        // B. Floating Active Curved Pill/Stadium Container (Contains Icon + Text Label Together!)
         if (containerWidthPx > 0 && selectedIndex in items.indices) {
             val activeItem = items[selectedIndex]
-            val bubbleSize = 54.dp
-            val bubbleSizePx = with(density) { bubbleSize.toPx() }
-            val bubbleLeftPx = animatedNotchCenterX - (bubbleSizePx / 2f)
-            val bubbleLeftDp = with(density) { bubbleLeftPx.toDp() }
+            val pillWidth = 110.dp
+            val pillHeight = 44.dp
+            val pillWidthPx = with(density) { pillWidth.toPx() }
+            val pillLeftPx = animatedNotchCenterX - (pillWidthPx / 2f)
+            val pillLeftDp = with(density) { pillLeftPx.toDp() }
 
             Box(
                 modifier = Modifier
-                    .offset(x = bubbleLeftDp, y = 0.dp)
-                    .size(bubbleSize)
+                    .offset(x = pillLeftDp, y = 2.dp)
+                    .width(pillWidth)
+                    .height(pillHeight)
                     .scale(scaleX = bubbleScaleX, scaleY = bubbleScaleY)
                     .neumorphicAccentGlow(glowColor = NeumorphicTokens.AccentGlow, radius = 10.dp)
                     .neumorphicRaised(
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(22.dp),
                         elevation = NeumorphicTokens.ElevationRaised,
-                        surfaceColor = NeumorphicTokens.Surface
+                        surfaceColor = surfaceColor
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
                         imageVector = activeItem.icon,
                         contentDescription = activeItem.title,
                         tint = NeumorphicTokens.AccentSalmon,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    // Illuminated Glowing Pip / Dot
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .clip(CircleShape)
-                            .background(NeumorphicTokens.AccentSalmon)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = activeItem.title,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeumorphicTokens.AccentSalmon,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
         }
 
-        // C. Interactive Tab Triggers Row
+        // C. Interactive Inactive Tab Triggers
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -225,33 +234,28 @@ fun FluidNeumorphicBottomNav(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        // Render inactive icon only when not selected (since active icon floats above in bubble)
-                        if (!isSelected) {
+                    if (!isSelected) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Icon(
                                 imageVector = item.icon,
                                 contentDescription = item.title,
-                                tint = NeumorphicTokens.TextMuted,
+                                tint = textMutedColor,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.height(3.dp))
-                        } else {
-                            // Blank spacer to preserve vertical alignment of tab title when active
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Text(
+                                text = item.title,
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Medium,
+                                color = textMutedColor
+                            )
                         }
-
-                        Text(
-                            text = item.title,
-                            fontSize = 9.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (isSelected) NeumorphicTokens.AccentSalmon else NeumorphicTokens.TextMuted
-                        )
                     }
                 }
             }

@@ -785,7 +785,7 @@ fun TeamShiftsView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onPreviousDay) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Day")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Day", tint = NeumorphicTokens.TextMain)
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -794,18 +794,18 @@ fun TeamShiftsView(
                             text = dateTag,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = Color.White,
                             modifier = Modifier
                                 .padding(end = 8.dp)
-                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(8.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
                     Text(
                         text = state.selectedDate.format(DateTimeFormatter.ofPattern("EEE, MMM dd, yyyy")),
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         fontSize = 15.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = NeumorphicTokens.TextMain
                     )
                 }
 
@@ -814,21 +814,20 @@ fun TeamShiftsView(
                         Surface(
                             onClick = onJumpToToday,
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                            color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
                             modifier = Modifier.padding(end = 4.dp)
                         ) {
                             Text(
                                 text = "Today",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = NeumorphicTokens.AccentSalmon,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
                     IconButton(onClick = onNextDay) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Day")
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Day", tint = NeumorphicTokens.TextMain)
                     }
                 }
             }
@@ -842,12 +841,13 @@ fun TeamShiftsView(
             items(sortedShiftGroups) { (shift, engineersInShift) ->
                 val shiftTiming = ALL_STANDARD_SHIFTS.find { it.first.code == shift.code }?.second ?: "Rest / Duty"
                 
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+                NeumorphicCard(
+                    shape = RoundedCornerShape(18.dp),
+                    style = NeumorphicElevationStyle.Raised,
+                    surfaceColor = NeumorphicTokens.Surface,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -872,27 +872,27 @@ fun TeamShiftsView(
                                 Column {
                                     Text(
                                         text = shift.name,
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = FontWeight.ExtraBold,
                                         fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = NeumorphicTokens.TextMain
                                     )
                                     Text(
                                         text = shiftTiming,
                                         fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = NeumorphicTokens.TextMuted
                                     )
                                 }
                             }
 
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f)
                             ) {
                                 Text(
                                     text = "${engineersInShift.size} Eng",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = NeumorphicTokens.AccentSalmon,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
@@ -900,7 +900,7 @@ fun TeamShiftsView(
 
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
+                            color = NeumorphicTokens.SurfaceContrast
                         )
 
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -908,8 +908,7 @@ fun TeamShiftsView(
                                 val isUser = state.loggedInEngineer?.id == engineer.id
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    border = if (isUser) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null,
+                                    color = if (isUser) NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f) else NeumorphicTokens.SurfaceContrast.copy(alpha = 0.5f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -920,14 +919,14 @@ fun TeamShiftsView(
                                             modifier = Modifier
                                                 .size(24.dp)
                                                 .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                                .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = engineer.name.take(1).uppercase(),
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = NeumorphicTokens.AccentSalmon
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -935,7 +934,7 @@ fun TeamShiftsView(
                                             text = engineer.name,
                                             fontWeight = if (isUser) FontWeight.ExtraBold else FontWeight.Medium,
                                             fontSize = 13.sp,
-                                            color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                            color = if (isUser) NeumorphicTokens.AccentSalmon else NeumorphicTokens.TextMain
                                         )
                                         if (isUser) {
                                             Spacer(modifier = Modifier.width(4.dp))
@@ -985,16 +984,16 @@ fun MyCalendarView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onPreviousMonth) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Month")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Month", tint = NeumorphicTokens.TextMain)
                 }
                 Text(
                     text = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.ExtraBold,
+                    color = NeumorphicTokens.TextMain
                 )
                 IconButton(onClick = onNextMonth) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Month")
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Month", tint = NeumorphicTokens.TextMain)
                 }
             }
         }
@@ -1025,7 +1024,7 @@ fun MyCalendarView(
                             text = day,
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = NeumorphicTokens.TextMuted,
                             fontSize = 11.sp
                         )
                     }
@@ -1043,8 +1042,8 @@ fun MyCalendarView(
                         val cellBgColor = when {
                             shift != null -> Color(parseColor(shift.bgColorHex))
                             isWeekend -> WeekendLightOrange
-                            isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                            else -> MaterialTheme.colorScheme.surface
+                            isSelected -> NeumorphicTokens.AccentSalmon.copy(alpha = 0.25f)
+                            else -> NeumorphicTokens.SurfaceContrast
                         }
 
                         Box(
@@ -1054,7 +1053,7 @@ fun MyCalendarView(
                                 .background(cellBgColor)
                                 .border(
                                     1.5.dp,
-                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    if (isSelected) NeumorphicTokens.AccentSalmon else Color.Transparent,
                                     RoundedCornerShape(8.dp)
                                 )
                                 .clickable {
@@ -1068,7 +1067,7 @@ fun MyCalendarView(
                                     text = day.toString(),
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 13.sp,
-                                    color = if (shift != null) Color(parseColor(shift.textColorHex)) else MaterialTheme.colorScheme.onSurface
+                                    color = if (shift != null) Color(parseColor(shift.textColorHex)) else NeumorphicTokens.TextMain
                                 )
                                 if (shift != null) {
                                     Text(
@@ -1087,22 +1086,22 @@ fun MyCalendarView(
 
         // Shift Legend / Shift Ledger
         item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+            NeumorphicCard(
+                shape = RoundedCornerShape(22.dp),
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column {
                     Text(
                         text = "SHIFT LEGEND & TIMINGS",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeumorphicTokens.AccentSalmon
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
+                        color = NeumorphicTokens.SurfaceContrast
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1133,13 +1132,13 @@ fun MyCalendarView(
                                         text = shift.name,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = NeumorphicTokens.TextMain
                                     )
                                 }
                                 Text(
                                     text = timing,
                                     fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = NeumorphicTokens.TextMuted
                                 )
                             }
                         }

@@ -17,40 +17,34 @@ import com.rosterx.ui.neumorphic.NeumorphicTokens
 
 val LocalNeumorphicTokens = staticCompositionLocalOf { NeumorphicTokens }
 
-// Ambient Space Theme Colors (Legacy Dark Mode NOC Command Center)
-private val AmbientDarkBackground = Color(0xFF090D16)
-private val AmbientCyan = Color(0xFF0284C7)
-private val AmbientIndigo = Color(0xFF4F46E5)
-
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF38BDF8),
-    secondary = AmbientIndigo,
-    tertiary = Color(0xFF06B6D4),
-    background = AmbientDarkBackground,
-    surface = Color(0xFF111827),
-    surfaceVariant = Color(0xFF1F2937),
-    onPrimary = Color.Black,
+    primary = NeumorphicTokens.AccentSalmon,
+    secondary = NeumorphicTokens.AccentCoral,
+    tertiary = NeumorphicTokens.StatusCyan,
+    background = NeumorphicTokens.DarkCanvas,
+    surface = NeumorphicTokens.DarkSurface,
+    surfaceVariant = NeumorphicTokens.DarkSurfaceContrast,
+    onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFFF9FAFB),
-    onSurface = Color(0xFFF9FAFB),
-    onSurfaceVariant = Color(0xFFD1D5DB)
+    onBackground = NeumorphicTokens.DarkTextMain,
+    onSurface = NeumorphicTokens.DarkTextMain,
+    onSurfaceVariant = NeumorphicTokens.DarkTextMuted
 )
 
-// Universal Neumorphic Soft UI Light Color Scheme
 private val LightColorScheme = lightColorScheme(
     primary = NeumorphicTokens.AccentSalmon,
     secondary = NeumorphicTokens.AccentCoral,
     tertiary = NeumorphicTokens.StatusCyan,
-    background = NeumorphicTokens.Canvas,
-    surface = NeumorphicTokens.Surface,
-    surfaceVariant = NeumorphicTokens.SurfaceContrast,
+    background = NeumorphicTokens.LightCanvas,
+    surface = NeumorphicTokens.LightSurface,
+    surfaceVariant = NeumorphicTokens.LightSurfaceContrast,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = NeumorphicTokens.TextMain,
-    onSurface = NeumorphicTokens.TextMain,
-    onSurfaceVariant = NeumorphicTokens.TextMuted
+    onBackground = NeumorphicTokens.LightTextMain,
+    onSurface = NeumorphicTokens.LightTextMain,
+    onSurfaceVariant = NeumorphicTokens.LightTextMuted
 )
 
 @Composable
