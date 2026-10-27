@@ -36,6 +36,7 @@ data class PortalState(
     val isConnected: Boolean = false,
     val latencyMs: Long = 0L,
     val currentBaseUrl: String = "",
+    val constraints: com.rosterx.domain.model.OperationalConstraints = com.rosterx.domain.model.OperationalConstraints(),
     val notifications: List<com.rosterx.data.remote.NotificationDto> = emptyList(),
     val dismissedNotificationIds: Set<String> = emptySet()
 )
@@ -151,12 +152,14 @@ class EngineerPortalViewModel @Inject constructor(
 
             val notifs = repository.getNotifications().getOrElse { emptyList() }
             val savedDismissed = sessionManager.getDismissedNotifications()
+            val loadedConstraints = repository.getConstraints().getOrDefault(com.rosterx.domain.model.OperationalConstraints())
 
             _state.value = _state.value.copy(
                 isLoading = false,
                 engineers = engineers,
                 liveRoster = liveRosterMap,
                 gridRoster = gridRosterMap,
+                constraints = loadedConstraints,
                 notifications = notifs,
                 dismissedNotificationIds = savedDismissed
             )

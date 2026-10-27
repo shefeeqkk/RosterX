@@ -1,7 +1,7 @@
 package com.rosterx.domain.model
 
 enum class EngineerRole {
-    ADMIN, ENGINEER
+    ADMIN, ENGINEER, APPRENTICE
 }
 
 enum class EngineerStatus {

@@ -144,6 +144,32 @@ fun ManageTeamTab(
                         }
                     }
 
+                    // Role Selection
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Role:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(
+                                selected = roleInput == EngineerRole.ENGINEER,
+                                onClick = { roleInput = EngineerRole.ENGINEER },
+                                label = { Text("ENGINEER", fontSize = 10.sp) }
+                            )
+                            FilterChip(
+                                selected = roleInput == EngineerRole.ADMIN,
+                                onClick = { roleInput = EngineerRole.ADMIN },
+                                label = { Text("ADMIN", fontSize = 10.sp) }
+                            )
+                            FilterChip(
+                                selected = roleInput == EngineerRole.APPRENTICE,
+                                onClick = { roleInput = EngineerRole.APPRENTICE },
+                                label = { Text("APPRENTICE", fontSize = 10.sp) }
+                            )
+                        }
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -390,19 +416,35 @@ fun ManageTeamTab(
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(engineer.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        val (roleLabel, roleBgColor, roleTextColor) = when (engineer.role) {
+                                            EngineerRole.ADMIN -> Triple("LEAD ADMIN", Color(0xFFF3E8FF), Color(0xFF7E22CE))
+                                            EngineerRole.APPRENTICE -> Triple("APPRENTICE", Color(0xFFFEF3C7), Color(0xFFB45309))
+                                            else -> Triple("NOC", Color(0xFFF1F5F9), Color(0xFF475569))
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = roleBgColor
+                                        ) {
+                                            Text(
+                                                text = roleLabel,
+                                                fontSize = 8.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = roleTextColor,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
                                             color = if (engineer.status == EngineerStatus.ACTIVE) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
                                         ) {
                                             Text(
                                                 text = engineer.status.name,
-                                                fontSize = 9.sp,
+                                                fontSize = 8.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (engineer.status == EngineerStatus.ACTIVE) Color(0xFF10B981) else Color(0xFFEF4444),
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                                             )
                                         }
                                     }

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.verticalScroll
 import com.rosterx.domain.model.Engineer
+import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.domain.model.ShiftCode
 import com.rosterx.presentation.admin.AdminRosterState
@@ -631,7 +632,7 @@ fun MonthRostersTab(
                         }
                     }
 
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(modifier = Modifier.weight(1f)) {
                         items(filteredEngineers) { engineer ->
                             val engRoster = getRosterForEngineer(mutableRoster, engineer)
 
@@ -689,6 +690,150 @@ fun MonthRostersTab(
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Daily Coverage Footers (Day & Night) matching admin-web ---
+                    val minDayStaff = state.constraints.daytimeOverlapMin.coerceAtLeast(1)
+                    val targetNight = state.constraints.nightHeadcount.coerceAtLeast(1)
+
+                    val dailyDayCounts = remember(mutableRoster, filteredEngineers, daysInMonth, state.constraints) {
+                        val dCounts = IntArray(daysInMonth + 1)
+                        for (day in 1..daysInMonth) {
+                            var d = 0
+                            for (eng in filteredEngineers) {
+                                // APPRENTICE RULE: Apprentice engineers are strictly NOT counted towards Day or Night coverage!
+                                if (eng.role == EngineerRole.APPRENTICE) continue
+                                val shift = getRosterForEngineer(mutableRoster, eng)[day.toString()]
+                                val code = shift?.code?.trim()?.uppercase() ?: ""
+                                if (code.isNotEmpty() && code != "NS" && code != "OFF" && !code.startsWith("SW") && code != "L" && code != "CO" && code != "AL" && code != "SL" && code != "ML") {
+                                    d++
+                                }
+                            }
+                            dCounts[day] = d
+                        }
+                        dCounts
+                    }
+
+                    val dailyNightCounts = remember(mutableRoster, filteredEngineers, daysInMonth, state.constraints) {
+                        val nCounts = IntArray(daysInMonth + 1)
+                        for (day in 1..daysInMonth) {
+                            var n = 0
+                            for (eng in filteredEngineers) {
+                                // APPRENTICE RULE: Apprentice engineers are strictly NOT counted towards Day or Night coverage!
+                                if (eng.role == EngineerRole.APPRENTICE) continue
+                                val shift = getRosterForEngineer(mutableRoster, eng)[day.toString()]
+                                val code = shift?.code?.trim()?.uppercase() ?: ""
+                                if (code == "NS") {
+                                    n++
+                                }
+                            }
+                            nCounts[day] = n
+                        }
+                        nCounts
+                    }
+
+                    // Day Coverage Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Column {
+                                Text("DAY COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.5.sp, color = MaterialTheme.colorScheme.primary)
+                                Text("≥$minDayStaff (Appr. Excl.)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .horizontalScroll(scrollState)
+                        ) {
+                            for (day in 1..daysInMonth) {
+                                val dVal = dailyDayCounts[day]
+                                val dayMet = dVal >= minDayStaff
+                                val dayTextColor = if (dayMet) Color(0xFF047857) else Color(0xFFB45309)
+                                val dayBgColor = if (dayMet) Color(0xFFD1FAE5) else Color(0xFFFEF3C7)
+
+                                Box(
+                                    modifier = Modifier
+                                        .width(42.dp)
+                                        .fillMaxHeight()
+                                        .background(dayBgColor)
+                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = dVal.toString(),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = dayTextColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Night Coverage Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Column {
+                                Text("NIGHT COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.5.sp, color = MaterialTheme.colorScheme.primary)
+                                Text("=$targetNight NS (Appr. Excl.)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .horizontalScroll(scrollState)
+                        ) {
+                            for (day in 1..daysInMonth) {
+                                val nVal = dailyNightCounts[day]
+                                val (nightTextColor, nightBgColor) = when {
+                                    nVal == 0 -> Pair(Color(0xFFB91C1C), Color(0xFFFEE2E2))
+                                    nVal != targetNight -> Pair(Color(0xFFB45309), Color(0xFFFEF3C7))
+                                    else -> Pair(Color(0xFF047857), Color(0xFFD1FAE5))
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .width(42.dp)
+                                        .fillMaxHeight()
+                                        .background(nightBgColor)
+                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = nVal.toString(),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = nightTextColor
+                                    )
                                 }
                             }
                         }

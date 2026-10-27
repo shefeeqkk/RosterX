@@ -17,10 +17,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rosterx.domain.model.EngineerRole
+import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.presentation.admin.AdminRosterState
 import com.rosterx.presentation.portal.getRosterForEngineer
 import com.rosterx.ui.neumorphic.*
 import com.rosterx.presentation.components.*
+import java.time.YearMonth
 
 data class RuleViolation(
     val rawEngineerName: String,
@@ -189,13 +192,94 @@ fun AdminDashboardTab(
 
     val monthNames = listOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
     val currentMonthShort = monthNames.getOrElse(state.currentMonth - 1) { "OCT" }
+    val daysInMonth = remember(state.currentYear, state.currentMonth) {
+        try { YearMonth.of(state.currentYear, state.currentMonth).lengthOfMonth() } catch (e: Exception) { 31 }
+    }
 
-    // Audit violations from loaded roster according to corrected 24/7 rules
-    val violations = remember(state.roster, state.engineers, state.currentYear, state.currentMonth) {
+    // Comprehensive Rule Auditor matching Module B and C requirements from admin-web
+    val violations = remember(state.roster, state.engineers, state.currentYear, state.currentMonth, state.constraints) {
         val list = mutableListOf<RuleViolation>()
         val checkedEngineers = mutableSetOf<String>()
+        val activeEngineers = state.engineers.filter { it.status != EngineerStatus.RESIGNED }
 
-        state.engineers.forEach { eng ->
+        val targetNight = state.constraints.nightHeadcount.coerceAtLeast(1)
+        val minFs = state.constraints.fsMin.coerceAtLeast(1)
+        val minSs = state.constraints.ssMin.coerceAtLeast(1)
+        val maxDays = state.constraints.maxConsecutiveDays.coerceAtLeast(1)
+
+        // 1. Daily Desk & Night Coverage Audit
+        for (day in 1..daysInMonth) {
+            var nsCount = 0
+            var fsCount = 0
+            var ssCount = 0
+
+            for (eng in activeEngineers) {
+                // Apprentice engineers are NOT counted towards core desk or night coverage requirements
+                if (eng.role == EngineerRole.APPRENTICE) continue
+
+                val shift = getRosterForEngineer(state.roster, eng)[day.toString()]
+                val code = shift?.code?.trim()?.uppercase() ?: ""
+                if (code == "NS") nsCount++
+                if (code == "FS") fsCount++
+                if (code == "SS") ssCount++
+            }
+
+            if (nsCount < targetNight) {
+                list.add(
+                    RuleViolation(
+                        rawEngineerName = "Night Shift Desk",
+                        engineerName = "24/7 Night Gap",
+                        month = "$currentMonthShort ${state.currentYear}",
+                        dayNumber = day,
+                        dateLabel = "$currentMonthShort $day, ${state.currentYear}",
+                        ruleDescription = "Day $day: Night coverage below target (NS = $nsCount, required = $targetNight)",
+                        severity = "HIGH"
+                    )
+                )
+            } else if (nsCount > targetNight) {
+                list.add(
+                    RuleViolation(
+                        rawEngineerName = "Night Shift Desk",
+                        engineerName = "Night Overstaffed",
+                        month = "$currentMonthShort ${state.currentYear}",
+                        dayNumber = day,
+                        dateLabel = "$currentMonthShort $day, ${state.currentYear}",
+                        ruleDescription = "Day $day: Night coverage overstaffed (NS = $nsCount, target = $targetNight)",
+                        severity = "LOW"
+                    )
+                )
+            }
+
+            if (fsCount < minFs) {
+                list.add(
+                    RuleViolation(
+                        rawEngineerName = "Morning Desk",
+                        engineerName = "Missing FS Shift",
+                        month = "$currentMonthShort ${state.currentYear}",
+                        dayNumber = day,
+                        dateLabel = "$currentMonthShort $day, ${state.currentYear}",
+                        ruleDescription = "Day $day: Morning core desk missing (FS = $fsCount, min = $minFs)",
+                        severity = "MEDIUM"
+                    )
+                )
+            }
+            if (ssCount < minSs) {
+                list.add(
+                    RuleViolation(
+                        rawEngineerName = "Evening Desk",
+                        engineerName = "Missing SS Shift",
+                        month = "$currentMonthShort ${state.currentYear}",
+                        dayNumber = day,
+                        dateLabel = "$currentMonthShort $day, ${state.currentYear}",
+                        ruleDescription = "Day $day: Evening core desk missing (SS = $ssCount, min = $minSs)",
+                        severity = "MEDIUM"
+                    )
+                )
+            }
+        }
+
+        // 2. Individual Engineer Fatigue & Apprentice Guard Audit
+        activeEngineers.forEach { eng ->
             val engKey = eng.id.ifBlank { eng.username }
             if (!checkedEngineers.add(engKey)) return@forEach
 
@@ -206,18 +290,32 @@ fun AdminDashboardTab(
             val daysMap = getRosterForEngineer(state.roster, eng)
             var consecutiveWorkDays = 0
             var previousWasNight = false
-            var previousShiftCode: String? = null
 
             daysMap.entries.sortedBy { it.key.toIntOrNull() ?: 0 }.forEach { (dayStr, shift) ->
                 val dayNum = dayStr.toIntOrNull() ?: 0
-                val shiftCode = shift.code
-                val isRestOrSwap = shiftCode == "OFF" || shiftCode == "L" || shiftCode.startsWith("SW")
+                val shiftCode = shift.code.trim().uppercase()
+                val isRestOrSwap = shiftCode == "OFF" || shiftCode == "L" || shiftCode.startsWith("SW") || shiftCode == "CO" || shiftCode == "AL" || shiftCode == "SL" || shiftCode == "ML"
+
+                // Apprentice rule check: Apprentices must only work General shifts or OFF, never Night Shift
+                if (eng.role == EngineerRole.APPRENTICE && shiftCode == "NS") {
+                    list.add(
+                        RuleViolation(
+                            rawEngineerName = rawName,
+                            engineerName = displayEngName,
+                            month = "$currentMonthShort ${state.currentYear}",
+                            dayNumber = dayNum,
+                            dateLabel = "$currentMonthShort $dayNum, ${state.currentYear}",
+                            ruleDescription = "Apprentice $rawName assigned Night Shift (NS) on Day $dayNum. Apprentices are excluded from 24/7 desk coverage and must only be assigned General (G) or OFF.",
+                            severity = "HIGH"
+                        )
+                    )
+                }
 
                 if (shiftCode == "NS") {
-                    // Continuous Night Shifts (NS -> NS) ARE ALLOWED!
+                    // Continuous Night Shifts (NS -> NS) are allowed
                     previousWasNight = true
                 } else if (isRestOrSwap) {
-                    // Mandatory rest day taken! SW* shifts are considered as OFF so SW* after NS is OK!
+                    // Mandatory rest day taken
                     previousWasNight = false
                 } else {
                     // Working Day Shift (e.g. FS, FG, G, SG, SS)
@@ -229,7 +327,7 @@ fun AdminDashboardTab(
                                 month = "$currentMonthShort ${state.currentYear}",
                                 dayNumber = dayNum,
                                 dateLabel = "$currentMonthShort $dayNum, ${state.currentYear}",
-                                ruleDescription = "Shift $shiftCode on $currentMonthShort $dayNum immediately follows Night Shift (NS) without mandatory OFF/L/SW rest day.",
+                                ruleDescription = "Shift $shiftCode on $currentMonthShort $dayNum immediately follows Night Shift (NS) without mandatory rest window.",
                                 severity = "HIGH"
                             )
                         )
@@ -237,10 +335,10 @@ fun AdminDashboardTab(
                     }
                 }
 
-                // Check 6 consecutive working days rule (OFF, L, and SW* reset working days count)
-                if (!isRestOrSwap) {
+                // Check max consecutive working days rule
+                if (!isRestOrSwap && shiftCode.isNotEmpty()) {
                     consecutiveWorkDays++
-                    if (consecutiveWorkDays > 6) {
+                    if (consecutiveWorkDays > maxDays) {
                         list.add(
                             RuleViolation(
                                 rawEngineerName = rawName,
@@ -248,7 +346,7 @@ fun AdminDashboardTab(
                                 month = "$currentMonthShort ${state.currentYear}",
                                 dayNumber = dayNum,
                                 dateLabel = "$currentMonthShort $dayNum, ${state.currentYear}",
-                                ruleDescription = "Exceeded 6 consecutive working days on $currentMonthShort $dayNum without mandatory weekly off.",
+                                ruleDescription = "Exceeded $maxDays consecutive working days on $currentMonthShort $dayNum (worked $consecutiveWorkDays consecutive days).",
                                 severity = "MEDIUM"
                             )
                         )
@@ -256,8 +354,6 @@ fun AdminDashboardTab(
                 } else {
                     consecutiveWorkDays = 0
                 }
-
-                previousShiftCode = shiftCode
             }
         }
         list

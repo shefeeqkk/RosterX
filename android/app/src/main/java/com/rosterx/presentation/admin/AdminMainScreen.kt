@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -44,36 +46,43 @@ fun AdminMainScreen(
     var targetEngineerSearch by rememberSaveable { mutableStateOf("") }
     var previewAsEngineer by rememberSaveable { mutableStateOf(false) }
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isFullScreenRoster = isLandscape && selectedTab == 2
+
     if (previewAsEngineer) {
         Box(modifier = Modifier.fillMaxSize()) {
             EngineerPortalScreen()
             
             // Floating Switch Back to Admin Button
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                border = BorderStroke(1.5.dp, Color.White),
-                shadowElevation = 8.dp,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 10.dp, end = 12.dp)
-                    .clickable { previewAsEngineer = false }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (!isLandscape) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    border = BorderStroke(1.5.dp, Color.White),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 10.dp, end = 12.dp)
+                        .clickable { previewAsEngineer = false }
                 ) {
-                    Icon(Icons.Default.AdminPanelSettings, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Admin Mode", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AdminPanelSettings, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Admin Mode", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
     } else {
         Scaffold(
             topBar = {
-                TopAppBar(
+                if (!isFullScreenRoster) {
+                    TopAppBar(
                     title = { 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -130,6 +139,7 @@ fun AdminMainScreen(
                         titleContentColor = NeumorphicTokens.AccentSalmon
                     )
                 )
+                }
             },
             bottomBar = {
                 val adminNavItems = remember {
@@ -151,7 +161,7 @@ fun AdminMainScreen(
         ) { paddingValues ->
             Box(modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(if (!isFullScreenRoster) paddingValues else PaddingValues(0.dp))
                 .background(NeumorphicTokens.Canvas)
             ) {
                 if (state.isLoading) {

@@ -56,11 +56,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rosterx.BuildConfig
 import com.rosterx.R
+import com.rosterx.domain.model.EngineerRole
+import com.rosterx.domain.model.EngineerStatus
+import com.rosterx.util.NetworkUtils
 import com.rosterx.ui.neumorphic.*
 import com.rosterx.presentation.components.*
-import com.rosterx.util.NetworkUtils
 import com.rosterx.domain.model.Engineer
-import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.domain.model.ShiftCode
 import java.time.LocalDate
 import java.time.YearMonth
@@ -337,7 +338,7 @@ fun EngineerPortalScreen(
     ) { paddingValues ->
         Box(modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
+            .padding(if (!isFullScreenRoster) paddingValues else PaddingValues(0.dp))
             .background(NeumorphicTokens.Canvas)
         ) {
             if (state.isLoading) {
@@ -1469,16 +1470,23 @@ fun MonthRosterView(
                             val dailyDayCounts = IntArray(daysInMonth + 1)
                             val dailyNightCounts = IntArray(daysInMonth + 1)
 
+                            val minDayStaff = state.constraints.daytimeOverlapMin.coerceAtLeast(1)
+                            val targetNight = state.constraints.nightHeadcount.coerceAtLeast(1)
+
                             for (day in 1..daysInMonth) {
                                 var dCount = 0
                                 var nCount = 0
                                 for (eng in filteredEngineers) {
+                                    // APPRENTICE RULE: Apprentice strictly excluded from Day and Night desk coverage!
+                                    if (eng.role == EngineerRole.APPRENTICE) continue
+
                                     val engRoster = getRosterForEngineer(state.gridRoster, eng)
                                     val shift = engRoster[day.toString()]
-                                    if (shift != null && shift.code.isNotEmpty()) {
-                                        if (shift.code == "NS") {
+                                    val code = shift?.code?.trim()?.uppercase() ?: ""
+                                    if (code.isNotEmpty()) {
+                                        if (code == "NS") {
                                             nCount++
-                                        } else if (shift.code != "OFF" && shift.code != "CO" && shift.code != "AL" && shift.code != "SL" && shift.code != "ML" && shift.code != "L") {
+                                        } else if (code != "OFF" && !code.startsWith("SW") && code != "L" && code != "CO" && code != "AL" && code != "SL" && code != "ML") {
                                             dCount++
                                         }
                                     }
@@ -1493,7 +1501,7 @@ fun MonthRosterView(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(36.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -1503,7 +1511,10 @@ fun MonthRosterView(
                                             .padding(horizontal = 8.dp),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
-                                        Text("DAY COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                                        Column {
+                                            Text("DAY COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.5.sp, color = MaterialTheme.colorScheme.primary)
+                                            Text("≥$minDayStaff (Appr. Excl.)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
                                     }
                                     Row(
                                         modifier = Modifier
@@ -1511,18 +1522,24 @@ fun MonthRosterView(
                                             .horizontalScroll(scrollState)
                                     ) {
                                         for (day in 1..daysInMonth) {
+                                            val dVal = dailyDayCounts[day]
+                                            val dayMet = dVal >= minDayStaff
+                                            val dayTextColor = if (dayMet) Color(0xFF047857) else Color(0xFFB45309)
+                                            val dayBgColor = if (dayMet) Color(0xFFD1FAE5) else Color(0xFFFEF3C7)
+
                                             Box(
                                                 modifier = Modifier
                                                     .width(42.dp)
                                                     .fillMaxHeight()
+                                                    .background(dayBgColor)
                                                     .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
-                                                    text = dailyDayCounts[day].toString(),
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (dailyDayCounts[day] >= 3) Color(0xFF10B981) else Color(0xFFF59E0B)
+                                                    text = dVal.toString(),
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = dayTextColor
                                                 )
                                             }
                                         }
@@ -1535,7 +1552,7 @@ fun MonthRosterView(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(36.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -1545,7 +1562,10 @@ fun MonthRosterView(
                                             .padding(horizontal = 8.dp),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
-                                        Text("NIGHT COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                                        Column {
+                                            Text("NIGHT COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.5.sp, color = MaterialTheme.colorScheme.primary)
+                                            Text("=$targetNight NS (Appr. Excl.)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
                                     }
                                     Row(
                                         modifier = Modifier
@@ -1553,18 +1573,26 @@ fun MonthRosterView(
                                             .horizontalScroll(scrollState)
                                     ) {
                                         for (day in 1..daysInMonth) {
+                                            val nVal = dailyNightCounts[day]
+                                            val (nightTextColor, nightBgColor) = when {
+                                                nVal == 0 -> Pair(Color(0xFFB91C1C), Color(0xFFFEE2E2)) // Gap
+                                                nVal != targetNight -> Pair(Color(0xFFB45309), Color(0xFFFEF3C7)) // Over/under warning
+                                                else -> Pair(Color(0xFF047857), Color(0xFFD1FAE5)) // Target met
+                                            }
+
                                             Box(
                                                 modifier = Modifier
                                                     .width(42.dp)
                                                     .fillMaxHeight()
+                                                    .background(nightBgColor)
                                                     .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
-                                                    text = dailyNightCounts[day].toString(),
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (dailyNightCounts[day] >= 1) Color(0xFF10B981) else Color(0xFFEF4444)
+                                                    text = nVal.toString(),
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = nightTextColor
                                                 )
                                             }
                                         }
