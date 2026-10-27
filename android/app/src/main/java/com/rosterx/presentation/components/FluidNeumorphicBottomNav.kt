@@ -156,50 +156,33 @@ fun FluidNeumorphicBottomNav(
                 }
         )
 
-        // B. Floating Active Curved Pill/Stadium Container (Contains Icon + Text Label Together!)
+        // B. Floating Active Circular Bubble (Icon only, fluid morphing)
         if (containerWidthPx > 0 && selectedIndex in items.indices) {
             val activeItem = items[selectedIndex]
-            val pillWidth = 110.dp
-            val pillHeight = 44.dp
-            val pillWidthPx = with(density) { pillWidth.toPx() }
-            val pillLeftPx = animatedNotchCenterX - (pillWidthPx / 2f)
-            val pillLeftDp = with(density) { pillLeftPx.toDp() }
+            val bubbleSize = 56.dp
+            val bubbleSizePx = with(density) { bubbleSize.toPx() }
+            val bubbleLeftPx = animatedNotchCenterX - (bubbleSizePx / 2f)
+            val bubbleLeftDp = with(density) { bubbleLeftPx.toDp() }
 
             Box(
                 modifier = Modifier
-                    .offset(x = pillLeftDp, y = 2.dp)
-                    .width(pillWidth)
-                    .height(pillHeight)
+                    .offset(x = bubbleLeftDp, y = 0.dp)
+                    .size(bubbleSize)
                     .scale(scaleX = bubbleScaleX, scaleY = bubbleScaleY)
                     .neumorphicAccentGlow(glowColor = NeumorphicTokens.AccentGlow, radius = 10.dp)
                     .neumorphicRaised(
-                        shape = RoundedCornerShape(22.dp),
+                        shape = CircleShape,
                         elevation = NeumorphicTokens.ElevationRaised,
                         surfaceColor = surfaceColor
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = activeItem.icon,
-                        contentDescription = activeItem.title,
-                        tint = NeumorphicTokens.AccentSalmon,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = activeItem.title,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = NeumorphicTokens.AccentSalmon,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Icon(
+                    imageVector = activeItem.icon,
+                    contentDescription = activeItem.title,
+                    tint = NeumorphicTokens.AccentSalmon,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
 
@@ -254,6 +237,22 @@ fun FluidNeumorphicBottomNav(
                                 textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Medium,
                                 color = textMutedColor
+                            )
+                        }
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom,
+                            modifier = Modifier.padding(bottom = 8.dp).fillMaxHeight()
+                        ) {
+                            Text(
+                                text = item.title,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = NeumorphicTokens.AccentSalmon
                             )
                         }
                     }

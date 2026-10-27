@@ -26,7 +26,7 @@ import collections
 from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-SERVER_VERSION = "1.7.1"
+SERVER_VERSION = "1.7.2"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -1514,6 +1514,9 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     gemini_key = env.get("GEMINI_API_KEY", "")
     gemini_model = env.get("GEMINI_MODEL", "gemini-1.5-flash")
 
+    tunnel_proc = None
+    public_url = None
+
     # Auto-detect Render Cloud Environment
     is_render = bool(os.environ.get("RENDER")) or bool(os.environ.get("RENDER_EXTERNAL_URL"))
     render_external_url = os.environ.get("RENDER_EXTERNAL_URL")
@@ -1523,7 +1526,6 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         print(f"\n  [RENDER CLOUD] Detected Render production host: {public_url}")
 
     # Start Cloudflare Tunnel if requested (disabled on cloud platforms like Render)
-    tunnel_proc = None
     if enable_tunnel and not is_render:
         print("\n  [CLOUDFLARE] Initializing secure quick tunnel to Cloudflare Edge...")
         tunnel_proc, public_url = start_cloudflared_tunnel(port=port)
@@ -1642,11 +1644,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run RosterX Secure Server & Atlas Bridge")
     parser.add_argument("--port", type=int, default=default_port, help=f"Port to bind (default: {default_port})")
     parser.add_argument("--open", action="store_true", help="Automatically open browser on launch")
+    parser.add_argument("--no-open", action="store_true", help="Disable opening browser on launch")
     parser.add_argument("--tunnel", "-t", action="store_true", default=None, help="Force launch Cloudflare Tunnel")
     parser.add_argument("--no-tunnel", action="store_true", help="Disable Cloudflare Tunnel (local network only)")
     parser.add_argument("--email", type=str, default=None, help="Email address to receive live gateway link (default: kkshefeeq005@gmail.com)")
     parser.add_argument("--no-email", action="store_true", help="Disable sending startup gateway link email")
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     env_tunnel_val = env.get("ENABLE_TUNNEL", "true").strip().lower()
     auto_tunnel = (env_tunnel_val in ("true", "1", "yes")) if (find_cloudflared_path() and not is_render) else False
@@ -1659,5 +1662,5 @@ if __name__ == "__main__":
         enable_tunnel = auto_tunnel
 
     should_send_email = not args.no_email and not is_render
-    open_browser = args.open and not is_render
+    open_browser = args.open and not args.no_open and not is_render
     run_server(port=args.port, open_browser=open_browser, enable_tunnel=enable_tunnel, alert_email=args.email, send_email=should_send_email)

@@ -8,7 +8,7 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.7.1`** (Android `versionCode: 20`, Server `SERVER_VERSION = "1.7.1"`)
+- **Semantic Version**: **`1.7.2`** (Android `versionCode: 21`, Server `SERVER_VERSION = "1.7.2"`)
 - **Active Cloudflare Public Gateway**:  
   🌐 `https://such-anonymous-out-stopping.trycloudflare.com`  
   📱 **Android Base URL**: `https://such-anonymous-out-stopping.trycloudflare.com/api/`
