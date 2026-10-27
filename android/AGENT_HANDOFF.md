@@ -8,7 +8,7 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.7.5`** (Android `versionCode: 24`, Server `SERVER_VERSION = "1.7.5"`)
+- **Semantic Version**: **`1.7.6`** (Android `versionCode: 25`, Server `SERVER_VERSION = "1.7.6"`)
 - **Active Cloudflare Public Gateway**:  
   🌐 `https://such-anonymous-out-stopping.trycloudflare.com`  
   📱 **Android Base URL**: `https://such-anonymous-out-stopping.trycloudflare.com/api/`
@@ -20,19 +20,17 @@
 
 ---
 
-## 👵 Aunty's Briefing to Kunjappan (v1.7.5 Update)
+## 👵 Aunty's Briefing to Kunjappan (v1.7.6 Update)
 
-Ayyada Kunjappaaaa! 👵☕ Matrix viewing in landscape is now super optimized:
+Ayyada Kunjappaaaa! 👵☕ Look at that! Coverage cells in portrait and landscape are now completely fit with zero clipping:
 
 1. **Semantic Version Synchronization**:
-   - Both Android app and backend server synchronized at **`1.7.5`** (Android `versionCode: 24`, `SERVER_VERSION = "1.7.5"`).
+   - Both Android app and backend server synchronized at **`1.7.6`** (Android `versionCode: 25`, `SERVER_VERSION = "1.7.6"`).
 
-2. **Compact Landscape Header Bar**:
-   - Shrinked top header controls and date title bar in landscape mode (`padding` reduced to `2.dp`, button sizes down to `30.dp`, filter box to `30.dp`).
-   - Reduced matrix table header row and engineer row heights when in landscape to maximize vertical matrix area.
-
-3. **Coverage Cell Text Layout Fix**:
-   - Fixed text cropping in the sticky left "DAY COVERAGE" and "NIGHT COVERAGE" footer cells by optimizing padding (`horizontal = 4.dp, vertical = 2.dp`), applying `TextOverflow.Ellipsis`, and enforcing vertical alignment centering.
+2. **Coverage Row Vertical Layout Expansion**:
+   - Increased coverage row height in portrait mode to `44.dp` (up from `38.dp`) to give two-line title/subtitle text blocks full vertical room.
+   - Enforced explicit line heights (`11.sp` and `10.sp`) on the title and target requirement text composables with `fillMaxHeight()` and `verticalArrangement = Arrangement.Center`.
+   - Completely eliminated bottom text clipping in both portrait and landscape modes!
 
 5. **Team Directory Retire / Activate Button Fix (`admin-web/js/app.js`)**:
    - Resolved the double-invocation bug where the button triggered both an inline `onclick` handler and a delegated event listener, instantly flipping between `Active` -> `Resigned` -> `Active`.

@@ -1509,7 +1509,7 @@ fun MonthRosterView(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(if (isLandscape) 32.dp else 38.dp)
+                                        .height(if (isLandscape) 36.dp else 44.dp)
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                                 ) {
                                     Box(
@@ -1517,12 +1517,31 @@ fun MonthRosterView(
                                             .width(120.dp)
                                             .fillMaxHeight()
                                             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-                                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
-                                        Column(verticalArrangement = Arrangement.Center) {
-                                            Text("DAY COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text("Target: ≥$minDayStaff (Excl. Appr)", fontSize = 7.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Column(
+                                            modifier = Modifier.fillMaxHeight(),
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = "DAY COVERAGE",
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 9.sp,
+                                                lineHeight = 11.sp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "Target: ≥$minDayStaff (Excl. Appr)",
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
                                     }
                                     Row(
@@ -1560,7 +1579,7 @@ fun MonthRosterView(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(if (isLandscape) 32.dp else 38.dp)
+                                        .height(if (isLandscape) 36.dp else 44.dp)
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                                 ) {
                                     Box(
@@ -1568,12 +1587,31 @@ fun MonthRosterView(
                                             .width(120.dp)
                                             .fillMaxHeight()
                                             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-                                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
-                                        Column(verticalArrangement = Arrangement.Center) {
-                                            Text("NIGHT COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text("Target: $targetNight NS (Excl. Appr)", fontSize = 7.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Column(
+                                            modifier = Modifier.fillMaxHeight(),
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = "NIGHT COVERAGE",
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 9.sp,
+                                                lineHeight = 11.sp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "Target: $targetNight NS (Excl. Appr)",
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
                                     }
                                     Row(
