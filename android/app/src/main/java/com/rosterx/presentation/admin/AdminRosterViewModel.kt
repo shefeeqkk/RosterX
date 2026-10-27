@@ -173,10 +173,18 @@ class AdminRosterViewModel @Inject constructor(
         loadData()
     }
 
-    fun syncEngineers(engineers: List<Engineer>) {
+    fun syncEngineers(engineers: List<Engineer>, onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
-            repository.syncEngineers(engineers)
-            loadData()
+            _state.value = _state.value.copy(engineers = engineers)
+            val result = repository.syncEngineers(engineers)
+            if (result.isSuccess) {
+                loadData()
+                onComplete(true, "Team updated and synchronized to Atlas.")
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Failed to synchronize engineers"
+                _state.value = _state.value.copy(errorMessage = err)
+                onComplete(false, err)
+            }
         }
     }
 

@@ -36,7 +36,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-SERVER_VERSION = "1.4.4"
+SERVER_VERSION = "1.4.5"
 
 # Base Paths
 ROOT_DIR = Path(__file__).resolve().parent
@@ -959,24 +959,33 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             try:
                 saved_count = 0
                 for eng in engineers:
-                    eng_id = eng.get("id")
-                    eng_name = eng.get("name")
-                    query = {}
-                    if eng_id and eng_name:
-                        query = {"$or": [
-                            {"id": eng_id},
-                            {"name": eng_name},
-                            {"name": {"$regex": f"^{re.escape(eng_name)}$", "$options": "i"}}
-                        ]}
-                    elif eng_id:
-                        query = {"id": eng_id}
-                    elif eng_name:
-                        query = {"$or": [
-                            {"name": eng_name},
-                            {"name": {"$regex": f"^{re.escape(eng_name)}$", "$options": "i"}}
-                        ]}
+                    eng_id = str(eng.get("id") or eng.get("engineer_id") or "").strip()
+                    eng_name = str(eng.get("name") or "").strip()
+                    eng_user = str(eng.get("username") or "").strip()
 
-                    if query:
+                    # Normalize status to Title Case for full admin-web and android parity
+                    raw_status = str(eng.get("status") or "").strip().lower()
+                    if raw_status in ("active", "notice_period", "onboarding"):
+                        eng["status"] = "Active"
+                    elif raw_status in ("resigned", "retired"):
+                        eng["status"] = "Resigned"
+
+                    or_conditions = []
+                    if eng_id:
+                        or_conditions.extend([{"id": eng_id}, {"engineer_id": eng_id}])
+                    if eng_user:
+                        or_conditions.extend([
+                            {"username": eng_user},
+                            {"username": {"$regex": f"^{re.escape(eng_user)}$", "$options": "i"}}
+                        ])
+                    if eng_name:
+                        or_conditions.extend([
+                            {"name": eng_name},
+                            {"name": {"$regex": f"^{re.escape(eng_name)}$", "$options": "i"}}
+                        ])
+
+                    if or_conditions:
+                        query = {"$or": or_conditions}
                         ATLAS_DB.engineers.update_one(query, {"$set": eng}, upsert=True)
                         saved_count += 1
                 self.send_json_response({

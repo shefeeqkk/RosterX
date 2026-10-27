@@ -56,18 +56,21 @@ fun ManageTeamTab(
 
     // Add / Edit Engineer Dialog
     if (showEditDialog) {
-        var nameInput by remember { mutableStateOf(editingEngineer?.name ?: "") }
-        var usernameInput by remember { mutableStateOf(editingEngineer?.username ?: "") }
-        var emailInput by remember { mutableStateOf(editingEngineer?.email ?: "") }
-        var phoneInput by remember { mutableStateOf(editingEngineer?.phone ?: "") }
-        var roleInput by remember { mutableStateOf(editingEngineer?.role ?: EngineerRole.ENGINEER) }
-        var statusInput by remember { mutableStateOf(editingEngineer?.status ?: EngineerStatus.ACTIVE) }
+        var nameInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.name ?: "") }
+        var usernameInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.username ?: "") }
+        var emailInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.email ?: "") }
+        var phoneInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.phone ?: "") }
+        var roleInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.role ?: EngineerRole.ENGINEER) }
+        var statusInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.status ?: EngineerStatus.ACTIVE) }
 
         val allDays = listOf("SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")
-        var selectedOffs by remember { mutableStateOf(editingEngineer?.defaultWeeklyOffs?.map { it.uppercase() }?.toSet() ?: setOf("SUNDAY", "MONDAY")) }
+        var selectedOffs by remember(editingEngineer) { mutableStateOf(editingEngineer?.defaultWeeklyOffs?.map { it.uppercase() }?.toSet() ?: setOf("SUNDAY", "MONDAY")) }
 
         AlertDialog(
-            onDismissRequest = { showEditDialog = false },
+            onDismissRequest = { 
+                editingEngineer = null
+                showEditDialog = false 
+            },
             title = {
                 Text(
                     text = if (editingEngineer == null) "Add New Engineer" else "Edit Engineer Specs",
@@ -165,25 +168,34 @@ fun ManageTeamTab(
             confirmButton = {
                 Button(
                     onClick = {
+                        val target = editingEngineer
+                        val resolvedId = target?.id?.ifBlank { null } 
+                            ?: "eng_${usernameInput.ifBlank { nameInput.lowercase() }.trim()}"
                         val newEng = Engineer(
-                            id = editingEngineer?.id ?: "eng_${usernameInput.ifBlank { nameInput.lowercase() }}",
-                            name = nameInput,
-                            fullName = nameInput,
-                            username = usernameInput.ifBlank { nameInput.split(" ")[0].lowercase() },
-                            email = emailInput,
-                            phone = phoneInput,
+                            id = resolvedId,
+                            name = nameInput.trim(),
+                            fullName = nameInput.trim(),
+                            username = usernameInput.ifBlank { nameInput.split(" ")[0].lowercase() }.trim(),
+                            email = emailInput.trim(),
+                            phone = phoneInput.trim(),
                             role = roleInput,
                             status = statusInput,
                             defaultWeeklyOffs = selectedOffs.toList(),
-                            joinDate = editingEngineer?.joinDate ?: "2026-01-01"
+                            joinDate = target?.joinDate?.ifBlank { null } ?: "2026-01-01"
                         )
-                        val newList = if (editingEngineer == null) {
+                        val newList = if (target == null) {
                             localEngineersList + newEng
                         } else {
-                            localEngineersList.map { if (it.id == newEng.id) newEng else it }
+                            localEngineersList.map {
+                                val isMatch = (target.id.isNotBlank() && it.id == target.id) ||
+                                              it.name.equals(target.name, ignoreCase = true) ||
+                                              (target.username.isNotBlank() && it.username.equals(target.username, ignoreCase = true))
+                                if (isMatch) newEng else it
+                            }
                         }
                         localEngineersList = newList
                         onSyncEngineers(newList)
+                        editingEngineer = null
                         showEditDialog = false
                     },
                     enabled = nameInput.isNotBlank()
@@ -206,7 +218,10 @@ fun ManageTeamTab(
                             Text("Delete", fontWeight = FontWeight.Bold)
                         }
                     }
-                    TextButton(onClick = { showEditDialog = false }) {
+                    TextButton(onClick = { 
+                        editingEngineer = null
+                        showEditDialog = false 
+                    }) {
                         Text("Cancel")
                     }
                 }
