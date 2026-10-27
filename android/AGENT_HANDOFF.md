@@ -40,6 +40,15 @@ Ayyada Kunjappaaaa! 👵☕ Look at that! We have removed the redundant Today bu
    - Added sticky stats headers for WRK (Total Working), NS (Night Shifts), and OFF (Rest Days) to the Month Roster matrix.
    - Live logic seamlessly counts shifts for each engineer across the current month, matching the identical feature inside the `admin-web` portal!
 
+5. **Team Directory Retire / Activate Button Fix (`admin-web/js/app.js`)**:
+   - Resolved the double-invocation bug where the button triggered both an inline `onclick` handler and a delegated event listener, instantly flipping between `Active` -> `Resigned` -> `Active`.
+   - Removed inline `onclick` attributes, enforced strict event delegation with `e.stopPropagation()`, and added robust engineer resolution by ID (`eng.id`), username, and name in addition to index fallback.
+   - Synchronized state across `localStorage`, MongoDB Atlas via `/api/engineers`, and `window.authService.syncEngineersList()`.
+
+6. **Python Server Logging Hardening (`server.py`)**:
+   - Resolved `TypeError: argument of type 'HTTPStatus' is not a container or iterable` in `server.py` (`log_message`).
+   - Cleaned up redundant declarations of `SERVER_VERSION`.
+
 ---
 
 ## 🟢 Live Traffic & Connectivity Verified by Aunty

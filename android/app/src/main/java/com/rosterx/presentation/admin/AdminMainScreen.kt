@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -39,9 +40,9 @@ fun AdminMainScreen(
     viewModel: AdminRosterViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
-    var targetEngineerSearch by remember { mutableStateOf("") }
-    var previewAsEngineer by remember { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var targetEngineerSearch by rememberSaveable { mutableStateOf("") }
+    var previewAsEngineer by rememberSaveable { mutableStateOf(false) }
 
     if (previewAsEngineer) {
         Box(modifier = Modifier.fillMaxSize()) {

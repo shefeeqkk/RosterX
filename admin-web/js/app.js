@@ -616,15 +616,18 @@ class RosterXApp {
         const editBtn = e.target.closest('[data-action="edit-engineer"]');
         if (editBtn) {
           e.preventDefault();
-          const idx = parseInt(editBtn.dataset.idx, 10);
-          if (!isNaN(idx)) this.openEngineerFormByIndex(idx);
+          e.stopPropagation();
+          const target = editBtn.dataset.id || editBtn.dataset.name || editBtn.dataset.idx;
+          this.openEngineerFormByIdOrIndex(target);
           return;
         }
         const retireBtn = e.target.closest('[data-action="retire-engineer"]');
         if (retireBtn) {
           e.preventDefault();
-          const idx = parseInt(retireBtn.dataset.idx, 10);
-          if (!isNaN(idx)) this.toggleRetireEngineer(idx);
+          e.stopPropagation();
+          const target = retireBtn.dataset.id || retireBtn.dataset.name || retireBtn.dataset.idx;
+          this.toggleRetireEngineer(target);
+          return;
         }
       });
     }
@@ -1642,10 +1645,10 @@ class RosterXApp {
           ${eng.resignation_date ? `<div class="text-red-600">Exit: ${eng.resignation_date}</div>` : ''}
         </td>
         <td class="p-2.5 text-right space-x-1.5 whitespace-nowrap sticky right-0 ${isEditing ? 'bg-blue-50' : 'bg-white'} shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] min-w-[140px]">
-          <button type="button" data-action="edit-engineer" data-idx="${idx}" class="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-bold transition shadow-xs cursor-pointer" onclick="window.rosterApp.openEngineerFormByIndex(${idx})">
+          <button type="button" data-action="edit-engineer" data-idx="${idx}" data-id="${eng.id || ''}" data-name="${eng.name || ''}" class="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-bold transition shadow-xs cursor-pointer">
             <i class="ph ph-pencil-simple text-xs"></i> Edit
           </button>
-          <button type="button" data-action="retire-engineer" data-idx="${idx}" class="inline-flex items-center gap-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-300 hover:border-red-200 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer" onclick="window.rosterApp.toggleRetireEngineer(${idx})">
+          <button type="button" data-action="retire-engineer" data-idx="${idx}" data-id="${eng.id || ''}" data-name="${eng.name || ''}" class="inline-flex items-center gap-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-300 hover:border-red-200 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer">
             ${eng.status === 'Resigned' ? '<span class="text-emerald-700 font-bold"><i class="ph ph-check-circle text-emerald-600"></i> Activate</span>' : '<i class="ph ph-user-minus text-slate-400"></i> Retire'}
           </button>
         </td>
@@ -1653,6 +1656,27 @@ class RosterXApp {
 
       tbody.appendChild(tr);
     });
+  }
+
+  openEngineerFormByIdOrIndex(target) {
+    let eng = null;
+    let idx = -1;
+    if (typeof target === 'number') {
+      idx = target;
+      eng = this.state.engineersList[idx];
+    } else if (typeof target === 'string') {
+      const trimmed = target.trim();
+      idx = this.state.engineersList.findIndex(e => (e.id && e.id === trimmed) || (e.name && e.name.toUpperCase() === trimmed.toUpperCase()));
+      if (idx >= 0) {
+        eng = this.state.engineersList[idx];
+      } else if (!isNaN(trimmed) && trimmed !== '') {
+        idx = parseInt(trimmed, 10);
+        eng = this.state.engineersList[idx];
+      }
+    }
+    if (eng) {
+      this.openEngineerForm(eng, idx);
+    }
   }
 
   openEngineerFormByIndex(idx) {
@@ -1879,8 +1903,23 @@ class RosterXApp {
     this.showToast(`Saved engineer record: ${name}`);
   }
 
-  toggleRetireEngineer(idx) {
-    const eng = this.state.engineersList[idx];
+  toggleRetireEngineer(target) {
+    let eng = null;
+    let idx = -1;
+
+    if (typeof target === 'number') {
+      idx = target;
+      eng = this.state.engineersList[idx];
+    } else if (typeof target === 'string') {
+      const trimmed = target.trim();
+      idx = this.state.engineersList.findIndex(e => (e.id && e.id === trimmed) || (e.name && e.name.toUpperCase() === trimmed.toUpperCase()));
+      if (idx >= 0) {
+        eng = this.state.engineersList[idx];
+      } else if (!isNaN(trimmed) && trimmed !== '') {
+        idx = parseInt(trimmed, 10);
+        eng = this.state.engineersList[idx];
+      }
+    }
     if (!eng) return;
 
     if (eng.status === 'Resigned') {
@@ -1893,11 +1932,17 @@ class RosterXApp {
       this.showToast(`${eng.name} marked as Resigned (excluded from upcoming month rosters).`);
     }
 
+    // Keep active edit form in sync if currently open on this engineer
+    if (this.state.editingEngineerId && (this.state.editingEngineerId === eng.id || this.state.editingEngineerId === eng.name)) {
+      if (this.dom.formEngStatus) this.dom.formEngStatus.value = eng.status;
+      if (this.dom.formEngResignDate) this.dom.formEngResignDate.value = eng.resignation_date || '';
+    }
+
     const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));
     if (isComingMonth && eng.status === 'Resigned') {
-      this.state.gridRoster = this.state.gridRoster.filter(e => e.name !== eng.name && e.id !== eng.id);
+      this.state.gridRoster = this.state.gridRoster.filter(e => e.name !== eng.name && (!eng.id || e.id !== eng.id));
     } else if (isComingMonth && eng.status === 'Active') {
-      const gridIdx = this.state.gridRoster.findIndex(e => e.name === eng.name);
+      const gridIdx = this.state.gridRoster.findIndex(e => e.name === eng.name || (eng.id && e.id === eng.id));
       if (gridIdx < 0) {
         this.state.gridRoster.push({
           id: eng.id,
@@ -1910,7 +1955,7 @@ class RosterXApp {
         this.state.gridRoster[gridIdx].status = 'Active';
       }
     } else {
-      const gridIdx = this.state.gridRoster.findIndex(e => e.name === eng.name);
+      const gridIdx = this.state.gridRoster.findIndex(e => e.name === eng.name || (eng.id && e.id === eng.id));
       if (gridIdx >= 0) {
         this.state.gridRoster[gridIdx].status = eng.status;
       }
@@ -1919,6 +1964,9 @@ class RosterXApp {
     this.saveEngineersList();
     this.saveCurrentGridRoster();
     this.atlasService.saveEngineers(this.state.engineersList);
+    if (typeof window !== 'undefined' && window.authService && typeof window.authService.syncEngineersList === 'function') {
+      window.authService.syncEngineersList(this.state.engineersList);
+    }
     this.updateTeamBadge();
     this.renderTeamTable();
     this.renderRoster();

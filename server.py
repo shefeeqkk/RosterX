@@ -38,8 +38,6 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-SERVER_VERSION = "1.4.5"
-
 # Base Paths
 ROOT_DIR = Path(__file__).resolve().parent
 WEB_DIR = ROOT_DIR / "admin-web"
@@ -978,22 +976,15 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     elif raw_status in ("resigned", "retired"):
                         eng["status"] = "Resigned"
 
-                    or_conditions = []
+                    query = {}
                     if eng_id:
-                        or_conditions.extend([{"id": eng_id}, {"engineer_id": eng_id}])
-                    if eng_user:
-                        or_conditions.extend([
-                            {"username": eng_user},
-                            {"username": {"$regex": f"^{re.escape(eng_user)}$", "$options": "i"}}
-                        ])
-                    if eng_name:
-                        or_conditions.extend([
-                            {"name": eng_name},
-                            {"name": {"$regex": f"^{re.escape(eng_name)}$", "$options": "i"}}
-                        ])
+                        query = {"id": eng_id}
+                    elif eng_user:
+                        query = {"username": eng_user}
+                    elif eng_name:
+                        query = {"name": eng_name}
 
-                    if or_conditions:
-                        query = {"$or": or_conditions}
+                    if query:
                         ATLAS_DB.engineers.update_one(query, {"$set": eng}, upsert=True)
                         saved_count += 1
                 self.send_json_response({
@@ -1471,23 +1462,44 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         return None
 
     def log_message(self, format, *args):
-        # Format HTTP requests cleanly
-        status = args[1] if len(args) > 1 else ""
-        method_path = args[0] if len(args) > 0 else ""
-        if status in ("200", "204", "304"):
-            color = "\033[92m" # Green
-        elif status in ("403", "404"):
-            color = "\033[91m" # Red
-        else:
-            color = "\033[93m" # Yellow
-        reset = "\033[0m"
-        print(f" {color}[HTTP {status}]{reset} {method_path}")
+        try:
+            # http.server can call log_message from log_request or log_error
+            # Case 1: log_request ('"%s" %s %s', requestline, code, size)
+            if len(args) >= 2 and isinstance(args[0], str) and (isinstance(args[1], (str, int)) or hasattr(args[1], "value")):
+                method_path = str(args[0])
+                raw_status = getattr(args[1], "value", args[1])
+                status = str(raw_status)
+            # Case 2: log_error ("code %d, message %s", code, message)
+            elif len(args) >= 1 and (isinstance(args[0], int) or hasattr(args[0], "value")):
+                raw_status = getattr(args[0], "value", args[0])
+                status = str(raw_status)
+                method_path = str(args[1]) if len(args) > 1 and args[1] is not None else ""
+            else:
+                status = "INFO"
+                method_path = (format % args) if args else str(format)
 
-        # Store in dynamic server log ring buffer for Android Terminal Log Viewer
-        # Avoid filling log with repeated polling /api/logs calls
-        if "/api/logs" not in method_path:
-            timestamp = time.strftime("%H:%M:%S")
-            SERVER_LOGS.append(f"[{timestamp}] [HTTP {status}] {method_path}")
+            if status in ("200", "204", "304"):
+                color = "\033[92m" # Green
+            elif status in ("400", "401", "403", "404", "500", "502", "503"):
+                color = "\033[91m" # Red
+            else:
+                color = "\033[93m" # Yellow
+            reset = "\033[0m"
+            print(f" {color}[HTTP {status}]{reset} {method_path}")
+
+            # Store in dynamic server log ring buffer for Android Terminal Log Viewer
+            # Avoid filling log with repeated polling /api/logs calls
+            if "/api/logs" not in method_path:
+                timestamp = time.strftime("%H:%M:%S")
+                SERVER_LOGS.append(f"[{timestamp}] [HTTP {status}] {method_path}")
+        except Exception:
+            try:
+                formatted = (format % args) if args else str(format)
+                timestamp = time.strftime("%H:%M:%S")
+                SERVER_LOGS.append(f"[{timestamp}] [HTTP] {formatted}")
+                print(f" [HTTP] {formatted}")
+            except Exception:
+                pass
 
 def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=None, send_email=True):
     if not WEB_DIR.exists():

@@ -30,6 +30,9 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -214,11 +217,16 @@ fun EngineerPortalScreen(
     viewModel: EngineerPortalViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isFullScreenRoster = isLandscape && selectedTab == 3
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            if (!isFullScreenRoster) {
+                TopAppBar(
                 title = { 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -282,6 +290,7 @@ fun EngineerPortalScreen(
                     titleContentColor = NeumorphicTokens.TextMain
                 )
             )
+            }
         },
         floatingActionButton = {
             if (selectedTab == 1 && state.selectedDate != LocalDate.now()) {
@@ -317,11 +326,13 @@ fun EngineerPortalScreen(
                 )
             }
 
-            FluidNeumorphicBottomNav(
-                items = portalNavItems,
-                selectedIndex = selectedTab,
-                onTabSelected = { selectedTab = it }
-            )
+            if (!isFullScreenRoster) {
+                FluidNeumorphicBottomNav(
+                    items = portalNavItems,
+                    selectedIndex = selectedTab,
+                    onTabSelected = { selectedTab = it }
+                )
+            }
         }
     ) { paddingValues ->
         Box(modifier = Modifier
@@ -679,7 +690,7 @@ fun VibrantShiftCard(title: String, shift: ShiftCode?, accentColor: Color, modif
                         .size(52.dp)
                         .neumorphicInset(
                             shape = RoundedCornerShape(14.dp),
-                            surfaceColor = if (shift != null) Color(parseColor(shift.bgColorHex)).copy(alpha = 0.35f) else NeumorphicTokens.SurfaceContrast
+                            surfaceColor = NeumorphicTokens.Surface
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -851,9 +862,11 @@ fun TeamShiftsView(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(parseColor(shift.bgColorHex))),
+                                        .size(36.dp)
+                                        .neumorphicInset(
+                                            shape = RoundedCornerShape(10.dp),
+                                            surfaceColor = NeumorphicTokens.Surface
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -1450,6 +1463,116 @@ fun MonthRosterView(
                                 }
                             }
                         }
+                        
+                        // Daily Coverage Footers (Day & Night)
+                        item {
+                            val dailyDayCounts = IntArray(daysInMonth + 1)
+                            val dailyNightCounts = IntArray(daysInMonth + 1)
+
+                            for (day in 1..daysInMonth) {
+                                var dCount = 0
+                                var nCount = 0
+                                for (eng in filteredEngineers) {
+                                    val engRoster = getRosterForEngineer(state.gridRoster, eng)
+                                    val shift = engRoster[day.toString()]
+                                    if (shift != null && shift.code.isNotEmpty()) {
+                                        if (shift.code == "NS") {
+                                            nCount++
+                                        } else if (shift.code != "OFF" && shift.code != "CO" && shift.code != "AL" && shift.code != "SL" && shift.code != "ML" && shift.code != "L") {
+                                            dCount++
+                                        }
+                                    }
+                                }
+                                dailyDayCounts[day] = dCount
+                                dailyNightCounts[day] = nCount
+                            }
+
+                            Column {
+                                // Day Coverage Row
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(36.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(120.dp)
+                                            .fillMaxHeight()
+                                            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                            .padding(horizontal = 8.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text("DAY COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .horizontalScroll(scrollState)
+                                    ) {
+                                        for (day in 1..daysInMonth) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(42.dp)
+                                                    .fillMaxHeight()
+                                                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = dailyDayCounts[day].toString(),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (dailyDayCounts[day] >= 3) Color(0xFF10B981) else Color(0xFFF59E0B)
+                                                )
+                                            }
+                                        }
+                                        Box(modifier = Modifier.width((48 * 3).dp).fillMaxHeight().border(0.5.dp, MaterialTheme.colorScheme.outlineVariant))
+                                    }
+                                }
+
+                                // Night Coverage Row
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(36.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(120.dp)
+                                            .fillMaxHeight()
+                                            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                            .padding(horizontal = 8.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text("NIGHT COVERAGE", fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .horizontalScroll(scrollState)
+                                    ) {
+                                        for (day in 1..daysInMonth) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(42.dp)
+                                                    .fillMaxHeight()
+                                                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = dailyNightCounts[day].toString(),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (dailyNightCounts[day] >= 1) Color(0xFF10B981) else Color(0xFFEF4444)
+                                                )
+                                            }
+                                        }
+                                        Box(modifier = Modifier.width((48 * 3).dp).fillMaxHeight().border(0.5.dp, MaterialTheme.colorScheme.outlineVariant))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1669,6 +1792,21 @@ fun AccountView(
                             ) {
                                 OutlinedButton(
                                     onClick = {
+                                        val renderUrl = "https://rosterx.onrender.com/api/"
+                                        urlInput = renderUrl
+                                        onSaveBaseUrl(renderUrl)
+                                        Toast.makeText(context, "Switched to Render Cloud", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Render", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
                                         try {
                                             val assetUrl = context.assets.open("server_url.txt").bufferedReader().use { it.readText().trim() }
                                             if (assetUrl.isNotBlank()) {
@@ -1677,7 +1815,7 @@ fun AccountView(
                                                 if (!clean.endsWith("/api/")) clean += "api/"
                                                 urlInput = clean
                                                 onSaveBaseUrl(clean)
-                                                Toast.makeText(context, "Synced Cloudflare Asset URL loaded", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Switched to Cloudflare Tunnel", Toast.LENGTH_SHORT).show()
                                             }
                                         } catch (e: Exception) {
                                             Toast.makeText(context, "Default asset not found", Toast.LENGTH_SHORT).show()
@@ -1688,21 +1826,21 @@ fun AccountView(
                                 ) {
                                     Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Asset URL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text("Cloudflare", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
-
-                                Button(
-                                    onClick = {
-                                        onSaveBaseUrl(urlInput)
-                                        Toast.makeText(context, "Saved & Reconnecting...", Toast.LENGTH_SHORT).show()
-                                    },
-                                    modifier = Modifier.weight(1.2f),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Save & Connect", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                }
+                            }
+                            
+                            Button(
+                                onClick = {
+                                    onSaveBaseUrl(urlInput)
+                                    Toast.makeText(context, "Saved & Reconnecting...", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Save & Connect Custom URL", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
                         }
                     }
@@ -1851,11 +1989,10 @@ fun AccountView(
 
                     ProfileDetailRow("Application Name", "Project RosterX")
                     ProfileDetailRow("Android App Version", "v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})")
-                    ProfileDetailRow("Backend Server Version", "v1.4.3")
+                    ProfileDetailRow("Backend Server Version", "v1.7.3")
                     ProfileDetailRow("Mobile Architecture", "Native Android (Jetpack Compose)")
                     ProfileDetailRow("Database Engine", "MongoDB Atlas Cluster0")
-                    ProfileDetailRow("Public Edge Gateway", "Cloudflare Zero Trust Tunnel")
-                    ProfileDetailRow("Build Channel", "${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }} Operations")
+                    ProfileDetailRow("Public Edge Gateway", "Render Cloud & Cloudflare")
                 }
             }
         }
@@ -1880,11 +2017,18 @@ fun AccountView(
 @Composable
 fun ProfileDetailRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
         Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = 12.dp)
+        )
     }
 }

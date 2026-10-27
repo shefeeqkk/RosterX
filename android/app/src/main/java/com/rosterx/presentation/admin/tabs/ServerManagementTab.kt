@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -503,11 +504,10 @@ fun ServerManagementTab(
 
                     SpecDetailRow("Application Name", "Project RosterX")
                     SpecDetailRow("Android App Version", "v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})")
-                    SpecDetailRow("Backend Server Version", "v1.4.3 (Ready)")
+                    SpecDetailRow("Backend Server Version", "v1.7.3 (Ready)")
                     SpecDetailRow("Mobile Architecture", "Native Android (Jetpack Compose)")
                     SpecDetailRow("Database Engine", "MongoDB Atlas (${state.clusterName})")
-                    SpecDetailRow("Public Edge Gateway", "Cloudflare Zero Trust Tunnel")
-                    SpecDetailRow("Build Channel", "${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }} Operations")
+                    SpecDetailRow("Public Edge Gateway", "Render Cloud & Cloudflare")
                 }
             }
         }
@@ -545,9 +545,9 @@ fun ServerManagementTab(
 @Composable
 fun SpecDetailRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
         Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
@@ -555,8 +555,8 @@ fun SpecDetailRow(label: String, value: String) {
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = 12.dp)
         )
     }
 }
