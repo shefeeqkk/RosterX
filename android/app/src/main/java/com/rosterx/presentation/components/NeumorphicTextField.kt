@@ -63,7 +63,7 @@ fun NeumorphicTextField(
                 if (value.isEmpty() && placeholder.isNotEmpty()) {
                     Text(
                         text = placeholder,
-                        color = NeumorphicTokens.TextLight,
+                        color = NeumorphicTokens.TextMuted,
                         fontSize = 14.sp
                     )
                 }

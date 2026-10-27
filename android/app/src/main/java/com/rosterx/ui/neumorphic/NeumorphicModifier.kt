@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
  * Draws a top-left diffuse white highlight and a bottom-right dark occlusion shadow,
  * molding the component directly from the [NeumorphicTokens.Surface] canvas.
  */
+@Composable
 fun Modifier.neumorphicRaised(
     shape: Shape = NeumorphicTokens.ShapeMedium,
     elevation: NeumorphicTokens.ElevationSpec = NeumorphicTokens.ElevationRaised,
@@ -94,6 +96,7 @@ fun Modifier.neumorphicRaised(
  * Simulates a recessed well with dark shadow along the top-left inner lip
  * and specular highlight along the bottom-right upward-facing lip.
  */
+@Composable
 fun Modifier.neumorphicInset(
     shape: Shape = NeumorphicTokens.ShapeMedium,
     elevation: NeumorphicTokens.ElevationSpec = NeumorphicTokens.ElevationInset,
@@ -153,6 +156,7 @@ fun Modifier.neumorphicInset(
 /**
  * High-Floating Layer elevation for Modals, Dialogs, and Action Drawers.
  */
+@Composable
 fun Modifier.neumorphicFloating(
     shape: Shape = NeumorphicTokens.ShapeContainer,
     surfaceColor: Color = NeumorphicTokens.Surface
