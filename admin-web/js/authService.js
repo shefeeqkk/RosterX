@@ -113,8 +113,8 @@ export class AuthService {
       return null;
     }
 
-    if (requiredRole === 'admin' && user.role !== 'admin') {
-      // Non-admin staff redirected to their portal
+    if (requiredRole === 'admin' && user.role !== 'admin' && user.role !== 'manager') {
+      // Non-admin/manager staff redirected to their portal
       window.location.replace('user-portal.html');
       return null;
     }

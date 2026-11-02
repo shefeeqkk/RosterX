@@ -1,5 +1,4 @@
 {
-  "gradle.java.home": "C:\\Users\\shefeeqkk\\.jdks\\jdk-17",
-  "java.jdt.ls.java.home": "C:\\Users\\shefeeqkk\\.jdks\\jdk-17"
+  "gradle.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.20.101-hotspot",
+  "java.jdt.ls.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.20.101-hotspot"
 }
-

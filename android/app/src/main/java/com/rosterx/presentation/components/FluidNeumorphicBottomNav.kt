@@ -104,10 +104,14 @@ fun FluidNeumorphicBottomNav(
     val shadowDarkColor = NeumorphicTokens.ShadowDark
     val shadowLightColor = NeumorphicTokens.ShadowLight
 
+    val navBarInsets = WindowInsets.navigationBars
+    val bottomInsetDp = with(density) { navBarInsets.getBottom(density).toDp() }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(82.dp)
+            .height(82.dp + bottomInsetDp)
+            .padding(bottom = bottomInsetDp)
             .onGloballyPositioned { coordinates ->
                 containerWidthPx = coordinates.size.width.toFloat()
             }

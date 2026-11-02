@@ -18,7 +18,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val DEFAULT_BASE_URL = "https://rosterx.onrender.com/api/"
+    private const val DEFAULT_BASE_URL = "https://rosterx-vc30.onrender.com/"
 
     @Provides
     @Singleton

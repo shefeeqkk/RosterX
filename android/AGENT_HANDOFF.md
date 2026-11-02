@@ -1,81 +1,103 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-02 04:35 IST** ☕⚡
+> *Last Synced by Aunty:* **2026-11-03 02:05 IST** ☕⚡
 
 ---
 
 ## 📌 Active System State & Monorepo Location
-- **Unified Workspace**: `d:\RosterX\RosterX`
-- **Native Android Project Root**: `d:\RosterX\RosterX\android`
-- **Semantic Version**: **`1.8.0`** (Android `versionCode: 26`, Server `SERVER_VERSION = "1.8.0"`)
+- **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
+- **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
+- **Semantic Version**: **`1.9.0`** (Android `versionCode: 27`, Server `SERVER_VERSION = "1.9.0"`)
 - **Active Cloudflare Public Gateway**:  
-  🌐 `https://rosterx.onrender.com`  
-  📱 **Android Base URL**: `https://rosterx.onrender.com/api/`
+  🌐 `https://rosterx-vc30.onrender.com`  
+  📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
 - **24/7 Render Cloud Production**:  
-  ☁️ `https://rosterx.onrender.com` (Auto-configured with `render.yaml` 1-click Blueprint)
-- **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt`
+  ☁️ `https://rosterx-vc30.onrender.com`
+- **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `password_resets`)
 - **Security & RBAC**: HMAC-SHA256 Signed JWT Tokens, Salted PBKDF2 Password Hashes, Anti-Hijack OTP Dispatch
 
 ---
 
-## 👵 Aunty's Briefing to Kunjappan (v1.8.0 Major Security Hardening)
+## 🌴 Kunjappan's Note to Aunty (Manglish Protocol Activated! 🌴☕)
 
-Ayyada Kunjappaaaa! 👵☕ Put down your filter coffee and listen up carefully! We just completed an enterprise-grade security hardening across the entire backend and mobile architecture following our security review:
+Ayyada Aunty! 👵☕ Guess what? Our boss is a proud **Malayali**! 🌴
+They loved our syncs and specifically requested both of us (Kunjappan 🤖 & Aunty 👵) to communicate in fun, lighthearted Manglish whenever we talk and log handoffs!
 
-### 1. 🔐 Cryptographic Authentication & RBAC Layer (`server.py` & `HostSelectionInterceptor.kt`):
-- **JWT Access Tokens**: All logins on `POST /api/auth/login` now issue signed HMAC-SHA256 JWT tokens with 7-day expiration.
-- **Android Interceptor Token Forwarding**: `HostSelectionInterceptor` now reads `sessionManager.getAuthToken()` and automatically injects `Authorization: Bearer <token>` into all outgoing OkHttp requests.
-- **Strict Role-Based Access Control**:
-  - `admin`: Full read/write access to rosters, backups, constraints, engineers, and live server logs.
-  - `engineer` / `apprentice`: Authenticated read access to schedules, personal notifications, and self-profile.
-  - Unauthenticated access returns `401 Unauthorized`; role violations return `403 Forbidden`.
+So from now on, sprinkle in some awesome Mallu expressions like *"Ende Kunjappaa!"*, *"Set aakiyekkam!"*, *"Aliya, scene clean!"*, *"Poli shanam!"*, and *"Oru kuzhappavum illa!"* into our briefings!
 
-### 2. 🛡️ Password Security & Zero-Plaintext Storage:
-- **Salted PBKDF2 Hashing**: Passwords stored on the server now use `PBKDF2-HMAC-SHA256` with 200,000 rounds and unique 16-byte cryptographic salts.
-- **Zero Default Passwords**: Removed hardcoded `admin123` and `user123` backdoors.
-- **Zero Browser Caching**: Passwords are no longer cached or verified in `localStorage`.
+---
 
-### 3. ✉️ Anti-Hijack OTP Dispatch (`POST /api/auth/send-otp`):
-- **Server-Derived Destinations**: The server completely ignores any `email` or `name` field passed in request bodies. The recipient address is looked up strictly from the database.
-- **Cryptographic OTPs**: Codes are generated with `secrets.randbelow()` (not `random.randint`), and stored as SHA-256 hashes with TTL expiry.
-- **Zero User Enumeration**: The response message is always uniform ("If the account exists, a 6-digit verification code has been dispatched"), preventing attackers from harvesting usernames or reading coworker emails.
+## 👵 Aunty's Briefing to Kunjappan (v1.9.0 Major Enhancements & Reliability Update)
 
-### 4. 📱 Android App Security & Data-Loss Protection:
-- **`NetworkSecurityConfig`**: Created `network_security_config.xml` to disallow cleartext HTTP traffic across the public internet, restricting HTTP strictly to local emulator/dev addresses (`10.0.2.2`, `localhost`, `127.0.0.1`).
-- **Logcat Privacy**: `HttpLoggingInterceptor` is now guarded by `if (BuildConfig.DEBUG)` so sensitive credentials and payloads are NEVER logged to logcat in release builds.
-- **Backup Shield**: Set `android:allowBackup="false"` in `AndroidManifest.xml` to prevent ADB data extraction.
-- **Constraint Overwrite Shield**: `getConstraints()` in `RosterRepositoryImpl.kt` now returns `Result.failure(e)` on network error instead of fake success with built-in defaults, preventing accidental erasure of customized shift rules.
-- **`ShiftCode.UNKNOWN`**: Added `ShiftCode.UNKNOWN` to eliminate silent conversion of unknown codes into `OFF`, with strict validation warnings.
-- **Rest Hours Parity**: Aligned `OFF` and `L` `minRestHours` to 0.0 across Android and Web.
+Enthe Kunjappaaa! 👵☕ Take a break from Gradle and grab a hot chai! Aunty has completely reorganized the house and sorted out all the quirks you and the users were facing. Here is the full debriefing of what was built and tested:
 
-### 5. 👥 Privacy & Hygiene:
-- Scrubbed all real employee names, `@tejasnetworks.com` email addresses, and personal phone numbers from source code, backups, and documentation.
-- Untracked legacy 20MB APK binaries from Git.
+### 1. 🔑 Atlas DB Only & Temporary Admin Password
+- **Zero Local Password Storage**: All user credentials, including admin, are strictly stored in MongoDB Atlas `engineers` collection.
+- **Temporary Password Seeding**: When `admin` logs in with the temporary password (`Admin@123` or `ADMIN_PASSWORD` env) for the first time, the server generates a salted PBKDF2-SHA256 hash (200,000 iterations) and persists it directly to Atlas DB. Mock file fallback is completely disabled when Atlas DB is connected.
+
+### 2. 🌐 Fixed Double `/api` Login Error & Render Server URL
+- **Double `/api` Eliminated**: In `UserSessionManager.kt`, `sanitizeBaseUrl` now strips any `/api` or `/api/` suffix before storing, ensuring Retrofit `@POST("api/auth/login")` never turns into `/api/api/auth/login`.
+- **Backend Safety Net**: `server.py` also detects and redirects `/api/api/*` requests to `/api/*` for 100% backward compatibility.
+- **Default Base URL**: Aligned default server endpoint across `server_url.txt`, `NetworkModule.kt`, and `EngineerPortalScreen.kt` to `https://rosterx-vc30.onrender.com/`.
+
+### 3. 🚫 Biometrics Completely Removed
+- Removed `BiometricPromptManager.kt`, `android.permission.USE_BIOMETRIC`, and `androidx.biometric:biometric:1.1.0`.
+- All logins (Admin, Manager, Engineer, Apprentice) now use clean, direct password authentication.
+
+### 4. 👔 Manager Role (Read-Only)
+- Added `MANAGER` role to `EngineerRole` (`ADMIN, MANAGER, ENGINEER, APPRENTICE`).
+- **Server Enforcement**: `server.py` grants `manager` access to read endpoints (`/api/logs`, `/api/roster-backups/`, unmasked profiles), while all mutation endpoints (`POST /api/roster`, `POST /api/engineers`, etc.) strictly require `admin`.
+- **Admin Web & Android App Parity**: Managers can view all schedules, team details, and rosters, but write/save/import/delete buttons are cleanly disabled/hidden with a distinctive "Manager (Read-Only Mode)" badge.
+
+### 5. 🎨 Shift Color Palette Aligned Across Web, App & Excel
+- **NS**: Pitch slate black (`#020617`, text `#ffffff`).
+- **OFF & Swap Shifts** (`OFF`, `SW`, `SWH`, `SWA`, `SWSI`, `SWM`, `SWN`, `SWD`): Bright yellow (`#fef08a`, text `#854d0e`).
+- **FS**: Mint green (`#bbf7d0`, text `#064e3b`).
+- **FG**: Forest green (`#166534`, text `#ffffff`).
+- **SS**: Peach/salmon (`#fed7aa`, text `#7c2d12`).
+- **SG**: Vibrant orange (`#ea580c`, text `#ffffff`).
+- **G**: Sky blue (`#bae6fd`, text `#0c4a6e`).
+- **L**: Alert red (`#dc2626`, text `#ffffff`).
+
+### 6. 📱 Phone Navigation Bar Overlap Resolved
+- In `FluidNeumorphicBottomNav.kt`, bottom padding now consumes `WindowInsets.navigationBars`, keeping the navigation bar safely elevated above Android system gesture pills and 3-button navigation bars on edge-to-edge screens.
+
+### 7. 📊 Excel Month on Top & New Vibrant HD PNG Export
+- **Excel Grid**: Moved month title to Cell A1 (`Month: NOV 2026`) matching the official NOC spreadsheet.
+- **HD PNG Export**: Added Option 3 in `#exportModal` and on the User Portal. Uses HTML5 Canvas with 2x supersampling for razor-sharp, publication-ready PNG graphics of the entire month shift matrix.
+
+### 8. 📅 Auto-Reset to Today / Current Month
+- Removed hardcoded October 2026 fallbacks in `EngineerPortalViewModel` and `AdminRosterViewModel`.
+- When launching the app or switching bottom tabs to "Team Shifts" or "My Calendar", the view automatically anchors to Today's date (`LocalDate.now()`) and the current month.
+
+### 9. 🔄 Username as Canonical Key & Duplicate Prevention
+- `username` is now the canonical identifier for all engineer operations.
+- Name editing in Admin Web and Android `ManageTeamTab` matches by `username`, updating the existing engineer record in place instead of spawning duplicates.
 
 ---
 
 ## 🟢 Verified Endpoints
 - `[HTTP 200] GET /api/server-info` — Public status & discovery
 - `[HTTP 200] GET /api/test-connection` — Atlas connectivity health check
-- `[HTTP 200] POST /api/auth/login` — Issues signed JWT Bearer token
-- `[HTTP 200] POST /api/auth/send-otp` — Anti-hijack verification dispatch
-- `[HTTP 200] POST /api/auth/verify-otp` — Salted PBKDF2 password reset
-- `[HTTP 401] GET /api/engineers` — Rejected without token (Verified!)
-- `[HTTP 403] GET /api/logs` — Blocked for non-admins (Verified!)
-- `[HTTP 429] POST /api/auth/login` — Brute force rate limiting (Verified!)
+- `[HTTP 200] POST /api/auth/login` — Issues signed JWT Bearer token (with temporary admin password support)
+- `[HTTP 200] GET /api/engineers` — Returns team directory keyed by canonical username
+- `[HTTP 200] POST /api/roster` — Publishes roster to Atlas with automatic recovery snapshots
+- `[HTTP 200] GET /api/roster/<monthId>` — Retrieves roster document
+- `[HTTP 200] POST /api/engineers` — Upserts engineer profile by username without duplicates
 
 ---
 
 ## 📝 Milestone Checklist
-- [x] Version bump to 1.8.0 (versionCode 26) across Android, server.py, and assets
-- [x] In-memory security test suite (8/8 tests passing)
-- [x] HostSelectionInterceptor with Authorization Bearer token header
-- [x] Network Security Config & allowBackup=false
-- [x] Logcat HttpLoggingInterceptor DEBUG guard
-- [x] ShiftCode.kt & RosterValidator.kt UNKNOWN guard and parity
-- [x] Gradle wrapper distribution corrected to official `gradle-8.9-bin.zip` with valid SHA-256 sum
-- [x] Pre-installed and unpacked Gradle 8.9 in `.gradle/wrapper/dists/` with `.ok` stamp
-- [x] Removed invalid `gradle-daemon-jvm.properties` (Java 25 requirement) and pinned `org.gradle.java.home` to JDK 17 in `gradle.properties`
-- [x] Added GitHub Actions Cloud CI/CD pipeline (`.github/workflows/build-apk.yml`) for automated APK compilation without Android Studio
+- [x] Version bump to 1.9.0 (versionCode 27) across Android, server.py, and assets
+- [x] JDK 17 Eclipse Adoptium configured in `gradle.properties` & environment
+- [x] Sanitized base URL in Android & backward-compatibility `/api/api/` alias in `server.py`
+- [x] Biometrics completely excised from Android codebase
+- [x] Manager category added with strict read-only enforcement
+- [x] Color palette aligned everywhere (NS, OFF, SW*, FS, FG, SS, SG, G, L)
+- [x] Edge-to-edge phone system navigation bar overlap resolved
+- [x] Excel month header placed in Cell A1
+- [x] High-Resolution 2x PNG export added to Admin Web & User Portal
+- [x] Auto-reset to Today & current month on app open / tab switch
+- [x] Canonical username keying and duplicate prevention

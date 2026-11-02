@@ -40,8 +40,7 @@ import com.rosterx.R
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
-    onLoginSuccess: () -> Unit = {},
-    onBiometricClick: (String) -> Unit = {}
+    onLoginSuccess: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
@@ -50,8 +49,7 @@ fun LoginScreen(
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var showPasswordField by remember { mutableStateOf(false) }
-    var isIdentifierError by remember { mutableStateOf(false) }
+        var isIdentifierError by remember { mutableStateOf(false) }
     var localErrorMsg by remember { mutableStateOf<String?>(null) }
     
     // OTP Password Reset Dialog State
@@ -386,164 +384,63 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Dual Action Controls
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Path 1: Primary Action (Biometrics)
-                    Button(
-                        onClick = {
-                            val cleanId = identifier.trim().lowercase()
-                            if (cleanId.isBlank()) {
-                                isIdentifierError = true
-                            } else if (cleanId == "admin" || cleanId == "admin@rosterx.dev" || viewModel.checkIsAdmin(cleanId)) {
-                                // Block Biometrics for all Admin accounts & privileges
-                                isIdentifierError = false
-                                localErrorMsg = "Accounts with Admin privileges require password authentication."
-                                showPasswordField = true
-                            } else {
-                                isIdentifierError = false
-                                localErrorMsg = null
-                                onBiometricClick(identifier)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        enabled = !state.isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        if (state.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
+                // Password Input Field (Biometrics completely removed - password required)
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; localErrorMsg = null },
+                    label = { Text("Password") },
+                    leadingIcon = { 
+                        Icon(
+                            Icons.Default.Lock, 
+                            contentDescription = null, 
+                            tint = MaterialTheme.colorScheme.primary
+                        ) 
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = "Toggle password visibility"
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Authenticating, please wait...",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(passwordFocusRequester),
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Sign In Button
+                Button(
+                    onClick = { 
+                        if (identifier.isBlank()) {
+                            isIdentifierError = true
                         } else {
-                            Icon(
-                                Icons.Default.Fingerprint,
-                                contentDescription = "Biometric Icon",
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            Text(
-                                "Unlock with Biometrics",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
+                            localErrorMsg = null
+                            viewModel.login(identifier, password) 
                         }
-                    }
-
-                    // Path 2: Secondary Action (Use Password)
-                    if (!showPasswordField) {
-                        OutlinedButton(
-                            onClick = {
-                                if (identifier.isBlank()) {
-                                    isIdentifierError = true
-                                } else {
-                                    isIdentifierError = false
-                                    localErrorMsg = null
-                                    showPasswordField = true
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                        ) {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = "Lock Icon",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            Text(
-                                "Use Password",
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
-                }
-
-                // Conditional Password Input Area
-                AnimatedVisibility(
-                    visible = showPasswordField,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = !state.isLoading && identifier.isNotBlank() && password.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        LaunchedEffect(Unit) {
-                            passwordFocusRequester.requestFocus()
-                        }
-
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it; localErrorMsg = null },
-                            label = { Text("Password") },
-                            leadingIcon = { 
-                                Icon(
-                                    Icons.Default.Lock, 
-                                    contentDescription = null, 
-                                    tint = MaterialTheme.colorScheme.primary
-                                ) 
-                            },
-                            trailingIcon = {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(
-                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = "Toggle password visibility"
-                                    )
-                                }
-                            },
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(passwordFocusRequester),
-                            shape = RoundedCornerShape(14.dp),
-                            singleLine = true
+                    if (state.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
                         )
-
-                        Button(
-                            onClick = { 
-                                localErrorMsg = null
-                                viewModel.login(identifier, password) 
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            enabled = !state.isLoading && identifier.isNotBlank() && password.isNotBlank(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            if (state.isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text("Sign In", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            }
-                        }
+                    } else {
+                        Text("Sign In", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                 }
 

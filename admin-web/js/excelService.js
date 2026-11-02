@@ -56,7 +56,7 @@ const SHIFT_PALETTE = {
     desc: 'Evening operational shift'
   },
   NS: {
-    bg: 'FF1E293B',
+    bg: 'FF020617',
     font: 'FFFFFFFF',
     name: 'Night Shift',
     timing: '09:00 PM - 07:30 AM',
@@ -64,7 +64,7 @@ const SHIFT_PALETTE = {
   },
   OFF: {
     bg: 'FFFEF08A',
-    font: 'FF713F12',
+    font: 'FF854D0E',
     name: 'Weekly Off',
     timing: 'Rest Day',
     desc: 'Standard scheduled rest day'
@@ -132,12 +132,15 @@ export class ExcelService {
 
       // Main Roster Worksheet with Frozen Panes (Sticky Header & Names)
       const ws = wb.addWorksheet(`Roster-${periodLabel}`, {
-        views: [{ state: 'frozen', xSplit: 2, ySplit: 2 }],
+        views: [{ state: 'frozen', xSplit: 1, ySplit: 2 }],
         properties: { defaultRowHeight: 22 }
       });
 
-      // 1. Header Row 1: Day Numbers
-      const headerRow1Values = ['ENGG NAMES', periodLabel];
+      const monthFullNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+      const monthFullName = monthFullNames[month - 1] || periodLabel;
+
+      // 1. Header Row 1: Top Month Banner (Cell A1) + Day Numbers 1 to totalDays + Stats Headers
+      const headerRow1Values = [`Month: ${monthFullName.slice(0, 3)} ${year}`];
       for (let d = 1; d <= totalDays; d++) headerRow1Values.push(d);
       headerRow1Values.push('WRK', 'NS', 'OFF', 'STATUS');
 
@@ -150,15 +153,11 @@ export class ExcelService {
         cell.border = THIN_BORDER;
 
         if (colNumber === 1) {
-          // Engineer Name Header
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-          cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-          cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        } else if (colNumber === 2) {
-          // Period Label (OCT-26, NOV-26)
+          // Prominent Month Header at Top (A1)
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF59E0B' } };
           cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
-        } else if (colNumber <= totalDays + 2) {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        } else if (colNumber <= totalDays + 1) {
           // Day Numbers
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
           cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -169,8 +168,8 @@ export class ExcelService {
         }
       });
 
-      // 2. Header Row 2: Days of the Week
-      const headerRow2Values = [`(Total: ${engineers.length})`, 'DAY'];
+      // 2. Header Row 2: Engineer Names Header + Days of the Week (SUN, MON...) + Summary Labels
+      const headerRow2Values = ['ENGG NAMES'];
       for (let d = 1; d <= totalDays; d++) {
         const dow = new Date(year, month - 1, d).getDay();
         headerRow2Values.push(dayShortNames[dow]);
@@ -186,13 +185,11 @@ export class ExcelService {
         cell.border = THIN_BORDER;
 
         if (colNumber === 1) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-          cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF64748B' } };
+          // Engineer Name Header
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+          cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
           cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        } else if (colNumber === 2) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-          cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF475569' } };
-        } else if (colNumber <= totalDays + 2) {
+        } else if (colNumber <= totalDays + 1) {
           const dayName = String(cell.value || '');
           const isWeekend = dayName === 'SUN' || dayName === 'SAT';
           cell.fill = {
@@ -209,7 +206,7 @@ export class ExcelService {
 
       // 3. Engineer Shift Rows
       engineers.forEach((eng) => {
-        const rowValues = [eng.name, ''];
+        const rowValues = [eng.name];
         let wrk = 0;
         let ns = 0;
         let off = 0;
@@ -252,17 +249,14 @@ export class ExcelService {
             // Engineer Name
             cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-            cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } };
-          } else if (colNumber === 2) {
-            // Empty index col
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
-          } else if (colNumber <= totalDays + 2) {
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+          } else if (colNumber <= totalDays + 1) {
             // Shift Code Cell
             const rawVal = cell.value ? String(cell.value).toUpperCase().trim() : '';
             if (rawVal && rawVal.startsWith('SW')) {
-              // Standardized Swap Code -> Treated as OFF Category
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-              cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF334155' } };
+              // Standardized Swap Code -> Treated as OFF Category matching yellow shift palette
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF08A' } };
+              cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF854D0E' } };
             } else if (rawVal && SHIFT_PALETTE[rawVal]) {
               const palette = SHIFT_PALETTE[rawVal];
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: palette.bg } };
@@ -347,8 +341,7 @@ export class ExcelService {
 
       // Set Column Widths for Optimal View
       const columnsConfig = [
-        { width: 22 }, // Engineer Name
-        { width: 10 }  // Period
+        { width: 24 }  // Month / Engineer Name Column
       ];
       for (let d = 1; d <= totalDays; d++) {
         columnsConfig.push({ width: 6.5 }); // Day columns
@@ -499,6 +492,183 @@ export class ExcelService {
     } else if (typeof XLSX !== 'undefined') {
       XLSX.writeFile(wb, fileName);
     }
+  }
+
+  /**
+   * Export the active month roster matrix as a high-definition (HD), vibrant PNG graphic
+   * matching the official 24/7 NOC Roster layout.
+   */
+  static async exportMonthGridToPng(gridRoster, year, month, totalDays, constraints = {}) {
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const monthNamesFull = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const periodLabel = `${monthNames[month - 1]}-${String(year).slice(-2)}`;
+    const monthTitle = `${monthNamesFull[month - 1]} ${year}`;
+    const dayShortNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+    let engineers = Array.isArray(gridRoster) ? [...gridRoster] : [];
+    engineers = sortEngineersByWeekOffs(engineers);
+
+    // Retina / HD 2x supersampling for crisp publication graphics
+    const scale = 2;
+    const nameColWidth = 200;
+    const dayColWidth = 42;
+    const rowHeight = 34;
+    const headerHeight = 36;
+
+    const totalRows = 2 + engineers.length;
+    const logicalWidth = nameColWidth + (totalDays * dayColWidth);
+    const logicalHeight = (2 * headerHeight) + (engineers.length * rowHeight);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(logicalWidth * scale);
+    canvas.height = Math.round(logicalHeight * scale);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    // High quality rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // Base background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+
+    // Helper: draw stroked & filled cell
+    const drawCell = (x, y, w, h, bgColor, borderColor) => {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = borderColor || '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    };
+
+    // Helper: draw text
+    const drawText = (text, x, y, font, color, align = 'center') => {
+      ctx.font = font;
+      ctx.fillStyle = color;
+      ctx.textAlign = align;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y);
+    };
+
+    // ==========================================
+    // 1. ROW 1: Month Banner + Day Numbers
+    // ==========================================
+    // Cell A1: Month (Yellow / Amber)
+    drawCell(0, 0, nameColWidth, headerHeight, '#facc15', '#e2e8f0');
+    drawText(`Month: ${monthTitle}`, nameColWidth / 2, headerHeight / 2, 'bold 14px "Segoe UI", Roboto, sans-serif', '#000000', 'center');
+
+    // Day Numbers 1 to totalDays (Dark Navy)
+    for (let d = 1; d <= totalDays; d++) {
+      const x = nameColWidth + (d - 1) * dayColWidth;
+      drawCell(x, 0, dayColWidth, headerHeight, '#090d16', '#1e293b');
+      drawText(String(d), x + dayColWidth / 2, headerHeight / 2, 'bold 14px "Segoe UI", Roboto, sans-serif', '#ffffff', 'center');
+    }
+
+    // ==========================================
+    // 2. ROW 2: ENGG NAMES + Days of Week
+    // ==========================================
+    // Cell A2: ENGG NAMES (Dark Navy)
+    drawCell(0, headerHeight, nameColWidth, headerHeight, '#090d16', '#1e293b');
+    drawText('ENGG NAMES', nameColWidth / 2, headerHeight + (headerHeight / 2), 'bold 13px "Segoe UI", Roboto, sans-serif', '#ffffff', 'center');
+
+    // Day Names (SUN/SAT in Red, Weekdays in Slate)
+    for (let d = 1; d <= totalDays; d++) {
+      const x = nameColWidth + (d - 1) * dayColWidth;
+      const y = headerHeight;
+      const dow = new Date(year, month - 1, d).getDay();
+      const isWeekend = (dow === 0 || dow === 6); // Sun or Sat
+
+      const dayBg = isWeekend ? '#dc2626' : '#94a3b8';
+      drawCell(x, y, dayColWidth, headerHeight, dayBg, '#cbd5e1');
+      drawText(dayShortNames[dow], x + dayColWidth / 2, y + (headerHeight / 2), 'bold 12px "Segoe UI", Roboto, sans-serif', '#ffffff', 'center');
+    }
+
+    // ==========================================
+    // 3. ENGINEER ROWS
+    // ==========================================
+    engineers.forEach((eng, idx) => {
+      const y = (2 * headerHeight) + (idx * rowHeight);
+
+      // Engineer Name Column (Left Aligned, White Background)
+      drawCell(0, y, nameColWidth, rowHeight, '#ffffff', '#cbd5e1');
+      drawText((eng.name || 'ENGINEER').toUpperCase(), 14, y + (rowHeight / 2), 'bold 12px "Segoe UI", Roboto, sans-serif', '#0f172a', 'left');
+
+      // Shift Cells
+      for (let d = 1; d <= totalDays; d++) {
+        const x = nameColWidth + (d - 1) * dayColWidth;
+        let code = '';
+        if (Array.isArray(eng.shifts)) {
+          code = eng.shifts[d - 1] || 'OFF';
+        } else if (eng.shifts && typeof eng.shifts === 'object') {
+          code = eng.shifts[d] || eng.shifts[String(d)] || 'OFF';
+        } else {
+          code = 'OFF';
+        }
+
+        const rawCode = String(code).toUpperCase().trim();
+
+        // Color mapping matching NOC palette
+        let bgColor = '#ffffff';
+        let textColor = '#0f172a';
+
+        if (rawCode === 'OFF' || rawCode.startsWith('SW')) {
+          bgColor = '#fef08a';
+          textColor = '#854d0e';
+        } else if (rawCode === 'NS') {
+          bgColor = '#020617';
+          textColor = '#ffffff';
+        } else if (rawCode === 'FS') {
+          bgColor = '#bbf7d0';
+          textColor = '#064e3b';
+        } else if (rawCode === 'FG') {
+          bgColor = '#166534';
+          textColor = '#ffffff';
+        } else if (rawCode === 'SS') {
+          bgColor = '#fed7aa';
+          textColor = '#7c2d12';
+        } else if (rawCode === 'SG') {
+          bgColor = '#ea580c';
+          textColor = '#ffffff';
+        } else if (rawCode === 'G') {
+          bgColor = '#bae6fd';
+          textColor = '#0c4a6e';
+        } else if (rawCode === 'L') {
+          bgColor = '#dc2626';
+          textColor = '#ffffff';
+        }
+
+        drawCell(x, y, dayColWidth, rowHeight, bgColor, '#cbd5e1');
+        
+        // Font size adjusts dynamically for 4-letter swap codes (e.g. SWSI)
+        const fontSize = rawCode.length > 3 ? '10px' : '11px';
+        drawText(rawCode, x + dayColWidth / 2, y + (rowHeight / 2), `bold ${fontSize} "Segoe UI", Roboto, sans-serif`, textColor, 'center');
+      }
+    });
+
+    // ==========================================
+    // 4. TRIGGER PNG DOWNLOAD
+    // ==========================================
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(false);
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `NOC_Shift_Roster_${periodLabel}.png`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          resolve(true);
+        }, 500);
+      }, 'image/png');
+    });
   }
 
   /**

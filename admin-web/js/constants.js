@@ -12,7 +12,7 @@ export const SHIFTS = {
   FS: {
     code: 'FS',
     name: 'First Shift',
-    timings: '07:30 AM – 04:30 PM',
+    timings: '07:30 AM - 04:30 PM',
     bg: '#bbf7d0',
     text: '#064e3b',
     category: 'morning',
@@ -22,7 +22,7 @@ export const SHIFTS = {
   FG: {
     code: 'FG',
     name: 'First General Shift',
-    timings: '08:30 AM – 05:30 PM',
+    timings: '08:30 AM - 05:30 PM',
     bg: '#166534',
     text: '#ffffff',
     category: 'morning',
@@ -32,7 +32,7 @@ export const SHIFTS = {
   G: {
     code: 'G',
     name: 'General Shift',
-    timings: '09:30 AM – 06:30 PM',
+    timings: '09:30 AM - 06:30 PM',
     bg: '#bae6fd',
     text: '#0c4a6e',
     category: 'general',
@@ -42,7 +42,7 @@ export const SHIFTS = {
   SG: {
     code: 'SG',
     name: 'Second General Shift',
-    timings: '11:00 AM – 08:00 PM',
+    timings: '11:00 AM - 08:00 PM',
     bg: '#ea580c',
     text: '#ffffff',
     category: 'general',
@@ -52,7 +52,7 @@ export const SHIFTS = {
   SS: {
     code: 'SS',
     name: 'Second Shift',
-    timings: '01:00 PM – 10:00 PM',
+    timings: '01:00 PM - 10:00 PM',
     bg: '#fed7aa',
     text: '#7c2d12',
     category: 'evening',
@@ -62,8 +62,8 @@ export const SHIFTS = {
   NS: {
     code: 'NS',
     name: 'Night Shift',
-    timings: '09:00 PM – 07:30 AM',
-    bg: '#1e293b',
+    timings: '09:00 PM - 07:30 AM',
+    bg: '#020617',
     text: '#ffffff',
     category: 'night',
     minRestHours: 24,
@@ -74,7 +74,7 @@ export const SHIFTS = {
     name: 'Weekly Off',
     timings: 'Rest Day',
     bg: '#fef08a',
-    text: '#713f12',
+    text: '#854d0e',
     category: 'off',
     minRestHours: 0,
     description: 'Mandatory rest / weekend off'
@@ -88,6 +88,16 @@ export const SHIFTS = {
     category: 'leave',
     minRestHours: 0,
     description: 'Planned vacation or approved leave'
+  },
+  SW: {
+    code: 'SW',
+    name: 'Swap Shift (Treated as OFF)',
+    timings: 'Rest Day / Peer Covers Shift',
+    bg: '#fef08a',
+    text: '#854d0e',
+    category: 'off',
+    minRestHours: 0,
+    description: 'Assigned engineer is OFF on that day; peer identified by initial(s) takes shift'
   }
 };
 

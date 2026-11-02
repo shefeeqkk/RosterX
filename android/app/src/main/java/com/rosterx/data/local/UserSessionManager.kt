@@ -60,31 +60,40 @@ class UserSessionManager @Inject constructor(
         return loadSavedUser() != null
     }
 
+    fun sanitizeBaseUrl(url: String): String {
+        var clean = url.trim()
+        if (clean.isBlank()) return "https://rosterx-vc30.onrender.com/"
+        if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
+            clean = "https://" + clean
+        }
+        while (clean.endsWith("/")) {
+            clean = clean.dropLast(1)
+        }
+        while (clean.endsWith("/api")) {
+            clean = clean.dropLast(4)
+        }
+        return clean + "/"
+    }
+
     fun getBaseUrl(): String {
         val saved = prefs.getString("custom_base_url", null)
-        if (!saved.isNullOrBlank()) return saved
+        if (!saved.isNullOrBlank()) return sanitizeBaseUrl(saved)
 
         // Automatically resolve synced internet tunnel URL from assets if present
         try {
             val assetUrl = context.assets.open("server_url.txt").bufferedReader().use { it.readText().trim() }
             if (assetUrl.isNotBlank()) {
-                var clean = assetUrl
-                if (!clean.endsWith("/")) clean += "/"
-                if (!clean.endsWith("/api/")) clean += "api/"
-                return clean
+                return sanitizeBaseUrl(assetUrl)
             }
         } catch (e: Exception) {
             // Assets file not present or not accessible; fall back to Render URL
         }
 
-        return "https://rosterx.onrender.com/api/"
+        return "https://rosterx-vc30.onrender.com/"
     }
 
     fun setBaseUrl(url: String) {
-        var cleanUrl = url.trim()
-        if (!cleanUrl.endsWith("/")) {
-            cleanUrl += "/"
-        }
+        val cleanUrl = sanitizeBaseUrl(url)
         prefs.edit().putString("custom_base_url", cleanUrl).apply()
     }
 
