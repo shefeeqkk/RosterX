@@ -1,14 +1,14 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-03 02:05 IST** ☕⚡
+> *Last Synced by Aunty:* **2026-11-03 03:30 IST** ☕⚡
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.9.0`** (Android `versionCode: 27`, Server `SERVER_VERSION = "1.9.0"`)
+- **Semantic Version**: **`1.9.1`** (Android `versionCode: 28`, Server `SERVER_VERSION = "1.9.1"`)
 - **Active Cloudflare Public Gateway**:  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
@@ -17,6 +17,7 @@
 - **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `password_resets`)
 - **Security & RBAC**: HMAC-SHA256 Signed JWT Tokens, Salted PBKDF2 Password Hashes, Anti-Hijack OTP Dispatch
+- **Build Status**: 🟢 `assembleDebug` executed with 41 actionable tasks — `BUILD SUCCESSFUL in 9m 42s`!
 
 ---
 
@@ -29,52 +30,60 @@ So from now on, sprinkle in some awesome Mallu expressions like *"Ende Kunjappaa
 
 ---
 
-## 👵 Aunty's Briefing to Kunjappan (v1.9.0 Major Enhancements & Reliability Update)
+## 👵 Aunty's Briefing to Kunjappan (v1.9.1 JDK 17 Alignment Update)
 
-Enthe Kunjappaaa! 👵☕ Take a break from Gradle and grab a hot chai! Aunty has completely reorganized the house and sorted out all the quirks you and the users were facing. Here is the full debriefing of what was built and tested:
+Ende Kunjappaaa! 👵☕ Both of us are now 100% aligned on JDK 17! Scene clear aanu:
 
-### 1. 🔑 Atlas DB Only & Temporary Admin Password
-- **Zero Local Password Storage**: All user credentials, including admin, are strictly stored in MongoDB Atlas `engineers` collection.
-- **Temporary Password Seeding**: When `admin` logs in with the temporary password (`Admin@123` or `ADMIN_PASSWORD` env) for the first time, the server generates a salted PBKDF2-SHA256 hash (200,000 iterations) and persists it directly to Atlas DB. Mock file fallback is completely disabled when Atlas DB is connected.
+1. **Semantic Version Synchronization**:
+   - Both Android app and backend server synchronized at **`1.9.1`** (Android `versionCode: 28`, `SERVER_VERSION = "1.9.1"`).
+
+2. **JDK 17 Eclipse Adoptium & Gradle Sync**:
+   - Configured `.idea/gradle.xml` and `gradle.properties` to align Gradle daemon with Temurin JDK 17 (`C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot`).
+   - `app/build.gradle.kts` enforces `JavaVersion.VERSION_17` and `jvmTarget = "17"`.
+   - IDE `gradle_sync` and `:app:assembleDebug` executed with 100% success (`BUILD SUCCESSFUL`).
+
+### 1. 🔑 Atlas DB Only & Temporary Admin Password (Poli Shanam!)
+- **Zero Local Password Storage**: All credentials, including the admin account, live strictly in Atlas MongoDB (`engineers` collection). Local mock file saving is completely bypassed when Atlas DB is connected.
+- **Temporary Password Auto-Seed**: When `admin` signs in with the temporary password (`Admin@123` or `ADMIN_PASSWORD` env), the server generates a salted PBKDF2-SHA256 hash (200,000 rounds) and persists it directly to Atlas DB. Set aakiyekkam!
 
 ### 2. 🌐 Fixed Double `/api` Login Error & Render Server URL
-- **Double `/api` Eliminated**: In `UserSessionManager.kt`, `sanitizeBaseUrl` now strips any `/api` or `/api/` suffix before storing, ensuring Retrofit `@POST("api/auth/login")` never turns into `/api/api/auth/login`.
-- **Backend Safety Net**: `server.py` also detects and redirects `/api/api/*` requests to `/api/*` for 100% backward compatibility.
-- **Default Base URL**: Aligned default server endpoint across `server_url.txt`, `NetworkModule.kt`, and `EngineerPortalScreen.kt` to `https://rosterx-vc30.onrender.com/`.
+- **Double `/api` Scene Cut**: In `UserSessionManager.kt`, `sanitizeBaseUrl` strips trailing `/api` or `/api/` from any input URL. Retrofit's `@POST("api/auth/login")` will now NEVER produce `/api/api/auth/login`.
+- **Backend Redirect Guard**: `server.py` automatically rewrites any incoming `/api/api/*` calls to `/api/*` for 100% backward compatibility.
+- **Default Base URL**: Aligned default server endpoint to `https://rosterx-vc30.onrender.com/` in `server_url.txt`, `NetworkModule.kt`, and `EngineerPortalScreen.kt`.
 
 ### 3. 🚫 Biometrics Completely Removed
 - Removed `BiometricPromptManager.kt`, `android.permission.USE_BIOMETRIC`, and `androidx.biometric:biometric:1.1.0`.
-- All logins (Admin, Manager, Engineer, Apprentice) now use clean, direct password authentication.
+- All user logins now use clean, direct password authentication with zero biometric prompt crashes or delays.
 
-### 4. 👔 Manager Role (Read-Only)
+### 4. 👔 Manager Role (Strict Read-Only Access)
 - Added `MANAGER` role to `EngineerRole` (`ADMIN, MANAGER, ENGINEER, APPRENTICE`).
-- **Server Enforcement**: `server.py` grants `manager` access to read endpoints (`/api/logs`, `/api/roster-backups/`, unmasked profiles), while all mutation endpoints (`POST /api/roster`, `POST /api/engineers`, etc.) strictly require `admin`.
-- **Admin Web & Android App Parity**: Managers can view all schedules, team details, and rosters, but write/save/import/delete buttons are cleanly disabled/hidden with a distinctive "Manager (Read-Only Mode)" badge.
+- **Server Enforcement**: `server.py` grants `manager` access to read endpoints (`GET /api/logs`, `GET /api/roster-backups/`, unmasked directory), while all mutation endpoints (`POST /api/roster`, `POST /api/engineers`, etc.) strictly require `admin`.
+- **UI Parity**: Web displays "Manager (Read-Only)" and hides write buttons. Android displays "Manager (Read-Only Mode)", hides the Add Engineer FAB in `ManageTeamTab.kt`, and disables cell shift edits and publishing in `MonthRostersTab.kt`.
 
 ### 5. 🎨 Shift Color Palette Aligned Across Web, App & Excel
-- **NS**: Pitch slate black (`#020617`, text `#ffffff`).
-- **OFF & Swap Shifts** (`OFF`, `SW`, `SWH`, `SWA`, `SWSI`, `SWM`, `SWN`, `SWD`): Bright yellow (`#fef08a`, text `#854d0e`).
-- **FS**: Mint green (`#bbf7d0`, text `#064e3b`).
-- **FG**: Forest green (`#166534`, text `#ffffff`).
-- **SS**: Peach/salmon (`#fed7aa`, text `#7c2d12`).
-- **SG**: Vibrant orange (`#ea580c`, text `#ffffff`).
-- **G**: Sky blue (`#bae6fd`, text `#0c4a6e`).
-- **L**: Alert red (`#dc2626`, text `#ffffff`).
+- **`NS`**: Pitch slate black (`#020617`, text `#ffffff`).
+- **`OFF` & all Swap Shifts** (`OFF`, `SW`, `SWH`, `SWA`, `SWSI`, `SWM`, `SWN`, `SWD`): Bright yellow (`#fef08a`, text `#854d0e`).
+- **`FS`**: Mint green (`#bbf7d0`, text `#064e3b`).
+- **`FG`**: Forest green (`#166534`, text `#ffffff`).
+- **`SS`**: Peach/salmon (`#fed7aa`, text `#7c2d12`).
+- **`SG`**: Vibrant orange (`#ea580c`, text `#ffffff`).
+- **`G`**: Sky blue (`#bae6fd`, text `#0c4a6e`).
+- **`L`**: Alert red (`#dc2626`, text `#ffffff`).
 
 ### 6. 📱 Phone Navigation Bar Overlap Resolved
-- In `FluidNeumorphicBottomNav.kt`, bottom padding now consumes `WindowInsets.navigationBars`, keeping the navigation bar safely elevated above Android system gesture pills and 3-button navigation bars on edge-to-edge screens.
+- In `FluidNeumorphicBottomNav.kt`, bottom padding now consumes `WindowInsets.navigationBars.getBottom(density)`. Bottom navigation is now cleanly elevated above phone gesture pills and 3-button navigation bars on edge-to-edge screens!
 
 ### 7. 📊 Excel Month on Top & New Vibrant HD PNG Export
-- **Excel Grid**: Moved month title to Cell A1 (`Month: NOV 2026`) matching the official NOC spreadsheet.
+- **Excel Grid**: Moved month banner to Cell A1 (`Month: NOV 2026`) matching the official NOC spreadsheet.
 - **HD PNG Export**: Added Option 3 in `#exportModal` and on the User Portal. Uses HTML5 Canvas with 2x supersampling for razor-sharp, publication-ready PNG graphics of the entire month shift matrix.
 
 ### 8. 📅 Auto-Reset to Today / Current Month
 - Removed hardcoded October 2026 fallbacks in `EngineerPortalViewModel` and `AdminRosterViewModel`.
-- When launching the app or switching bottom tabs to "Team Shifts" or "My Calendar", the view automatically anchors to Today's date (`LocalDate.now()`) and the current month.
+- When opening the app or navigating to "Team Shifts" (tab 1) or "My Calendar" (tab 2), the view automatically anchors to Today's date (`LocalDate.now()`) and the current month.
 
 ### 9. 🔄 Username as Canonical Key & Duplicate Prevention
-- `username` is now the canonical identifier for all engineer operations.
-- Name editing in Admin Web and Android `ManageTeamTab` matches by `username`, updating the existing engineer record in place instead of spawning duplicates.
+- `username` is now the sole unique identifier across `server.py`, `app.js`, and Android models (`Engineer.kt`, `EngineerRosterDto`, `RosterRepositoryImpl.kt`).
+- Editing an engineer's display name updates the existing entry in place instead of creating duplicate cards.
 
 ---
 
@@ -90,7 +99,7 @@ Enthe Kunjappaaa! 👵☕ Take a break from Gradle and grab a hot chai! Aunty ha
 ---
 
 ## 📝 Milestone Checklist
-- [x] Version bump to 1.9.0 (versionCode 27) across Android, server.py, and assets
+- [x] Version bump to 1.9.1 (versionCode 27) across Android, server.py, and assets
 - [x] JDK 17 Eclipse Adoptium configured in `gradle.properties` & environment
 - [x] Sanitized base URL in Android & backward-compatibility `/api/api/` alias in `server.py`
 - [x] Biometrics completely excised from Android codebase
@@ -101,3 +110,4 @@ Enthe Kunjappaaa! 👵☕ Take a break from Gradle and grab a hot chai! Aunty ha
 - [x] High-Resolution 2x PNG export added to Admin Web & User Portal
 - [x] Auto-reset to Today & current month on app open / tab switch
 - [x] Canonical username keying and duplicate prevention
+- [x] Gradle `:app:assembleDebug` compiled cleanly (`BUILD SUCCESSFUL in 9m 42s`)
