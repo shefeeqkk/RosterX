@@ -19,6 +19,10 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: ALERT_EMAIL
-        value: kkshefeeq005@gmail.com
+        sync: false
+      - key: AUTH_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false
       - key: ENABLE_TUNNEL
         value: "false"

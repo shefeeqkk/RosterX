@@ -1,6 +1,7 @@
 package com.rosterx.data.repository
 
 import com.google.gson.Gson
+import com.rosterx.data.local.UserSessionManager
 import com.rosterx.data.remote.*
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
@@ -15,7 +16,8 @@ import javax.inject.Singleton
 
 @Singleton
 class RosterRepositoryImpl @Inject constructor(
-    private val apiService: RosterApiService
+    private val apiService: RosterApiService,
+    private val sessionManager: UserSessionManager
 ) : RosterRepository {
 
     private val gson = Gson()
@@ -24,6 +26,9 @@ class RosterRepositoryImpl @Inject constructor(
         try {
             val response = apiService.login(LoginRequest(identifier, password))
             if (response.success && response.user != null) {
+                if (!response.token.isNullOrBlank()) {
+                    sessionManager.setAuthToken(response.token)
+                }
                 val eng = Engineer(
                     id = response.user.id ?: "",
                     name = response.user.name ?: "",
@@ -53,7 +58,7 @@ class RosterRepositoryImpl @Inject constructor(
             val response = apiService.sendOtp(SendOtpRequest(identifier))
             if (response.success) {
                 val dest = response.deliveredTo ?: "registered email"
-                Result.success("Verification code sent to $dest")
+                Result.success(response.message ?: "Verification code sent to $dest")
             } else {
                 Result.failure(Exception(response.message ?: "Failed to dispatch OTP"))
             }
@@ -323,10 +328,10 @@ class RosterRepositoryImpl @Inject constructor(
             if (response.success && response.constraints != null) {
                 Result.success(response.constraints)
             } else {
-                Result.success(com.rosterx.domain.model.OperationalConstraints())
+                Result.failure(Exception("Failed to retrieve operational policy from server"))
             }
         } catch (e: Exception) {
-            Result.success(com.rosterx.domain.model.OperationalConstraints())
+            Result.failure(e)
         }
     }
 
@@ -388,8 +393,6 @@ class RosterRepositoryImpl @Inject constructor(
         }
     }
 
-
-
     private fun parseErrorMessage(e: HttpException): String {
         return try {
             val errorBody = e.response()?.errorBody()?.string()
@@ -417,7 +420,7 @@ class RosterRepositoryImpl @Inject constructor(
             fullName = resolvedName,
             email = email ?: "",
             username = resolvedUsername,
-            phone = phone ?: "", // Properly map phone number from database!
+            phone = phone ?: "",
             role = try { EngineerRole.valueOf((role ?: "ENGINEER").uppercase()) } catch (e: Exception) { EngineerRole.ENGINEER },
             status = try { EngineerStatus.valueOf((status ?: "ACTIVE").uppercase()) } catch (e: Exception) { EngineerStatus.ACTIVE },
             defaultWeeklyOffs = defaultWeeklyOffs ?: emptyList(),

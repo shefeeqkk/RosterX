@@ -13,15 +13,23 @@ sealed class ShiftCode(
     data object SG : ShiftCode("SG", "Second General", "#EA580C", "#FFFFFF", 11.5)
     data object SS : ShiftCode("SS", "Second Shift", "#FED7AA", "#7C2D12", 9.5)
     data object NS : ShiftCode("NS", "Night Shift", "#1E293B", "#FFFFFF", 24.0)
-    data object OFF : ShiftCode("OFF", "Weekly Off", "#FEF08A", "#713F12", 24.0)
-    data object L : ShiftCode("L", "Approved Leave", "#FECACA", "#991B1B", 24.0)
+    data object OFF : ShiftCode("OFF", "Weekly Off", "#FEF08A", "#713F12", 0.0)
+    data object L : ShiftCode("L", "Approved Leave", "#FECACA", "#991B1B", 0.0)
     
     data class SW(val peerName: String) : ShiftCode(
         code = if (peerName.startsWith("SW", ignoreCase = true)) peerName.uppercase() else "SW${peerName.uppercase()}",
         name = "Swap Shift",
         bgColorHex = "#E2E8F0",
         textColorHex = "#334155",
-        minRestHours = 24.0
+        minRestHours = 0.0
+    )
+
+    data class UNKNOWN(val raw: String) : ShiftCode(
+        code = raw,
+        name = "Unknown Shift",
+        bgColorHex = "#E2E8F0",
+        textColorHex = "#64748B",
+        minRestHours = 0.0
     )
 
     companion object {
@@ -37,8 +45,9 @@ sealed class ShiftCode(
                 clean == "NS" -> NS
                 clean == "OFF" -> OFF
                 clean == "L" -> L
-                clean.startsWith("SW") -> SW(clean.removePrefix("SW"))
-                else -> OFF
+                clean.startsWith("SW") && clean.length > 2 -> SW(clean.removePrefix("SW"))
+                clean == "SW" -> SW("")
+                else -> UNKNOWN(clean)
             }
         }
     }

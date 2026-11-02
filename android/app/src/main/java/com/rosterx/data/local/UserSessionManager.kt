@@ -36,9 +36,24 @@ class UserSessionManager @Inject constructor(
         prefs.edit().putString("saved_user", gson.toJson(user)).apply()
     }
 
+    fun getAuthToken(): String? {
+        return prefs.getString("auth_token", null)
+    }
+
+    fun setAuthToken(token: String?) {
+        if (!token.isNullOrBlank()) {
+            prefs.edit().putString("auth_token", token).apply()
+        } else {
+            prefs.edit().remove("auth_token").apply()
+        }
+    }
+
     fun clearSession() {
         _currentUser.value = null
-        prefs.edit().remove("saved_user").apply()
+        prefs.edit()
+            .remove("saved_user")
+            .remove("auth_token")
+            .apply()
     }
 
     fun hasSavedSession(): Boolean {
@@ -59,7 +74,7 @@ class UserSessionManager @Inject constructor(
                 return clean
             }
         } catch (e: Exception) {
-            // Assets file not present or not accessible; fall back to local LAN IP
+            // Assets file not present or not accessible; fall back to Render URL
         }
 
         return "https://rosterx.onrender.com/api/"

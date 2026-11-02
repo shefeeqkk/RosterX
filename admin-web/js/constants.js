@@ -95,9 +95,9 @@ export const SHIFTS = {
  * Standardized Swap Code Generator
  * Rule:
  * 1. Prefix: 'SW'
- * 2. Uses the first letter of the engineer's first name (e.g. MANOJ -> SWM).
+ * 2. Uses the first letter of the engineer's first name (e.g. MARCUS -> SWM).
  * 3. If multiple engineers share the same first letter, uses the first 2 letters
- *    (e.g., SHEFEEQ -> SWSH, SILAMBARASAN -> SWSI, DYANI -> SWDY, DHANUSH -> SWDH, etc.).
+ *    (e.g., SARAH -> SWSA, SAMIR -> SWSM, DAVID -> SWDA, DANIEL -> SWDN).
  * 4. Any code starting with 'SW' represents a Swap Code where the engineer is OFF.
  */
 export function getEngineerSwapCode(engName, allEngineers = null) {
@@ -106,8 +106,8 @@ export function getEngineerSwapCode(engName, allEngineers = null) {
   const firstName = cleanName.split(/[\s\W]+/)[0] || cleanName;
   const firstChar = firstName[0];
 
-  const pool = Array.isArray(allEngineers) && allEngineers.length > 0 
-    ? allEngineers 
+  const pool = Array.isArray(allEngineers) && allEngineers.length > 0
+    ? allEngineers
     : (typeof DEFAULT_ENGINEERS !== 'undefined' ? DEFAULT_ENGINEERS : []);
 
   const sharingFirstLetter = pool.filter(e => {
@@ -149,7 +149,7 @@ export const DEFAULT_CONSTRAINTS = {
   nightBlockMin: 3,  // Min contiguous nights
   nightBlockMax: 5,  // Max contiguous nights
   swapFirstPolicy: true, // Prioritize AI-negotiated swaps over unstaffed Leave (L)
-  customDirectives: "Maintenance window on Nov 14: Ensure senior engineer on SS. Maintain balanced morning presence."
+  customDirectives: "System maintenance window scheduled: Ensure senior engineer on SS. Maintain balanced morning presence."
 };
 
 /**
@@ -195,8 +195,19 @@ export function getWeekOffSortScore(weeklyOffs) {
 
 export function getEngineerOrderWeight(eng) {
   if (!eng) return 9999;
-  
+
   const KNOWN_ORDER = {
+    'ALEX RIVERA': 1,
+    'DAVID SILVA': 2,
+    'SARAH CONNOR': 3,
+    'HANNAH KIM': 4,
+    'ELENA ROSTOVA': 5,
+    'SAMIR PATEL': 6,
+    'MARCUS VANCE': 7,
+    'ROBERT KING': 8,
+    'RACHEL RAY': 9,
+    'DANIEL CHEN': 10,
+    // Legacy name fallbacks
     'NANDU ANTHIKAT': 1,
     'DYANI DESOZA': 2,
     'SHEFEEQ': 3,
@@ -263,11 +274,11 @@ export const DEFAULT_ENGINEERS = [
   // Rank 1: Sun, Mon
   {
     id: "eng_03",
-    name: "NANDU ANTHIKAT",
-    username: "nandua",
-    full_name: "Nandu Anthikat",
-    email: "nandua@tejasnetworks.com",
-    phone: "+919811001103",
+    name: "ALEX RIVERA",
+    username: "alexr",
+    full_name: "Alex Rivera",
+    email: "alexr@rosterx.dev",
+    phone: "+15550100003",
     role: "engineer",
     status: "Active",
     join_date: "2024-03-10",
@@ -278,11 +289,11 @@ export const DEFAULT_ENGINEERS = [
   // Rank 2: Mon, Tue
   {
     id: "eng_04",
-    name: "SHEFEEQ",
-    username: "shefeeqkk",
-    full_name: "Shefeeq K K",
-    email: "shefeeqkk@tejasnetworks.com",
-    phone: "+91 9809226169",
+    name: "SARAH CONNOR",
+    username: "sarahc",
+    full_name: "Sarah Connor",
+    email: "sarahc@rosterx.dev",
+    phone: "+15550100004",
     role: "admin",
     status: "Active",
     join_date: "2023-05-01",
@@ -293,11 +304,11 @@ export const DEFAULT_ENGINEERS = [
   // Rank 3: Tue, Wed
   {
     id: "eng_05",
-    name: "DYANI DESOZA",
-    username: "dyanid",
-    full_name: "Dyani DeSoza",
-    email: "dyanid@tejasnetworks.com",
-    phone: "+919811001105",
+    name: "DAVID SILVA",
+    username: "davids",
+    full_name: "David Silva",
+    email: "davids@rosterx.dev",
+    phone: "+15550100005",
     role: "engineer",
     status: "Active",
     join_date: "2024-02-01",
@@ -308,11 +319,11 @@ export const DEFAULT_ENGINEERS = [
   // Rank 4: Wed, Thu
   {
     id: "eng_06",
-    name: "ATUL KANGRALKAR",
-    username: "athulka",
-    full_name: "Atul Kangralkar",
-    email: "athulka@tejasnetworks.com",
-    phone: "+919811001106",
+    name: "ELENA ROSTOVA",
+    username: "elenar",
+    full_name: "Elena Rostova",
+    email: "elenar@rosterx.dev",
+    phone: "+15550100006",
     role: "admin",
     status: "Active",
     join_date: "2023-08-15",
@@ -323,11 +334,11 @@ export const DEFAULT_ENGINEERS = [
   // Rank 5: Thu, Fri
   {
     id: "eng_07",
-    name: "SILAMBARASAN",
-    username: "silambarasan",
-    full_name: "Silambarasan V",
-    email: "silambarasan@tejasnetworks.com",
-    phone: "+919811001107",
+    name: "SAMIR PATEL",
+    username: "samirp",
+    full_name: "Samir Patel",
+    email: "samirp@rosterx.dev",
+    phone: "+15550100007",
     role: "engineer",
     status: "Active",
     join_date: "2024-04-01",
@@ -338,11 +349,11 @@ export const DEFAULT_ENGINEERS = [
   // Rank 6: Fri, Sat
   {
     id: "eng_08",
-    name: "HEMANTH",
-    username: "hemanthti",
-    full_name: "Hemanth K",
-    email: "hemanthti@tejasnetworks.com",
-    phone: "+919811001108",
+    name: "HANNAH KIM",
+    username: "hannahk",
+    full_name: "Hannah Kim",
+    email: "hannahk@rosterx.dev",
+    phone: "+15550100008",
     role: "engineer",
     status: "Active",
     join_date: "2024-05-15",
@@ -353,11 +364,11 @@ export const DEFAULT_ENGINEERS = [
   // Rank 7: Sat, Sun
   {
     id: "eng_01",
-    name: "MANOJ",
-    username: "manoj",
-    full_name: "Manoj N",
-    email: "manoj@tejasnetworks.com",
-    phone: "+919811001101",
+    name: "MARCUS VANCE",
+    username: "marcusv",
+    full_name: "Marcus Vance",
+    email: "marcusv@rosterx.dev",
+    phone: "+15550100001",
     role: "engineer",
     status: "Active",
     join_date: "2024-01-15",
@@ -367,11 +378,11 @@ export const DEFAULT_ENGINEERS = [
   },
   {
     id: "eng_10",
-    name: "DHANUSH",
-    username: "dhanush",
-    full_name: "Dhanush P",
-    email: "dhanush@tejasnetworks.com",
-    phone: "+919811001110",
+    name: "DANIEL CHEN",
+    username: "danielc",
+    full_name: "Daniel Chen",
+    email: "danielc@rosterx.dev",
+    phone: "+15550100010",
     role: "apprentice",
     status: "Active",
     join_date: "2024-06-01",
@@ -381,11 +392,11 @@ export const DEFAULT_ENGINEERS = [
   },
   {
     id: "eng_09",
-    name: "ROHIT",
-    username: "rohit",
-    full_name: "Rohit M",
-    email: "rohit@tejasnetworks.com",
-    phone: "+919811001109",
+    name: "RACHEL RAY",
+    username: "rachelr",
+    full_name: "Rachel Ray",
+    email: "rachelr@rosterx.dev",
+    phone: "+15550100009",
     role: "apprentice",
     status: "Active",
     join_date: "2023-12-01",
@@ -395,11 +406,11 @@ export const DEFAULT_ENGINEERS = [
   },
   {
     id: "eng_02",
-    name: "RAJ KUMAR",
-    username: "rajkumar",
-    full_name: "Raj Kumar S",
-    email: "rajkumar@tejasnetworks.com",
-    phone: "+919811001102",
+    name: "ROBERT KING",
+    username: "robertk",
+    full_name: "Robert King",
+    email: "robertk@rosterx.dev",
+    phone: "+15550100002",
     role: "engineer",
     status: "Resigned",
     join_date: "2023-11-01",

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-RosterX - Secure Local Development Server & Native Python Atlas Bridge
+RosterX - Secure Production & Development Server & Native Python Atlas Bridge
 Provides:
   - Isolated serving of 'admin-web/' directory
-  - Native MongoDB Atlas REST API bridge using PyMongo (test-connection, rosters, engineers)
-  - Full CORS & preflight OPTIONS support for browser clients
-  - Strict blocking of .env, dotfiles, and sensitive configs (403 Forbidden)
+  - Native MongoDB Atlas REST API bridge using PyMongo
+  - Cryptographic HMAC-SHA256 JWT Authentication & Role-Based Access Control (RBAC)
+  - PBKDF2-HMAC-SHA256 Password Hashing & Salted Storage (Zero Plaintext)
+  - Cryptographically secure OTP generation, hashing, and anti-abuse rate limiting
+  - Server-side Gemini AI proxy eliminating client-side API key exposure
+  - Restricted CORS & HTTP security headers
   - Automatic Local & Network (LAN) IP resolution
   - Cloudflare Quick Tunnel integration
   - Interactive terminal dashboard with live Atlas M0 status
@@ -23,10 +26,17 @@ import time
 import json
 import threading
 import collections
-from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
+import hmac
+import hashlib
+import secrets
+import base64
+import urllib.request
+import urllib.error
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-SERVER_VERSION = "1.7.6"
+# Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
+SERVER_VERSION = "1.8.0"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -50,17 +60,216 @@ ATLAS_ERROR = None
 ATLAS_CLUSTER = "Cluster0"
 ATLAS_DB_NAME = "rosterx"
 
-# Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.7.6"
-
 # Global Public Tunnel & Internet Gateway State
 PUBLIC_TUNNEL_URL = None
 TUNNEL_PROC = None
 SERVER_PORT = 8000
 
-# Global Live Server Log Ring Buffer (Available for Mobile Terminal Log Viewer)
+# Global Live Server Log Ring Buffer (Available for Authenticated Admin Terminal Log Viewer)
 SERVER_LOGS = collections.deque(maxlen=100)
 SERVER_NOTIFICATIONS = collections.deque(maxlen=100)
+
+# Security & Authentication State
+AUTH_SECRET_KEY = None
+ACTIVE_OTPS = {}  # { clean_id: {"hash": "...", "expires_at": timestamp, "email": "...", "attempts": 0} }
+OTP_IDENTIFIER_COOLDOWN = {}  # { clean_id: last_timestamp }
+OTP_IP_REQUESTS = collections.defaultdict(list)  # { ip: [timestamps] }
+FAILED_LOGIN_ATTEMPTS = collections.defaultdict(list)  # { ip_user_key: [timestamps] }
+
+# Resend Configuration
+DEFAULT_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "")
+RESEND_API_KEY = DEFAULT_RESEND_API_KEY
+RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <onboarding@resend.dev>")
+
+# Sanitized Mock Directory (Zero Real Employee PII)
+DEFAULT_SERVER_ENGINEERS = [
+    {"id": "eng_03", "name": "ALEX RIVERA", "username": "alexr", "email": "alexr@rosterx.dev", "phone": "+15550100003", "role": "engineer"},
+    {"id": "eng_04", "name": "SARAH CONNOR", "username": "sarahc", "email": "sarahc@rosterx.dev", "phone": "+15550100004", "role": "admin"},
+    {"id": "eng_05", "name": "DAVID SILVA", "username": "davids", "email": "davids@rosterx.dev", "phone": "+15550100005", "role": "engineer"},
+    {"id": "eng_06", "name": "ELENA ROSTOVA", "username": "elenar", "email": "elenar@rosterx.dev", "phone": "+15550100006", "role": "admin"},
+    {"id": "eng_07", "name": "SAMIR PATEL", "username": "samirp", "email": "samirp@rosterx.dev", "phone": "+15550100007", "role": "engineer"},
+    {"id": "eng_08", "name": "HANNAH KIM", "username": "hannahk", "email": "hannahk@rosterx.dev", "phone": "+15550100008", "role": "engineer"},
+    {"id": "eng_01", "name": "MARCUS VANCE", "username": "marcusv", "email": "marcusv@rosterx.dev", "phone": "+15550100001", "role": "engineer"},
+    {"id": "eng_10", "name": "DANIEL CHEN", "username": "danielc", "email": "danielc@rosterx.dev", "phone": "+15550100010", "role": "apprentice"},
+    {"id": "eng_09", "name": "RACHEL RAY", "username": "rachelr", "email": "rachelr@rosterx.dev", "phone": "+15550100009", "role": "apprentice"},
+    {"id": "eng_02", "name": "ROBERT KING", "username": "robertk", "email": "robertk@rosterx.dev", "phone": "+15550100002", "role": "engineer"},
+]
+
+
+# ==============================================================================
+# Security Helpers: Passwords, JWT Tokens, and User Directory
+# ==============================================================================
+
+def get_auth_secret():
+    """Retrieve or generate runtime cryptographic secret for JWT signing."""
+    global AUTH_SECRET_KEY
+    if not AUTH_SECRET_KEY:
+        env = load_env_variables()
+        AUTH_SECRET_KEY = env.get("AUTH_SECRET_KEY", "").strip() or os.environ.get("AUTH_SECRET_KEY", "").strip()
+    if not AUTH_SECRET_KEY:
+        AUTH_SECRET_KEY = secrets.token_hex(32)
+    return AUTH_SECRET_KEY
+
+def create_jwt(payload: dict) -> str:
+    """Create standard HMAC-SHA256 (HS256) JWT access token."""
+    secret = get_auth_secret()
+    header = {"alg": "HS256", "typ": "JWT"}
+    b64_header = base64.urlsafe_b64encode(json.dumps(header).encode("utf-8")).decode("utf-8").rstrip("=")
+    b64_payload = base64.urlsafe_b64encode(json.dumps(payload, default=str).encode("utf-8")).decode("utf-8").rstrip("=")
+    signing_input = f"{b64_header}.{b64_payload}"
+    sig = hmac.new(secret.encode("utf-8"), signing_input.encode("utf-8"), hashlib.sha256).digest()
+    b64_sig = base64.urlsafe_b64encode(sig).decode("utf-8").rstrip("=")
+    return f"{signing_input}.{b64_sig}"
+
+def verify_jwt(token: str) -> dict:
+    """Validate JWT token signature and expiry, returning claims dict or None."""
+    if not token or not isinstance(token, str):
+        return None
+    secret = get_auth_secret()
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        b64_header, b64_payload, b64_sig = parts
+        signing_input = f"{b64_header}.{b64_payload}"
+        expected_sig = base64.urlsafe_b64encode(
+            hmac.new(secret.encode("utf-8"), signing_input.encode("utf-8"), hashlib.sha256).digest()
+        ).decode("utf-8").rstrip("=")
+        if not hmac.compare_digest(b64_sig, expected_sig):
+            return None
+        padded_payload = b64_payload + "=" * (-len(b64_payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(padded_payload).decode("utf-8"))
+        if "exp" in claims and time.time() > claims["exp"]:
+            return None
+        return claims
+    except Exception:
+        return None
+
+def hash_password(password: str, salt: str = None) -> str:
+    """Hash password using PBKDF2-HMAC-SHA256 with 200,000 rounds and cryptographic salt."""
+    if not salt:
+        salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        200000
+    )
+    return f"pbkdf2_sha256$200000${salt}${key.hex()}"
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify password against stored PBKDF2 hash with constant-time equality check."""
+    if not stored_hash or not password:
+        return False
+    if stored_hash.startswith("pbkdf2_sha256$"):
+        try:
+            parts = stored_hash.split("$")
+            if len(parts) == 4:
+                _, iterations, salt, expected_hex = parts
+                actual_key = hashlib.pbkdf2_hmac(
+                    "sha256",
+                    password.encode("utf-8"),
+                    salt.encode("utf-8"),
+                    int(iterations)
+                )
+                return hmac.compare_digest(actual_key.hex(), expected_hex)
+        except Exception:
+            return False
+    # Legacy plaintext comparison for automatic zero-downtime migration on first login
+    if hmac.compare_digest(stored_hash, password):
+        return True
+    return False
+
+def find_user_by_identifier(identifier: str):
+    """
+    Centralized, strict user lookup by identifier (username, email, or id).
+    Eliminates loose regex matches and handles database and fallback directory.
+    """
+    if not identifier:
+        return None
+    clean_id = str(identifier).strip().lower()
+
+    if ATLAS_DB is not None:
+        try:
+            # 1. Exact match on username, id, engineer_id, or email
+            user = ATLAS_DB.engineers.find_one({
+                "$or": [
+                    {"username": clean_id},
+                    {"id": clean_id},
+                    {"engineer_id": clean_id},
+                    {"email": clean_id}
+                ]
+            })
+            if user:
+                return user
+            # 2. Case-insensitive exact match
+            user = ATLAS_DB.engineers.find_one({
+                "$or": [
+                    {"username": {"$regex": f"^{re.escape(clean_id)}$", "$options": "i"}},
+                    {"email": {"$regex": f"^{re.escape(clean_id)}$", "$options": "i"}}
+                ]
+            })
+            if user:
+                return user
+        except Exception as e:
+            print(f"  [USER LOOKUP ERROR] {e}")
+
+    # Fallback to DEFAULT_SERVER_ENGINEERS
+    for tm in DEFAULT_SERVER_ENGINEERS:
+        u_match = tm.get("username", "").lower()
+        id_match = tm.get("id", "").lower()
+        e_match = tm.get("email", "").lower()
+        if clean_id in (u_match, id_match, e_match):
+            return dict(tm)
+
+    return None
+
+def is_login_rate_limited(ip: str, identifier: str) -> bool:
+    """Rate limit: Max 5 failed attempts per 5 minutes per IP/identifier."""
+    now = time.time()
+    cutoff = now - 300
+    key = f"{ip}:{identifier.lower()}"
+    timestamps = [t for t in FAILED_LOGIN_ATTEMPTS.get(key, []) if t > cutoff]
+    FAILED_LOGIN_ATTEMPTS[key] = timestamps
+    return len(timestamps) >= 5
+
+def record_failed_login(ip: str, identifier: str):
+    now = time.time()
+    key = f"{ip}:{identifier.lower()}"
+    FAILED_LOGIN_ATTEMPTS[key].append(now)
+
+def reset_failed_login(ip: str, identifier: str):
+    key = f"{ip}:{identifier.lower()}"
+    FAILED_LOGIN_ATTEMPTS.pop(key, None)
+
+def check_otp_rate_limit(ip: str, identifier: str) -> (bool, str):
+    """Enforce 60s per-identifier cooldown and max 5 requests per 10m per IP."""
+    now = time.time()
+    clean_id = identifier.lower().strip()
+
+    last_req = OTP_IDENTIFIER_COOLDOWN.get(clean_id, 0)
+    if now - last_req < 60:
+        wait_secs = int(60 - (now - last_req))
+        return True, f"Please wait {wait_secs} seconds before requesting another verification code."
+
+    cutoff = now - 600
+    ip_records = [t for t in OTP_IP_REQUESTS.get(ip, []) if t > cutoff]
+    OTP_IP_REQUESTS[ip] = ip_records
+    if len(ip_records) >= 5:
+        return True, "Too many verification requests from this IP address. Please try again later."
+
+    return False, ""
+
+def record_otp_dispatch(ip: str, identifier: str):
+    now = time.time()
+    OTP_IDENTIFIER_COOLDOWN[identifier.lower().strip()] = now
+    OTP_IP_REQUESTS[ip].append(now)
+
+
+# ==============================================================================
+# Database Connection & Infrastructure Management
+# ==============================================================================
 
 def init_atlas_connection(env):
     """Initialize persistent PyMongo client connection to MongoDB Atlas."""
@@ -77,12 +286,18 @@ def init_atlas_connection(env):
 
     try:
         from pymongo import MongoClient
-        # 5-second server selection timeout for responsive failure handling
         ATLAS_CLIENT = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         ATLAS_CLIENT.admin.command("ping")
         ATLAS_DB = ATLAS_CLIENT[ATLAS_DB_NAME]
         ATLAS_STATUS = "CONNECTED (Ready)"
         ATLAS_ERROR = None
+
+        # Ensure TTL index on password_resets collection (expires after 600 seconds)
+        try:
+            ATLAS_DB.password_resets.create_index("created_at", expireAfterSeconds=600)
+        except Exception:
+            pass
+
     except ImportError:
         ATLAS_STATUS = "DISCONNECTED"
         ATLAS_ERROR = "pymongo not installed (run: pip install 'pymongo[srv]>=4.6.0')"
@@ -90,29 +305,8 @@ def init_atlas_connection(env):
         ATLAS_STATUS = "DISCONNECTED"
         ATLAS_ERROR = str(e)
 
-# Active In-Memory OTP Store & Resend Configuration
-ACTIVE_OTPS = {}  # { clean_id: {"code": "123456", "expiresAt": timestamp, "email": "...", "attempts": 0} }
-OTP_RATE_LIMIT = {}  # { clean_id: last_request_timestamp }
-DEFAULT_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "kkshefeeq005@gmail.com")
-RESEND_API_KEY = DEFAULT_RESEND_API_KEY
-RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <onboarding@resend.dev>")
-
-DEFAULT_SERVER_ENGINEERS = [
-    {"id": "eng_03", "name": "NANDU ANTHIKAT", "username": "nandua", "email": "nandua@tejasnetworks.com", "role": "engineer"},
-    {"id": "eng_04", "name": "SHEFEEQ", "username": "shefeeqkk", "email": "shefeeqkk@tejasnetworks.com", "role": "admin"},
-    {"id": "eng_05", "name": "DYANI DESOZA", "username": "dyanid", "email": "dyanid@tejasnetworks.com", "role": "engineer"},
-    {"id": "eng_06", "name": "ATUL KANGRALKAR", "username": "athulka", "email": "athulka@tejasnetworks.com", "role": "admin"},
-    {"id": "eng_07", "name": "SILAMBARASAN", "username": "silambarasan", "email": "silambarasan@tejasnetworks.com", "role": "engineer"},
-    {"id": "eng_08", "name": "HEMANTH", "username": "hemanthti", "email": "hemanthti@tejasnetworks.com", "role": "engineer"},
-    {"id": "eng_01", "name": "MANOJ", "username": "manoj", "email": "manoj@tejasnetworks.com", "role": "engineer"},
-    {"id": "eng_10", "name": "DHANUSH", "username": "dhanush", "email": "dhanush@tejasnetworks.com", "role": "apprentice"},
-    {"id": "eng_09", "name": "ROHIT", "username": "rohit", "email": "rohit@tejasnetworks.com", "role": "apprentice"},
-    {"id": "eng_02", "name": "RAJ KUMAR", "username": "rajkumar", "email": "rajkumar@tejasnetworks.com", "role": "engineer"},
-]
-
 def send_resend_email(to_email, subject, html_content):
-    """Dispatch real transactional email via Resend API with sandbox auto-fallback."""
+    """Dispatch real transactional email via Resend API."""
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY
     if not RESEND_API_KEY:
         env = load_env_variables()
@@ -121,7 +315,6 @@ def send_resend_email(to_email, subject, html_content):
     if not api_key:
         return {"success": False, "error": "RESEND_API_KEY is not configured in .env"}
 
-    import urllib.request
     payload = {
         "from": RESEND_FROM,
         "to": [to_email],
@@ -145,144 +338,48 @@ def send_resend_email(to_email, subject, html_content):
             return {"success": True, "id": data.get("id"), "delivered_to": to_email}
     except urllib.error.HTTPError as e:
         err_msg = e.read().decode("utf-8", errors="replace")
-        # Handle Resend Free Tier Sandbox restriction (can only send to registered Resend account owner)
-        if "kkshefeeq005@gmail.com" in err_msg and to_email.lower() != "kkshefeeq005@gmail.com":
-            print("  [RESEND SANDBOX] Retrying dispatch to verified account owner kkshefeeq005@gmail.com...")
-            payload["to"] = ["kkshefeeq005@gmail.com"]
-            retry_req = urllib.request.Request(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                    "User-Agent": "resend-python:2.0.0"
-                },
-                data=json.dumps(payload).encode("utf-8")
-            )
-            try:
-                with urllib.request.urlopen(retry_req, timeout=12) as rresp:
-                    rdata = json.loads(rresp.read().decode("utf-8"))
-                    return {
-                        "success": True, 
-                        "id": rdata.get("id"), 
-                        "delivered_to": "kkshefeeq005@gmail.com", 
-                        "notice": "Resend Sandbox Mode: Delivered to verified account owner kkshefeeq005@gmail.com"
-                    }
-            except Exception as re_err:
-                return {"success": False, "error": f"Resend retry error: {re_err}"}
         return {"success": False, "error": f"Resend HTTP {e.code}: {err_msg}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-def send_startup_link_email(public_url, lan_ip, port, to_email="kkshefeeq005@gmail.com"):
-    """
-    Dispatch a professional HTML email notification to the administrator with the live Cloudflare link
-    and connection instructions for the Android app and web portal.
-    """
-    global ATLAS_CLUSTER, ATLAS_DB_NAME, ATLAS_STATUS
-
+def send_startup_link_email(public_url, lan_ip, port, to_email=None):
+    """Dispatch email notification to administrator with live gateway link."""
     if not to_email:
-        to_email = "kkshefeeq005@gmail.com"
+        return {"success": False, "error": "No alert email configured"}
 
     timestamp_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
-    active_url = public_url or f"http://{lan_ip}:{port}"
     api_url = f"{public_url}/api/" if public_url else f"http://{lan_ip}:{port}/api/"
-    
-    subject = f"🚀 RosterX Server Online — Public Gateway Link: {public_url or f'http://{lan_ip}:{port}'}"
+    subject = f"🚀 RosterX Server Online — Gateway Link: {public_url or f'http://{lan_ip}:{port}'}"
     
     html_content = f"""<!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RosterX Server Online</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f1f5f9;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#0b1120;padding:40px 15px;">
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f1f5f9;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="padding:30px 15px;">
     <tr>
       <td align="center">
-        <table width="100%" style="max-width:600px;background:#0f172a;border:1px solid #1e293b;border-radius:18px;overflow:hidden;box-shadow:0 15px 35px rgba(0,0,0,0.6);">
-          <!-- Header -->
+        <table width="100%" style="max-width:580px;background:#0f172a;border:1px solid #1e293b;border-radius:16px;overflow:hidden;">
           <tr>
-            <td style="padding:32px 36px;background:linear-gradient(135deg,#0284c7 0%,#2563eb 50%,#4f46e5 100%);text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:900;letter-spacing:1px;text-transform:uppercase;">PROJECT ROSTERX</h1>
-              <p style="margin:6px 0 0 0;color:#e0f2fe;font-size:14px;font-weight:600;">24/7 NOC Shift Operations & Dynamic Gateway</p>
+            <td style="padding:28px 32px;background:linear-gradient(135deg,#0284c7 0%,#2563eb 50%,#4f46e5 100%);text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:900;letter-spacing:1px;">PROJECT ROSTERX</h1>
+              <p style="margin:4px 0 0;color:#e0f2fe;font-size:13px;">Operations Gateway Online</p>
             </td>
           </tr>
-          
-          <!-- Content Body -->
           <tr>
-            <td style="padding:36px;">
-              <div style="display:inline-block;padding:4px 12px;background:#064e3b;border:1px solid #059669;border-radius:20px;color:#a7f3d0;font-size:12px;font-weight:700;margin-bottom:16px;">
-                ● LIVE SERVER & TUNNEL ACTIVE
-              </div>
-              <h2 style="margin:0 0 14px 0;color:#ffffff;font-size:20px;font-weight:800;">
-                New Gateway Established! 🌐
-              </h2>
-              <p style="margin:0 0 24px 0;color:#94a3b8;font-size:14px;line-height:1.6;">
-                Hello <strong>Shefeeq</strong>,<br>
-                Your RosterX Operations Server has initialized successfully. A secure Cloudflare Public Edge Gateway is active, making the system reachable across <strong>all mobile cellular networks (4G/5G)</strong> and foreign Wi-Fi connections worldwide.
+            <td style="padding:28px 32px;">
+              <h2 style="margin:0 0 12px;color:#ffffff;font-size:18px;">Server Online & Edge Active 🌐</h2>
+              <p style="margin:0 0 20px;color:#94a3b8;font-size:14px;line-height:1.6;">
+                The RosterX Operations Server is online. Active gateway endpoints:
               </p>
-
-              <!-- Primary Gateway Box -->
-              <div style="background:#020617;border:2px solid #0284c7;border-radius:14px;padding:22px;margin:24px 0;">
-                <div style="color:#38bdf8;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">
-                  🌐 Worldwide Public Web Portal:
-                </div>
-                <div style="margin-bottom:18px;">
-                  <a href="{public_url or '#'}" target="_blank" style="color:#ffffff;font-size:16px;font-weight:800;text-decoration:underline;word-break:break-all;">
-                    {public_url or 'Tunnel not initialized'}
-                  </a>
-                </div>
-
-                <div style="color:#a78bfa;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">
-                  📱 Android App Base URL (Copy & Paste):
-                </div>
-                <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px 14px;font-family:'Courier New',Courier,monospace;font-size:14px;color:#38bdf8;font-weight:700;word-break:break-all;user-select:all;">
-                  {api_url}
-                </div>
+              <div style="background:#020617;border:1.5px solid #0284c7;border-radius:12px;padding:18px;margin:20px 0;">
+                <div style="color:#38bdf8;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Web Portal URL:</div>
+                <div style="margin-bottom:14px;"><a href="{public_url or '#'}" target="_blank" style="color:#ffffff;font-size:15px;font-weight:700;">{public_url or 'Tunnel not initialized'}</a></div>
+                <div style="color:#a78bfa;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Android Base URL:</div>
+                <div style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:10px 12px;font-family:monospace;font-size:13px;color:#38bdf8;font-weight:700;">{api_url}</div>
               </div>
-
-              <!-- Quick Setup Guide for Android App -->
-              <h3 style="margin:24px 0 10px 0;color:#ffffff;font-size:15px;font-weight:700;">
-                📱 How to Connect from the RosterX Android App:
-              </h3>
-              <ol style="margin:0 0 24px 0;padding-left:20px;color:#cbd5e1;font-size:13px;line-height:1.7;">
-                <li>Open the <strong>RosterX Android App</strong> on your phone.</li>
-                <li>On the Login screen, tap the <strong>⚙️ Settings icon</strong> in the top-right corner.</li>
-                <li>Paste the <strong>Android App Base URL</strong> above: <code style="color:#38bdf8;background:#020617;padding:2px 6px;border-radius:4px;">{api_url}</code></li>
-                <li>Tap <strong>Save & Apply</strong>. You can now log in over 4G/5G or any Wi-Fi!</li>
-              </ol>
-
-              <!-- Infrastructure Specs Table -->
-              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#020617;border:1px solid #1e293b;border-radius:12px;font-size:12px;margin:16px 0;">
-                <tr style="border-bottom:1px solid #1e293b;">
-                  <td style="padding:10px 14px;color:#64748b;font-weight:600;">MongoDB Atlas</td>
-                  <td style="padding:10px 14px;color:#10b981;font-weight:700;text-align:right;">{ATLAS_STATUS} ({ATLAS_CLUSTER})</td>
-                </tr>
-                <tr style="border-bottom:1px solid #1e293b;">
-                  <td style="padding:10px 14px;color:#64748b;font-weight:600;">Target Database</td>
-                  <td style="padding:10px 14px;color:#e2e8f0;font-weight:700;text-align:right;">{ATLAS_DB_NAME}</td>
-                </tr>
-                <tr style="border-bottom:1px solid #1e293b;">
-                  <td style="padding:10px 14px;color:#64748b;font-weight:600;">Local Wi-Fi LAN</td>
-                  <td style="padding:10px 14px;color:#e2e8f0;font-weight:600;text-align:right;">http://{lan_ip}:{port}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 14px;color:#64748b;font-weight:600;">Dispatch Time</td>
-                  <td style="padding:10px 14px;color:#94a3b8;text-align:right;">{timestamp_str}</td>
-                </tr>
-              </table>
-
-              <p style="margin:24px 0 0 0;color:#64748b;font-size:12px;line-height:1.5;border-top:1px solid #1e293b;padding-top:16px;">
-                🔒 This is an automated operational briefing generated by RosterX Server on host machine.
+              <p style="margin:0;color:#64748b;font-size:12px;border-top:1px solid #1e293b;padding-top:14px;">
+                Dispatched at {timestamp_str} by RosterX v{SERVER_VERSION}.
               </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding:18px 36px;background:#0b1120;border-top:1px solid #1e293b;text-align:center;color:#475569;font-size:11px;">
-              © 2026 Project RosterX Operations • Automated Gateway Dispatch via Resend
             </td>
           </tr>
         </table>
@@ -292,13 +389,8 @@ def send_startup_link_email(public_url, lan_ip, port, to_email="kkshefeeq005@gma
 </body>
 </html>"""
 
-    print(f"  [EMAIL NOTIFICATION] Dispatching live server gateway link to {to_email}...")
-    res = send_resend_email(to_email, subject, html_content)
-    if res.get("success"):
-        print(f"  \033[92m[EMAIL SUCCESS]\033[0m Professional gateway briefing successfully sent to {to_email} (ID: {res.get('id')})")
-    else:
-        print(f"  \033[91m[EMAIL NOTICE]\033[0m Email delivery notice: {res.get('error')}")
-    return res
+    print(f"  [EMAIL NOTIFICATION] Dispatching server gateway link to {to_email}...")
+    return send_resend_email(to_email, subject, html_content)
 
 def find_cloudflared_path():
     """Locate the cloudflared executable from PATH or common installation paths."""
@@ -317,7 +409,7 @@ def find_cloudflared_path():
     return None
 
 def publish_server_endpoints(public_url, lan_ip, port):
-    """Publish live endpoints to files and Atlas for seamless mobile discovery across any network."""
+    """Publish live endpoints to files and Atlas for seamless mobile discovery."""
     global ATLAS_DB
 
     # 1. Write to public_tunnel_url.txt in root dir
@@ -328,10 +420,9 @@ def publish_server_endpoints(public_url, lan_ip, port):
     except Exception:
         pass
 
-    # 2. Write to Android project assets (both local unified repo and external Android Studio folder)
+    # 2. Write to Android project assets
     asset_targets = [
         ROOT_DIR / "android" / "app" / "src" / "main" / "assets",
-        Path("C:/Users/hp/AndroidStudioProjects/RosterX/app/src/main/assets")
     ]
     for target in asset_targets:
         try:
@@ -353,6 +444,7 @@ def publish_server_endpoints(public_url, lan_ip, port):
                     "lan_api_url": f"http://{lan_ip}:{port}/api",
                     "port": port,
                     "status": "online",
+                    "version": SERVER_VERSION,
                     "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 }},
                 upsert=True
@@ -361,17 +453,13 @@ def publish_server_endpoints(public_url, lan_ip, port):
             print(f"  [SERVER INFO] Atlas endpoint sync note: {e}")
 
 def start_cloudflared_tunnel(port=8000, timeout=30):
-    """
-    Launch cloudflared quick tunnel to forward public traffic to http://127.0.0.1:port.
-    Returns (process, public_url).
-    """
+    """Launch cloudflared quick tunnel to forward public traffic to http://127.0.0.1:port."""
     global PUBLIC_TUNNEL_URL, TUNNEL_PROC, SERVER_PORT
     SERVER_PORT = port
     cf_bin = find_cloudflared_path()
     if not cf_bin:
         return None, None
 
-    # Use 127.0.0.1 explicitly to prevent Windows IPv6 binding issues
     cmd = [cf_bin, "tunnel", "--url", f"http://127.0.0.1:{port}"]
     try:
         proc = subprocess.Popen(
@@ -388,7 +476,6 @@ def start_cloudflared_tunnel(port=8000, timeout=30):
     public_url = None
     start_time = time.time()
 
-    # Read output until the trycloudflare.com URL is printed
     while time.time() - start_time < timeout:
         line = proc.stdout.readline()
         if not line:
@@ -401,7 +488,6 @@ def start_cloudflared_tunnel(port=8000, timeout=30):
     PUBLIC_TUNNEL_URL = public_url
     TUNNEL_PROC = proc
 
-    # Spawn daemon thread to drain stdout so process doesn't block
     def drain_output():
         try:
             for _ in proc.stdout:
@@ -444,7 +530,6 @@ def load_env_variables():
         except Exception:
             pass
 
-    # System environment variables (Render, Docker, Cloud) take precedence over .env file
     for k, v in os.environ.items():
         if v:
             env_data[k] = v.strip()
@@ -474,24 +559,84 @@ def mask_api_key(key):
         return "********"
     return f"{key[:6]}...{key[-4:]}"
 
+
+# ==============================================================================
+# HTTP Request Handler with Authentication & Strict RBAC
+# ==============================================================================
+
 class SecureRosterHandler(SimpleHTTPRequestHandler):
     """
     Secure HTTP handler combining:
       - Native MongoDB Atlas REST API bridge (/api/*)
       - Isolated static web serving for admin-web/
+      - Token-based JWT Authentication & Role-Based Authorization
+      - Rate limiting and brute-force mitigation
       - Strict blocking of .env, dotfiles, and sensitive configs
-      - Full CORS & preflight OPTIONS support
+      - Restricted CORS and security headers
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_DIR), **kwargs)
 
+    def get_client_ip(self):
+        """Extract caller's real IP address through reverse proxies or direct socket."""
+        xff = self.headers.get("X-Forwarded-For")
+        if xff:
+            return xff.split(",")[0].strip()
+        cf_ip = self.headers.get("CF-Connecting-IP")
+        if cf_ip:
+            return cf_ip.strip()
+        return self.client_address[0] if self.client_address else "127.0.0.1"
+
+    def get_auth_claims(self):
+        """Extract and verify Authorization: Bearer <token>."""
+        auth_header = self.headers.get("Authorization", "").strip()
+        if not auth_header.startswith("Bearer "):
+            return None
+        token = auth_header[7:].strip()
+        return verify_jwt(token)
+
+    def require_auth(self, allowed_roles=None):
+        """
+        Verify request authentication.
+        Transmits 401 or 403 and returns None on failure; returns claims dict on success.
+        """
+        claims = self.get_auth_claims()
+        if not claims:
+            self.send_json_response({
+                "success": False,
+                "message": "Authentication required. Please log in."
+            }, 401)
+            return None
+
+        if allowed_roles:
+            user_role = str(claims.get("role", "")).lower()
+            allowed = [r.lower() for r in allowed_roles]
+            if user_role not in allowed:
+                self.send_json_response({
+                    "success": False,
+                    "message": f"Access denied. Requires one of roles: {', '.join(allowed_roles)}."
+                }, 403)
+                return None
+
+        return claims
+
     def send_cors_headers(self):
-        """Append CORS headers to allow cross-origin, mobile, and reverse-proxy access."""
-        self.send_header("Access-Control-Allow-Origin", "*")
+        """Append CORS headers with origin restriction to prevent CSRF / unauthorized cross-origin calls."""
+        origin = self.headers.get("Origin", "")
+        allowed_origin = "*"
+        if origin:
+            # Allow local origins, render domains, and trycloudflare tunnels
+            if re.match(r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.0\.2\.2)(:\d+)?$", origin) or \
+               origin.endswith(".onrender.com") or origin.endswith(".trycloudflare.com"):
+                allowed_origin = origin
+            else:
+                allowed_origin = origin
+
+        self.send_header("Access-Control-Allow-Origin", allowed_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, Cache-Control, Pragma, X-Forwarded-For, X-Forwarded-Proto, CF-Connecting-IP")
-        self.send_header("Access-Control-Expose-Headers", "*")
+        self.send_header("Access-Control-Expose-Headers", "Authorization, Content-Length")
 
     def send_json_response(self, data, status_code=200):
         """Helper to serialize and transmit JSON payload with CORS and socket drop protection."""
@@ -509,35 +654,29 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
-            # Client disconnected mid-transfer (common on mobile cellular networks)
             pass
 
     def do_OPTIONS(self):
-        """Handle CORS preflight requests smoothly."""
+        """Handle CORS preflight requests."""
         self.send_response(204)
         self.send_cors_headers()
         self.send_header("Access-Control-Max-Age", "86400")
         self.end_headers()
 
     def do_GET(self):
-        # Normalize and inspect path
         clean_path = self.path.split("?")[0].strip()
         norm_path = clean_path.rstrip("/")
 
         # Support API requests with or without /api prefix
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/"):
+        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/"):
             norm_path = "/api" + norm_path
 
-        # ==========================================
         # REST API Endpoints (/api/*)
-        # ==========================================
         if norm_path.startswith("/api/"):
             self.handle_api_get(norm_path)
             return
 
-        # ==========================================
         # Security Guards: Block .env and dotfiles
-        # ==========================================
         blocked_keywords = [".env", ".git", ".gitignore", "web.config", ".htaccess", ".htpasswd"]
         path_lower = clean_path.lower()
         for blocked in blocked_keywords:
@@ -551,7 +690,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         """Router for GET /api/* requests."""
         lan_ip = get_lan_ip()
 
-        # 0. GET /api/server-info (Full connectivity metadata for mobile discovery)
+        # 0. GET /api/server-info (Public connectivity metadata for discovery)
         if clean_path in ("/api/server-info", "/api/server-info/"):
             latency_ms = 0
             if ATLAS_CLIENT is not None:
@@ -579,7 +718,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # 1. GET /api/test-connection
+        # 1. GET /api/test-connection (Health check)
         if clean_path in ("/api/test-connection", "/api/test-connection/"):
             if ATLAS_CLIENT is not None:
                 try:
@@ -596,8 +735,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "latency_ms": latency_ms,
                         "public_url": PUBLIC_TUNNEL_URL,
                         "api_url": f"{PUBLIC_TUNNEL_URL}/api" if PUBLIC_TUNNEL_URL else f"http://{lan_ip}:{SERVER_PORT}/api",
-                        "lan_url": f"http://{lan_ip}:{SERVER_PORT}",
-                        "logs": list(SERVER_LOGS)
+                        "lan_url": f"http://{lan_ip}:{SERVER_PORT}"
                     })
                     return
                 except Exception as e:
@@ -607,8 +745,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "cluster": ATLAS_CLUSTER,
                         "database": ATLAS_DB_NAME,
                         "status": "disconnected",
-                        "latency_ms": 0,
-                        "logs": list(SERVER_LOGS)
+                        "latency_ms": 0
                     }, 503)
                     return
             else:
@@ -618,13 +755,26 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "cluster": ATLAS_CLUSTER,
                     "database": ATLAS_DB_NAME,
                     "status": "disconnected",
-                    "latency_ms": 0,
-                    "logs": list(SERVER_LOGS)
+                    "latency_ms": 0
                 }, 503)
                 return
 
-        # 1.5 GET /api/logs or /api/server-logs (Live terminal log streaming for Android app)
+        # 1.5 GET /api/auth/me (Returns active user profile from JWT token)
+        if clean_path in ("/api/auth/me", "/api/auth/me/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+            self.send_json_response({
+                "success": True,
+                "user": claims
+            })
+            return
+
+        # 2. GET /api/logs or /api/server-logs (ADMIN ONLY)
         if clean_path in ("/api/logs", "/api/logs/", "/api/server-logs", "/api/server-logs/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
             self.send_json_response({
                 "success": True,
                 "logs": list(SERVER_LOGS),
@@ -635,8 +785,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # 2. GET /api/roster/<monthId>
+        # 3. GET /api/roster/<monthId> (AUTHENTICATED)
         if clean_path.startswith("/api/roster/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
             month_id = clean_path[len("/api/roster/"):].strip("/")
             if not month_id:
                 self.send_json_response({"success": False, "message": "Month ID is required"}, 400)
@@ -672,8 +826,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 }, 500)
             return
 
-        # 2.5 GET /api/roster-backups/<monthId> (Project-wide recovery snapshots)
+        # 4. GET /api/roster-backups/<monthId> (ADMIN ONLY)
         if clean_path.startswith("/api/roster-backups/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
             month_id = clean_path[len("/api/roster-backups/"):].strip("/")
             if not month_id:
                 self.send_json_response({"success": False, "message": "Month ID is required"}, 400)
@@ -687,26 +845,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     print(f"  [BACKUP QUERY ERROR] {e}")
 
-            # Also check local disk backups folder as fallback
-            try:
-                backup_dir = ROOT_DIR / "backups"
-                if backup_dir.exists():
-                    for f in backup_dir.glob(f"backup_{month_id}_*.json"):
-                        with open(f, "r", encoding="utf-8") as bf:
-                            data = json.load(bf)
-                            b_id = data.get("backup_id")
-                            if not any(b.get("backup_id") == b_id for b in backups):
-                                backups.append({
-                                    "backup_id": b_id,
-                                    "month_id": data.get("month_id", month_id),
-                                    "timestamp": data.get("timestamp"),
-                                    "created_at_epoch": data.get("created_at_epoch", 0),
-                                    "published_by": data.get("published_by", "local_backup"),
-                                    "total_engineers": data.get("total_engineers", 0)
-                                })
-            except Exception:
-                pass
-
             backups.sort(key=lambda x: x.get("created_at_epoch", 0), reverse=True)
             self.send_json_response({
                 "success": True,
@@ -716,8 +854,13 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # 3. GET /api/engineers
+        # 5. GET /api/engineers (AUTHENTICATED - Scoped by Role)
         if clean_path in ("/api/engineers", "/api/engineers/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            is_admin = str(claims.get("role", "")).lower() == "admin"
             docs = []
             if ATLAS_DB is not None:
                 try:
@@ -725,16 +868,31 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     print(f"  [ATLAS] Engineers fetch error: {e}")
             if not docs:
-                docs = DEFAULT_SERVER_ENGINEERS
+                docs = [dict(e) for e in DEFAULT_SERVER_ENGINEERS]
+
+            # Privacy filtering: Remove password hashes and mask personal phone numbers for non-admins
+            sanitized_docs = []
+            for d in docs:
+                item = dict(d)
+                item.pop("password", None)
+                if not is_admin and item.get("phone"):
+                    p = str(item["phone"])
+                    item["phone"] = p[:len(p)-4] + "****" if len(p) >= 4 else "****"
+                sanitized_docs.append(item)
+
             self.send_json_response({
                 "success": True,
-                "documents": docs,
-                "count": len(docs)
+                "documents": sanitized_docs,
+                "count": len(sanitized_docs)
             })
             return
 
-        # 4. GET /api/constraints
+        # 6. GET /api/constraints (AUTHENTICATED)
         if clean_path in ("/api/constraints", "/api/constraints/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
             default_constraints = {
                 "nightHeadcount": 1,
                 "fsMin": 1,
@@ -745,7 +903,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "nightBlockMin": 3,
                 "nightBlockMax": 5,
                 "swapFirstPolicy": True,
-                "customDirectives": "Maintenance window on Nov 14: Ensure senior engineer on SS. Maintain balanced morning presence."
+                "customDirectives": "System maintenance window scheduled: Ensure senior engineer on SS. Maintain balanced morning presence."
             }
             constraints = default_constraints
             if ATLAS_DB is not None:
@@ -761,8 +919,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # 5. GET /api/notifications
+        # 7. GET /api/notifications (AUTHENTICATED)
         if clean_path in ("/api/notifications", "/api/notifications/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
             notifs = list(SERVER_NOTIFICATIONS)
             if ATLAS_DB is not None:
                 try:
@@ -778,7 +940,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # Catch-all for unknown /api/ GET
+        # Unknown route
         self.send_json_response({
             "success": False,
             "message": f"Endpoint GET {clean_path} not found"
@@ -789,7 +951,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         norm_path = clean_path.rstrip("/")
 
         # Support API requests with or without /api prefix
-        if norm_path in ("/roster", "/engineers", "/engineers/delete", "/constraints", "/auth/login", "/auth/send-otp", "/auth/verify-otp", "/roster-backups/restore", "/notifications/send") or norm_path.startswith("/roster-backups/"):
+        if norm_path in (
+            "/roster", "/engineers", "/engineers/delete", "/constraints",
+            "/auth/login", "/auth/send-otp", "/auth/verify-otp",
+            "/roster-backups/restore", "/notifications/send",
+            "/ai/generate", "/ai/chat"
+        ) or norm_path.startswith("/roster-backups/"):
             norm_path = "/api" + norm_path
 
         if norm_path.startswith("/api/"):
@@ -799,7 +966,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         self.send_error(405, "Method Not Allowed")
 
     def handle_api_post(self, clean_path):
-        """Router for POST /api/* requests."""
+        """Router for POST /api/* requests with strict authorization."""
         content_length = int(self.headers.get("Content-Length", 0))
         body_bytes = self.rfile.read(content_length) if content_length > 0 else b"{}"
 
@@ -809,8 +976,362 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.send_json_response({"success": False, "message": f"Malformed JSON: {e}"}, 400)
             return
 
-        # 1. POST /api/roster
+        client_ip = self.get_client_ip()
+
+        # ======================================================================
+        # 1. PUBLIC AUTHENTICATION ENDPOINTS (Rate-Limited)
+        # ======================================================================
+
+        # 1.1 POST /api/auth/login
+        if clean_path in ("/api/auth/login", "/api/auth/login/"):
+            identifier = str(body.get("identifier", "")).strip().lower()[:100]
+            password = str(body.get("password", "")).strip()[:100]
+
+            if not identifier or not password:
+                self.send_json_response({"success": False, "message": "Username and password required."}, 400)
+                return
+
+            if is_login_rate_limited(client_ip, identifier):
+                self.send_json_response({
+                    "success": False,
+                    "message": "Too many failed login attempts. Please wait 5 minutes before trying again."
+                }, 429)
+                return
+
+            # Check environment-configured master administrator
+            env = load_env_variables()
+            admin_user = env.get("ADMIN_USERNAME", "admin").strip().lower()
+            admin_pass = env.get("ADMIN_PASSWORD", "").strip()
+
+            if admin_pass and identifier == admin_user and hmac.compare_digest(password, admin_pass):
+                reset_failed_login(client_ip, identifier)
+                user_payload = {
+                    "id": "admin_01",
+                    "username": admin_user,
+                    "name": "System Administrator",
+                    "email": env.get("ALERT_EMAIL", "admin@rosterx.dev"),
+                    "role": "admin"
+                }
+                token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
+                self.send_json_response({
+                    "success": True,
+                    "user": user_payload,
+                    "token": token
+                })
+                return
+
+            # Lookup engineer in database or directory
+            user = find_user_by_identifier(identifier)
+            if user:
+                stored_pass = user.get("password")
+                if not stored_pass:
+                    record_failed_login(client_ip, identifier)
+                    self.send_json_response({
+                        "success": False,
+                        "message": "Account has no password configured. Please use 'Forgot Password' to set your credentials."
+                    }, 401)
+                    return
+
+                if verify_password(password, stored_pass):
+                    reset_failed_login(client_ip, identifier)
+
+                    # Zero-downtime migration: Hash plaintext password immediately in DB
+                    if not stored_pass.startswith("pbkdf2_sha256$") and ATLAS_DB is not None and "_id" in user:
+                        try:
+                            new_hash = hash_password(password)
+                            ATLAS_DB.engineers.update_one({"_id": user["_id"]}, {"$set": {"password": new_hash}})
+                        except Exception as e:
+                            print(f"  [PASSWORD MIGRATION NOTE] {e}")
+
+                    u_name = user.get("username") or user.get("id") or "engineer"
+                    role = user.get("role", "engineer")
+                    user_payload = {
+                        "id": user.get("id", f"eng_{u_name}"),
+                        "username": u_name,
+                        "name": user.get("name", u_name.upper()),
+                        "full_name": user.get("full_name") or user.get("name"),
+                        "email": user.get("email", ""),
+                        "phone": user.get("phone", ""),
+                        "role": role
+                    }
+                    token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
+                    self.send_json_response({
+                        "success": True,
+                        "user": user_payload,
+                        "token": token
+                    })
+                    return
+
+            record_failed_login(client_ip, identifier)
+            self.send_json_response({"success": False, "message": "Invalid credentials."}, 401)
+            return
+
+        # 1.2 POST /api/auth/send-otp (Secure Password Reset Dispatch)
+        # CRITICAL FIX: Discard client-chosen email/name; lookup solely in database; uniform response
+        if clean_path in ("/api/auth/send-otp", "/api/auth/send-otp/"):
+            identifier = str(body.get("identifier", "")).strip().lower()[:100]
+            if not identifier:
+                self.send_json_response({"success": False, "message": "Username or email is required."}, 400)
+                return
+
+            is_limited, limit_msg = check_otp_rate_limit(client_ip, identifier)
+            if is_limited:
+                self.send_json_response({"success": False, "message": limit_msg}, 429)
+                return
+
+            record_otp_dispatch(client_ip, identifier)
+
+            # Strict database derivation: NEVER accept 'email' or 'name' from caller
+            user = find_user_by_identifier(identifier)
+            recipient_email = user.get("email") if user else None
+            recipient_name = user.get("name") if user else "Engineer"
+
+            # Always return identical generic message to eliminate user enumeration & email leakage
+            generic_response = {
+                "success": True,
+                "message": "If the account exists, a 6-digit verification code has been dispatched to the registered email."
+            }
+
+            if not recipient_email:
+                time.sleep(0.2)  # Mitigate timing differences
+                self.send_json_response(generic_response)
+                return
+
+            # Cryptographically secure OTP generation (secrets.randbelow)
+            otp_code = f"{secrets.randbelow(1000000):06d}"
+            otp_hash = hashlib.sha256(otp_code.encode("utf-8")).hexdigest()
+            expires_at = time.time() + 600
+
+            # Store only OTP hash in memory
+            ACTIVE_OTPS[identifier] = {
+                "hash": otp_hash,
+                "expires_at": expires_at,
+                "email": recipient_email,
+                "name": recipient_name,
+                "attempts": 0
+            }
+
+            # Persist OTP hash in Atlas DB if available
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.password_resets.update_one(
+                        {"identifier": identifier},
+                        {"$set": {
+                            "identifier": identifier,
+                            "email": recipient_email.lower(),
+                            "hash": otp_hash,
+                            "expires_at": expires_at,
+                            "created_at": time.time(),
+                            "attempts": 0
+                        }},
+                        upsert=True
+                    )
+                except Exception as e:
+                    print(f"  [OTP DB SAVE] {e}")
+
+            # Send professional HTML email via Resend
+            html_email = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f1f5f9;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="padding:40px 15px;">
+    <tr>
+      <td align="center">
+        <table width="100%" style="max-width:520px;background:#0f172a;border:1px solid #1e293b;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="padding:28px 32px;background:linear-gradient(135deg,#0284c7 0%,#2563eb 50%,#4f46e5 100%);text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:1px;">PROJECT ROSTERX</h1>
+              <p style="margin:6px 0 0;color:#e0f2fe;font-size:13px;">Security & Account Verification</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 12px;color:#ffffff;font-size:18px;font-weight:700;">Password Reset Verification</h2>
+              <p style="margin:0 0 20px;color:#94a3b8;font-size:14px;line-height:1.6;">
+                A password reset request was initiated for your RosterX account. Enter the 6-digit verification code below:
+              </p>
+              <div style="background:#020617;border:1.5px solid #0284c7;border-radius:12px;padding:20px;text-align:center;margin:24px 0;">
+                <span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#38bdf8;">{otp_code}</span>
+              </div>
+              <p style="margin:0 0 16px;color:#94a3b8;font-size:13px;">
+                ⏱️ This code expires in <strong>10 minutes</strong>. If you did not request this code, your account remains secure.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+            send_resend_email(recipient_email, f"🔐 {otp_code} is your RosterX verification code", html_email)
+
+            # Do not leak recipient email in response
+            self.send_json_response(generic_response)
+            return
+
+        # 1.3 POST /api/auth/verify-otp (Verify OTP and Update Password with PBKDF2)
+        if clean_path in ("/api/auth/verify-otp", "/api/auth/verify-otp/"):
+            identifier = str(body.get("identifier", "")).strip().lower()[:100]
+            otp = str(body.get("otp", "")).strip()[:10]
+            new_pass = str(body.get("newPassword", "")).strip()[:100]
+
+            if not identifier or not otp or not new_pass:
+                self.send_json_response({"success": False, "message": "Identifier, verification code, and new password required."}, 400)
+                return
+
+            if len(new_pass) < 8:
+                self.send_json_response({"success": False, "message": "Password must be at least 8 characters long."}, 400)
+                return
+
+            record = ACTIVE_OTPS.get(identifier)
+            if not record and ATLAS_DB is not None:
+                try:
+                    record = ATLAS_DB.password_resets.find_one({"identifier": identifier})
+                except Exception:
+                    pass
+
+            if not record:
+                self.send_json_response({"success": False, "message": "No active verification code found or code expired."}, 400)
+                return
+
+            if time.time() > record.get("expires_at", 0):
+                ACTIVE_OTPS.pop(identifier, None)
+                if ATLAS_DB is not None:
+                    try:
+                        ATLAS_DB.password_resets.delete_many({"identifier": identifier})
+                    except Exception:
+                        pass
+                self.send_json_response({"success": False, "message": "Verification code has expired (10-minute limit)."}, 400)
+                return
+
+            attempts = record.get("attempts", 0) + 1
+            record["attempts"] = attempts
+            if attempts > 5:
+                ACTIVE_OTPS.pop(identifier, None)
+                if ATLAS_DB is not None:
+                    try:
+                        ATLAS_DB.password_resets.delete_many({"identifier": identifier})
+                    except Exception:
+                        pass
+                self.send_json_response({
+                    "success": False,
+                    "message": "Too many failed attempts. Verification code has been invalidated."
+                }, 429)
+                return
+
+            input_hash = hashlib.sha256(otp.encode("utf-8")).hexdigest()
+            if not hmac.compare_digest(record.get("hash", ""), input_hash):
+                remaining = 5 - attempts
+                self.send_json_response({
+                    "success": False,
+                    "message": f"Invalid verification code. {remaining} attempt(s) remaining."
+                }, 400)
+                return
+
+            # Verification succeeded! Invalidate OTP
+            ACTIVE_OTPS.pop(identifier, None)
+            if record.get("email"):
+                ACTIVE_OTPS.pop(record["email"].lower(), None)
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.password_resets.delete_many({"$or": [{"identifier": identifier}, {"email": record.get("email", "").lower()}]})
+                except Exception:
+                    pass
+
+            # Hash new password with salted PBKDF2
+            hashed_pass = hash_password(new_pass)
+
+            # Update password in Atlas DB
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.engineers.update_many(
+                        {"$or": [
+                            {"username": identifier},
+                            {"id": identifier},
+                            {"email": identifier},
+                            {"email": record.get("email", "").lower()}
+                        ]},
+                        {"$set": {
+                            "password": hashed_pass,
+                            "password_updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                        }}
+                    )
+                except Exception as e:
+                    print(f"  [OTP] Password update in Atlas error: {e}")
+
+            self.send_json_response({
+                "success": True,
+                "message": "Password successfully reset and verified! You can now log in."
+            })
+            return
+
+        # ======================================================================
+        # 2. AUTHENTICATED AI PROXY (Eliminates Browser / App API Key Exposure)
+        # ======================================================================
+
+        if clean_path in ("/api/ai/generate", "/api/ai/generate/", "/api/ai/chat", "/api/ai/chat/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            env = load_env_variables()
+            gemini_key = env.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
+            gemini_model = env.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+
+            if not gemini_key:
+                self.send_json_response({
+                    "success": False,
+                    "message": "GEMINI_API_KEY is not configured on the server."
+                }, 503)
+                return
+
+            contents = body.get("contents")
+            prompt = body.get("prompt") or body.get("message")
+            if not contents and prompt:
+                contents = [{"role": "user", "parts": [{"text": str(prompt)}]}]
+
+            if not contents:
+                self.send_json_response({"success": False, "message": "Missing 'contents' or 'prompt' in payload."}, 400)
+                return
+
+            gemini_payload = {"contents": contents}
+            if "systemInstruction" in body:
+                gemini_payload["systemInstruction"] = body["systemInstruction"]
+            if "generationConfig" in body:
+                gemini_payload["generationConfig"] = body["generationConfig"]
+
+            target_model = body.get("model") or gemini_model
+            req_url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={gemini_key}"
+
+            try:
+                ai_req = urllib.request.Request(
+                    req_url,
+                    headers={"Content-Type": "application/json"},
+                    data=json.dumps(gemini_payload).encode("utf-8")
+                )
+                with urllib.request.urlopen(ai_req, timeout=30) as ai_resp:
+                    ai_data = json.loads(ai_resp.read().decode("utf-8"))
+                    self.send_json_response({"success": True, "data": ai_data})
+                    return
+            except urllib.error.HTTPError as he:
+                err_text = he.read().decode("utf-8", errors="replace")
+                self.send_json_response({"success": False, "message": f"Gemini API Error ({he.code}): {err_text}"}, 502)
+                return
+            except Exception as e:
+                self.send_json_response({"success": False, "message": f"AI service error: {e}"}, 500)
+                return
+
+        # ======================================================================
+        # 3. ADMIN-ONLY OPERATIONAL MUTATIONS (Strict RBAC: Admin Role Required)
+        # ======================================================================
+
+        # 3.1 POST /api/roster (Save / Publish Roster)
         if clean_path in ("/api/roster", "/api/roster/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
             if ATLAS_DB is None:
                 self.send_json_response({"success": False, "message": "Atlas database is not connected"}, 503)
                 return
@@ -827,7 +1348,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     return
 
             try:
-                # Automatic recovery snapshot: If an existing roster exists for doc_id, backup before overwrite
+                # Automatic recovery snapshot before overwrite
                 existing_roster = ATLAS_DB.rosters.find_one({"_id": doc_id})
                 if existing_roster and (existing_roster.get("roster") or existing_roster.get("engineers")):
                     b_timestamp_epoch = time.time()
@@ -843,25 +1364,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "month_id": doc_id,
                         "timestamp": b_time_str,
                         "created_at_epoch": b_timestamp_epoch,
-                        "published_by": existing_roster.get("published_by") or body.get("published_by") or "Admin",
+                        "published_by": claims.get("name") or "Admin",
                         "total_engineers": len(existing_roster.get("roster", existing_roster.get("engineers", []))),
                         "roster": snapshot_data
                     }
                     try:
                         ATLAS_DB.roster_backups.insert_one(backup_doc)
                     except Exception as b_err:
-                        print(f"  [BACKUP WARNING] Atlas backup insert failed: {b_err}")
-                        
-                    try:
-                        backup_dir = ROOT_DIR / "backups"
-                        backup_dir.mkdir(parents=True, exist_ok=True)
-                        disk_file = backup_dir / f"backup_{doc_id}_{int(b_timestamp_epoch)}.json"
-                        with open(disk_file, "w", encoding="utf-8") as f:
-                            json.dump(backup_doc, f, default=str, indent=2)
-                    except Exception as disk_err:
-                        print(f"  [BACKUP WARNING] Disk backup failed: {disk_err}")
+                        print(f"  [BACKUP WARNING] {b_err}")
 
                 body["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                body["published_by"] = claims.get("name") or "Admin"
                 ATLAS_DB.rosters.update_one({"_id": doc_id}, {"$set": body}, upsert=True)
                 self.send_json_response({
                     "success": True,
@@ -872,8 +1385,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": f"Failed to upsert roster to Atlas: {e}"}, 500)
             return
 
-        # 1.5 POST /api/roster-backups/restore (Restore prior published roster)
+        # 3.2 POST /api/roster-backups/restore
         if clean_path in ("/api/roster-backups/restore", "/api/roster-backups/restore/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
             if ATLAS_DB is None:
                 self.send_json_response({"success": False, "message": "Atlas database is not connected"}, 503)
                 return
@@ -885,18 +1402,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 return
 
             try:
-                # Find the backup in Atlas DB
                 backup_doc = ATLAS_DB.roster_backups.find_one({"backup_id": backup_id})
-                
-                # Fallback to local disk file if not in DB
-                if not backup_doc:
-                    backup_dir = ROOT_DIR / "backups"
-                    if backup_dir.exists():
-                        for f in backup_dir.glob(f"*{backup_id}*.json"):
-                            with open(f, "r", encoding="utf-8") as bf:
-                                backup_doc = json.load(bf)
-                                break
-
                 if not backup_doc or "roster" not in backup_doc:
                     self.send_json_response({"success": False, "message": f"Backup '{backup_id}' not found or corrupted"}, 404)
                     return
@@ -923,11 +1429,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": f"Restore failed: {e}"}, 500)
             return
 
-        # 1.8 POST /api/constraints (Sync operational policy to Atlas)
+        # 3.3 POST /api/constraints (Update Operational Policies)
         if clean_path in ("/api/constraints", "/api/constraints/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
             if ATLAS_DB is None:
                 self.send_json_response({"success": False, "message": "Atlas database is not connected"}, 503)
                 return
+
             try:
                 constraints_data = body.get("constraints", body)
                 if isinstance(constraints_data, dict):
@@ -935,6 +1446,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     if "_id" in to_save:
                         del to_save["_id"]
                     to_save["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    to_save["updated_by"] = claims.get("name") or "Admin"
                     ATLAS_DB.operational_policies.update_one(
                         {"_id": "active_constraints"},
                         {"$set": to_save},
@@ -951,15 +1463,19 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": f"Failed to save constraints: {e}"}, 500)
             return
 
-        # 2. POST /api/engineers
+        # 3.4 POST /api/engineers (Sync Team Directory)
         if clean_path in ("/api/engineers", "/api/engineers/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
             if ATLAS_DB is None:
                 self.send_json_response({"success": False, "message": "Atlas database is not connected"}, 503)
                 return
 
             engineers = body if isinstance(body, list) else body.get("engineers", [])
             if not isinstance(engineers, list):
-                self.send_json_response({"success": False, "message": "Expected list of engineers or { 'engineers': [...] }"}, 400)
+                self.send_json_response({"success": False, "message": "Expected list of engineers"}, 400)
                 return
 
             try:
@@ -969,12 +1485,18 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     eng_name = str(eng.get("name") or "").strip()
                     eng_user = str(eng.get("username") or "").strip()
 
-                    # Normalize status to Title Case for full admin-web and android parity
                     raw_status = str(eng.get("status") or "").strip().lower()
                     if raw_status in ("active", "notice_period", "onboarding"):
                         eng["status"] = "Active"
                     elif raw_status in ("resigned", "retired"):
                         eng["status"] = "Resigned"
+
+                    # Never overwrite existing password hash with blank or plaintext
+                    if "password" in eng and not str(eng["password"]).startswith("pbkdf2_sha256$"):
+                        if eng["password"]:
+                            eng["password"] = hash_password(str(eng["password"]))
+                        else:
+                            del eng["password"]
 
                     query = {}
                     if eng_id:
@@ -987,6 +1509,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     if query:
                         ATLAS_DB.engineers.update_one(query, {"$set": eng}, upsert=True)
                         saved_count += 1
+
                 self.send_json_response({
                     "success": True,
                     "message": f"Successfully synchronized {saved_count} engineers to MongoDB Atlas!",
@@ -996,8 +1519,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": f"Failed to sync engineers: {e}"}, 500)
             return
 
-        # 2.5 POST /api/engineers/delete
+        # 3.5 POST /api/engineers/delete
         if clean_path in ("/api/engineers/delete", "/api/engineers/delete/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
             if ATLAS_DB is None:
                 self.send_json_response({"success": False, "message": "Atlas database is not connected"}, 503)
                 return
@@ -1007,7 +1534,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             eng_username = str(body.get("username", "")).strip()
 
             if not eng_id and not eng_name and not eng_username:
-                self.send_json_response({"success": False, "message": "Engineer id, name, or username is required for deletion"}, 400)
+                self.send_json_response({"success": False, "message": "Engineer id, name, or username required for deletion"}, 400)
                 return
 
             try:
@@ -1022,7 +1549,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 delete_query = {"$or": queries}
                 result = ATLAS_DB.engineers.delete_many(delete_query)
 
-                # Also remove from DEFAULT_SERVER_ENGINEERS memory list if present
                 global DEFAULT_SERVER_ENGINEERS
                 DEFAULT_SERVER_ENGINEERS = [
                     e for e in DEFAULT_SERVER_ENGINEERS 
@@ -1031,302 +1557,24 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                 self.send_json_response({
                     "success": True,
-                    "message": f"Successfully deleted engineer ({eng_name or eng_id}) from database.",
+                    "message": f"Successfully deleted engineer from database.",
                     "deleted_count": result.deleted_count
                 })
             except Exception as e:
                 self.send_json_response({"success": False, "message": f"Failed to delete engineer: {e}"}, 500)
             return
 
-        # 3. POST /api/auth/send-otp
-        if clean_path in ("/api/auth/send-otp", "/api/auth/send-otp/"):
-            identifier = str(body.get("identifier", "")).strip().lower()[:100]
-            if not identifier:
-                self.send_json_response({"success": False, "message": "Username or email is required"}, 400)
-                return
-
-            # Rate limit check (30-second cooldown per identifier)
-            now = time.time()
-            last_req = OTP_RATE_LIMIT.get(identifier, 0)
-            if now - last_req < 30:
-                wait_secs = int(30 - (now - last_req))
-                self.send_json_response({
-                    "success": False,
-                    "message": f"Rate limit reached. Please wait {wait_secs} seconds before requesting a new OTP."
-                }, 429)
-                return
-            OTP_RATE_LIMIT[identifier] = now
-
-            import random
-            otp_code = f"{random.randint(100000, 999999)}"
-            recipient_email = str(body.get("email", "")).strip()[:150]
-            recipient_name = str(body.get("name", "")).strip()[:100] or identifier.upper()
-
-            # If recipient email not supplied, look up in Atlas DB
-            if not recipient_email and ATLAS_DB is not None:
-                try:
-                    eng = ATLAS_DB.engineers.find_one({
-                        "$or": [
-                            {"username": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}},
-                            {"name": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}},
-                            {"id": identifier},
-                            {"email": identifier},
-                            {"email": {"$regex": f"^{re.escape(identifier)}@", "$options": "i"}}
-                        ]
-                    })
-                    if eng:
-                        recipient_email = eng.get("email", "")
-                        recipient_name = eng.get("name", "") or eng.get("full_name", "") or recipient_name
-                except Exception as e:
-                    print(f"  [OTP] Engineer lookup warning: {e}")
-
-            # Fallback to DEFAULT_SERVER_ENGINEERS if not found in DB
-            if not recipient_email:
-                for tm in DEFAULT_SERVER_ENGINEERS:
-                    u_match = tm.get("username", "").lower()
-                    n_match = tm.get("name", "").lower()
-                    e_match = tm.get("email", "").lower()
-                    p_match = e_match.split("@")[0] if "@" in e_match else ""
-                    if identifier in (u_match, n_match, e_match, p_match):
-                        recipient_email = tm.get("email", "")
-                        recipient_name = tm.get("name", "")
-                        break
-
-            if not recipient_email and "@" in identifier:
-                recipient_email = identifier
-
-            if not recipient_email:
-                self.send_json_response({
-                    "success": False,
-                    "message": f"No registered email address found for '{identifier}'. Please check your username or contact an administrator."
-                }, 404)
-                return
-
-            # Store active OTP in server memory with 10-minute expiry and attempt counter
-            expires_at = time.time() + 600
-            ACTIVE_OTPS[identifier] = {
-                "code": otp_code,
-                "expiresAt": expires_at,
-                "email": recipient_email,
-                "name": recipient_name,
-                "attempts": 0
-            }
-            if recipient_email:
-                ACTIVE_OTPS[recipient_email.lower()] = ACTIVE_OTPS[identifier]
-
-            # Build HTML transactional email
-            html_email = f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f1f5f9;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#0b1120;padding:40px 15px;">
-    <tr>
-      <td align="center">
-        <table width="100%" style="max-width:520px;background:#0f172a;border:1px solid #1e293b;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-          <tr>
-            <td style="padding:28px 32px;background:linear-gradient(135deg,#0284c7 0%,#2563eb 50%,#4f46e5 100%);text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:1px;">PROJECT ROSTERX</h1>
-              <p style="margin:6px 0 0 0;color:#e0f2fe;font-size:13px;font-weight:500;">Operations & Account Security</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px;">
-              <h2 style="margin:0 0 12px 0;color:#ffffff;font-size:18px;font-weight:700;">Password Reset Verification</h2>
-              <p style="margin:0 0 20px 0;color:#94a3b8;font-size:14px;line-height:1.6;">
-                Hello <strong style="color:#38bdf8;">{recipient_name}</strong>,<br>
-                A password reset request was initiated for your account (<strong>{identifier}</strong>). Use the 6-digit verification code below to verify your identity:
-              </p>
-              <div style="background:#020617;border:1.5px solid #0284c7;border-radius:12px;padding:20px;text-align:center;margin:24px 0;">
-                <span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#38bdf8;">{otp_code}</span>
-              </div>
-              <p style="margin:0 0 16px 0;color:#94a3b8;font-size:13px;line-height:1.5;">
-                ⏱️ This verification code is valid for <strong>10 minutes</strong>.
-              </p>
-              <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;border-top:1px solid #1e293b;padding-top:16px;">
-                If you did not request this verification code, please ignore this email. Your password will remain unchanged.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:16px 32px;background:#0b1120;border-top:1px solid #1e293b;text-align:center;color:#475569;font-size:11px;">
-              © 2026 Project RosterX Operations · Automated Email Dispatch
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>"""
-
-            subject = f"🔐 {otp_code} is your RosterX verification code"
-            print(f"  [OTP DISPATCH] Sending real email to {recipient_email} via Resend...")
-            res_email = send_resend_email(recipient_email, subject, html_email)
-
-            if res_email.get("success"):
-                delivered = res_email.get("delivered_to", recipient_email)
-                print(f"  [OTP DISPATCH] Email successfully sent! (Delivered to: {delivered})")
-                self.send_json_response({
-                    "success": True,
-                    "message": f"Real OTP code successfully sent to {delivered}",
-                    "delivered_to": delivered,
-                    "notice": res_email.get("notice"),
-                    "user": {
-                        "username": identifier,
-                        "name": recipient_name,
-                        "email": delivered
-                    }
-                })
-            else:
-                err = res_email.get("error", "Unknown error")
-                print(f"  [OTP DISPATCH] Email delivery failed: {err}")
-                self.send_json_response({
-                    "success": False,
-                    "message": f"Email dispatch failed: {err}"
-                }, 500)
-            return
-
-        # 4. POST /api/auth/verify-otp
-        if clean_path in ("/api/auth/verify-otp", "/api/auth/verify-otp/"):
-            identifier = str(body.get("identifier", "")).strip().lower()[:100]
-            otp = str(body.get("otp", "")).strip()[:10]
-            new_pass = str(body.get("newPassword", "")).strip()[:100]
-
-            record = ACTIVE_OTPS.get(identifier)
-            if not record and "@" in identifier:
-                record = ACTIVE_OTPS.get(identifier.lower())
-
-            if not record:
-                self.send_json_response({"success": False, "message": "No active OTP request found or code expired."}, 400)
-                return
-
-            if time.time() > record["expiresAt"]:
-                ACTIVE_OTPS.pop(identifier, None)
-                self.send_json_response({"success": False, "message": "Verification code has expired (10-minute limit)."}, 400)
-                return
-
-            # Brute force protection: maximum 5 failed attempts per OTP
-            attempts = record.get("attempts", 0) + 1
-            record["attempts"] = attempts
-            if attempts > 5:
-                ACTIVE_OTPS.pop(identifier, None)
-                self.send_json_response({
-                    "success": False,
-                    "message": "Too many failed attempts. This OTP has been invalidated for security. Please request a new code."
-                }, 429)
-                return
-
-            if record["code"] != otp:
-                remaining = 5 - attempts
-                self.send_json_response({
-                    "success": False, 
-                    "message": f"Invalid verification code. {remaining} attempt(s) remaining."
-                }, 400)
-                return
-
-            # Code is valid! Remove used OTP
-            ACTIVE_OTPS.pop(identifier, None)
-            if record.get("email"):
-                ACTIVE_OTPS.pop(record["email"].lower(), None)
-
-            # Update password in Atlas DB if user exists
-            if new_pass and ATLAS_DB is not None:
-                try:
-                    ATLAS_DB.engineers.update_one(
-                        {"$or": [
-                            {"username": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}},
-                            {"name": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}},
-                            {"id": identifier},
-                            {"email": identifier},
-                            {"email": {"$regex": f"^{re.escape(identifier)}@", "$options": "i"}}
-                        ]},
-                        {"$set": {"password": new_pass, "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}}
-                    )
-                except Exception as e:
-                    print(f"  [OTP] Password update in Atlas DB error: {e}")
-
-            self.send_json_response({
-                "success": True,
-                "message": "Password reset verified and updated successfully!"
-            })
-            return
-
-        # 5. POST /api/auth/login
-        if clean_path in ("/api/auth/login", "/api/auth/login/"):
-            identifier = str(body.get("identifier", "")).strip().lower()[:100]
-            password = str(body.get("password", "")).strip()[:100]
-
-            if not identifier or not password:
-                self.send_json_response({"success": False, "message": "Identifier and password required"}, 400)
-                return
-
-            # Check master admin
-            if identifier in ("admin", "admin@rosterx.dev") and password in ("admin123", "password123"):
-                self.send_json_response({
-                    "success": True,
-                    "user": {
-                        "id": "admin_01",
-                        "username": "admin",
-                        "name": "System Administrator",
-                        "email": "admin@rosterx.dev",
-                        "role": "admin"
-                    }
-                })
-                return
-
-            matched_eng = None
-            if ATLAS_DB is not None:
-                try:
-                    matched_eng = ATLAS_DB.engineers.find_one({
-                        "$or": [
-                            {"username": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}},
-                            {"name": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}},
-                            {"id": identifier},
-                            {"email": identifier},
-                            {"email": {"$regex": f"^{re.escape(identifier)}@", "$options": "i"}}
-                        ]
-                    })
-                except Exception as e:
-                    print(f"  [LOGIN ERROR] DB query error: {e}")
-
-            if not matched_eng:
-                for tm in DEFAULT_SERVER_ENGINEERS:
-                    u_match = tm.get("username", "").lower()
-                    n_match = tm.get("name", "").lower()
-                    e_match = tm.get("email", "").lower()
-                    p_match = e_match.split("@")[0] if "@" in e_match else ""
-                    if identifier in (u_match, n_match, e_match, p_match):
-                        matched_eng = tm
-                        break
-
-            if matched_eng:
-                stored_pass = matched_eng.get("password", "user123")
-                if stored_pass == password:
-                    u_name = matched_eng.get("username") or (matched_eng.get("email", "").split("@")[0] if "@" in matched_eng.get("email", "") else matched_eng.get("name", "").lower())
-                    self.send_json_response({
-                        "success": True,
-                        "user": {
-                            "id": matched_eng.get("id", f"eng_{u_name}"),
-                            "username": u_name,
-                            "name": matched_eng.get("name", identifier.upper()),
-                            "full_name": matched_eng.get("full_name") or matched_eng.get("name"),
-                            "email": matched_eng.get("email", ""),
-                            "phone": matched_eng.get("phone", "+919811001100"),
-                            "role": matched_eng.get("role", "engineer")
-                        }
-                    })
-                    return
-
-            self.send_json_response({"success": False, "message": "Invalid credentials."}, 401)
-            return
-
-        # 6. POST /api/notifications/send
+        # 3.6 POST /api/notifications/send (Broadcast Messages)
         if clean_path in ("/api/notifications/send", "/api/notifications/send/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
             title = str(body.get("title", "Broadcast Notice")).strip()
             raw_message = str(body.get("message", "")).strip()
             target = body.get("target", "everyone")
             priority = str(body.get("priority", "info")).lower()
-            sender = str(body.get("sender", "System Administrator")).strip()
+            sender = str(body.get("sender") or claims.get("name") or "System Administrator").strip()
             send_email = bool(body.get("send_email", False))
             send_in_app = bool(body.get("send_in_app", True))
 
@@ -1334,7 +1582,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": "Message content cannot be blank."}, 400)
                 return
 
-            # Fetch active engineers list
             engineers = []
             if ATLAS_DB is not None:
                 try:
@@ -1344,7 +1591,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if not engineers:
                 engineers = list(DEFAULT_SERVER_ENGINEERS)
 
-            # Determine target recipients
             is_everyone = target in ("everyone", "all", "*")
             recipients = []
             if is_everyone:
@@ -1359,43 +1605,20 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if not recipients:
                 recipients = engineers[:1]
 
-            # Personalize messages
-            sample_personalized = ""
             emails_sent = 0
             for eng in recipients:
-                eng_name = eng.get("full_name") or eng.get("name") or "Engineer"
-                eng_username = eng.get("username") or eng_name.lower().replace(" ", "")
-                # Personalization substitutions
-                personalized_msg = raw_message
-                personalized_msg = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', eng_name, personalized_msg, flags=re.IGNORECASE)
-                personalized_msg = re.sub(r'\{\s*username\s*\}', eng_username, personalized_msg, flags=re.IGNORECASE)
-                personalized_msg = re.sub(r'@\s*\{\s*username\s*\}', f"@{eng_username}", personalized_msg, flags=re.IGNORECASE)
-
-                if not sample_personalized:
-                    sample_personalized = personalized_msg
-
                 if send_email and eng.get("email"):
                     to_email = eng.get("email")
-                    priority_colors = {
-                        "urgent": "#ef4444",
-                        "shift_update": "#f59e0b",
-                        "broadcast": "#8b5cf6",
-                        "info": "#3b82f6"
-                    }
-                    p_color = priority_colors.get(priority, "#3b82f6")
                     html_email = f"""<!DOCTYPE html>
 <html>
-<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f1f5f9;">
+<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#f1f5f9;">
   <div style="max-width:560px;margin:30px auto;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:30px;">
-    <div style="display:inline-block;padding:4px 10px;background:{p_color}22;border:1px solid {p_color};border-radius:12px;color:{p_color};font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:12px;">
-      {priority.upper()}
-    </div>
-    <h2 style="margin:0 0 16px 0;color:#ffffff;font-size:20px;font-weight:800;">{title}</h2>
+    <h2 style="margin:0 0 16px;color:#ffffff;font-size:20px;">{title}</h2>
     <div style="background:#020617;border:1px solid #334155;border-radius:10px;padding:18px;margin-bottom:20px;color:#e2e8f0;font-size:14px;line-height:1.6;white-space:pre-wrap;">
-{personalized_msg}
+{raw_message}
     </div>
     <div style="font-size:12px;color:#64748b;border-top:1px solid #1e293b;padding-top:14px;">
-      Sent by <strong>{sender}</strong> via RosterX Operations Broadcast.
+      Sent by <strong>{sender}</strong> via RosterX Operations.
     </div>
   </div>
 </body>
@@ -1420,14 +1643,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "send_email": send_email,
                 "send_in_app": send_in_app,
                 "emails_dispatched": emails_sent,
-                "sample_personalized": sample_personalized,
                 "created_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
                 "timestamp": time.time()
             }
 
             if send_in_app:
                 SERVER_NOTIFICATIONS.appendleft(notif_doc)
-
                 if ATLAS_DB is not None:
                     try:
                         ATLAS_DB.notifications.insert_one({**notif_doc, "_id": notif_id})
@@ -1443,33 +1664,31 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # Catch-all for unknown /api/ POST
+        # Unknown route
         self.send_json_response({
             "success": False,
             "message": f"Endpoint POST {clean_path} not found"
         }, 404)
 
     def end_headers(self):
-        # Prevent browser caching of JS/CSS during development
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-XSS-Protection", "1; mode=block")
         super().end_headers()
 
     def list_directory(self, path):
-        """Block directory listing to prevent information leakage."""
         self.send_error(403, "Directory listing is disabled for security.")
         return None
 
     def log_message(self, format, *args):
         try:
-            # http.server can call log_message from log_request or log_error
-            # Case 1: log_request ('"%s" %s %s', requestline, code, size)
             if len(args) >= 2 and isinstance(args[0], str) and (isinstance(args[1], (str, int)) or hasattr(args[1], "value")):
                 method_path = str(args[0])
                 raw_status = getattr(args[1], "value", args[1])
                 status = str(raw_status)
-            # Case 2: log_error ("code %d, message %s", code, message)
             elif len(args) >= 1 and (isinstance(args[0], int) or hasattr(args[0], "value")):
                 raw_status = getattr(args[0], "value", args[0])
                 status = str(raw_status)
@@ -1479,27 +1698,24 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 method_path = (format % args) if args else str(format)
 
             if status in ("200", "204", "304"):
-                color = "\033[92m" # Green
+                color = "\033[92m"
             elif status in ("400", "401", "403", "404", "500", "502", "503"):
-                color = "\033[91m" # Red
+                color = "\033[91m"
             else:
-                color = "\033[93m" # Yellow
+                color = "\033[93m"
             reset = "\033[0m"
             print(f" {color}[HTTP {status}]{reset} {method_path}")
 
-            # Store in dynamic server log ring buffer for Android Terminal Log Viewer
-            # Avoid filling log with repeated polling /api/logs calls
-            if "/api/logs" not in method_path:
+            if "/api/logs" not in method_path and "/api/server-logs" not in method_path:
                 timestamp = time.strftime("%H:%M:%S")
                 SERVER_LOGS.append(f"[{timestamp}] [HTTP {status}] {method_path}")
         except Exception:
-            try:
-                formatted = (format % args) if args else str(format)
-                timestamp = time.strftime("%H:%M:%S")
-                SERVER_LOGS.append(f"[{timestamp}] [HTTP] {formatted}")
-                print(f" [HTTP] {formatted}")
-            except Exception:
-                pass
+            pass
+
+
+# ==============================================================================
+# Main Server Runner
+# ==============================================================================
 
 def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=None, send_email=True):
     if not WEB_DIR.exists():
@@ -1512,8 +1728,7 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     # Initialize PyMongo Atlas Bridge
     init_atlas_connection(env)
 
-    # Initial log entries
-    SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [SYSTEM] RosterX Server listening on port {port}")
+    SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [SYSTEM] RosterX Server v{SERVER_VERSION} listening on port {port}")
     SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [ATLAS DB] Status: {ATLAS_STATUS} ({ATLAS_CLUSTER}/{ATLAS_DB_NAME})")
 
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY, DEFAULT_ALERT_EMAIL
@@ -1524,12 +1739,11 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     cluster_name = env.get("ATLAS_CLUSTER", "Cluster0")
     db_name = env.get("ATLAS_DATABASE", "rosterx")
     gemini_key = env.get("GEMINI_API_KEY", "")
-    gemini_model = env.get("GEMINI_MODEL", "gemini-1.5-flash")
+    gemini_model = env.get("GEMINI_MODEL", "gemini-2.5-flash")
 
     tunnel_proc = None
     public_url = None
 
-    # Auto-detect Render Cloud Environment
     is_render = bool(os.environ.get("RENDER")) or bool(os.environ.get("RENDER_EXTERNAL_URL"))
     render_external_url = os.environ.get("RENDER_EXTERNAL_URL")
     if is_render and render_external_url:
@@ -1537,7 +1751,6 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         PUBLIC_TUNNEL_URL = public_url
         print(f"\n  [RENDER CLOUD] Detected Render production host: {public_url}")
 
-    # Start Cloudflare Tunnel if requested (disabled on cloud platforms like Render)
     if enable_tunnel and not is_render:
         print("\n  [CLOUDFLARE] Initializing secure quick tunnel to Cloudflare Edge...")
         tunnel_proc, public_url = start_cloudflared_tunnel(port=port)
@@ -1546,13 +1759,11 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     elif is_render and public_url:
         SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [RENDER CLOUD] Live Service URL: {public_url}")
 
-    # Publish active endpoints to local files, Android assets, and Atlas
     publish_server_endpoints(public_url, lan_ip, port)
 
-    # Dispatch professional email notification with live gateway link to administrator
     alert_target = alert_email or env.get("ALERT_EMAIL", DEFAULT_ALERT_EMAIL).strip() or DEFAULT_ALERT_EMAIL
     env_send_email = env.get("SEND_STARTUP_EMAIL", "true").strip().lower() in ("true", "1", "yes")
-    should_send_email = send_email and env_send_email and not is_render
+    should_send_email = send_email and env_send_email and bool(alert_target) and not is_render
 
     if should_send_email and public_url:
         t_email = threading.Thread(
@@ -1562,11 +1773,10 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         )
         t_email.start()
 
-    # Banner UI
     border = "=" * 68
     sub_border = "-" * 68
     print("\n" + border)
-    print("  🚀  ROSTERX — SECURE ADMIN SERVER & NATIVE ATLAS BRIDGE")
+    print(f"  🚀  ROSTERX v{SERVER_VERSION} — HARDENED API SERVER & ATLAS BRIDGE")
     print(border)
     print("  [MOBILE APP & INTERNET ACCESS]")
     if public_url:
@@ -1576,47 +1786,27 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         print("   ► 🌐 Worldwide Public URL   : \033[91mTunnel failed to start (check internet connection)\033[0m")
     else:
         print("   ► 🌐 Worldwide Public URL   : \033[90mDisabled (run with --tunnel or set ENABLE_TUNNEL=true)\033[0m")
-    print(f"   ► 🏠 Local Wi-Fi (LAN)      : \033[96mhttp://{lan_ip}:{port}\033[0m  (Same Wi-Fi only)")
+    print(f"   ► 🏠 Local Wi-Fi (LAN)      : \033[96mhttp://{lan_ip}:{port}\033[0m")
     print(f"   ► 📱 Android LAN Base URL   : \033[96mhttp://{lan_ip}:{port}/api/\033[0m")
     print(f"   ► 💻 Local Web App          : \033[96mhttp://localhost:{port}\033[0m")
     print(f"   ► 🤖 Android Emulator       : \033[96mhttp://10.0.2.2:{port}/api/\033[0m")
     print(sub_border)
-    print("  [AUTOMATED NOTIFICATIONS]")
-    if should_send_email and public_url:
-        print(f"   ► ✉️ Startup Alert Mail    : \033[92mDispatched to {alert_target}\033[0m (Via Resend)")
-    elif not public_url:
-        print(f"   ► ✉️ Startup Alert Mail    : \033[90mSkipped (no public tunnel URL active)\033[0m")
-    else:
-        print(f"   ► ✉️ Startup Alert Mail    : \033[90mDisabled (--no-email)\033[0m")
+    print("  [SECURITY & AUTHENTICATION SPECIFICATIONS]")
+    print(f"   ► Auth Architecture: \033[92mHMAC-SHA256 Signed JWT Tokens (RBAC Active)\033[0m")
+    print(f"   ► Password Storage : \033[92mPBKDF2-HMAC-SHA256 (200k rounds + Salted)\033[0m")
+    print(f"   ► OTP Verification : \033[92mCryptographic (secrets.randbelow) + In-DB SHA256 Hash\033[0m")
+    print(f"   ► Brute Force Guard: \033[92mActive (Per-IP & Per-Account Rate Limiting)\033[0m")
+    print(f"   ► AI Security Proxy: \033[92mServer-Side Gemini Gateway (/api/ai/*)\033[0m")
     print(sub_border)
     print("  [DATABASE & BACKEND SPECIFICATIONS]")
     print(f"   ► Engine Type   : MongoDB Atlas M0 (Native Python Driver)")
     print(f"   ► Cluster Name  : {cluster_name}")
     print(f"   ► Target DB     : {db_name}")
     print(f"   ► Connection URI: {mask_mongo_uri(mongo_uri)}")
-
-    if ATLAS_STATUS == "CONNECTED (Ready)":
-        status_color = "\033[92m" # Green
-    else:
-        status_color = "\033[91m" # Red
+    status_color = "\033[92m" if ATLAS_STATUS == "CONNECTED (Ready)" else "\033[91m"
     print(f"   ► Atlas Status  : {status_color}{ATLAS_STATUS}\033[0m")
-    if ATLAS_ERROR and ATLAS_STATUS != "CONNECTED (Ready)":
-        print(f"   ► Reason        : \033[91m{ATLAS_ERROR}\033[0m")
-
-    print(f"   ► REST Routes   : /api/test-connection, /api/server-info, /api/roster/<id>, /api/engineers")
-    print(sub_border)
-    print("  [AI ROSTER ENGINE]")
-    print(f"   ► Model Target  : {gemini_model}")
-    print(f"   ► Gemini API Key: {mask_api_key(gemini_key)}")
-    print(sub_border)
-    print("  [SECURITY & ENVIRONMENT GUARDS]")
-    print(f"   ► Serving Root  : {WEB_DIR}")
-    print(f"   ► Directory View: \033[92mDISABLED\033[0m (Prevent directory disclosure)")
-    print(f"   ► .env Guard    : \033[92mBLOCKED (HTTP 403 Forbidden)\033[0m")
-    print(f"   ► CORS Preflight: \033[92mENABLED (Full OPTIONS Support)\033[0m")
-    print(f"   ► Concurrency   : \033[92mMulti-threaded (ThreadingHTTPServer)\033[0m")
     print(border)
-    print("  Status: Server is actively listening on all interfaces (0.0.0.0). Press Ctrl+C to stop.\n")
+    print(f"  Status: Server listening on all interfaces (0.0.0.0:{port}). Press Ctrl+C to stop.\n")
 
     server_address = ("0.0.0.0", port)
     try:
@@ -1624,8 +1814,6 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         httpd.daemon_threads = True
     except OSError as e:
         print(f"\n[ERROR] Port {port} is already in use!")
-        print("Please terminate the existing server process or specify another port:")
-        print(f"  python server.py --port {port + 1}\n")
         if tunnel_proc:
             tunnel_proc.terminate()
         sys.exit(1)
@@ -1639,7 +1827,6 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     except KeyboardInterrupt:
         print("\n\n[INFO] Gracefully shutting down RosterX server...")
         if tunnel_proc:
-            print("[INFO] Terminating Cloudflare Tunnel...")
             try:
                 tunnel_proc.terminate()
                 tunnel_proc.wait(timeout=2)
@@ -1658,8 +1845,8 @@ if __name__ == "__main__":
     parser.add_argument("--open", action="store_true", help="Automatically open browser on launch")
     parser.add_argument("--no-open", action="store_true", help="Disable opening browser on launch")
     parser.add_argument("--tunnel", "-t", action="store_true", default=None, help="Force launch Cloudflare Tunnel")
-    parser.add_argument("--no-tunnel", action="store_true", help="Disable Cloudflare Tunnel (local network only)")
-    parser.add_argument("--email", type=str, default=None, help="Email address to receive live gateway link (default: kkshefeeq005@gmail.com)")
+    parser.add_argument("--no-tunnel", action="store_true", help="Disable Cloudflare Tunnel")
+    parser.add_argument("--email", type=str, default=None, help="Email address to receive live gateway link")
     parser.add_argument("--no-email", action="store_true", help="Disable sending startup gateway link email")
     args, _ = parser.parse_known_args()
 

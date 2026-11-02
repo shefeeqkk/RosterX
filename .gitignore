@@ -3,6 +3,20 @@
 .env.*
 !.env.example
 
+# Backups & Local Recovery Dumps
+backups/
+*.json.bak
+
+# Release binaries & Android Keystores
+*.apk
+release/*.apk
+*.aab
+*.jks
+*.keystore
+
+# Local tunneling runtime artifacts
+public_tunnel_url.txt
+
 # Python cache
 __pycache__/
 *.py[cod]

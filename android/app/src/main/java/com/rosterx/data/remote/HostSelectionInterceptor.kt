@@ -19,6 +19,15 @@ class HostSelectionInterceptor @Inject constructor(
         var request = chain.request()
         val customBaseUrl = sessionManager.getBaseUrl()
 
+        val reqBuilder = request.newBuilder()
+
+        // 1. Attach authorization token if user is authenticated
+        val token = sessionManager.getAuthToken()
+        if (!token.isNullOrBlank()) {
+            reqBuilder.header("Authorization", "Bearer $token")
+        }
+
+        // 2. Dynamic host selection
         if (customBaseUrl.isNotBlank()) {
             val newHttpUrl: HttpUrl? = customBaseUrl.toHttpUrlOrNull()
             if (newHttpUrl != null) {
@@ -27,9 +36,10 @@ class HostSelectionInterceptor @Inject constructor(
                     .host(newHttpUrl.host)
                     .port(newHttpUrl.port)
                     .build()
-                request = request.newBuilder().url(updatedUrl).build()
+                reqBuilder.url(updatedUrl)
             }
         }
-        return chain.proceed(request)
+
+        return chain.proceed(reqBuilder.build())
     }
 }

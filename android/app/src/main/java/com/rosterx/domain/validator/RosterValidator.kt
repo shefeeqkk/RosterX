@@ -25,6 +25,11 @@ class RosterValidator {
             val currentShift = shifts[i]
             val nextShift = if (i + 1 < shifts.size) shifts[i + 1] else null
 
+            // 0. Unknown shift check
+            if (currentShift is ShiftCode.UNKNOWN) {
+                errors.add("Day ${i + 1}: Unrecognized shift code '${currentShift.raw}'. Please assign a valid shift.")
+            }
+
             // 1. Consecutive Work Cap (Max 6 days)
             if (isWorkingShift(currentShift)) {
                 consecutiveWorkDays++
@@ -51,8 +56,6 @@ class RosterValidator {
                     consecutiveNightShifts = 0
                 }
             }
-
-            // Quick Turnaround (SS to FS) is fine as per NOC operational guidelines
         }
         
         // Handle night shift count at the end of the month
@@ -99,6 +102,6 @@ class RosterValidator {
     }
 
     private fun isWorkingShift(shift: ShiftCode): Boolean {
-        return shift !is ShiftCode.OFF && shift !is ShiftCode.L && shift !is ShiftCode.SW && !shift.code.startsWith("SW")
+        return shift !is ShiftCode.OFF && shift !is ShiftCode.L && shift !is ShiftCode.SW && shift !is ShiftCode.UNKNOWN && !shift.code.startsWith("SW")
     }
 }

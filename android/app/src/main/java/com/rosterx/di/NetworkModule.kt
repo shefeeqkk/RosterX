@@ -1,5 +1,6 @@
 package com.rosterx.di
 
+import com.rosterx.BuildConfig
 import com.rosterx.data.remote.HostSelectionInterceptor
 import com.rosterx.data.remote.RosterApiService
 import dagger.Module
@@ -17,7 +18,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val DEFAULT_BASE_URL = "http://192.168.1.6:8000/"
+    private const val DEFAULT_BASE_URL = "https://rosterx.onrender.com/api/"
 
     @Provides
     @Singleton
@@ -25,7 +26,11 @@ object NetworkModule {
         hostSelectionInterceptor: HostSelectionInterceptor
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
         return OkHttpClient.Builder()
             .addInterceptor(hostSelectionInterceptor)

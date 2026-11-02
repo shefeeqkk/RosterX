@@ -2,10 +2,10 @@
  * RosterX - MongoDB Atlas Native Bridge & Sync Service
  * 
  * Supports:
- * 1. Native Python PyMongo REST API bridge (/api/roster, /api/engineers, /api/test-connection)
- * 2. LocalStorage offline cache with full BSON/JSON parity.
- * 3. Connection state monitoring ("Synced to Atlas M0", "Unsaved Changes", "Offline / Mock mode").
- * 4. Automatic month switching sync and live publishing.
+ * 1. Native Python PyMongo REST API bridge with JWT Bearer authentication
+ * 2. LocalStorage offline cache with full BSON/JSON parity
+ * 3. Connection state monitoring ("Synced to Atlas M0", "Unsaved Changes", "Offline / Mock mode")
+ * 4. Automatic month switching sync and live publishing
  */
 
 import { ENGINEERS } from './constants.js?v=1.0';
@@ -15,7 +15,8 @@ const STORAGE_KEYS = {
   ENGINEERS: 'rosterx_engineers_list',
   ENGINEERS_LEGACY: 'rosterx_engineers_cache',
   ROSTERS: 'rosterx_rosters_cache',
-  ACTIVE_ROSTER_ID: 'rosterx_active_roster_id'
+  ACTIVE_ROSTER_ID: 'rosterx_active_roster_id',
+  AUTH_TOKEN: 'rosterx_auth_token'
 };
 
 export class AtlasService {
@@ -25,14 +26,20 @@ export class AtlasService {
     this.listeners = [];
   }
 
+  getAuthHeaders(extra = {}) {
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) : null;
+    const headers = { 'Accept': 'application/json', ...extra };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
   getApiBase() {
     if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
       const currentOriginApi = `${window.location.origin}/api`.replace(/\/+$/, '');
       let url = (this.config.endpointUrl || '').trim().replace(/\/+$/, '');
 
-      // Auto-heal condition:
-      // If no url, or points to mongo data-api, or points to a trycloudflare.com tunnel that doesn't match current origin,
-      // or if running on localhost/127.0.0.1 while url points to an external host
       const isStaleTunnel = url.includes('trycloudflare.com') && !url.startsWith(window.location.origin);
       const isLocalhostMisaligned = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && 
         url && !url.includes('localhost') && !url.includes('127.0.0.1');
@@ -106,9 +113,7 @@ export class AtlasService {
     try {
       const response = await fetch(`${base}/test-connection`, {
         method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
+        headers: this.getAuthHeaders()
       });
 
       const data = await response.json();
@@ -139,14 +144,12 @@ export class AtlasService {
    */
   mergeEngineers(primaryList, fallbackList) {
     const map = new Map();
-    // 1. Put fallback defaults first
     (fallbackList || []).forEach(eng => {
       if (eng && (eng.id || eng.name)) {
         const key = (eng.name || eng.id).trim().toUpperCase();
         map.set(key, { ...eng });
       }
     });
-    // 2. Overlay primary list from DB/cache
     (primaryList || []).forEach(eng => {
       if (eng && (eng.id || eng.name)) {
         const key = (eng.name || eng.id).trim().toUpperCase();
@@ -165,8 +168,12 @@ export class AtlasService {
     try {
       const res = await fetch(`${base}/engineers`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' }
+        headers: this.getAuthHeaders()
       });
+      if (res.status === 401) {
+        window.location.replace('login.html');
+        return ENGINEERS;
+      }
       if (res.ok) {
         const data = await res.json();
         if (data.documents && Array.isArray(data.documents) && data.documents.length > 0) {
@@ -178,12 +185,11 @@ export class AtlasService {
       }
     } catch (err) {
       console.warn('Atlas live fetch engineers failed, checking relative fallback:', err);
-      // Secondary relative origin fallback
       if (typeof window !== 'undefined' && window.location && window.location.origin) {
         const rel = `${window.location.origin}/api/engineers`;
         if (`${base}/engineers` !== rel) {
           try {
-            const r2 = await fetch(rel, { headers: { 'Accept': 'application/json' } });
+            const r2 = await fetch(rel, { headers: this.getAuthHeaders() });
             if (r2.ok) {
               const d2 = await r2.json();
               if (d2.documents && Array.isArray(d2.documents) && d2.documents.length > 0) {
@@ -198,7 +204,6 @@ export class AtlasService {
       }
     }
 
-    // Fallback to LocalStorage cache or Initial Seed Mock
     try {
       const cached = localStorage.getItem(STORAGE_KEYS.ENGINEERS) || localStorage.getItem(STORAGE_KEYS.ENGINEERS_LEGACY);
       if (cached) {
@@ -223,7 +228,6 @@ export class AtlasService {
   async saveEngineers(engineersList) {
     if (!Array.isArray(engineersList) || engineersList.length === 0) return { success: false, message: 'No engineers to save' };
     
-    // Save locally immediately
     localStorage.setItem(STORAGE_KEYS.ENGINEERS, JSON.stringify(engineersList));
     localStorage.setItem(STORAGE_KEYS.ENGINEERS_LEGACY, JSON.stringify(engineersList));
 
@@ -231,7 +235,7 @@ export class AtlasService {
     try {
       const res = await fetch(`${base}/engineers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ engineers: engineersList })
       });
       const data = await res.json();
@@ -247,12 +251,15 @@ export class AtlasService {
    */
   async getRoster(rosterId) {
     const base = this.getApiBase();
-    // 1. Attempt primary API base
     try {
       const res = await fetch(`${base}/roster/${rosterId}`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' }
+        headers: this.getAuthHeaders()
       });
+      if (res.status === 401) {
+        window.location.replace('login.html');
+        return null;
+      }
       if (res.ok) {
         const data = await res.json();
         const doc = data.document || data.data || data;
@@ -267,14 +274,13 @@ export class AtlasService {
       console.warn('Atlas live fetch roster failed on base ' + base + ':', err);
     }
 
-    // 2. Relative Origin Fallback (if base was different from current origin)
     if (typeof window !== 'undefined' && window.location && window.location.origin) {
       const relativeBase = `${window.location.origin}/api`;
       if (base !== relativeBase) {
         try {
           const res = await fetch(`${relativeBase}/roster/${rosterId}`, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' }
+            headers: this.getAuthHeaders()
           });
           if (res.ok) {
             const data = await res.json();
@@ -294,7 +300,6 @@ export class AtlasService {
       }
     }
 
-    // 3. LocalStorage cache fallback
     try {
       const rostersMap = JSON.parse(localStorage.getItem(STORAGE_KEYS.ROSTERS) || '{}');
       const cached = rostersMap[rosterId];
@@ -312,14 +317,13 @@ export class AtlasService {
    * Save roster document to Atlas (/api/roster) & LocalStorage
    */
   async saveRoster(rosterDoc) {
-    // 1. Always persist in LocalStorage first
     this.saveLocalRoster(rosterDoc);
     const base = this.getApiBase();
 
     try {
       const res = await fetch(`${base}/roster`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(rosterDoc)
       });
 
@@ -351,7 +355,7 @@ export class AtlasService {
     try {
       const res = await fetch(`${base}/roster-backups/${monthId}`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' }
+        headers: this.getAuthHeaders()
       });
       if (res.ok) {
         const data = await res.json();
@@ -371,7 +375,7 @@ export class AtlasService {
     try {
       const res = await fetch(`${base}/roster-backups/restore`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ backup_id: backupId, month_id: monthId })
       });
       const data = await res.json();
@@ -422,4 +426,3 @@ export class AtlasService {
     });
   }
 }
-

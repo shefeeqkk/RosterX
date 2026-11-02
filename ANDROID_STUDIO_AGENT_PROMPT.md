@@ -26,8 +26,8 @@ Build a production-grade, native Android application for **RosterX Operations Po
 - **Payload**:
   ```json
   {
-    "identifier": "nandua",
-    "password": "user123"
+    "identifier": "alexr",
+    "password": "SecurePass@2026"
   }
   ```
   *(Identifier accepts username, registered email, or full engineer name)*
@@ -37,11 +37,11 @@ Build a production-grade, native Android application for **RosterX Operations Po
     "success": true,
     "user": {
       "id": "eng_03",
-      "username": "nandua",
-      "name": "NANDU ANTHIKAT",
-      "full_name": "NANDU ANTHIKAT",
-      "email": "nandua@tejasnetworks.com",
-      "phone": "+919811001100",
+      "username": "alexr",
+      "name": "ALEX RIVERA",
+      "full_name": "ALEX RIVERA",
+      "email": "alexr@rosterx.dev",
+      "phone": "+15550100003",
       "role": "engineer"
     }
   }

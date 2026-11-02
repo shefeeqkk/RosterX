@@ -17,7 +17,8 @@ data class LoginRequest(
 data class LoginResponse(
     val success: Boolean,
     val message: String?,
-    val user: UserDto?
+    val user: UserDto?,
+    val token: String? = null
 )
 
 data class UserDto(
@@ -231,5 +232,3 @@ data class NotificationsListResponse(
     val count: Int? = 0,
     val notifications: List<NotificationDto>? = null
 )
-
-

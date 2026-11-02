@@ -1,6 +1,6 @@
 # ⚡ RosterX — Enterprise 24/7 NOC Shift Roster & Workforce Management
 
-[![Version](https://img.shields.io/badge/Release-v1.4.5-blue.svg)](https://github.com/shefeeqkk/RosterX/releases)
+[![Version](https://img.shields.io/badge/Release-v1.8.0-blue.svg)](https://github.com/shefeeqkk/RosterX/releases)
 [![Android](https://img.shields.io/badge/Android-SDK%2035%20%7C%20Compose-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![MongoDB Atlas](https://img.shields.io/badge/MongoDB-Atlas%20M0-47A248.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
@@ -129,7 +129,7 @@ See the complete step-by-step instructions in [`RENDER_DEPLOYMENT_GUIDE.md`](./R
 ## 📱 Building & Running the Android App
 
 ### Option A: Via Android Studio
-1. Open the [`android/`](file:///c:/shefeeq/PYTHON/RosterX/android) folder in Android Studio.
+1. Open the [`android/`](./android) folder in Android Studio.
 2. Ensure JDK 17+ is selected in **Settings → Build Tools → Gradle**.
 3. Sync Gradle project files.
 4. Run on a physical Android device or Emulator (API 26 to 35).
