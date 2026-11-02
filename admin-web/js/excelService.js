@@ -963,7 +963,7 @@ export class ExcelService {
     const fileName = `RosterX_Template_${periodLabel}.xlsx`;
 
     // Exclude Resigned engineers from the template
-    const activeEngineers = engineers.filter(e => e.status !== 'Resigned');
+    const activeEngineers = engineers.filter(e => e.status !== 'Resigned' && e.role !== 'admin' && e.role !== 'manager');
 
     const wb = await ExcelService.buildStyledWorkbook({
       periodLabel,

@@ -363,7 +363,7 @@ fun AdminDashboardTab(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        contentPadding = PaddingValues(bottom = 32.dp),
+        contentPadding = PaddingValues(bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 1. Server Health Card

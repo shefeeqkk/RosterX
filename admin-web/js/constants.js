@@ -112,27 +112,23 @@ export const SHIFTS = {
  */
 export function getEngineerSwapCode(engName, allEngineers = null) {
   if (!engName) return 'SW';
-  const cleanName = String(engName).trim().toUpperCase();
-  const firstName = cleanName.split(/[\s\W]+/)[0] || cleanName;
-  const firstChar = firstName[0];
+  const clean = String(engName).trim().toUpperCase();
+  if (clean.includes('SHEFEEQ')) return 'SWSH';
+  if (clean.includes('SILAMBARASAN')) return 'SWSI';
+  if (clean.includes('DYANI')) return 'SWDY';
+  if (clean.includes('RAJ') || clean.includes('KUMAR')) return 'SWRK';
+  if (clean.includes('NANDU')) return 'SWN';
+  if (clean.includes('ATUL') || clean.includes('ATHUL')) return 'SWA';
+  if (clean.includes('HEMANTH')) return 'SWH';
+  if (clean.includes('MANOJ')) return 'SWM';
+  if (clean.includes('ROHIT')) return 'SWR';
+  if (clean.includes('DHANUSH')) return 'SWD';
 
-  const pool = Array.isArray(allEngineers) && allEngineers.length > 0
-    ? allEngineers
-    : (typeof DEFAULT_ENGINEERS !== 'undefined' ? DEFAULT_ENGINEERS : []);
-
-  const sharingFirstLetter = pool.filter(e => {
-    const name = String(e.name || e).trim().toUpperCase();
-    const fName = name.split(/[\s\W]+/)[0] || name;
-    return fName.startsWith(firstChar);
-  });
-
-  if (sharingFirstLetter.length <= 1) {
-    return `SW${firstChar}`;
+  const parts = clean.split(/[\s\W]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `SW${parts[0][0]}${parts[1][0]}`;
   }
-
-  // If collision on first letter, take first 2 letters
-  const twoChars = firstName.slice(0, 2);
-  return `SW${twoChars}`;
+  return `SW${parts[0].slice(0, 2)}`;
 }
 
 export function isSwapShift(code) {

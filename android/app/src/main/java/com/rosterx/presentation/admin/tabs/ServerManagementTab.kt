@@ -54,7 +54,7 @@ fun ServerManagementTab(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        contentPadding = PaddingValues(bottom = 36.dp),
+        contentPadding = PaddingValues(bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 0. Administrator Account Profile & Security
@@ -273,8 +273,8 @@ fun ServerManagementTab(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("PUBLIC INTERNET & LAN BASE URL CONFIGURATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("Enter your Cloudflare Public Tunnel URL, Public IP, or Local LAN IP below to connect over mobile cellular data (5G/4G) or Wi-Fi.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("PRODUCTION RENDER CLOUD & LAN CONFIGURATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Connected 100% via Render Cloud (https://rosterx-vc30.onrender.com). Works across all cellular networks (5G/4G) and Wi-Fi.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                     // Active URL Chip with Copy button
@@ -319,7 +319,7 @@ fun ServerManagementTab(
                         value = baseUrlInput,
                         onValueChange = { baseUrlInput = it },
                         label = { Text("Server Base URL", fontSize = 12.sp) },
-                        placeholder = { Text("e.g. https://xxx.trycloudflare.com/api/", fontSize = 12.sp) },
+                        placeholder = { Text("e.g. https://rosterx-vc30.onrender.com/api/", fontSize = 12.sp) },
                         trailingIcon = {
                             if (baseUrlInput.isNotBlank()) {
                                 IconButton(onClick = { baseUrlInput = "" }) {
@@ -338,26 +338,17 @@ fun ServerManagementTab(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                try {
-                                    val assetUrl = context.assets.open("server_url.txt").bufferedReader().use { it.readText().trim() }
-                                    if (assetUrl.isNotBlank()) {
-                                        var clean = assetUrl
-                                        if (!clean.endsWith("/")) clean += "/"
-                                        if (!clean.endsWith("/api/")) clean += "api/"
-                                        baseUrlInput = clean
-                                        onSaveBaseUrl(clean)
-                                        Toast.makeText(context, "Loaded synced Cloudflare URL", Toast.LENGTH_SHORT).show()
-                                    }
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Default asset not found", Toast.LENGTH_SHORT).show()
-                                }
+                                val renderUrl = "https://rosterx-vc30.onrender.com/api/"
+                                baseUrlInput = renderUrl
+                                onSaveBaseUrl(renderUrl)
+                                Toast.makeText(context, "Reset to Production Render URL", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Asset URL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Render URL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Button(

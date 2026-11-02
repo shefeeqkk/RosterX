@@ -36,7 +36,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.9.1"
+SERVER_VERSION = "1.11.0"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -84,16 +84,16 @@ RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <onboarding@rese
 
 # Sanitized Mock Directory (Zero Real Employee PII)
 DEFAULT_SERVER_ENGINEERS = [
-    {"id": "eng_03", "name": "ALEX RIVERA", "username": "alexr", "email": "alexr@rosterx.dev", "phone": "+15550100003", "role": "engineer"},
-    {"id": "eng_04", "name": "SARAH CONNOR", "username": "sarahc", "email": "sarahc@rosterx.dev", "phone": "+15550100004", "role": "admin"},
-    {"id": "eng_05", "name": "DAVID SILVA", "username": "davids", "email": "davids@rosterx.dev", "phone": "+15550100005", "role": "engineer"},
-    {"id": "eng_06", "name": "ELENA ROSTOVA", "username": "elenar", "email": "elenar@rosterx.dev", "phone": "+15550100006", "role": "admin"},
-    {"id": "eng_07", "name": "SAMIR PATEL", "username": "samirp", "email": "samirp@rosterx.dev", "phone": "+15550100007", "role": "engineer"},
-    {"id": "eng_08", "name": "HANNAH KIM", "username": "hannahk", "email": "hannahk@rosterx.dev", "phone": "+15550100008", "role": "engineer"},
-    {"id": "eng_01", "name": "MARCUS VANCE", "username": "marcusv", "email": "marcusv@rosterx.dev", "phone": "+15550100001", "role": "engineer"},
-    {"id": "eng_10", "name": "DANIEL CHEN", "username": "danielc", "email": "danielc@rosterx.dev", "phone": "+15550100010", "role": "apprentice"},
-    {"id": "eng_09", "name": "RACHEL RAY", "username": "rachelr", "email": "rachelr@rosterx.dev", "phone": "+15550100009", "role": "apprentice"},
-    {"id": "eng_02", "name": "ROBERT KING", "username": "robertk", "email": "robertk@rosterx.dev", "phone": "+15550100002", "role": "engineer"},
+    {"name": "ALEX RIVERA", "username": "alexr", "email": "alexr@rosterx.dev", "phone": "+15550100003", "role": "engineer"},
+    {"name": "SARAH CONNOR", "username": "sarahc", "email": "sarahc@rosterx.dev", "phone": "+15550100004", "role": "admin"},
+    {"name": "DAVID SILVA", "username": "davids", "email": "davids@rosterx.dev", "phone": "+15550100005", "role": "engineer"},
+    {"name": "ELENA ROSTOVA", "username": "elenar", "email": "elenar@rosterx.dev", "phone": "+15550100006", "role": "admin"},
+    {"name": "SAMIR PATEL", "username": "samirp", "email": "samirp@rosterx.dev", "phone": "+15550100007", "role": "engineer"},
+    {"name": "HANNAH KIM", "username": "hannahk", "email": "hannahk@rosterx.dev", "phone": "+15550100008", "role": "engineer"},
+    {"name": "MARCUS VANCE", "username": "marcusv", "email": "marcusv@rosterx.dev", "phone": "+15550100001", "role": "engineer"},
+    {"name": "DANIEL CHEN", "username": "danielc", "email": "danielc@rosterx.dev", "phone": "+15550100010", "role": "apprentice"},
+    {"name": "RACHEL RAY", "username": "rachelr", "email": "rachelr@rosterx.dev", "phone": "+15550100009", "role": "apprentice"},
+    {"name": "ROBERT KING", "username": "robertk", "email": "robertk@rosterx.dev", "phone": "+15550100002", "role": "engineer"},
 ]
 
 
@@ -272,6 +272,41 @@ def record_otp_dispatch(ip: str, identifier: str):
 # Database Connection & Infrastructure Management
 # ==============================================================================
 
+
+def recalculate_dynamic_preferred_shifts():
+    """Calculate each engineer's top 3 mean average shift types dynamically from published rosters."""
+    global ATLAS_DB
+    if ATLAS_DB is None:
+        return
+    try:
+        rosters = list(ATLAS_DB.rosters.find({}))
+        eng_shifts = collections.defaultdict(collections.Counter)
+        for r in rosters:
+            for e in r.get("engineers", []):
+                key = (e.get("username") or e.get("name") or "").strip().upper()
+                for d, s in e.get("shifts", {}).items():
+                    s = (s or "").strip().upper()
+                    if s and s not in ("OFF", "L", "CO", "AL", "SL", "ML") and not s.startswith("SW"):
+                        eng_shifts[key][s] += 1
+
+        for eng in ATLAS_DB.engineers.find():
+            email = str(eng.get("email") or "").strip().lower()
+            name = str(eng.get("name") or "").strip().upper()
+            user = (eng.get("username") or (email.split("@")[0].strip().lower() if "@" in email else "")).upper()
+            counts = eng_shifts.get(user) or eng_shifts.get(name) or collections.Counter()
+            top_shifts = [s for s, _ in counts.most_common(3)]
+            if not top_shifts:
+                top_shifts = ["FS", "FG", "SS"]
+            ATLAS_DB.engineers.update_one(
+                {"_id": eng["_id"]},
+                {
+                    "$set": {"preferred_shifts": top_shifts},
+                    "$unset": {"id": "", "engineer_id": ""}
+                }
+            )
+    except Exception as e:
+        print(f"  [PREFERRED SHIFTS ERROR] {e}")
+
 def init_atlas_connection(env):
     """Initialize persistent PyMongo client connection to MongoDB Atlas."""
     global ATLAS_CLIENT, ATLAS_DB, ATLAS_STATUS, ATLAS_ERROR, ATLAS_CLUSTER, ATLAS_DB_NAME
@@ -298,6 +333,22 @@ def init_atlas_connection(env):
             ATLAS_DB.password_resets.create_index("created_at", expireAfterSeconds=600)
         except Exception:
             pass
+
+        # Ensure schema integrity: purge legacy id/engineer_id, ensure username unique index, and calculate preferred shifts
+        try:
+            ATLAS_DB.engineers.update_many({}, {"$unset": {"id": "", "engineer_id": ""}})
+            ATLAS_DB.engineers.create_index("username", unique=True)
+            recalculate_dynamic_preferred_shifts()
+        except Exception as e:
+            print(f"  [ATLAS INIT SCHEMA ERROR] {e}")
+
+        # Ensure schema integrity: purge legacy id/engineer_id, ensure username unique index, and calculate preferred shifts
+        try:
+            ATLAS_DB.engineers.update_many({}, {"$unset": {"id": "", "engineer_id": ""}})
+            ATLAS_DB.engineers.create_index("username", unique=True)
+            recalculate_dynamic_preferred_shifts()
+        except Exception as e:
+            print(f"  [ATLAS INIT SCHEMA ERROR] {e}")
 
     except ImportError:
         ATLAS_STATUS = "DISCONNECTED"
@@ -810,6 +861,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             try:
                 doc = ATLAS_DB.rosters.find_one({"_id": month_id})
                 if doc:
+                    # Exclude admin and manager roles from shift roster
+                    if "engineers" in doc and isinstance(doc["engineers"], list):
+                        doc["engineers"] = [e for e in doc["engineers"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
+                    if "roster" in doc and isinstance(doc["roster"], list):
+                        doc["roster"] = [e for e in doc["roster"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
                     self.send_json_response({
                         "success": True,
                         "document": doc,
@@ -878,6 +934,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             for d in docs:
                 item = dict(d)
                 item.pop("password", None)
+                # Purge any legacy artificial IDs - username is the sole identifier
+                item.pop("id", None)
+                item.pop("engineer_id", None)
+                if not item.get("username") and item.get("email") and "@" in item["email"]:
+                    item["username"] = item["email"].split("@")[0].strip().lower()
                 if not is_admin and item.get("phone"):
                     p = str(item["phone"])
                     item["phone"] = p[:len(p)-4] + "****" if len(p) >= 4 else "****"
@@ -1425,9 +1486,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     except Exception as b_err:
                         print(f"  [BACKUP WARNING] {b_err}")
 
+                # Ensure admin and manager are never included in shift roster
+                if "engineers" in body and isinstance(body["engineers"], list):
+                    body["engineers"] = [e for e in body["engineers"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
+                if "roster" in body and isinstance(body["roster"], list):
+                    body["roster"] = [e for e in body["roster"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
                 body["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 body["published_by"] = claims.get("name") or "Admin"
                 ATLAS_DB.rosters.update_one({"_id": doc_id}, {"$set": body}, upsert=True)
+                # Dynamically update preferred shifts across team based on this published roster
+                recalculate_dynamic_preferred_shifts()
                 self.send_json_response({
                     "success": True,
                     "message": f"Roster '{doc_id}' successfully saved and published to Atlas M0!",
@@ -1533,22 +1601,21 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             try:
                 saved_count = 0
                 for eng in engineers:
-                    eng_user = str(eng.get("username") or "").strip().lower()
+                    eng_email = str(eng.get("email") or "").strip().lower()
                     eng_name = str(eng.get("name") or "").strip()
-                    eng_id = str(eng.get("id") or eng.get("engineer_id") or "").strip()
-
-                    # Canonical key is username only!
-                    if not eng_user:
-                        if eng_name:
-                            eng_user = eng_name.split()[0].lower()
-                        elif eng_id:
-                            eng_user = eng_id.replace("eng_", "").lower()
+                    # Username is strictly derived from domain ID of engineer's email address
+                    if eng_email and "@" in eng_email:
+                        eng_user = eng_email.split("@")[0].strip().lower()
+                    else:
+                        eng_user = str(eng.get("username") or "").strip().lower()
+                    if not eng_user and eng_name:
+                        eng_user = eng_name.split()[0].lower()
 
                     if not eng_user:
                         continue
 
                     eng["username"] = eng_user
-                    # Remove legacy id fields to keep username as the authoritative key
+                    # Remove legacy id fields to keep username as the sole unique key
                     eng.pop("engineer_id", None)
                     eng.pop("id", None)
 
@@ -1568,7 +1635,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     # Primary key is username
                     ATLAS_DB.engineers.update_one(
                         {"username": eng_user},
-                        {"$set": eng},
+                        {"$set": eng, "$unset": {"id": "", "engineer_id": ""}},
                         upsert=True
                     )
                     saved_count += 1
@@ -1614,9 +1681,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                 global DEFAULT_SERVER_ENGINEERS
                 DEFAULT_SERVER_ENGINEERS = [
-                    e for e in DEFAULT_SERVER_ENGINEERS 
-                    if e.get("id") != eng_id and e.get("name", "").lower() != eng_name.lower() and e.get("username", "").lower() != eng_username.lower()
-                ]
+    {"name": "ALEX RIVERA", "username": "alexr", "email": "alexr@rosterx.dev", "phone": "+15550100003", "role": "engineer"},
+    {"name": "SARAH CONNOR", "username": "sarahc", "email": "sarahc@rosterx.dev", "phone": "+15550100004", "role": "admin"},
+    {"name": "DAVID SILVA", "username": "davids", "email": "davids@rosterx.dev", "phone": "+15550100005", "role": "engineer"},
+    {"name": "ELENA ROSTOVA", "username": "elenar", "email": "elenar@rosterx.dev", "phone": "+15550100006", "role": "admin"},
+    {"name": "SAMIR PATEL", "username": "samirp", "email": "samirp@rosterx.dev", "phone": "+15550100007", "role": "engineer"},
+    {"name": "HANNAH KIM", "username": "hannahk", "email": "hannahk@rosterx.dev", "phone": "+15550100008", "role": "engineer"},
+    {"name": "MARCUS VANCE", "username": "marcusv", "email": "marcusv@rosterx.dev", "phone": "+15550100001", "role": "engineer"},
+    {"name": "DANIEL CHEN", "username": "danielc", "email": "danielc@rosterx.dev", "phone": "+15550100010", "role": "apprentice"},
+    {"name": "RACHEL RAY", "username": "rachelr", "email": "rachelr@rosterx.dev", "phone": "+15550100009", "role": "apprentice"},
+    {"name": "ROBERT KING", "username": "robertk", "email": "robertk@rosterx.dev", "phone": "+15550100002", "role": "engineer"},
+]
 
                 self.send_json_response({
                     "success": True,
@@ -1625,6 +1700,40 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 })
             except Exception as e:
                 self.send_json_response({"success": False, "message": f"Failed to delete engineer: {e}"}, 500)
+            return
+
+                # 3.7 POST /api/notifications/dismiss (Persistent Notification Dismissal in Atlas DB)
+        if clean_path in ("/api/notifications/dismiss", "/api/notifications/dismiss/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            username = str(claims.get("username", "")).strip().lower()
+            notif_id = str(body.get("notification_id", "")).strip()
+            dismiss_all = bool(body.get("all", False))
+
+            if ATLAS_DB is not None and username:
+                try:
+                    if dismiss_all:
+                        all_notifs = list(ATLAS_DB.notifications.find())
+                        all_ids = []
+                        for n in all_notifs:
+                            nid = str(n.get("id") or n.get("_id") or "")
+                            if nid:
+                                all_ids.append(nid)
+                        ATLAS_DB.engineers.update_one(
+                            {"username": username},
+                            {"$addToSet": {"dismissed_notifications": {"$each": all_ids}}}
+                        )
+                    elif notif_id:
+                        ATLAS_DB.engineers.update_one(
+                            {"username": username},
+                            {"$addToSet": {"dismissed_notifications": notif_id}}
+                        )
+                except Exception as e:
+                    print(f"  [DISMISS NOTIF ERROR] {e}")
+
+            self.send_json_response({"success": True, "message": "Notification dismissed permanently."})
             return
 
         # 3.6 POST /api/notifications/send (Broadcast Messages)
