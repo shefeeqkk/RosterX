@@ -261,8 +261,8 @@ class EngineerPortalViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 isLoading = false,
                 engineers = engineers,
-                liveRoster = if (liveRosterMap.isNotEmpty()) liveRosterMap else _state.value.liveRoster,
-                gridRoster = if (gridRosterMap.isNotEmpty()) gridRosterMap else _state.value.gridRoster,
+                liveRoster = if (liveRosterResult.isSuccess) liveRosterMap else (rosterCache[liveMonthKey] ?: emptyMap()),
+                gridRoster = if (gridRosterResult.isSuccess) gridRosterMap else (rosterCache[gridMonthKey] ?: emptyMap()),
                 constraints = loadedConstraints,
                 notifications = notifs,
                 dismissedNotificationIds = savedDismissed,
@@ -341,7 +341,12 @@ class EngineerPortalViewModel @Inject constructor(
             newMonth = 12
             newYear--
         }
-        _state.value = _state.value.copy(gridYear = newYear, gridMonth = newMonth)
+        val gridMonthKey = String.format(Locale.US, "%d-%02d", newYear, newMonth)
+        _state.value = _state.value.copy(
+            gridYear = newYear, 
+            gridMonth = newMonth,
+            gridRoster = rosterCache[gridMonthKey] ?: emptyMap()
+        )
         loadGridRosterOnly()
     }
 
@@ -352,7 +357,12 @@ class EngineerPortalViewModel @Inject constructor(
             newMonth = 1
             newYear++
         }
-        _state.value = _state.value.copy(gridYear = newYear, gridMonth = newMonth)
+        val gridMonthKey = String.format(Locale.US, "%d-%02d", newYear, newMonth)
+        _state.value = _state.value.copy(
+            gridYear = newYear, 
+            gridMonth = newMonth,
+            gridRoster = rosterCache[gridMonthKey] ?: emptyMap()
+        )
         loadGridRosterOnly()
     }
 
@@ -363,7 +373,7 @@ class EngineerPortalViewModel @Inject constructor(
             if (cached != null) {
                 _state.value = _state.value.copy(gridRoster = cached, isGridLoading = false)
             } else {
-                _state.value = _state.value.copy(isGridLoading = true)
+                _state.value = _state.value.copy(gridRoster = emptyMap(), isGridLoading = true)
             }
 
             val gridRosterResult = repository.getRoster(gridMonthKey)
@@ -383,7 +393,11 @@ class EngineerPortalViewModel @Inject constructor(
                     gridRoster = gridRosterMap
                 )
             } else {
-                _state.value = _state.value.copy(isGridLoading = false)
+                rosterCache.remove(gridMonthKey)
+                _state.value = _state.value.copy(
+                    isGridLoading = false,
+                    gridRoster = emptyMap()
+                )
             }
         }
     }

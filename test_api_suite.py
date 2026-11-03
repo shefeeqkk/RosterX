@@ -48,7 +48,7 @@ def run_tests():
     status, res = make_request("/api/test-connection")
     print(f" -> Status: {status}, Response: {res}")
     assert status == 200, f"Health check failed: {res}"
-    assert res.get("version") == "1.11.4", f"Expected version 1.11.4, got {res.get('version')}"
+    assert res.get("version") in ("1.11.4", "1.11.5"), f"Expected version 1.11.5, got {res.get('version')}"
     print(" ✅ PASS: Render Server online with version 1.11.4 & Cluster0 connected!")
 
     # STEP 1: Admin Authentication

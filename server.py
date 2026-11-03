@@ -36,7 +36,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.11.4"
+SERVER_VERSION = "1.11.5"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":

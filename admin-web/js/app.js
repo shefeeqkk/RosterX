@@ -1367,13 +1367,6 @@ class RosterXApp {
 
     }
 
-        }
-
-      });
-
-    }
-
-
 
     this.dom.btnOpenSwapsModal.addEventListener('click', () => this.openSwapsModal());
 
