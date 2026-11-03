@@ -907,6 +907,14 @@ class RosterXApp {
 
     this.dom.formEngOff2 = document.getElementById('formEngOff2');
 
+    this.dom.formEngPassword = document.getElementById('formEngPassword');
+
+    this.dom.formEngPasswordLabel = document.getElementById('formEngPasswordLabel');
+
+    this.dom.btnToggleEngPassword = document.getElementById('btnToggleEngPassword');
+
+    this.dom.iconToggleEngPassword = document.getElementById('iconToggleEngPassword');
+
     this.dom.btnCancelEngineerForm = document.getElementById('btnCancelEngineerForm');
 
     this.dom.btnSaveEngineerForm = document.getElementById('btnSaveEngineerForm');
@@ -1251,6 +1259,24 @@ class RosterXApp {
 
     }
 
+    if (this.dom.btnToggleEngPassword && this.dom.formEngPassword) {
+
+      this.dom.btnToggleEngPassword.addEventListener('click', () => {
+
+        const isPass = this.dom.formEngPassword.type === 'password';
+
+        this.dom.formEngPassword.type = isPass ? 'text' : 'password';
+
+        if (this.dom.iconToggleEngPassword) {
+
+          this.dom.iconToggleEngPassword.className = isPass ? 'ph ph-eye-slash text-sm' : 'ph ph-eye text-sm';
+
+        }
+
+      });
+
+    }
+
     this.dom.btnSaveEngineerForm.addEventListener('click', () => this.handleSaveEngineer());
 
     if (this.dom.btnDeleteEngineerForm) {
@@ -1319,21 +1345,27 @@ class RosterXApp {
 
       this.dom.formEngEmail.addEventListener('input', () => {
 
-        if (!this.state.editingEngineerId) {
+        const emailVal = this.dom.formEngEmail.value.trim();
 
-          const emailVal = this.dom.formEngEmail.value;
+        if (emailVal.includes('@')) {
 
-          if (emailVal.includes('@')) {
+          const domainPrefix = emailVal.split('@')[0].trim().toLowerCase();
 
-            const domainPrefix = emailVal.split('@')[0].trim().toLowerCase();
+          if (domainPrefix) this.dom.formEngUsername.value = domainPrefix;
 
-            if (domainPrefix) this.dom.formEngUsername.value = domainPrefix;
+        } else if (emailVal) {
 
-          } else if (!this.dom.formEngUsername.value) {
+          this.dom.formEngUsername.value = emailVal.toLowerCase();
 
-            this.dom.formEngUsername.value = this.getEngineerUsername({ name: this.dom.formEngName.value, email: emailVal });
+        } else if (this.dom.formEngName) {
 
-          }
+          this.dom.formEngUsername.value = this.getEngineerUsername({ name: this.dom.formEngName.value, email: emailVal });
+
+        }
+
+      });
+
+    }
 
         }
 
@@ -3261,15 +3293,19 @@ class RosterXApp {
 
       if (eng.role === 'admin') {
 
-        roleBadgeHtml = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">Lead Admin</span>';
+        roleBadgeHtml = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200">Lead Admin</span>';
+
+      } else if (eng.role === 'manager') {
+
+        roleBadgeHtml = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1"><i class="ph ph-briefcase"></i> Operations Manager</span>';
 
       } else if (eng.role === 'apprentice') {
 
-        roleBadgeHtml = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1"><i class="ph ph-student"></i> Apprentice</span>';
+        roleBadgeHtml = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-300 inline-flex items-center gap-1"><i class="ph ph-student"></i> Apprentice</span>';
 
       } else {
 
-        roleBadgeHtml = '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">NOC Engineer</span>';
+        roleBadgeHtml = '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-100 text-sky-700 border border-sky-200">NOC Engineer</span>';
 
       }
 
@@ -3429,7 +3465,25 @@ class RosterXApp {
 
       const username = this.getEngineerUsername(eng);
 
-      this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-pencil-simple text-blue-600"></i> Edit Engineer: <span class="text-blue-700 font-black">${eng.name}</span> <span class="ml-2 font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">@${username}</span>`;
+      this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-pencil-simple text-blue-600"></i> Edit Account Details: <span class="text-blue-700 font-black">${eng.name}</span> <span class="ml-2 font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">@${username}</span>`;
+
+      if (this.dom.formEngPasswordLabel) this.dom.formEngPasswordLabel.textContent = 'New Password (Optional):';
+
+      if (this.dom.formEngPassword) {
+
+        this.dom.formEngPassword.placeholder = 'Leave blank to keep current password';
+
+        this.dom.formEngPassword.value = '';
+
+        this.dom.formEngPassword.type = 'password';
+
+        this.dom.formEngPassword.required = false;
+
+      }
+
+      if (this.dom.iconToggleEngPassword) this.dom.iconToggleEngPassword.className = 'ph ph-eye text-sm';
+
+      if (this.dom.btnSaveEngineerForm) this.dom.btnSaveEngineerForm.innerHTML = '<i class="ph ph-check"></i> Save Changes';
 
       this.dom.formEngId.value = eng.id || '';
 
@@ -3463,7 +3517,25 @@ class RosterXApp {
 
     } else {
 
-      this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-user-plus text-blue-600"></i> Add New Engineer`;
+      this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-user-plus text-blue-600"></i> Register New Account`;
+
+      if (this.dom.formEngPasswordLabel) this.dom.formEngPasswordLabel.textContent = 'Initial Password *:';
+
+      if (this.dom.formEngPassword) {
+
+        this.dom.formEngPassword.placeholder = 'Enter initial account password';
+
+        this.dom.formEngPassword.value = '';
+
+        this.dom.formEngPassword.type = 'password';
+
+        this.dom.formEngPassword.required = true;
+
+      }
+
+      if (this.dom.iconToggleEngPassword) this.dom.iconToggleEngPassword.className = 'ph ph-eye text-sm';
+
+      if (this.dom.btnSaveEngineerForm) this.dom.btnSaveEngineerForm.innerHTML = '<i class="ph ph-user-plus"></i> Create Account';
 
       this.dom.formEngId.value = `eng_${Date.now().toString().slice(-4)}`;
 
@@ -3488,6 +3560,8 @@ class RosterXApp {
       this.dom.formEngOff1.value = 'Saturday';
 
       this.dom.formEngOff2.value = 'Sunday';
+
+    if (this.dom.formEngPassword) this.dom.formEngPassword.value = '';
 
       if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.add('hidden');
 
@@ -3549,7 +3623,7 @@ class RosterXApp {
 
 
 
-    const confirmMsg = `Are you sure you want to permanently delete engineer "${name}"?\n\nThis will remove them from the active directory, MongoDB Atlas database, and roster grids.`;
+    const confirmMsg = `Are you sure you want to permanently delete account "${name}"?\n\nThis will remove them from the active directory, system database, and roster grids.`;
 
     if (!window.confirm(confirmMsg)) {
 
@@ -3606,7 +3680,7 @@ class RosterXApp {
 
     this.renderTeamTable();
 
-    this.showToast(`Engineer "${name}" has been permanently deleted.`);
+    this.showToast(`Account "${name}" has been permanently deleted.`);
 
   }
 
@@ -3635,6 +3709,8 @@ class RosterXApp {
     this.dom.formEngOff1.value = 'Saturday';
 
     this.dom.formEngOff2.value = 'Sunday';
+
+    if (this.dom.formEngPassword) this.dom.formEngPassword.value = '';
 
     if (this.dom.formEngName) this.dom.formEngName.focus();
 
@@ -3670,11 +3746,23 @@ class RosterXApp {
 
     const off2 = this.dom.formEngOff2.value;
 
+    const rawPass = this.dom.formEngPassword ? this.dom.formEngPassword.value.trim() : '';
+
 
 
     if (!name) {
 
       alert('Roster display name is required.');
+
+      return;
+
+    }
+
+    if (!this.state.editingEngineerId && !rawPass) {
+
+      alert('Initial password is required when registering a new account.');
+
+      if (this.dom.formEngPassword) this.dom.formEngPassword.focus();
 
       return;
 
@@ -3702,13 +3790,11 @@ class RosterXApp {
 
     const engData = {
 
-      id: resolvedUsername,
-
       name,
 
-      username: resolvedUsername,
-
       full_name: fullName,
+
+      username: resolvedUsername,
 
       email,
 
@@ -3718,15 +3804,21 @@ class RosterXApp {
 
       status,
 
+      default_weekly_offs: [off1, off2],
+
       join_date: joinDate,
 
       resignation_date: resignDate,
 
-      default_weekly_offs: [off1, off2],
-
       preferred_shifts: ["FS", "FG", "SS"]
 
     };
+
+    if (rawPass) {
+
+      engData.password = rawPass;
+
+    }
 
 
 
@@ -3836,27 +3928,33 @@ class RosterXApp {
 
 
 
-    // 2. Persist to MongoDB Atlas asynchronously
+    // 2. Persist to system database asynchronously
 
-    this.atlasService.saveEngineers(this.state.engineersList).then(res => {
+    const payloadToSync = JSON.parse(JSON.stringify(engData));
+
+    this.atlasService.saveEngineers([payloadToSync]).then(res => {
 
       if (res && res.success) {
 
         this.atlasService.notifyStatusChange('synced');
 
-        console.log(`[Atlas] Synced engineer ${name} to database.`);
+        console.log(`[Account Directory] Saved account ${resolvedUsername} to database.`);
 
       }
 
     }).catch(err => {
 
-      console.warn('[Atlas] Failed to sync engineer to database:', err);
+      console.warn('[Account Directory] Failed to save account:', err);
 
     });
 
 
 
-    this.showToast(`Saved engineer record: ${name}`);
+    delete engData.password;
+
+
+
+    this.showToast('Account directory updated successfully.');
 
   }
 

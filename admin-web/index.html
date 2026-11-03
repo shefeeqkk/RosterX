@@ -1012,7 +1012,7 @@
 
           <button id="btnAddNewEngineer" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 cursor-pointer">
 
-            <i class="ph ph-user-plus text-sm"></i> + Add Engineer
+            <i class="ph ph-user-plus text-sm"></i> + Register Account
 
           </button>
 
@@ -1028,7 +1028,7 @@
 
             <h4 class="font-bold text-blue-950 text-sm flex items-center gap-2" id="engineerFormTitle">
 
-              <i class="ph ph-pencil-simple text-blue-600 text-base"></i> Edit Engineer Details
+              <i class="ph ph-pencil-simple text-blue-600 text-base"></i> Edit Account Details
 
             </h4>
 
@@ -1068,13 +1068,10 @@
 
             <div>
 
-              <label class="block font-bold text-slate-700 mb-1">Username (Portal Login):</label>
-
+              <label class="block font-bold text-slate-700 mb-1">Username (Domain ID):</label>
               <div class="relative">
-
-                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-indigo-500 font-bold font-mono text-xs">@</span>
-
-                <input type="text" id="formEngUsername" placeholder="e.g. john" class="w-full pl-6 border border-slate-300 rounded-lg p-2 font-mono font-bold text-xs text-indigo-700 bg-indigo-50/40 focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold font-mono text-xs">@</span>
+                <input type="text" id="formEngUsername" readonly placeholder="Auto-derived from email" class="w-full pl-6 border border-slate-300 rounded-lg p-2 font-mono font-bold text-xs text-slate-600 bg-slate-100 cursor-not-allowed focus:outline-hidden" title="Derived automatically from work email">
 
               </div>
 
@@ -1154,7 +1151,7 @@
 
 
 
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-4 gap-3">
 
             <div>
 
@@ -1209,9 +1206,16 @@
                 <option value="Sunday">Sunday</option>
 
               </select>
-
             </div>
-
+            <div>
+              <label id="formEngPasswordLabel" class="block font-bold text-slate-700 mb-1">Initial Password *:</label>
+              <div class="relative">
+                <input type="password" id="formEngPassword" placeholder="Enter account password" class="w-full pr-8 border border-slate-300 rounded-lg p-2 font-mono text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                <button type="button" id="btnToggleEngPassword" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer" title="Toggle password visibility">
+                  <i class="ph ph-eye text-sm" id="iconToggleEngPassword"></i>
+                </button>
+              </div>
+            </div>
           </div>
 
 
@@ -1222,7 +1226,7 @@
 
               <button id="btnDeleteEngineerForm" type="button" class="hidden bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 hover:border-rose-400 px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
 
-                <i class="ph ph-trash"></i> Delete Engineer
+                <i class="ph ph-trash"></i> Delete Account
 
               </button>
 
@@ -1238,7 +1242,7 @@
 
               <button id="btnSaveEngineerForm" type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer">
 
-                <i class="ph ph-check"></i> Save Engineer Record
+                <i class="ph ph-check"></i> Save Changes
 
               </button>
 
