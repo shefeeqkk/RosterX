@@ -67,12 +67,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.verticalScroll
 
 import com.rosterx.domain.model.Engineer
-
 import com.rosterx.domain.model.EngineerRole
-
 import com.rosterx.domain.model.EngineerStatus
-
 import com.rosterx.domain.model.ShiftCode
+import com.rosterx.domain.model.isManagementAccount
 
 import com.rosterx.presentation.admin.AdminRosterState
 
@@ -273,8 +271,7 @@ fun MonthRostersTab(
 
 
     val filteredEngineers = remember(state.engineers, searchQuery, state.currentYear, state.currentMonth, mutableRoster) {
-
-        val nonManagement = state.engineers.filter { it.role != EngineerRole.ADMIN && it.role != EngineerRole.MANAGER }
+        val nonManagement = state.engineers.filter { !it.isManagementAccount }
         val sorted = sortEngineersByWeekOffs(nonManagement)
 
         val active = filterEngineersByResignation(sorted, state.currentYear, state.currentMonth, 1, mutableRoster)
@@ -382,17 +379,12 @@ fun MonthRostersTab(
         // All active peers excluding the current engineer and resigned peers (exact match with web app)
 
         val peerEngineers = remember(eng, state.engineers) {
-
             state.engineers.filter { peer ->
-
                 peer.id != eng.id && 
-
                 !peer.name.equals(eng.name, ignoreCase = true) &&
-
-                peer.status != EngineerStatus.RESIGNED
-
+                peer.status != EngineerStatus.RESIGNED &&
+                !peer.isManagementAccount
             }
-
         }
 
 
@@ -1772,15 +1764,11 @@ fun MonthRostersTab(
                                     )
 
                                 }
-
                             }
-
                         }
-
                     }
-
+                    Spacer(modifier = Modifier.height(72.dp))
                 }
-
             }
 
         }
@@ -1847,7 +1835,7 @@ fun MonthRostersTab(
 
                 Text(
 
-                    text = "Publish Roster to Atlas?",
+                    text = "Publish Roster Schedule?",
 
                     fontWeight = FontWeight.Bold,
 
@@ -1889,7 +1877,7 @@ fun MonthRostersTab(
 
                             Text(
 
-                                text = "Auto-Recovery Backup: An automatic snapshot will be saved to MongoDB Atlas & disk before overwriting. If published wrongly, you can restore previous versions at any time.",
+                                text = "Auto-Recovery Backup: An automatic snapshot will be created before saving. You can restore previous versions at any time from Version History.",
 
                                 fontSize = 11.sp,
 
@@ -2155,7 +2143,7 @@ fun MonthRostersTab(
 
             text = {
 
-                Text("Are you sure you want to restore the roster snapshot from ${b.timestamp}? This will overwrite the current active roster in MongoDB Atlas and the web portal.")
+                Text("Are you sure you want to restore the roster snapshot from ${b.timestamp}? This will update the active roster across all mobile and web portals.")
 
             },
 

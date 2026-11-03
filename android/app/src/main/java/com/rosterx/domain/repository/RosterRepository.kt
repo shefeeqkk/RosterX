@@ -56,6 +56,7 @@ interface RosterRepository {
         sendEmail: Boolean,
         sendInApp: Boolean = true
     ): Result<com.rosterx.data.remote.SendNotificationResponse>
+    suspend fun dismissNotification(notificationId: String, dismissAll: Boolean = false): Result<Unit>
 }
 
 

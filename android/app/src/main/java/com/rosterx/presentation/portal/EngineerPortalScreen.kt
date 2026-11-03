@@ -115,8 +115,8 @@ import com.rosterx.BuildConfig
 import com.rosterx.R
 
 import com.rosterx.domain.model.EngineerRole
-
 import com.rosterx.domain.model.EngineerStatus
+import com.rosterx.domain.model.isManagementAccount
 
 import com.rosterx.util.NetworkUtils
 
@@ -687,15 +687,10 @@ fun EngineerPortalScreen(
         }
 
     ) { paddingValues ->
-
         Box(modifier = Modifier
-
             .fillMaxSize()
-
-            .padding(if (!isFullScreenRoster) paddingValues else PaddingValues(0.dp))
-
+            .padding(if (!isFullScreenRoster) paddingValues else WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).asPaddingValues())
             .background(NeumorphicTokens.Canvas)
-
         ) {
 
             if (state.isLoading) {
@@ -857,15 +852,9 @@ fun DashboardView(
 
 
     LazyColumn(
-
-        modifier = Modifier
-
-            .fillMaxSize()
-
-            .padding(16.dp),
-
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
-
     ) {
 
         // Hero Welcome Banner
@@ -1154,204 +1143,115 @@ fun DashboardView(
 
 
 
-            items(activeNotifs) { (notifId, notif) ->
-
+            items(activeNotifs, key = { it.first }) { (notifId, notif) ->
                 val pColor = when (notif.priority?.lowercase()) {
-
                     "urgent" -> Color(0xFFEF4444)
-
                     "shift_update" -> Color(0xFFF59E0B)
-
                     "broadcast" -> Color(0xFF8B5CF6)
-
                     else -> Color(0xFF3B82F6)
-
                 }
-
-
 
                 val resolvedMsg = (notif.rawMessage ?: "")
-
                     .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
-
                     .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
-
                     .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
 
-
-
-                Card(
-
-                    modifier = Modifier.fillMaxWidth(),
-
-                    shape = RoundedCornerShape(16.dp),
-
-                    colors = CardDefaults.cardColors(
-
-                        containerColor = pColor.copy(alpha = 0.08f)
-
-                    ),
-
-                    border = BorderStroke(1.dp, pColor.copy(alpha = 0.40f))
-
+                AnimatedVisibility(
+                    visible = notifId !in state.dismissedNotificationIds,
+                    enter = fadeIn() + expandVertically(),
+                    exit = slideOutHorizontally(animationSpec = tween(300)) { -it } + fadeOut(animationSpec = tween(200)) + shrinkVertically()
                 ) {
-
-                    Column(
-
-                        modifier = Modifier.padding(14.dp),
-
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-
+                    NeumorphicCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        style = NeumorphicElevationStyle.Raised,
+                        surfaceColor = NeumorphicTokens.Surface,
+                        contentPadding = 16.dp
                     ) {
-
-                        Row(
-
-                            modifier = Modifier.fillMaxWidth(),
-
-                            horizontalArrangement = Arrangement.SpaceBetween,
-
-                            verticalAlignment = Alignment.CenterVertically
-
-                        ) {
-
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(
-
-                                modifier = Modifier.weight(1f),
-
-                                verticalAlignment = Alignment.CenterVertically,
-
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-
-                                Surface(
-
-                                    shape = RoundedCornerShape(6.dp),
-
-                                    color = pColor.copy(alpha = 0.20f)
-
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(pColor.copy(alpha = 0.16f))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = (notif.priority ?: "INFO").uppercase(),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = pColor
+                                        )
+                                    }
                                     Text(
-
-                                        text = (notif.priority ?: "INFO").uppercase(),
-
-                                        fontSize = 10.sp,
-
-                                        fontWeight = FontWeight.ExtraBold,
-
-                                        color = pColor,
-
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-
+                                        text = notif.title ?: "Broadcast Announcement",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = NeumorphicTokens.TextMain,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-
                                 }
 
-                                Text(
-
-                                    text = notif.title ?: "Broadcast Announcement",
-
-                                    fontSize = 14.sp,
-
-                                    fontWeight = FontWeight.Bold,
-
-                                    color = MaterialTheme.colorScheme.onSurface,
-
-                                    maxLines = 1,
-
-                                    overflow = TextOverflow.Ellipsis
-
-                                )
-
+                                // Neumorphic Dismiss / Clear Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .neumorphicInset(
+                                            shape = CircleShape,
+                                            elevation = NeumorphicTokens.ElevationInset,
+                                            surfaceColor = NeumorphicTokens.Surface
+                                        )
+                                        .clickable { onDismissNotification(notifId) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear Notification",
+                                        tint = NeumorphicTokens.TextMuted,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
-
-
-
-                            // Dismiss / Clear Button
-
-                            IconButton(
-
-                                onClick = { onDismissNotification(notifId) },
-
-                                modifier = Modifier.size(28.dp)
-
-                            ) {
-
-                                Icon(
-
-                                    Icons.Default.Close,
-
-                                    contentDescription = "Clear Notification",
-
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-
-                                    modifier = Modifier.size(16.dp)
-
-                                )
-
-                            }
-
-                        }
-
-
-
-                        Text(
-
-                            text = resolvedMsg,
-
-                            fontSize = 12.sp,
-
-                            lineHeight = 17.sp,
-
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-
-                        )
-
-
-
-                        Row(
-
-                            modifier = Modifier.fillMaxWidth(),
-
-                            horizontalArrangement = Arrangement.SpaceBetween,
-
-                            verticalAlignment = Alignment.CenterVertically
-
-                        ) {
 
                             Text(
-
-                                text = "By ${notif.sender ?: "Operations Desk"}",
-
-                                fontSize = 10.sp,
-
-                                fontWeight = FontWeight.SemiBold,
-
-                                color = MaterialTheme.colorScheme.outline
-
+                                text = resolvedMsg,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp,
+                                color = NeumorphicTokens.TextMain.copy(alpha = 0.85f)
                             )
 
-                            if (!notif.createdAt.isNullOrBlank()) {
-
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-
-                                    text = notif.createdAt,
-
+                                    text = "By ${notif.sender ?: "Operations Desk"}",
                                     fontSize = 10.sp,
-
-                                    color = MaterialTheme.colorScheme.outline
-
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NeumorphicTokens.TextMuted
                                 )
-
+                                if (!notif.createdAt.isNullOrBlank()) {
+                                    Text(
+                                        text = notif.createdAt,
+                                        fontSize = 10.sp,
+                                        color = NeumorphicTokens.TextMuted
+                                    )
+                                }
                             }
-
                         }
-
                     }
-
                 }
-
             }
 
         }
@@ -1561,11 +1461,9 @@ fun TeamShiftsView(
 ) {
 
     val activeEngineers = remember(state.engineers, state.selectedDate, state.liveRoster) {
-
-        val sorted = sortEngineersByWeekOffs(state.engineers)
-
+        val nonManagement = state.engineers.filter { !it.isManagementAccount }
+        val sorted = sortEngineersByWeekOffs(nonManagement)
         filterEngineersByResignation(sorted, state.selectedDate.year, state.selectedDate.monthValue, state.selectedDate.dayOfMonth, state.liveRoster)
-
     }
 
 
@@ -1697,13 +1595,9 @@ fun TeamShiftsView(
 
 
         LazyColumn(
-
             modifier = Modifier.fillMaxSize(),
-
-            contentPadding = PaddingValues(12.dp),
-
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
-
         ) {
 
             items(sortedShiftGroups) { (shift, engineersInShift) ->
@@ -1975,15 +1869,9 @@ fun MyCalendarView(
 
 
     LazyColumn(
-
-        modifier = Modifier
-
-            .fillMaxSize()
-
-            .padding(16.dp),
-
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
-
     ) {
 
         // Header with Month Navigation Arrows
@@ -2357,21 +2245,14 @@ fun MonthRosterView(
 
 
     val filteredEngineers = remember(state.engineers, state.searchQuery, state.gridYear, state.gridMonth, state.gridRoster) {
-
-        val sorted = sortEngineersByWeekOffs(state.engineers)
-
+        val nonManagement = state.engineers.filter { !it.isManagementAccount }
+        val sorted = sortEngineersByWeekOffs(nonManagement)
         val active = filterEngineersByResignation(sorted, state.gridYear, state.gridMonth, 1, state.gridRoster)
-
         if (state.searchQuery.isBlank()) active
-
         else active.filter { 
-
             it.name.contains(state.searchQuery, ignoreCase = true) ||
-
             it.username.contains(state.searchQuery, ignoreCase = true)
-
         }
-
     }
 
 
@@ -3308,11 +3189,9 @@ fun MonthRosterView(
                                         Box(modifier = Modifier.width((48 * 3).dp).fillMaxHeight().border(0.5.dp, MaterialTheme.colorScheme.outlineVariant))
 
                                     }
-
                                 }
-
+                                Spacer(modifier = Modifier.height(72.dp))
                             }
-
                         }
 
                     }
@@ -3366,15 +3245,9 @@ fun AccountView(
 
 
     LazyColumn(
-
-        modifier = Modifier
-
-            .fillMaxSize()
-
-            .padding(16.dp),
-
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
-
     ) {
 
         // User Profile Header

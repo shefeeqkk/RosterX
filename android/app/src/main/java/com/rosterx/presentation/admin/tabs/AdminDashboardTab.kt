@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
+import com.rosterx.domain.model.isManagementAccount
 import com.rosterx.presentation.admin.AdminRosterState
 import com.rosterx.presentation.portal.getRosterForEngineer
 import com.rosterx.ui.neumorphic.*
@@ -200,7 +201,7 @@ fun AdminDashboardTab(
     val violations = remember(state.roster, state.engineers, state.currentYear, state.currentMonth, state.constraints) {
         val list = mutableListOf<RuleViolation>()
         val checkedEngineers = mutableSetOf<String>()
-        val activeEngineers = state.engineers.filter { it.status != EngineerStatus.RESIGNED }
+        val activeEngineers = state.engineers.filter { it.status != EngineerStatus.RESIGNED && !it.isManagementAccount }
 
         val targetNight = state.constraints.nightHeadcount.coerceAtLeast(1)
         val minFs = state.constraints.fsMin.coerceAtLeast(1)

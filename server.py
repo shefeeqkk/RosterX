@@ -36,7 +36,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.11.0"
+SERVER_VERSION = "1.11.4"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -82,18 +82,18 @@ DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "")
 RESEND_API_KEY = DEFAULT_RESEND_API_KEY
 RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <onboarding@resend.dev>")
 
-# Sanitized Mock Directory (Zero Real Employee PII)
+# Official Team Directory
 DEFAULT_SERVER_ENGINEERS = [
-    {"name": "ALEX RIVERA", "username": "alexr", "email": "alexr@rosterx.dev", "phone": "+15550100003", "role": "engineer"},
-    {"name": "SARAH CONNOR", "username": "sarahc", "email": "sarahc@rosterx.dev", "phone": "+15550100004", "role": "admin"},
-    {"name": "DAVID SILVA", "username": "davids", "email": "davids@rosterx.dev", "phone": "+15550100005", "role": "engineer"},
-    {"name": "ELENA ROSTOVA", "username": "elenar", "email": "elenar@rosterx.dev", "phone": "+15550100006", "role": "admin"},
-    {"name": "SAMIR PATEL", "username": "samirp", "email": "samirp@rosterx.dev", "phone": "+15550100007", "role": "engineer"},
-    {"name": "HANNAH KIM", "username": "hannahk", "email": "hannahk@rosterx.dev", "phone": "+15550100008", "role": "engineer"},
-    {"name": "MARCUS VANCE", "username": "marcusv", "email": "marcusv@rosterx.dev", "phone": "+15550100001", "role": "engineer"},
-    {"name": "DANIEL CHEN", "username": "danielc", "email": "danielc@rosterx.dev", "phone": "+15550100010", "role": "apprentice"},
-    {"name": "RACHEL RAY", "username": "rachelr", "email": "rachelr@rosterx.dev", "phone": "+15550100009", "role": "apprentice"},
-    {"name": "ROBERT KING", "username": "robertk", "email": "robertk@rosterx.dev", "phone": "+15550100002", "role": "engineer"},
+    {"name": "NANDU ANTHIKAT", "username": "nandua", "full_name": "Nandu Anthikat", "email": "nandua@tejasnetworks.com", "phone": "+919811001103", "role": "engineer", "status": "Active", "default_weekly_offs": ["Sunday", "Monday"], "preferred_shifts": ["FS", "FG"]},
+    {"name": "SHEFEEQ", "username": "shefeeqkk", "full_name": "Shefeeq K K", "email": "shefeeqkk@tejasnetworks.com", "phone": "+91 9809226169", "role": "admin", "status": "Active", "default_weekly_offs": ["Monday", "Tuesday"], "preferred_shifts": ["G", "FG"]},
+    {"name": "DYANI DESOZA", "username": "dyanid", "full_name": "Dyani DeSoza", "email": "dyanid@tejasnetworks.com", "phone": "+919811001105", "role": "engineer", "status": "Active", "default_weekly_offs": ["Tuesday", "Wednesday"], "preferred_shifts": ["SS", "SG"]},
+    {"name": "ATUL KANGRALKAR", "username": "athulka", "full_name": "Atul Kangralkar", "email": "athulka@tejasnetworks.com", "phone": "+919811001106", "role": "admin", "status": "Active", "default_weekly_offs": ["Wednesday", "Thursday"], "preferred_shifts": ["FG", "G"]},
+    {"name": "SILAMBARASAN", "username": "silambarasan", "full_name": "Silambarasan V", "email": "silambarasan@tejasnetworks.com", "phone": "+919811001107", "role": "engineer", "status": "Active", "default_weekly_offs": ["Thursday", "Friday"], "preferred_shifts": ["FS", "SS"]},
+    {"name": "HEMANTH", "username": "hemanthti", "full_name": "Hemanth K", "email": "hemanthti@tejasnetworks.com", "phone": "+919811001108", "role": "engineer", "status": "Active", "default_weekly_offs": ["Friday", "Saturday"], "preferred_shifts": ["SG", "G"]},
+    {"name": "MANOJ", "username": "manoj", "full_name": "Manoj N", "email": "manoj@tejasnetworks.com", "phone": "+919811001101", "role": "engineer", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["FS", "FG", "SS"]},
+    {"name": "DHANUSH", "username": "dhanush", "full_name": "Dhanush P", "email": "dhanush@tejasnetworks.com", "phone": "+919811001110", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
+    {"name": "ROHIT", "username": "rohit", "full_name": "Rohit M", "email": "rohit@tejasnetworks.com", "phone": "+919811001109", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["G"]},
+    {"name": "RAJ KUMAR", "username": "rajkumar", "full_name": "Raj Kumar S", "email": "rajkumar@tejasnetworks.com", "phone": "+919811001102", "role": "engineer", "status": "Resigned", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
 ]
 
 
@@ -226,6 +226,29 @@ def find_user_by_identifier(identifier: str):
 
     return None
 
+def is_management_account(user_dict: dict) -> bool:
+    """
+    Determine if an account is solely a management or system administrator account.
+    System administrators, generic admin, and managers exist solely for authentication
+    and operations, and are excluded from team roster directory and shift assignments.
+    """
+    if not isinstance(user_dict, dict):
+        return False
+    uname = str(user_dict.get("username", "") or user_dict.get("id", "") or user_dict.get("engineerId", "")).strip().lower()
+    n = str(user_dict.get("name", "")).strip().lower()
+    fn = str(user_dict.get("full_name", "")).strip().lower()
+    role = str(user_dict.get("role", "")).strip().lower()
+    if uname in ("shefeeqkk", "shefeeq", "athulka"):
+        return False
+    # Accounts dedicated strictly to administrative/system tasks
+    return (
+        uname in ("admin", "manager", "sysadmin", "system_admin", "administrator") or
+        n in ("admin", "system administrator", "system admin") or
+        "system admin" in n or "system administrator" in n or
+        "system admin" in fn or "system administrator" in fn or
+        (role == "admin" and ("admin" in uname or "admin" in n or "system" in n))
+    )
+
 def is_login_rate_limited(ip: str, identifier: str) -> bool:
     """Rate limit: Max 5 failed attempts per 5 minutes per IP/identifier."""
     now = time.time()
@@ -338,14 +361,26 @@ def init_atlas_connection(env):
         try:
             ATLAS_DB.engineers.update_many({}, {"$unset": {"id": "", "engineer_id": ""}})
             ATLAS_DB.engineers.create_index("username", unique=True)
-            recalculate_dynamic_preferred_shifts()
-        except Exception as e:
-            print(f"  [ATLAS INIT SCHEMA ERROR] {e}")
+            # Purge mock accounts from Atlas DB
+            mock_un = ["alexr", "sarahc", "davids", "elenar", "samirp", "hannahk", "marcusv", "danielc", "rachelr", "robertk"]
+            del_res = ATLAS_DB.engineers.delete_many({"username": {"$in": mock_un}})
+            if del_res.deleted_count > 0:
+                print(f"  [ATLAS PURGE] Removed {del_res.deleted_count} mock engineers from Atlas DB.")
 
-        # Ensure schema integrity: purge legacy id/engineer_id, ensure username unique index, and calculate preferred shifts
-        try:
-            ATLAS_DB.engineers.update_many({}, {"$unset": {"id": "", "engineer_id": ""}})
-            ATLAS_DB.engineers.create_index("username", unique=True)
+            # Purge any management accounts from saved rosters in Atlas DB
+            try:
+                for r_doc in list(ATLAS_DB.rosters.find()):
+                    r_id = r_doc.get("_id")
+                    r_engs = r_doc.get("engineers", [])
+                    r_ros = r_doc.get("roster", [])
+                    clean_engs = [e for e in r_engs if not is_management_account(e)]
+                    clean_ros = [e for e in r_ros if not is_management_account(e)]
+                    if len(clean_engs) != len(r_engs) or len(clean_ros) != len(r_ros):
+                        ATLAS_DB.rosters.update_one({"_id": r_id}, {"$set": {"engineers": clean_engs, "roster": clean_ros}})
+                        print(f"  [ATLAS ROSTER SANITIZE] Purged management accounts from roster '{r_id}'.")
+            except Exception as r_err:
+                print(f"  [ATLAS ROSTER SANITIZE NOTE] {r_err}")
+
             recalculate_dynamic_preferred_shifts()
         except Exception as e:
             print(f"  [ATLAS INIT SCHEMA ERROR] {e}")
@@ -861,11 +896,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             try:
                 doc = ATLAS_DB.rosters.find_one({"_id": month_id})
                 if doc:
-                    # Exclude admin and manager roles from shift roster
+                    # Exclude pure management accounts and manager/admin from duty shifts
                     if "engineers" in doc and isinstance(doc["engineers"], list):
-                        doc["engineers"] = [e for e in doc["engineers"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
+                        doc["engineers"] = [e for e in doc["engineers"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
                     if "roster" in doc and isinstance(doc["roster"], list):
-                        doc["roster"] = [e for e in doc["roster"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
+                        doc["roster"] = [e for e in doc["roster"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
                     self.send_json_response({
                         "success": True,
                         "document": doc,
@@ -929,7 +964,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if not docs:
                 docs = [dict(e) for e in DEFAULT_SERVER_ENGINEERS]
 
-            # Privacy filtering: Remove password hashes and mask personal phone numbers for non-admins
             sanitized_docs = []
             for d in docs:
                 item = dict(d)
@@ -990,6 +1024,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 return
 
             notifs = list(SERVER_NOTIFICATIONS)
+            dismissed_ids = []
             if ATLAS_DB is not None:
                 try:
                     db_notifs = list(ATLAS_DB.notifications.find({}, {"_id": 0}).sort("timestamp", -1).limit(50))
@@ -997,9 +1032,19 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         notifs = db_notifs
                 except Exception as e:
                     print(f"  [ATLAS] Notifications fetch error: {e}")
+
+                if claims.get("username"):
+                    try:
+                        u_doc = ATLAS_DB.engineers.find_one({"username": str(claims["username"]).lower()}, {"dismissed_notifications": 1})
+                        if u_doc and "dismissed_notifications" in u_doc:
+                            dismissed_ids = list(u_doc["dismissed_notifications"])
+                    except Exception as e:
+                        print(f"  [ATLAS] Dismissed notifs fetch error: {e}")
+
             self.send_json_response({
                 "success": True,
                 "notifications": notifs,
+                "dismissed_notification_ids": dismissed_ids,
                 "count": len(notifs)
             })
             return
@@ -1176,6 +1221,14 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "token": token
                 })
                 return
+
+            # Invalid credentials or unknown user: return explicit 401 error
+            record_failed_login(client_ip, identifier)
+            self.send_json_response({
+                "success": False,
+                "message": "Invalid username or password."
+            }, 401)
+            return
 
             
 
@@ -1486,11 +1539,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     except Exception as b_err:
                         print(f"  [BACKUP WARNING] {b_err}")
 
-                # Ensure admin and manager are never included in shift roster
+                # Ensure admin and manager are never scheduled on shift desk
                 if "engineers" in body and isinstance(body["engineers"], list):
-                    body["engineers"] = [e for e in body["engineers"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
+                    body["engineers"] = [e for e in body["engineers"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
                 if "roster" in body and isinstance(body["roster"], list):
-                    body["roster"] = [e for e in body["roster"] if str(e.get("role", "")).lower() not in ("admin", "manager")]
+                    body["roster"] = [e for e in body["roster"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
                 body["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 body["published_by"] = claims.get("name") or "Admin"
                 ATLAS_DB.rosters.update_one({"_id": doc_id}, {"$set": body}, upsert=True)
@@ -1585,12 +1638,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         # 3.4 POST /api/engineers (Sync Team Directory)
         if clean_path in ("/api/engineers", "/api/engineers/"):
-            claims = self.require_auth(["admin"])
+            claims = self.require_auth(["admin", "manager"])
             if not claims:
                 return
 
             if ATLAS_DB is None:
-                self.send_json_response({"success": False, "message": "Atlas database is not connected"}, 503)
+                self.send_json_response({"success": False, "message": "Database is not connected"}, 503)
                 return
 
             engineers = body if isinstance(body, list) else body.get("engineers", [])
@@ -1627,8 +1680,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                     # Never overwrite existing password hash with blank or plaintext
                     if "password" in eng and not str(eng["password"]).startswith("pbkdf2_sha256$"):
-                        if eng["password"]:
-                            eng["password"] = hash_password(str(eng["password"]))
+                        if str(eng["password"]).strip():
+                            eng["password"] = hash_password(str(eng["password"]).strip())
                         else:
                             del eng["password"]
 
@@ -1642,16 +1695,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                 self.send_json_response({
                     "success": True,
-                    "message": f"Successfully synchronized {saved_count} engineers to MongoDB Atlas!",
+                    "message": f"Successfully updated {saved_count} accounts.",
                     "count": saved_count
                 })
             except Exception as e:
-                self.send_json_response({"success": False, "message": f"Failed to sync engineers: {e}"}, 500)
+                self.send_json_response({"success": False, "message": f"Failed to sync accounts: {e}"}, 500)
             return
 
         # 3.5 POST /api/engineers/delete
         if clean_path in ("/api/engineers/delete", "/api/engineers/delete/"):
-            claims = self.require_auth(["admin"])
+            claims = self.require_auth(["admin", "manager"])
             if not claims:
                 return
 
@@ -1681,17 +1734,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                 global DEFAULT_SERVER_ENGINEERS
                 DEFAULT_SERVER_ENGINEERS = [
-    {"name": "ALEX RIVERA", "username": "alexr", "email": "alexr@rosterx.dev", "phone": "+15550100003", "role": "engineer"},
-    {"name": "SARAH CONNOR", "username": "sarahc", "email": "sarahc@rosterx.dev", "phone": "+15550100004", "role": "admin"},
-    {"name": "DAVID SILVA", "username": "davids", "email": "davids@rosterx.dev", "phone": "+15550100005", "role": "engineer"},
-    {"name": "ELENA ROSTOVA", "username": "elenar", "email": "elenar@rosterx.dev", "phone": "+15550100006", "role": "admin"},
-    {"name": "SAMIR PATEL", "username": "samirp", "email": "samirp@rosterx.dev", "phone": "+15550100007", "role": "engineer"},
-    {"name": "HANNAH KIM", "username": "hannahk", "email": "hannahk@rosterx.dev", "phone": "+15550100008", "role": "engineer"},
-    {"name": "MARCUS VANCE", "username": "marcusv", "email": "marcusv@rosterx.dev", "phone": "+15550100001", "role": "engineer"},
-    {"name": "DANIEL CHEN", "username": "danielc", "email": "danielc@rosterx.dev", "phone": "+15550100010", "role": "apprentice"},
-    {"name": "RACHEL RAY", "username": "rachelr", "email": "rachelr@rosterx.dev", "phone": "+15550100009", "role": "apprentice"},
-    {"name": "ROBERT KING", "username": "robertk", "email": "robertk@rosterx.dev", "phone": "+15550100002", "role": "engineer"},
-]
+                    e for e in DEFAULT_SERVER_ENGINEERS
+                    if e.get("username") != eng_username and e.get("name") != eng_name
+                ]
 
                 self.send_json_response({
                     "success": True,

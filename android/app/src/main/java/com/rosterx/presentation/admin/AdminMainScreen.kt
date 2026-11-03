@@ -289,23 +289,14 @@ fun AdminMainScreen(
             },
 
             bottomBar = {
-
                 val adminNavItems = remember {
-
                     listOf(
-
                         NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
-
-                        NavTabItem(1, "Team", Icons.Default.Group),
-
+                        NavTabItem(1, "Register", Icons.Default.PersonAdd),
                         NavTabItem(2, "Rosters", Icons.Default.CalendarMonth),
-
                         NavTabItem(3, "Broadcast", Icons.Default.Campaign),
-
                         NavTabItem(4, "Settings", Icons.Default.Settings)
-
                     )
-
                 }
 
 
@@ -333,15 +324,10 @@ fun AdminMainScreen(
             }
 
         ) { paddingValues ->
-
             Box(modifier = Modifier
-
                 .fillMaxSize()
-
-                .padding(if (!isFullScreenRoster) paddingValues else PaddingValues(0.dp))
-
+                .padding(if (!isFullScreenRoster) paddingValues else WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).asPaddingValues())
                 .background(NeumorphicTokens.Canvas)
-
             ) {
 
                 if (state.isLoading) {

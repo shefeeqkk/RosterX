@@ -35,6 +35,7 @@ import com.rosterx.data.remote.NotificationDto
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
+import com.rosterx.domain.model.isManagementAccount
 import com.rosterx.presentation.admin.AdminRosterState
 
 enum class NotificationPriority(val key: String, val label: String, val color: Color) {
@@ -63,7 +64,7 @@ fun NotificationsTab(
 
     // Active (non-resigned) engineers for recipient selection
     val activeEngineers = remember(state.engineers) {
-        state.engineers.filter { it.status != EngineerStatus.RESIGNED }
+        state.engineers.filter { it.status != EngineerStatus.RESIGNED && !it.isManagementAccount }
     }
 
     // Form states

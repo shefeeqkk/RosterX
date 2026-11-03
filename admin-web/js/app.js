@@ -337,77 +337,64 @@ class RosterXApp {
 
 
   loadEngineersList() {
-
     let list = null;
-
     if (typeof localStorage !== 'undefined') {
-
       const stored = localStorage.getItem(STORAGE_KEYS.ENGINEERS_LIST);
-
       if (stored) {
-
         try { list = JSON.parse(stored); } catch (e) { console.error('Failed to parse stored engineers', e); }
-
       }
-
     }
-
     if (!list || !Array.isArray(list) || list.length === 0) {
-
       list = JSON.parse(JSON.stringify(DEFAULT_ENGINEERS));
-
     }
-
-    return this.sortEngineersByWeekOffs(list);
-
+    const isMgmt = (d) => {
+      const u = String(d.username || d.id || '').trim().toLowerCase();
+      const n = String(d.name || '').trim().toLowerCase();
+      const fn = String(d.full_name || '').trim().toLowerCase();
+      const r = String(d.role || '').trim().toLowerCase();
+      if (u === 'shefeeqkk' || u === 'shefeeq' || u === 'athulka') return false;
+      return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' ||
+             n === 'admin' || n === 'manager' || n.includes('system admin') || n.includes('administrator') ||
+             fn.includes('system admin') || fn.includes('administrator') ||
+             r === 'admin' || r === 'manager';
+    };
+    const cleaned = list.filter(e => !isMgmt(e));
+    return this.sortEngineersByWeekOffs(cleaned);
   }
-
-
 
   saveEngineersList() {
-
     this.state.engineersList = this.sortEngineersByWeekOffs(this.state.engineersList);
-
     if (typeof localStorage !== 'undefined') {
-
       localStorage.setItem(STORAGE_KEYS.ENGINEERS_LIST, JSON.stringify(this.state.engineersList));
-
     }
-
   }
 
-
-
   async syncEngineersFromAtlas() {
-
     try {
-
       const docs = await this.atlasService.getEngineers();
-
-      if (Array.isArray(docs) && docs.length > 0) {
-
-        // Merge with current state (so local edits and defaults are harmonized)
-
-        const merged = this.atlasService.mergeEngineers(docs, this.state.engineersList);
-
-        this.state.engineersList = this.sortEngineersByWeekOffs(merged);
-
+      if (Array.isArray(docs)) {
+        const mockUn = new Set(["alexr", "sarahc", "davids", "elenar", "samirp", "hannahk", "marcusv", "danielc", "rachelr", "robertk"]);
+        const isMgmt = (d) => {
+          const u = String(d.username || d.id || '').trim().toLowerCase();
+          const n = String(d.name || '').trim().toLowerCase();
+          const fn = String(d.full_name || '').trim().toLowerCase();
+          const r = String(d.role || '').trim().toLowerCase();
+          if (u === 'shefeeqkk' || u === 'shefeeq' || u === 'athulka') return false;
+          return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' ||
+                 n === 'admin' || n === 'manager' || n.includes('system admin') || n.includes('administrator') ||
+                 fn.includes('system admin') || fn.includes('administrator') ||
+                 r === 'admin' || r === 'manager';
+        };
+        const validDocs = docs.filter(d => !mockUn.has(String(d.username || '').toLowerCase()) && !isMgmt(d));
+        this.state.engineersList = this.sortEngineersByWeekOffs(validDocs);
         this.saveEngineersList();
-
         if (typeof window !== 'undefined' && window.authService) {
-
           window.authService.syncEngineersList(this.state.engineersList);
-
         }
-
       }
-
     } catch (e) {
-
       console.warn('Failed to sync engineers from Atlas on init:', e);
-
     }
-
   }
 
 
@@ -3573,29 +3560,18 @@ class RosterXApp {
 
 
     try {
-
+      const authHeaders = this.atlasService ? this.atlasService.getAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/engineers/delete', {
-
         method: 'POST',
-
-        headers: { 'Content-Type': 'application/json' },
-
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ id, name, username })
-
       });
-
       const data = await res.json().catch(() => ({}));
-
       if (res.ok && data.success) {
-
         console.log(`[DeleteEngineer] Server confirmed deletion: ${data.message}`);
-
       }
-
     } catch (err) {
-
       console.warn(`[DeleteEngineer] Server delete request warning:`, err);
-
     }
 
 

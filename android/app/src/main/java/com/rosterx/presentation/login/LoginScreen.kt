@@ -256,6 +256,8 @@ fun LoginScreen(
                     radius = 1600f
                 )
             )
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .imePadding()
             .verticalScroll(scrollState),
         contentAlignment = Alignment.Center

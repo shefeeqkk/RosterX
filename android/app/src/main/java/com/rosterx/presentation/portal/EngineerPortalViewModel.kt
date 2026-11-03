@@ -172,453 +172,260 @@ class EngineerPortalViewModel @Inject constructor(
 
 
 
-    fun loadData() {
-
+    fun loadData(silent: Boolean = false) {
         viewModelScope.launch {
+            val selected = _state.value.selectedDate
+            val liveMonthKey = String.format(Locale.US, "%d-%02d", selected.year, selected.monthValue)
+            val gridMonthKey = String.format(Locale.US, "%d-%02d", _state.value.gridYear, _state.value.gridMonth)
 
-            _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+            val cachedLive = rosterCache[liveMonthKey]
+            val cachedGrid = rosterCache[gridMonthKey]
 
-            
+            if (cachedLive != null && _state.value.engineers.isNotEmpty()) {
+                _state.value = _state.value.copy(
+                    liveRoster = cachedLive,
+                    gridRoster = cachedGrid ?: cachedLive,
+                    isLoading = false
+                )
+            } else if (!silent) {
+                _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+            }
 
             val engineersResult = repository.getEngineers()
 
-            
-
             // If connection failed immediately, abort loading logic to clear spinner faster
-
             if (engineersResult.isFailure) {
-
                 _state.value = _state.value.copy(
-
                     isLoading = false,
-
                     isConnected = false,
-
                     errorMessage = engineersResult.exceptionOrNull()?.message ?: "Failed to connect to backend server."
-
                 )
-
                 return@launch
-
             }
-
-            
 
             val engineers = engineersResult.getOrElse { emptyList() }
 
-
-
             // Merge details (like defaultWeeklyOffs) into loggedInEngineer
-
             val current = _state.value.loggedInEngineer
-
             if (current != null && engineers.isNotEmpty()) {
-
                 val fullProfile = engineers.find { 
-
                     it.username.equals(current.username, ignoreCase = true) ||
-
                     it.id.equals(current.id, ignoreCase = true) ||
-
                     it.name.equals(current.name, ignoreCase = true)
-
                 }
-
                 if (fullProfile != null) {
-
                     val mergedUser = current.copy(
-
                         defaultWeeklyOffs = if (fullProfile.defaultWeeklyOffs.isNotEmpty()) fullProfile.defaultWeeklyOffs else current.defaultWeeklyOffs,
-
                         email = if (fullProfile.email.isNotBlank()) fullProfile.email else current.email,
-
                         phone = if (fullProfile.phone.isNotBlank()) fullProfile.phone else current.phone
-
                     )
-
                     sessionManager.setCurrentUser(mergedUser)
-
                     _state.value = _state.value.copy(loggedInEngineer = mergedUser)
-
                 }
-
             }
-
-
 
             // 2. Load Live Operational Roster for selectedDate
-
-            val selected = _state.value.selectedDate
-
-            val liveMonthKey = String.format(Locale.US, "%d-%02d", selected.year, selected.monthValue)
-
             val liveRosterResult = repository.getRoster(liveMonthKey)
-
-
-
             val liveRosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
-
             if (liveRosterResult.isSuccess) {
-
                 val rawRoster = liveRosterResult.getOrNull() ?: emptyMap()
-
                 rawRoster.forEach { (engId, daysMap) ->
-
                     val shiftMap = mutableMapOf<String, ShiftCode>()
-
                     daysMap.forEach { (day, shiftStr) ->
-
                         shiftMap[day] = ShiftCode.fromString(shiftStr)
-
                     }
-
                     liveRosterMap[engId] = shiftMap
-
                 }
-
+                rosterCache[liveMonthKey] = liveRosterMap
             }
-
-
 
             // 3. Load Grid Roster for Month Grid section
-
-            val gridMonthKey = String.format(Locale.US, "%d-%02d", _state.value.gridYear, _state.value.gridMonth)
-
             val gridRosterResult = if (gridMonthKey == liveMonthKey) liveRosterResult else repository.getRoster(gridMonthKey)
-
-            
-
             val gridRosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
-
             if (gridRosterResult.isSuccess) {
-
                 val rawRoster = gridRosterResult.getOrNull() ?: emptyMap()
-
                 rawRoster.forEach { (engId, daysMap) ->
-
                     val shiftMap = mutableMapOf<String, ShiftCode>()
-
                     daysMap.forEach { (day, shiftStr) ->
-
                         shiftMap[day] = ShiftCode.fromString(shiftStr)
-
                     }
-
                     gridRosterMap[engId] = shiftMap
-
                 }
-
+                rosterCache[gridMonthKey] = gridRosterMap
             }
-
-
 
             val notifs = repository.getNotifications().getOrElse { emptyList() }
-
             val savedDismissed = sessionManager.getDismissedNotifications()
-
             val loadedConstraints = repository.getConstraints().getOrDefault(com.rosterx.domain.model.OperationalConstraints())
 
-
-
             _state.value = _state.value.copy(
-
                 isLoading = false,
-
                 engineers = engineers,
-
-                liveRoster = liveRosterMap,
-
-                gridRoster = gridRosterMap,
-
+                liveRoster = if (liveRosterMap.isNotEmpty()) liveRosterMap else _state.value.liveRoster,
+                gridRoster = if (gridRosterMap.isNotEmpty()) gridRosterMap else _state.value.gridRoster,
                 constraints = loadedConstraints,
-
                 notifications = notifs,
-
                 dismissedNotificationIds = savedDismissed,
-
                 isConnected = engineersResult.isSuccess
-
             )
-
-            
 
             if (engineersResult.isFailure) {
-
                 _state.value = _state.value.copy(
-
                     errorMessage = engineersResult.exceptionOrNull()?.message ?: "Failed to load data. Please check connection."
-
                 )
-
             }
-
         }
-
     }
-
-
 
     fun resetToCurrentDateAndMonth() {
-
         val today = LocalDate.now()
-
+        val currentKey = String.format(Locale.US, "%d-%02d", today.year, today.monthValue)
+        val cached = rosterCache[currentKey]
         _state.value = _state.value.copy(
-
             selectedDate = today,
-
             gridYear = today.year,
-
-            gridMonth = today.monthValue
-
+            gridMonth = today.monthValue,
+            liveRoster = cached ?: _state.value.liveRoster,
+            gridRoster = cached ?: _state.value.gridRoster
         )
-
-        loadData()
-
+        loadData(silent = cached != null && _state.value.engineers.isNotEmpty())
     }
-
-
 
     fun selectDate(date: LocalDate) {
-
         val oldKey = String.format(Locale.US, "%d-%02d", _state.value.selectedDate.year, _state.value.selectedDate.monthValue)
-
         val newKey = String.format(Locale.US, "%d-%02d", date.year, date.monthValue)
-
-        
-
         _state.value = _state.value.copy(selectedDate = date)
-
-        
-
         if (oldKey != newKey || _state.value.liveRoster.isEmpty()) {
-
             loadLiveRosterOnly()
-
         }
-
     }
-
-
 
     private fun loadLiveRosterOnly() {
-
         viewModelScope.launch {
-
             val selected = _state.value.selectedDate
-
             val liveMonthKey = String.format(Locale.US, "%d-%02d", selected.year, selected.monthValue)
+            val cached = rosterCache[liveMonthKey]
+            if (cached != null) {
+                _state.value = _state.value.copy(liveRoster = cached)
+            }
 
             val liveRosterResult = repository.getRoster(liveMonthKey)
-
-
-
             val liveRosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
-
             if (liveRosterResult.isSuccess) {
-
                 val rawRoster = liveRosterResult.getOrNull() ?: emptyMap()
-
                 rawRoster.forEach { (engId, daysMap) ->
-
                     val shiftMap = mutableMapOf<String, ShiftCode>()
-
                     daysMap.forEach { (day, shiftStr) ->
-
                         shiftMap[day] = ShiftCode.fromString(shiftStr)
-
                     }
-
                     liveRosterMap[engId] = shiftMap
-
                 }
-
+                rosterCache[liveMonthKey] = liveRosterMap
+                _state.value = _state.value.copy(liveRoster = liveRosterMap)
             }
-
-
-
-            _state.value = _state.value.copy(liveRoster = liveRosterMap)
-
         }
-
     }
-
-
 
     fun previousDay() {
-
         selectDate(_state.value.selectedDate.minusDays(1))
-
     }
-
-
 
     fun nextDay() {
-
         selectDate(_state.value.selectedDate.plusDays(1))
-
     }
-
-
 
     fun previousMonth() {
-
         var newMonth = _state.value.gridMonth - 1
-
         var newYear = _state.value.gridYear
-
         if (newMonth < 1) {
-
             newMonth = 12
-
             newYear--
-
         }
-
         _state.value = _state.value.copy(gridYear = newYear, gridMonth = newMonth)
-
         loadGridRosterOnly()
-
     }
-
-
 
     fun nextMonth() {
-
         var newMonth = _state.value.gridMonth + 1
-
         var newYear = _state.value.gridYear
-
         if (newMonth > 12) {
-
             newMonth = 1
-
             newYear++
-
         }
-
         _state.value = _state.value.copy(gridYear = newYear, gridMonth = newMonth)
-
         loadGridRosterOnly()
-
     }
-
-
 
     private fun loadGridRosterOnly() {
-
         viewModelScope.launch {
-
-            _state.value = _state.value.copy(isGridLoading = true)
-
             val gridMonthKey = String.format(Locale.US, "%d-%02d", _state.value.gridYear, _state.value.gridMonth)
-
-            val gridRosterResult = repository.getRoster(gridMonthKey)
-
-            
-
-            val gridRosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
-
-            if (gridRosterResult.isSuccess) {
-
-                val rawRoster = gridRosterResult.getOrNull() ?: emptyMap()
-
-                rawRoster.forEach { (engId, daysMap) ->
-
-                    val shiftMap = mutableMapOf<String, ShiftCode>()
-
-                    daysMap.forEach { (day, shiftStr) ->
-
-                        shiftMap[day] = ShiftCode.fromString(shiftStr)
-
-                    }
-
-                    gridRosterMap[engId] = shiftMap
-
-                }
-
+            val cached = rosterCache[gridMonthKey]
+            if (cached != null) {
+                _state.value = _state.value.copy(gridRoster = cached, isGridLoading = false)
+            } else {
+                _state.value = _state.value.copy(isGridLoading = true)
             }
 
-
-
-            _state.value = _state.value.copy(
-
-                isGridLoading = false,
-
-                gridRoster = gridRosterMap
-
-            )
-
+            val gridRosterResult = repository.getRoster(gridMonthKey)
+            val gridRosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
+            if (gridRosterResult.isSuccess) {
+                val rawRoster = gridRosterResult.getOrNull() ?: emptyMap()
+                rawRoster.forEach { (engId, daysMap) ->
+                    val shiftMap = mutableMapOf<String, ShiftCode>()
+                    daysMap.forEach { (day, shiftStr) ->
+                        shiftMap[day] = ShiftCode.fromString(shiftStr)
+                    }
+                    gridRosterMap[engId] = shiftMap
+                }
+                rosterCache[gridMonthKey] = gridRosterMap
+                _state.value = _state.value.copy(
+                    isGridLoading = false,
+                    gridRoster = gridRosterMap
+                )
+            } else {
+                _state.value = _state.value.copy(isGridLoading = false)
+            }
         }
-
     }
-
-
 
     fun updateSearchQuery(query: String) {
-
         _state.value = _state.value.copy(searchQuery = query)
-
     }
-
-
 
     fun changePassword(newPass: String) {
-
         if (newPass.length < 4) {
-
             _state.value = _state.value.copy(errorMessage = "Password must be at least 4 characters long.")
-
             return
-
         }
-
         _state.value = _state.value.copy(
-
             successMessage = "Password updated successfully!",
-
             errorMessage = null
-
         )
-
     }
-
-
 
     fun dismissNotification(id: String) {
-
         sessionManager.dismissNotification(id)
-
         _state.value = _state.value.copy(
-
             dismissedNotificationIds = _state.value.dismissedNotificationIds + id
-
         )
-
+        viewModelScope.launch {
+            repository.dismissNotification(id)
+        }
     }
-
-
 
     fun clearAllNotifications() {
-
         val ids = _state.value.notifications.mapIndexed { idx, n -> n.id ?: "notif_$idx" }
-
         sessionManager.clearAllNotifications(ids)
-
         _state.value = _state.value.copy(
-
             dismissedNotificationIds = _state.value.dismissedNotificationIds + ids
-
         )
-
+        viewModelScope.launch {
+            repository.dismissNotification("", dismissAll = true)
+        }
     }
-
-
 
     fun logout() {
-
         sessionManager.clearSession()
-
     }
-
 }
 
