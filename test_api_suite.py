@@ -12,7 +12,7 @@ BASE_URL = "https://rosterx-vc30.onrender.com"
 def make_request(path, method="GET", data=None, token=None):
     url = f"{BASE_URL}{path}"
     headers = {
-        "User-Agent": "AuntyVerification/1.12.0",
+        "User-Agent": "AuntyVerification/1.12.1",
         "Accept": "application/json"
     }
     if token:
@@ -48,7 +48,7 @@ def run_tests():
     status, res = make_request("/api/test-connection")
     print(f" -> Status: {status}, Response: {res}")
     assert status == 200, f"Health check failed: {res}"
-    assert res.get("version") in ("1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
+    assert res.get("version") in ("1.12.1", "1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
     print(f" ✅ PASS: Render Server online with version {res.get('version')} & Cluster0 connected!")
 
     # STEP 1: Admin Authentication

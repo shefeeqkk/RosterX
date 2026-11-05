@@ -2814,10 +2814,36 @@ export class UserPortalController {
       }
     }
 
-    if (labelEl) labelEl.textContent = 'Scheduled Rest Window:';
-    const midnightSec = 24 * 3600 - curTotalSec;
-    timeEl.textContent = formatDelta(midnightSec);
-    timeEl.className = 'font-bold text-emerald-300 tracking-wide';
+    // Today's shift has ended OR today is OFF / Leave:
+    // Dynamically calculate time until the NEXT scheduled duty shift starts
+    const shifts = (myRow && myRow.shifts) || [];
+    let nextDutyCode = null;
+    let daysAhead = 0;
+
+    for (let idx = todayNum; idx < shifts.length; idx++) {
+      const candidate = String(shifts[idx] || '').trim().toUpperCase();
+      if (windows[candidate]) {
+        nextDutyCode = candidate;
+        daysAhead = (idx - todayNum) + 1; // 1 = tomorrow, 2 = day after tomorrow, etc.
+        break;
+      }
+    }
+
+    if (nextDutyCode && windows[nextDutyCode]) {
+      const secondsUntilMidnight = Math.max(0, 24 * 3600 - curTotalSec);
+      const intermediateDaysSeconds = (daysAhead - 1) * 24 * 3600;
+      const nextShiftStartSeconds = windows[nextDutyCode].start;
+      const totalSecUntilNextDuty = secondsUntilMidnight + intermediateDaysSeconds + nextShiftStartSeconds;
+
+      if (labelEl) labelEl.textContent = 'Next Shift Starts in:';
+      timeEl.textContent = formatDelta(totalSecUntilNextDuty);
+      timeEl.className = 'font-bold text-cyan-300 tracking-wide';
+      return;
+    }
+
+    if (labelEl) labelEl.textContent = 'Next Shift Starts in:';
+    timeEl.textContent = 'No upcoming duty scheduled';
+    timeEl.className = 'font-bold text-slate-400 tracking-wide';
   }
 
   // ==============================================================

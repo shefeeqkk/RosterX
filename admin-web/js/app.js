@@ -81,15 +81,17 @@ class RosterXApp {
 
 
 
+    // Determine current real year & month dynamically
+    const _initDate = new Date();
+    const _initYear = _initDate.getFullYear();
+    const _initMonth = _initDate.getMonth() + 1; // 1-12
+    const _initDays = new Date(_initYear, _initMonth, 0).getDate();
+
     // Load dynamic state
-
     this.state = {
-
-      currentYear: 2026,
-
-      currentMonth: 10, // October 2026 default
-
-      totalDays: 31,
+      currentYear: _initYear,
+      currentMonth: _initMonth, // Dynamically open current real month (e.g. November 2026)
+      totalDays: _initDays,
 
 
 
@@ -560,6 +562,14 @@ class RosterXApp {
     // 1. Instant Optimistic Render: Synchronize controls and render immediately so table is never blank
     const activePeriodKey = `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
     if (this.dom.monthSelect) {
+      let opt = Array.from(this.dom.monthSelect.options).find(o => o.value === activePeriodKey);
+      if (!opt) {
+        const monthFullNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+        opt = document.createElement('option');
+        opt.value = activePeriodKey;
+        opt.textContent = `${monthFullNames[this.state.currentMonth - 1]} ${this.state.currentYear}`;
+        this.dom.monthSelect.appendChild(opt);
+      }
       this.dom.monthSelect.value = activePeriodKey;
     }
 
@@ -848,13 +858,22 @@ class RosterXApp {
     const nsList = [];
     const offList = [];
 
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth() + 1;
+    let sourceRoster = this.state.gridRoster || [];
+    if (this.state.currentYear === todayYear && this.state.currentMonth === todayMonth) {
+      this.state.todayRoster = this.state.gridRoster;
+    } else if (this.state.todayRoster && this.state.todayRoster.length > 0) {
+      sourceRoster = this.state.todayRoster;
+    }
+
     const dIdx = todayDay - 1;
-    (this.state.gridRoster || []).forEach(eng => {
+    sourceRoster.forEach(eng => {
       const shift = String(eng.shifts && eng.shifts[dIdx] !== undefined ? eng.shifts[dIdx] : '').trim().toUpperCase();
       if (!shift) return;
       if (shift === 'FS') fsList.push(eng.name);
-      else if (shift === 'FG') fgList.push(eng.name);
-      else if (shift === 'SS') ssList.push(eng.name);
+      else if (shift === 'FG' || shift === 'G') fgList.push(eng.name);
+      else if (shift === 'SS' || shift === 'SG') ssList.push(eng.name);
       else if (shift === 'NS') nsList.push(eng.name);
       else if (shift === 'OFF' || shift.startsWith('SW') || shift === 'L') offList.push({ name: eng.name, code: shift });
     });

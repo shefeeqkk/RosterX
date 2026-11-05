@@ -111,7 +111,7 @@ export class RosterAiAssistant {
 
     const widgetContainer = document.createElement('div');
     widgetContainer.id = 'floatingAiBotWidget';
-    widgetContainer.className = 'fixed bottom-5 right-5 z-50 flex flex-col items-end pointer-events-auto font-sans select-none';
+    widgetContainer.className = 'fixed bottom-20 md:bottom-5 right-4 md:right-5 z-50 flex flex-col items-end pointer-events-auto font-sans select-none';
 
     widgetContainer.innerHTML = `
       <style>
