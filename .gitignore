@@ -24,6 +24,7 @@ __pycache__/
 # Node / dependencies
 node_modules/
 .npm/
+dist/
 
 # OS metadata
 .DS_Store

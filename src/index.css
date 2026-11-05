@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #030712;
+  color: #f9fafb;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 3D Perspective and Transform Utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+/* Glass Refraction Fallback and Overlay */
+.glass-surface {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  box-shadow: 
+    0 30px 60px -12px rgba(0, 0, 0, 0.5),
+    0 18px 36px -18px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Ambient Zero-G Nebula Glow */
+.nebula-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.15), rgba(129, 140, 248, 0.08) 40%, transparent 70%);
+}
