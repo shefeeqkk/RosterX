@@ -16,6 +16,7 @@ Provides:
 
 import os
 import sys
+import platform
 import socket
 import argparse
 import webbrowser
@@ -40,7 +41,87 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.11.8"
+SERVER_VERSION = "1.12.0"
+SERVER_START_TIME = time.time()
+
+def get_memory_rss_mb():
+    """Retrieve actual process RSS memory in MB across Windows and Linux platforms."""
+    try:
+        import psutil
+        return round(psutil.Process().memory_info().rss / (1024 * 1024), 2)
+    except Exception:
+        pass
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            class PMC(ctypes.Structure):
+                _fields_ = [
+                    ('cb', wintypes.DWORD),
+                    ('PageFaultCount', wintypes.DWORD),
+                    ('PeakWorkingSetSize', ctypes.c_size_t),
+                    ('WorkingSetSize', ctypes.c_size_t),
+                    ('QuotaPeakPagedPoolUsage', ctypes.c_size_t),
+                    ('QuotaPagedPoolUsage', ctypes.c_size_t),
+                    ('QuotaPeakNonPagedPoolUsage', ctypes.c_size_t),
+                    ('QuotaNonPagedPoolUsage', ctypes.c_size_t),
+                    ('PagefileUsage', ctypes.c_size_t),
+                    ('PeakPagefileUsage', ctypes.c_size_t),
+                ]
+            p = PMC()
+            p.cb = ctypes.sizeof(PMC)
+            ctypes.windll.psapi.GetProcessMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(PMC), wintypes.DWORD]
+            ctypes.windll.psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+            if ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.c_void_p(-1), ctypes.byref(p), p.cb):
+                return round(p.WorkingSetSize / (1024 * 1024), 2)
+        except Exception:
+            pass
+    else:
+        try:
+            import resource
+            rusage = resource.getrusage(resource.RUSAGE_SELF)
+            if sys.platform == "darwin":
+                return round(rusage.ru_maxrss / (1024 * 1024), 2)
+            return round(rusage.ru_maxrss / 1024, 2)
+        except Exception:
+            pass
+    return None
+
+def format_uptime(seconds):
+    """Format elapsed seconds into human-readable D/H/M/S."""
+    secs = int(seconds)
+    days, rem = divmod(secs, 86400)
+    hours, rem = divmod(rem, 3600)
+    mins, secs = divmod(rem, 60)
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0 or days > 0:
+        parts.append(f"{hours}h")
+    if mins > 0 or hours > 0 or days > 0:
+        parts.append(f"{mins}m")
+    parts.append(f"{secs}s")
+    return " ".join(parts)
+
+def record_audit_event(engineer_name, username, role, platform_name, action, details=None):
+    """Safely append an operational audit record into MongoDB Atlas collection 'audit_logs'."""
+    if ATLAS_DB is None:
+        return
+    try:
+        now_ts = time.time()
+        doc = {
+            "engineer_name": engineer_name,
+            "username": username,
+            "role": role,
+            "platform": platform_name,
+            "action": action,
+            "details": details or {},
+            "timestamp": now_ts,
+            "datetime": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(now_ts))
+        }
+        ATLAS_DB["audit_logs"].insert_one(doc)
+    except Exception as e:
+        print(f"  [AUDIT LOG ERROR] {e}")
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -1046,6 +1127,128 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
+        # 0.1 GET /api/telemetry/users (Live active operational user telemetry)
+        if clean_path in ("/api/telemetry/users", "/api/telemetry/users/"):
+            total_engineers = 0
+            platform_counts = {"Web Portal": 0, "Android App": 0}
+            active_windows = {"last_1h": 0, "last_24h": 0, "last_7d": 0}
+            audit_records = []
+
+            if ATLAS_DB is not None:
+                try:
+                    total_engineers = ATLAS_DB["engineers"].count_documents({})
+                except Exception:
+                    total_engineers = 0
+
+                now = time.time()
+                t_1h = now - 3600
+                t_24h = now - 86400
+                t_7d = now - 7 * 86400
+
+                try:
+                    # Query active users
+                    u_1h = ATLAS_DB["engineers"].count_documents({"last_active": {"$gte": t_1h}})
+                    u_24h = ATLAS_DB["engineers"].count_documents({"last_active": {"$gte": t_24h}})
+                    u_7d = ATLAS_DB["engineers"].count_documents({"last_active": {"$gte": t_7d}})
+
+                    if u_24h == 0 and "audit_logs" in ATLAS_DB.list_collection_names():
+                        u_1h = len(ATLAS_DB["audit_logs"].distinct("username", {"timestamp": {"$gte": t_1h}}))
+                        u_24h = len(ATLAS_DB["audit_logs"].distinct("username", {"timestamp": {"$gte": t_24h}}))
+                        u_7d = len(ATLAS_DB["audit_logs"].distinct("username", {"timestamp": {"$gte": t_7d}}))
+
+                    active_windows = {
+                        "last_1h": u_1h,
+                        "last_24h": u_24h,
+                        "last_7d": u_7d
+                    }
+
+                    # Platform breakdown
+                    web_count = ATLAS_DB["engineers"].count_documents({"platform": "Web Portal"})
+                    app_count = ATLAS_DB["engineers"].count_documents({"platform": "Android App"})
+                    if web_count == 0 and app_count == 0 and "audit_logs" in ATLAS_DB.list_collection_names():
+                        web_count = ATLAS_DB["audit_logs"].count_documents({"platform": "Web Portal"})
+                        app_count = ATLAS_DB["audit_logs"].count_documents({"platform": "Android App"})
+
+                    platform_counts = {
+                        "Web Portal": web_count,
+                        "Android App": app_count
+                    }
+
+                    # Latest chronological audit records (no mock data!)
+                    if "audit_logs" in ATLAS_DB.list_collection_names():
+                        cursor = ATLAS_DB["audit_logs"].find({}, {"_id": 0}).sort("timestamp", -1).limit(15)
+                        audit_records = list(cursor)
+                except Exception as e:
+                    print(f"  [TELEMETRY USERS ERROR] {e}")
+
+            self.send_json_response({
+                "success": True,
+                "data": {
+                    "total_engineers": total_engineers,
+                    "platform_breakdown": platform_counts,
+                    "active_windows": active_windows,
+                    "recent_audit_log": audit_records,
+                    "timestamp": time.time()
+                }
+            })
+            return
+
+        # 0.2 GET /api/telemetry/server (Live system & runtime diagnostics)
+        if clean_path in ("/api/telemetry/server", "/api/telemetry/server/"):
+            uptime_sec = max(0.0, round(time.time() - SERVER_START_TIME, 1))
+            latency_ms = 0
+            if ATLAS_CLIENT is not None:
+                try:
+                    t0 = time.perf_counter()
+                    ATLAS_CLIENT.admin.command("ping")
+                    latency_ms = max(1, round((time.perf_counter() - t0) * 1000))
+                except Exception:
+                    latency_ms = 0
+
+            collection_counts = {}
+            if ATLAS_DB is not None:
+                try:
+                    collection_counts["engineers"] = ATLAS_DB["engineers"].count_documents({})
+                    collection_counts["rosters"] = ATLAS_DB["rosters"].count_documents({})
+                    if "audit_logs" in ATLAS_DB.list_collection_names():
+                        collection_counts["audit_logs"] = ATLAS_DB["audit_logs"].count_documents({})
+                    if "operational_policies" in ATLAS_DB.list_collection_names():
+                        collection_counts["operational_policies"] = ATLAS_DB["operational_policies"].count_documents({})
+                except Exception as e:
+                    print(f"  [TELEMETRY SERVER COUNTS ERROR] {e}")
+
+            mem_mb = get_memory_rss_mb()
+
+            self.send_json_response({
+                "success": True,
+                "data": {
+                    "uptime_seconds": uptime_sec,
+                    "uptime_formatted": format_uptime(uptime_sec),
+                    "environment": {
+                        "python_version": sys.version.split()[0],
+                        "os_platform": f"{platform.system()} {platform.release()}",
+                        "is_render": bool(os.environ.get("RENDER"))
+                    },
+                    "atlas": {
+                        "status": ATLAS_STATUS,
+                        "cluster": ATLAS_CLUSTER,
+                        "database": ATLAS_DB_NAME,
+                        "ping_ms": latency_ms,
+                        "collections": collection_counts
+                    },
+                    "memory_rss_mb": mem_mb,
+                    "network": {
+                        "port": SERVER_PORT,
+                        "lan_ip": lan_ip,
+                        "public_url": PUBLIC_TUNNEL_URL,
+                        "tunnel_active": bool(PUBLIC_TUNNEL_URL)
+                    },
+                    "version": SERVER_VERSION,
+                    "timestamp": time.time()
+                }
+            })
+            return
+
         # 1. GET /api/test-connection (Health check)
         if clean_path in ("/api/test-connection", "/api/test-connection/"):
             if ATLAS_CLIENT is not None:
@@ -1379,6 +1582,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             "role": user.get("role", "admin")
                         }
                         token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
+                        platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                        record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In")
+                        if ATLAS_DB is not None:
+                            try:
+                                ATLAS_DB["engineers"].update_one(
+                                    {"username": user_payload.get("username")},
+                                    {"$set": {"last_active": time.time(), "platform": platform_client}}
+                                )
+                            except Exception:
+                                pass
                         self.send_json_response({"success": True, "user": user_payload, "token": token})
                         return
 
@@ -1410,6 +1623,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "role": role
                     }
                     token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
+                    platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                    record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In")
+                    if ATLAS_DB is not None:
+                        try:
+                            ATLAS_DB["engineers"].update_one(
+                                {"username": user_payload.get("username")},
+                                {"$set": {"last_active": time.time(), "platform": platform_client}}
+                            )
+                        except Exception:
+                            pass
                     self.send_json_response({
                         "success": True,
                         "user": user_payload,

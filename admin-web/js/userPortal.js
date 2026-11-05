@@ -143,95 +143,75 @@ export class UserPortalController {
 
 
   async init() {
-
     // 1. Enforce Authentication
-
     this.currentUser = authService.enforceAuth('any');
-
     if (!this.currentUser) return;
 
-
-
-    // 2. Load Directory & Constraints
-
+    // 2. Instant Optimistic Data Load from Cache / Seed
     this.loadEngineersList();
-
     this.loadConstraints();
-
-    await this.syncEngineersFromAtlas();
-
-
-
-    // 3. Load Live Operational Roster (October 2026 Anchor)
-
-    await this.loadLiveRoster(this.liveState.year, this.liveState.month);
-
     this.matchCurrentUserToEngineer();
 
-
-
     // Sync portalMonthSelect dropdown to grid period
-
     const portalMonthEl = document.getElementById('portalMonthSelect');
-
     if (portalMonthEl) {
-
       const activeKey = `${this.gridState.year}-${String(this.gridState.month).padStart(2, '0')}`;
-
       portalMonthEl.value = activeKey;
-
     }
 
-
-
-    // 4. Load Initial Month Grid Roster (Initially October 2026)
-
-    await this.loadGridRoster(this.gridState.year, this.gridState.month);
-
-
-
-    // 5. Render Live Operational Components (Persistent Today, Tomorrow, Team Schedule)
-
+    // 3. Instant Optimistic Render (<5ms) - Never blank
     this.renderHeaderUserInfo();
-
     this.renderDashboardHero();
-
     this.renderPersonalShiftCards();
-
     this.renderTeamDutyBoard();
-
-
-
-    // 6. Render Month Grid Components (Isolated to Month Grid section)
-
     this.renderMonthGridHeaders();
-
     this.renderMonthGridRoster();
+    this.renderMyMonthlyShifts();
+    this.renderTeamHandoverView();
+    this.populateSwapColleagues();
+    this.renderMySwapsHistory();
 
-
-
-    // 7. Setup Events, Account Modal & Chat Assistant
-
+    // 4. Setup Tab Controls, Modals & Timers
+    this.bindTabEvents();
     this.bindEvents();
-
     this.setupAccountProfileModal();
-
     this.initAiAssistant();
+    this.startCountdownTimer();
 
+    // 5. Non-blocking Background Atlas Synchronization
+    (async () => {
+      try {
+        await this.syncEngineersFromAtlas();
+        await this.loadLiveRoster(this.liveState.year, this.liveState.month);
+        this.matchCurrentUserToEngineer();
+        await this.loadGridRoster(this.gridState.year, this.gridState.month);
 
+        this.renderHeaderUserInfo();
+        this.renderDashboardHero();
+        this.renderPersonalShiftCards();
+        this.renderTeamDutyBoard();
+        this.renderMonthGridHeaders();
+        this.renderMonthGridRoster();
+        this.renderMyMonthlyShifts();
+        this.renderTeamHandoverView();
+        this.populateSwapColleagues();
+        this.renderMySwapsHistory();
+        this.updateCountdownTimer();
 
-    // 8. Auto-refresh live operational status every minute
+        const badge = document.getElementById('userPortalStatusBadge');
+        if (badge) badge.textContent = 'Atlas Connected';
+      } catch (err) {
+        console.warn('UserPortal Atlas background sync error:', err);
+      }
+    })();
 
+    // 6. Auto-refresh live operational status every minute
     setInterval(() => {
-
       this.renderDashboardHero();
-
       this.renderPersonalShiftCards();
-
       this.renderTeamDutyBoard();
-
+      this.updateCountdownTimer();
     }, 60000);
-
   }
 
 
@@ -2582,6 +2562,447 @@ export class UserPortalController {
 
 
 
+
+  // ==============================================================
+  // TAB ARCHITECTURE & DOCK CONTROLLER
+  // ==============================================================
+
+  bindTabEvents() {
+    const desktopTabBtns = document.querySelectorAll('.user-nav-tab-btn');
+    const mobileTabBtns = document.querySelectorAll('.user-mobile-nav-btn');
+
+    desktopTabBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tab = btn.getAttribute('data-tab');
+        if (tab) this.switchUserTab(tab);
+      });
+    });
+
+    mobileTabBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tab = btn.getAttribute('data-tab');
+        if (tab) this.switchUserTab(tab);
+      });
+    });
+  }
+
+  switchUserTab(tabId) {
+    // 1. Update Desktop Tab Button styling
+    const desktopBtns = document.querySelectorAll('.user-nav-tab-btn');
+    desktopBtns.forEach(b => {
+      const match = b.getAttribute('data-tab') === tabId;
+      if (match) {
+        b.className = 'user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-cyan-600 text-white cursor-pointer';
+      } else {
+        b.className = 'user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 cursor-pointer shadow-xs';
+      }
+    });
+
+    // 2. Update Mobile Tab Button styling
+    const mobileBtns = document.querySelectorAll('.user-mobile-nav-btn');
+    mobileBtns.forEach(b => {
+      const match = b.getAttribute('data-tab') === tabId;
+      const dot = b.querySelector('.active-dot');
+      if (match) {
+        b.classList.remove('text-slate-400');
+        b.classList.add('text-cyan-400');
+        if (dot) dot.classList.remove('hidden');
+      } else {
+        b.classList.remove('text-cyan-400');
+        b.classList.add('text-slate-400');
+        if (dot) dot.classList.add('hidden');
+      }
+    });
+
+    // 3. Show selected tab panel, hide others
+    const panels = document.querySelectorAll('.user-tab-panel');
+    panels.forEach(p => {
+      if (p.id === `userTabContent_${tabId}`) {
+        p.classList.remove('hidden');
+      } else {
+        p.classList.add('hidden');
+      }
+    });
+
+    // 4. Component-specific triggers
+    if (tabId === 'my_schedule') {
+      this.renderMyMonthlyShifts();
+      this.updateCountdownTimer();
+    } else if (tabId === 'team_handover') {
+      this.renderTeamHandoverView();
+    } else if (tabId === 'request_swap') {
+      this.populateSwapColleagues();
+      this.renderMySwapsHistory();
+    } else if (tabId === 'monthly_overview') {
+      this.renderMonthGridHeaders();
+      this.renderMonthGridRoster();
+    }
+  }
+
+  // ==============================================================
+  // TAB 1: PERSONAL MONTHLY SHIFTS & COUNTDOWN TIMER
+  // ==============================================================
+
+  renderMyMonthlyShifts() {
+    const container = document.getElementById('myMonthlyShiftsContainer');
+    if (!container) return;
+
+    const roster = this.liveState.roster || [];
+    const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
+    const myId = (this.currentUser?.id || this.currentUser?.username || '').trim().toLowerCase();
+
+    const myRow = roster.find(r => {
+      const rId = String(r.id || '').trim().toLowerCase();
+      const rName = String(r.name || '').trim().toLowerCase();
+      return (myId && rId === myId) || (myName && rName === myName) || rName.includes(myId) || (myId && rId.includes(myId));
+    }) || roster[0] || null;
+
+    const totalDays = this.liveState.totalDays || 31;
+    const year = this.liveState.year || 2026;
+    const month = this.liveState.month || 10;
+    const todayNum = this.liveState.todayDay || new Date().getDate();
+
+    const shiftColors = {
+      FS: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      FG: 'bg-emerald-800 text-white border-emerald-900',
+      G:  'bg-sky-100 text-sky-900 border-sky-300',
+      SG: 'bg-orange-600 text-white border-orange-700',
+      SS: 'bg-orange-100 text-orange-950 border-orange-300',
+      NS: 'bg-slate-950 text-white border-slate-700',
+      OFF: 'bg-amber-100 text-amber-900 border-amber-300',
+      SWOFF: 'bg-amber-100 text-amber-900 border-amber-300',
+      L: 'bg-rose-100 text-rose-900 border-rose-300'
+    };
+
+    const shiftTimings = {
+      FS: '07:30 – 16:30',
+      FG: '08:30 – 17:30',
+      G:  '09:30 – 18:30',
+      SG: '11:00 – 20:00',
+      SS: '13:00 – 22:00',
+      NS: '21:00 – 07:30 (+1)',
+      OFF: 'Full Rest Day',
+      SWOFF: 'Swapped Rest Day',
+      L: 'Scheduled Leave'
+    };
+
+    let html = `
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+            <th class="py-2.5 px-4 font-bold">Day & Date</th>
+            <th class="py-2.5 px-4 font-bold text-center">Shift Code</th>
+            <th class="py-2.5 px-4 font-bold">Operational Timing</th>
+            <th class="py-2.5 px-4 font-bold text-right pr-4">Duty Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60">
+    `;
+
+    for (let day = 1; day <= totalDays; day++) {
+      const dateObj = new Date(year, month - 1, day);
+      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+      const dateStr = `${dayName}, ${month}/${String(day).padStart(2, '0')}`;
+      const code = (myRow && myRow.shifts && myRow.shifts[day - 1]) ? myRow.shifts[day - 1].trim().toUpperCase() : 'OFF';
+      const badgeStyle = shiftColors[code] || 'bg-slate-800 text-slate-300 border-slate-700';
+      const timing = shiftTimings[code] || '--:-- – --:--';
+      const isToday = (day === todayNum);
+      const rowClass = isToday 
+        ? 'bg-cyan-950/40 border-l-4 border-l-cyan-400 font-bold' 
+        : (day % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent');
+
+      html += `
+        <tr class="${rowClass} hover:bg-slate-800/40 transition">
+          <td class="py-2 px-4 flex items-center gap-2">
+            <span class="w-6 text-slate-500 font-mono text-[11px]">${String(day).padStart(2, '0')}</span>
+            <span class="${isToday ? 'text-cyan-300 font-extrabold' : 'text-slate-200'}">${dateStr}</span>
+            ${isToday ? '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-cyan-400 text-slate-950 ml-1.5 animate-pulse">TODAY</span>' : ''}
+          </td>
+          <td class="py-2 px-4 text-center">
+            <span class="inline-block px-2.5 py-0.5 rounded font-black text-[11px] border shadow-xs ${badgeStyle}">
+              ${code || 'OFF'}
+            </span>
+          </td>
+          <td class="py-2 px-4 font-mono text-slate-400 text-[11px]">
+            ${timing}
+          </td>
+          <td class="py-2 px-4 text-right pr-4">
+            ${code === 'NS' ? '<span class="text-indigo-400 text-[10px] font-bold">Solo Night Duty</span>' :
+              (code === 'OFF' || code === 'SWOFF' ? '<span class="text-amber-400 text-[10px] font-semibold">Scheduled Rest</span>' :
+              (code === 'L' ? '<span class="text-rose-400 text-[10px] font-semibold">Approved Leave</span>' :
+              '<span class="text-emerald-400 text-[10px] font-semibold">Standard Shift</span>'))}
+          </td>
+        </tr>
+      `;
+    }
+
+    html += `
+        </tbody>
+      </table>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  startCountdownTimer() {
+    this.updateCountdownTimer();
+    if (this._countdownInterval) clearInterval(this._countdownInterval);
+    this._countdownInterval = setInterval(() => {
+      this.updateCountdownTimer();
+    }, 1000);
+  }
+
+  updateCountdownTimer() {
+    const labelEl = document.getElementById('shiftCountdownLabel');
+    const timeEl = document.getElementById('shiftCountdownTime');
+    if (!timeEl) return;
+
+    const roster = this.liveState.roster || [];
+    const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
+    const myId = (this.currentUser?.id || this.currentUser?.username || '').trim().toLowerCase();
+
+    const myRow = roster.find(r => {
+      const rId = String(r.id || '').trim().toLowerCase();
+      const rName = String(r.name || '').trim().toLowerCase();
+      return (myId && rId === myId) || (myName && rName === myName) || rName.includes(myId) || (myId && rId.includes(myId));
+    }) || roster[0] || null;
+
+    const todayNum = this.liveState.todayDay || new Date().getDate();
+    const code = (myRow && myRow.shifts && myRow.shifts[todayNum - 1]) ? myRow.shifts[todayNum - 1].trim().toUpperCase() : 'OFF';
+
+    const now = new Date();
+    const curHours = now.getHours();
+    const curMinutes = now.getMinutes();
+    const curSeconds = now.getSeconds();
+    const curTotalSec = curHours * 3600 + curMinutes * 60 + curSeconds;
+
+    const windows = {
+      FS: { start: 7.5 * 3600, end: 16.5 * 3600, name: 'First Shift' },
+      FG: { start: 8.5 * 3600, end: 17.5 * 3600, name: 'First General' },
+      G:  { start: 9.5 * 3600, end: 18.5 * 3600, name: 'General Shift' },
+      SG: { start: 11 * 3600,  end: 20 * 3600,   name: 'Second General' },
+      SS: { start: 13 * 3600,  end: 22 * 3600,   name: 'Second Shift' },
+      NS: { start: 21 * 3600,  end: (24 + 7.5) * 3600, name: 'Night Shift' }
+    };
+
+    const formatDelta = (sec) => {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+    };
+
+    if (windows[code]) {
+      const w = windows[code];
+      let adjCur = curTotalSec;
+      if (code === 'NS' && curTotalSec < 7.5 * 3600) {
+        adjCur += 24 * 3600;
+      }
+
+      if (adjCur >= w.start && adjCur < w.end) {
+        if (labelEl) labelEl.textContent = 'Shift Handover in:';
+        timeEl.textContent = formatDelta(w.end - adjCur);
+        timeEl.className = 'font-bold text-cyan-300 tracking-wide';
+        return;
+      } else if (adjCur < w.start) {
+        if (labelEl) labelEl.textContent = 'Duty Starts in:';
+        timeEl.textContent = formatDelta(w.start - adjCur);
+        timeEl.className = 'font-bold text-amber-300 tracking-wide';
+        return;
+      }
+    }
+
+    if (labelEl) labelEl.textContent = 'Scheduled Rest Window:';
+    const midnightSec = 24 * 3600 - curTotalSec;
+    timeEl.textContent = formatDelta(midnightSec);
+    timeEl.className = 'font-bold text-emerald-300 tracking-wide';
+  }
+
+  // ==============================================================
+  // TAB 2: DESK HANDOVER & TEAM DUTY VIEW
+  // ==============================================================
+
+  renderTeamHandoverView() {
+    const morningEl = document.getElementById('teamHandoverMorning');
+    const secondEl = document.getElementById('teamHandoverSecond');
+    const nightEl = document.getElementById('teamHandoverNight');
+    const offEl = document.getElementById('teamHandoverOff');
+
+    if (!morningEl || !secondEl || !nightEl || !offEl) return;
+
+    const roster = this.liveState.roster || [];
+    const todayNum = this.liveState.todayDay || new Date().getDate();
+
+    const morning = [];
+    const second = [];
+    const night = [];
+    const off = [];
+
+    roster.forEach(eng => {
+      const code = (eng.shifts && eng.shifts[todayNum - 1]) ? eng.shifts[todayNum - 1].trim().toUpperCase() : 'OFF';
+      const name = eng.name || eng.full_name || 'Engineer';
+      const phone = eng.phone || '';
+      const email = eng.email || '';
+
+      const item = { name, code, phone, email };
+
+      if (['FS', 'FG', 'G'].includes(code)) morning.push(item);
+      else if (['SG', 'SS'].includes(code)) second.push(item);
+      else if (code === 'NS') night.push(item);
+      else off.push(item);
+    });
+
+    const renderSlotList = (arr, badgeClass) => {
+      if (!arr || arr.length === 0) {
+        return '<span class="text-slate-500 italic text-xs">No active personnel</span>';
+      }
+      return arr.map(eng => `
+        <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/60 border border-slate-800/80">
+          <div class="flex items-center gap-1.5 truncate">
+            <span class="w-1.5 h-1.5 rounded-full ${badgeClass}"></span>
+            <span class="font-bold text-slate-200 text-xs truncate">${this.escapeHtml(eng.name)}</span>
+          </div>
+          <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono">${eng.code}</span>
+        </div>
+      `).join('');
+    };
+
+    morningEl.innerHTML = renderSlotList(morning, 'bg-emerald-400');
+    secondEl.innerHTML = renderSlotList(second, 'bg-orange-400');
+    nightEl.innerHTML = renderSlotList(night, 'bg-indigo-400');
+    offEl.innerHTML = renderSlotList(off, 'bg-amber-400');
+  }
+
+  // ==============================================================
+  // TAB 3: REQUEST SHIFT SWAP & SWAP QUEUE
+  // ==============================================================
+
+  populateSwapColleagues() {
+    const myDateSelect = document.getElementById('userSwapMyDate');
+    const colleagueSelect = document.getElementById('userSwapColleague');
+    const colleagueDateSelect = document.getElementById('userSwapColleagueDate');
+    if (!myDateSelect || !colleagueSelect || !colleagueDateSelect) return;
+
+    const totalDays = this.liveState.totalDays || 31;
+    const year = this.liveState.year || 2026;
+    const month = this.liveState.month || 10;
+    const engineers = this.engineersList || [];
+    const myId = (this.currentUser?.id || this.currentUser?.username || '').trim().toLowerCase();
+
+    // Populate dates
+    if (myDateSelect.options.length <= 1) {
+      let dateOpts = '<option value="">Select your shift date...</option>';
+      let colDateOpts = '<option value="">Select target date...</option>';
+      for (let d = 1; d <= totalDays; d++) {
+        const dateObj = new Date(year, month - 1, d);
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+        const val = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const label = `${val} (${dayName})`;
+        dateOpts += `<option value="${val}">${label}</option>`;
+        colDateOpts += `<option value="${val}">${label}</option>`;
+      }
+      myDateSelect.innerHTML = dateOpts;
+      colleagueDateSelect.innerHTML = colDateOpts;
+    }
+
+    // Populate colleagues
+    let colOpts = '<option value="">Select colleague...</option>';
+    engineers.forEach(eng => {
+      const engId = (eng.id || eng.username || '').toLowerCase();
+      if (engId !== myId && eng.status !== 'Resigned' && eng.role !== 'admin' && eng.role !== 'manager') {
+        colOpts += `<option value="${this.escapeHtml(eng.name)}">${this.escapeHtml(eng.name)} (${eng.role || 'NOC'})</option>`;
+      }
+    });
+    colleagueSelect.innerHTML = colOpts;
+
+    // Attach form submit handler if not already attached
+    const form = document.getElementById('userSwapForm');
+    if (form && !form._bound) {
+      form._bound = true;
+      form.addEventListener('submit', (e) => this.handleSwapSubmit(e));
+    }
+  }
+
+  handleSwapSubmit(e) {
+    e.preventDefault();
+    const myDate = document.getElementById('userSwapMyDate')?.value;
+    const colleague = document.getElementById('userSwapColleague')?.value;
+    const colleagueDate = document.getElementById('userSwapColleagueDate')?.value;
+    const category = document.getElementById('userSwapCategory')?.value || 'mutual';
+    const reason = document.getElementById('userSwapReason')?.value || '';
+
+    if (!myDate || !colleague || !colleagueDate) {
+      alert('Please fill out all required fields (My Date, Colleague, and Colleague Date).');
+      return;
+    }
+
+    const swapRecord = {
+      id: 'swp_' + Date.now(),
+      created_at: new Date().toISOString(),
+      engineer_a: this.currentUser?.name || this.currentUser?.full_name || 'Engineer',
+      engineer_b: colleague,
+      date_a: myDate,
+      date_b: colleagueDate,
+      category,
+      reason,
+      status: 'Pending Operational Review'
+    };
+
+    try {
+      const stored = JSON.parse(localStorage.getItem('rosterx_manual_swaps') || '[]');
+      stored.unshift(swapRecord);
+      localStorage.setItem('rosterx_manual_swaps', JSON.stringify(stored));
+    } catch (err) {
+      console.warn('Error saving swap locally:', err);
+    }
+
+    alert('Shift Swap Request submitted successfully! Handled by RosterX Swap-First Policy Engine.');
+    document.getElementById('userSwapForm')?.reset();
+    this.renderMySwapsHistory();
+  }
+
+  renderMySwapsHistory() {
+    const list = document.getElementById('userSwapsQueueList');
+    if (!list) return;
+
+    let swaps = [];
+    try {
+      swaps = JSON.parse(localStorage.getItem('rosterx_manual_swaps') || '[]');
+    } catch (e) {}
+
+    const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
+    const mySwaps = swaps.filter(s => {
+      const a = String(s.engineer_a || '').toLowerCase();
+      const b = String(s.engineer_b || '').toLowerCase();
+      return a.includes(myName) || b.includes(myName) || myName.includes(a);
+    });
+
+    if (mySwaps.length === 0) {
+      list.innerHTML = `
+        <div class="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-500 text-xs">
+          <i class="ph ph-clipboard-text text-2xl text-slate-600 mb-1.5 block"></i>
+          No Active Records<br><span class="text-[10px] text-slate-600">Your submitted shift swap requests will appear here dynamically.</span>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = mySwaps.map(s => `
+      <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-slate-200">${this.escapeHtml(s.engineer_a)} ⇄ ${this.escapeHtml(s.engineer_b)}</span>
+          <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">${s.status || 'Pending'}</span>
+        </div>
+        <div class="text-[11px] text-slate-400 font-mono">
+          <span>Date: ${s.date_a || s.date}</span> ${s.date_b ? `⇄ <span>${s.date_b}</span>` : ''}
+        </div>
+        ${s.reason ? `<div class="text-[10px] text-slate-500 italic">"${this.escapeHtml(s.reason)}"</div>` : ''}
+      </div>
+    `).join('');
+  }
+
   escapeHtml(str) {
 
     return String(str).replace(/[&<>"']/g, (m) => ({
@@ -2606,11 +3027,16 @@ export class UserPortalController {
 
 // Bootstrap
 
-window.addEventListener('DOMContentLoaded', () => {
+const bootstrapUserPortal = () => {
+  if (!window.userPortalApp) {
+    window.userPortalApp = new UserPortalController();
+    window.userPortalApp.init();
+  }
+};
 
-  window.userPortalApp = new UserPortalController();
-
-  window.userPortalApp.init();
-
-});
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', bootstrapUserPortal);
+} else {
+  bootstrapUserPortal();
+}
 

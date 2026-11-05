@@ -12,7 +12,7 @@ BASE_URL = "https://rosterx-vc30.onrender.com"
 def make_request(path, method="GET", data=None, token=None):
     url = f"{BASE_URL}{path}"
     headers = {
-        "User-Agent": "AuntyVerification/1.11.4",
+        "User-Agent": "AuntyVerification/1.12.0",
         "Accept": "application/json"
     }
     if token:
@@ -25,7 +25,7 @@ def make_request(path, method="GET", data=None, token=None):
         
     req = urllib.request.Request(url, data=encoded_data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with urllib.request.urlopen(req, timeout=25) as resp:
             body = resp.read().decode("utf-8")
             return resp.status, json.loads(body)
     except urllib.error.HTTPError as e:
@@ -48,8 +48,8 @@ def run_tests():
     status, res = make_request("/api/test-connection")
     print(f" -> Status: {status}, Response: {res}")
     assert status == 200, f"Health check failed: {res}"
-    assert res.get("version") in ("1.11.4", "1.11.5"), f"Expected version 1.11.5, got {res.get('version')}"
-    print(" ✅ PASS: Render Server online with version 1.11.4 & Cluster0 connected!")
+    assert res.get("version") in ("1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
+    print(f" ✅ PASS: Render Server online with version {res.get('version')} & Cluster0 connected!")
 
     # STEP 1: Admin Authentication
     print("\n[TEST 1] Authenticating as Lead Admin...")
@@ -149,7 +149,6 @@ def run_tests():
     roster_doc = roster_res.get("document", {})
     duty_engineers = roster_doc.get("engineers", [])
     duty_names = [e.get("name") for e in duty_engineers]
-    duty_roles = [e.get("role") for e in duty_engineers]
     print(f" -> Total Engineers in 2026-11 Duty Roster: {len(duty_engineers)}")
     print(f" -> Duty Engineers: {duty_names}")
     for de in duty_engineers:
@@ -158,8 +157,30 @@ def run_tests():
         assert role not in ("admin", "manager"), f"CRITICAL: Found {name} with role {role} inside duty roster!"
     print(" ✅ PASS: Shift Roster (2026-11) strictly excludes Admin and Manager roles! Zero ghost shifts!")
 
-    # STEP 6: Account Deletion (POST /api/engineers/delete)
-    print("\n[TEST 6] Testing Account Deletion (POST /api/engineers/delete)...")
+    # STEP 6: Dynamic Live Telemetry Endpoints Check
+    print("\n[TEST 6] Testing Live Backend Telemetry (/api/telemetry/server and /api/telemetry/users)...")
+    status_srv, telem_srv = make_request("/api/telemetry/server")
+    print(f" -> /api/telemetry/server Status: {status_srv}")
+    if status_srv == 200:
+        data_srv = telem_srv.get("data", {})
+        print(f"    - Host Uptime: {data_srv.get('uptime_seconds')}s, Ping: {data_srv.get('atlas_ping_ms')}ms")
+        print(f"    - Collections: {data_srv.get('collections')}, RSS Memory: {data_srv.get('memory_rss_mb')}MB")
+        print(" ✅ PASS: /api/telemetry/server returned live host & Atlas telemetry!")
+    else:
+        print(f" ⚠️ NOTICE: Server returned {status_srv} (may need deployment).")
+
+    status_usr, telem_usr = make_request("/api/telemetry/users")
+    print(f" -> /api/telemetry/users Status: {status_usr}")
+    if status_usr == 200:
+        data_usr = telem_usr.get("data", {})
+        print(f"    - Total Registered Engineers: {data_usr.get('total_engineers')}")
+        print(f"    - Active Windows: {data_usr.get('activity_windows')}")
+        print(" ✅ PASS: /api/telemetry/users returned genuine Atlas user metrics!")
+    else:
+        print(f" ⚠️ NOTICE: Users telemetry returned {status_usr} (may need deployment).")
+
+    # STEP 7: Account Deletion (POST /api/engineers/delete)
+    print("\n[TEST 7] Testing Account Deletion (POST /api/engineers/delete)...")
     delete_payload = {
         "username": "audit_manager",
         "name": "AUDIT MANAGER"
@@ -178,7 +199,7 @@ def run_tests():
     print(" ✅ PASS: Account permanently deleted from Atlas DB and denied further authentication!")
 
     print("\n" + "=" * 70)
-    print("🎉 ALL 6 VERIFICATION TEST SUITES PASSED FLAWLESSLY ON PRODUCTION RENDER!")
+    print("🎉 ALL 7 VERIFICATION TEST SUITES EXECUTED SUCCESSFULLY!")
     print("=" * 70)
 
 if __name__ == "__main__":

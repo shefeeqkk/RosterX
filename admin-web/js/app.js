@@ -53,46 +53,31 @@ import {
 import { RosterAiEngine } from './rosterAiEngine.js';
 
 import { RosterAiAssistant } from './rosterAiAssistant.js';
-
 import { AtlasService } from './atlasService.js';
-
 import { ExcelService } from './excelService.js?v=3.2';
+import { KineticTiltController } from './kineticTilt.js';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
-
-
 const STORAGE_KEYS = {
-
   ENGINEERS_LIST: 'rosterx_engineers_list',
-
   CONSTRAINTS: 'rosterx_constraints',
-
   MANUAL_SWAPS: 'rosterx_manual_swaps',
-
   ABSENCE_REQUESTS: 'rosterx_absence_requests',
-
   LOCKED_CELLS: 'rosterx_locked_cells',
-
   GRID_ROSTER_PREFIX: 'rosterx_grid_roster_',
-
   GENERATED_OR_IMPORTED_MONTHS: 'rosterx_generated_or_imported_months'
-
 };
 
-
-
 class RosterXApp {
-
   constructor() {
-
     if (typeof window !== 'undefined') window.rosterApp = this;
 
     this.atlasService = new AtlasService();
-
     this.aiEngine = new RosterAiEngine();
-
     this.aiAssistant = new RosterAiAssistant(this);
+    this.activeTab = 'dashboard';
+    this.kineticTilt = null;
 
 
 
@@ -568,124 +553,457 @@ class RosterXApp {
   // --- Initializer ---
 
   async init() {
-
     this.cacheDomElements();
-
     this.bindEvents();
-
     this.setupAtlasSyncBadge();
 
-
-
-    // 1. Sync live engineers directory with MongoDB Atlas & LocalStorage
-
-    await this.syncEngineersFromAtlas();
-
-    this.ensureEngineerUsernames();
-
-
-
-    // 1b. Sync operational policies/constraints from MongoDB Atlas
-
-    await this.syncConstraintsFromAtlas();
-
-
-
-    // 2. Synchronize month selector dropdown with active period
-
+    // 1. Instant Optimistic Render: Synchronize controls and render immediately so table is never blank
     const activePeriodKey = `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
-
     if (this.dom.monthSelect) {
-
       this.dom.monthSelect.value = activePeriodKey;
-
     }
-
-
-
-    // 3. Initialize Grid Roster for current period (with Atlas sync)
-
-    await this.loadGridRosterForPeriod(this.state.currentYear, this.state.currentMonth);
-
-
-
-    // Apply and display active policies
 
     this.updateActiveRulesBanner();
-
     this.updateTeamBadge();
 
-
-
     // Read-only enforcement for Manager role
-
     const activeAuthUser = (window.authService && window.authService.getCurrentUser()) || null;
-
     if (activeAuthUser && activeAuthUser.role === 'manager') {
-
       document.body.classList.add('manager-readonly');
-
       const writeButtonIds = [
-
         'btnSaveAtlasDirect', 'btnOpenImportModal', 'btnOpenTeamModal', 
-
         'btnOpenConstraintsModal', 'btnOpenSwapsModal', 'btnOpenRecoveryModal',
-
         'btnQuickEditRules'
-
       ];
-
       writeButtonIds.forEach(id => {
-
         const el = document.getElementById(id);
-
         if (el) el.style.display = 'none';
-
       });
-
       const topBar = document.getElementById('adminUserName');
-
       if (topBar && !document.getElementById('managerReadOnlyBadge')) {
-
         const badge = document.createElement('span');
-
         badge.id = 'managerReadOnlyBadge';
-
         badge.className = 'ml-2 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300';
-
         badge.textContent = 'Operations Manager';
-
         topBar.parentElement.appendChild(badge);
-
       }
-
     }
 
-
-
-    // Render interface
+    // Populate initial grid immediately so the table headers (dates 1..31) and engineer rows appear instantly
+    if (!this.state.gridRoster || this.state.gridRoster.length === 0) {
+      const active = (this.state.engineersList || []).filter(e => e.status !== 'Resigned' && e.role !== 'admin' && e.role !== 'manager');
+      this.state.gridRoster = this.sortGridRosterByWeekOffs(
+        active.map(eng => ({
+          id: eng.id || `eng_${eng.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
+          name: eng.name,
+          shifts: new Array(this.state.totalDays).fill(''),
+          status: eng.status || 'Active',
+          role: eng.role || 'engineer',
+          default_weekly_offs: eng.default_weekly_offs || ['Saturday', 'Sunday']
+        }))
+      );
+    }
 
     this.renderHeaders();
-
     this.renderRoster();
-
     this.updateShiftFilterUI();
-
     this.runRuleAudit();
 
+    // 2. Perform live synchronization with MongoDB Atlas in background
+    (async () => {
+      try {
+        await this.syncEngineersFromAtlas();
+        this.ensureEngineerUsernames();
+        await this.syncConstraintsFromAtlas();
+        await this.loadGridRosterForPeriod(this.state.currentYear, this.state.currentMonth);
 
+        this.updateActiveRulesBanner();
+        this.updateTeamBadge();
+        this.renderHeaders();
+        this.renderRoster();
+        this.updateShiftFilterUI();
+        this.runRuleAudit();
+        this.refreshDashboardTelemetry();
+      } catch (err) {
+        console.warn('Atlas background sync error:', err);
+      }
+    })();
+
+    // 3. Tab Architecture & Kinetic Tilt Initialization
+    this.bindTabEvents();
+    if (typeof KineticTiltController !== 'undefined') {
+      try {
+        this.kineticTilt = new KineticTiltController('.kinetic-hero-card');
+      } catch (eKin) {
+        console.warn('KineticTilt initialization note:', eKin);
+      }
+    }
+    this.refreshDashboardTelemetry();
 
     // Initialize Conversational AI Assistant
-
     if (this.aiAssistant) {
-
       this.aiAssistant.init();
-
     }
-
   }
 
+  // --- Dynamic Tab Architecture & Telemetry Controller ---
 
+  bindTabEvents() {
+    // Desktop Nav Tab buttons
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        if (tab) this.switchTab(tab);
+      });
+    });
+
+    // Mobile Dock buttons
+    document.querySelectorAll('.mobile-dock-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        if (tab) this.switchTab(tab);
+      });
+    });
+
+    // Quick Trigger buttons on Dashboard
+    document.getElementById('btnDashJumpToMatrix')?.addEventListener('click', () => {
+      this.switchTab('matrix');
+    });
+
+    document.getElementById('btnDashTriggerAudit')?.addEventListener('click', () => {
+      this.switchTab('matrix');
+      this.runRuleAudit();
+      this.openAuditDetailsModal();
+    });
+
+    document.getElementById('btnHeaderRefreshTelemetry')?.addEventListener('click', () => {
+      this.refreshDashboardTelemetry();
+      this.showToast('Live telemetry refreshed from MongoDB Atlas & host runtime.');
+    });
+
+    document.getElementById('btnOpenSwapsModalFromTab')?.addEventListener('click', () => {
+      this.openSwapsModal();
+    });
+
+    document.getElementById('btnOpenAiModalFromTab')?.addEventListener('click', () => {
+      this.openAiModal();
+    });
+
+    document.getElementById('btnDiagRefreshLogs')?.addEventListener('click', () => {
+      this.loadDiagnosticsTerminal();
+    });
+
+    document.getElementById('btnDiagClearLogs')?.addEventListener('click', async () => {
+      await this.atlasService.clearServerLogs();
+      this.loadDiagnosticsTerminal();
+      this.showToast('Server log buffer cleared.');
+    });
+  }
+
+  switchTab(tabId) {
+    this.activeTab = tabId;
+
+    // Toggle panels
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      if (p.id === `tabContent_${tabId}`) {
+        p.classList.remove('hidden');
+      } else {
+        p.classList.add('hidden');
+      }
+    });
+
+    // Update Desktop Nav Tabs
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      const isTarget = btn.dataset.tab === tabId;
+      if (isTarget) {
+        btn.className = 'nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-slate-900 text-white cursor-pointer';
+      } else {
+        btn.className = 'nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 cursor-pointer shadow-xs';
+      }
+    });
+
+    // Update Mobile Bottom Dock
+    document.querySelectorAll('.mobile-dock-btn').forEach(btn => {
+      const isTarget = btn.dataset.tab === tabId;
+      const bubble = btn.querySelector('.mobile-active-bubble');
+      if (isTarget) {
+        btn.className = 'mobile-dock-btn flex flex-col items-center justify-center text-xs text-[#FF5252] font-bold py-1 min-w-[48px] min-h-[48px] cursor-pointer';
+        if (bubble) bubble.classList.remove('hidden');
+      } else {
+        btn.className = 'mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer';
+        if (bubble) bubble.classList.add('hidden');
+      }
+    });
+
+    // Contextual refresh based on tab
+    if (tabId === 'dashboard') {
+      this.refreshDashboardTelemetry();
+      this.kineticTilt?.refresh();
+    } else if (tabId === 'matrix') {
+      this.renderHeaders();
+      this.renderRoster();
+    } else if (tabId === 'swaps') {
+      this.renderSwapsTabQueue();
+    } else if (tabId === 'diagnostics') {
+      this.loadDiagnosticsTerminal();
+    }
+  }
+
+  async refreshDashboardTelemetry() {
+    try {
+      const [serverTel, userTel] = await Promise.all([
+        this.atlasService.getServerTelemetry(),
+        this.atlasService.getUserTelemetry()
+      ]);
+
+      if (serverTel) {
+        const uptimeEl = document.getElementById('telemetryUptime');
+        if (uptimeEl) uptimeEl.textContent = serverTel.uptime_formatted || `${serverTel.uptime_seconds}s`;
+
+        const envEl = document.getElementById('telemetryEnv');
+        if (envEl && serverTel.environment) {
+          envEl.textContent = `Python ${serverTel.environment.python_version} • ${serverTel.environment.os_platform}`;
+        }
+
+        const pingEl = document.getElementById('telemetryPing');
+        if (pingEl && serverTel.atlas) {
+          pingEl.textContent = `${serverTel.atlas.ping_ms} ms`;
+        }
+
+        const atlasStatusEl = document.getElementById('telemetryAtlasStatus');
+        if (atlasStatusEl && serverTel.atlas) {
+          atlasStatusEl.textContent = serverTel.atlas.status.includes('CONNECTED') ? 'ONLINE' : 'OFFLINE';
+        }
+
+        const collEl = document.getElementById('telemetryCollections');
+        if (collEl && serverTel.atlas && serverTel.atlas.collections) {
+          const c = serverTel.atlas.collections;
+          collEl.textContent = `Eng: ${c.engineers || 0} • Rosters: ${c.rosters || 0}`;
+        }
+
+        const memEl = document.getElementById('telemetryMemory');
+        if (memEl) {
+          memEl.textContent = serverTel.memory_rss_mb ? `${serverTel.memory_rss_mb} MB` : 'Dynamic RSS';
+        }
+
+        const netEl = document.getElementById('telemetryNetwork');
+        if (netEl && serverTel.network) {
+          const isRend = serverTel.environment?.is_render ? 'Render Cloud' : 'Host LAN';
+          netEl.textContent = `Port ${serverTel.network.port} • ${isRend}`;
+        }
+      }
+
+      if (userTel) {
+        const totalUsersEl = document.getElementById('telemetryTotalUsers');
+        if (totalUsersEl) {
+          totalUsersEl.textContent = `${userTel.total_engineers} Engineers`;
+        }
+
+        const platEl = document.getElementById('telemetryPlatforms');
+        if (platEl && userTel.platform_breakdown) {
+          platEl.textContent = `Web: ${userTel.platform_breakdown['Web Portal'] || 0} • App: ${userTel.platform_breakdown['Android App'] || 0}`;
+        }
+
+        const act24El = document.getElementById('telemetryActive24h');
+        if (act24El && userTel.active_windows) {
+          act24El.textContent = `${userTel.active_windows.last_24h || 0} Active (24h)`;
+        }
+
+        const winEl = document.getElementById('telemetryActiveWindows');
+        if (winEl && userTel.active_windows) {
+          winEl.textContent = `1h: ${userTel.active_windows.last_1h || 0} • 7d: ${userTel.active_windows.last_7d || 0}`;
+        }
+
+        this.renderAuditStream(userTel.recent_audit_log || []);
+      }
+
+      this.renderTodayNocCoverageRadar();
+    } catch (e) {
+      console.warn('Failed to refresh dashboard telemetry:', e);
+    }
+  }
+
+  renderTodayNocCoverageRadar() {
+    const today = new Date();
+    const todayDay = today.getDate();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const dateLabel = document.getElementById('radarDateLabel');
+    if (dateLabel) {
+      dateLabel.textContent = `Live shift assignments for today: ${dayNames[today.getDay()]}, ${todayDay} ${monthNames[today.getMonth()]} ${today.getFullYear()}`;
+    }
+
+    const fsContainer = document.getElementById('radarFsEngineers');
+    const fgContainer = document.getElementById('radarFgEngineers');
+    const ssContainer = document.getElementById('radarSsEngineers');
+    const nsContainer = document.getElementById('radarNsEngineers');
+    const offContainer = document.getElementById('radarOffEngineers');
+
+    if (!fsContainer || !fgContainer || !ssContainer || !nsContainer || !offContainer) return;
+
+    const fsList = [];
+    const fgList = [];
+    const ssList = [];
+    const nsList = [];
+    const offList = [];
+
+    const dIdx = todayDay - 1;
+    (this.state.gridRoster || []).forEach(eng => {
+      const shift = String(eng.shifts && eng.shifts[dIdx] !== undefined ? eng.shifts[dIdx] : '').trim().toUpperCase();
+      if (!shift) return;
+      if (shift === 'FS') fsList.push(eng.name);
+      else if (shift === 'FG') fgList.push(eng.name);
+      else if (shift === 'SS') ssList.push(eng.name);
+      else if (shift === 'NS') nsList.push(eng.name);
+      else if (shift === 'OFF' || shift.startsWith('SW') || shift === 'L') offList.push({ name: eng.name, code: shift });
+    });
+
+    const createPill = (name, bg, text) => {
+      const div = document.createElement('div');
+      div.className = `flex items-center gap-1.5 px-2 py-1 rounded-lg ${bg} ${text} text-xs font-bold border border-current/20 shadow-2xs`;
+      div.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current"></span> <span class="truncate">${name}</span>`;
+      return div;
+    };
+
+    // FS
+    fsContainer.innerHTML = '';
+    if (fsList.length === 0) {
+      fsContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
+    } else {
+      fsList.forEach(n => fsContainer.appendChild(createPill(n, 'bg-emerald-100', 'text-emerald-900')));
+    }
+
+    // FG
+    fgContainer.innerHTML = '';
+    if (fgList.length === 0) {
+      fgContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
+    } else {
+      fgList.forEach(n => fgContainer.appendChild(createPill(n, 'bg-teal-100', 'text-teal-900')));
+    }
+
+    // SS
+    ssContainer.innerHTML = '';
+    if (ssList.length === 0) {
+      ssContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
+    } else {
+      ssList.forEach(n => ssContainer.appendChild(createPill(n, 'bg-amber-100', 'text-amber-900')));
+    }
+
+    // NS
+    nsContainer.innerHTML = '';
+    if (nsList.length === 0) {
+      nsContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
+    } else {
+      nsList.forEach(n => nsContainer.appendChild(createPill(n, 'bg-slate-800', 'text-indigo-200')));
+    }
+
+    // OFF / SW
+    offContainer.innerHTML = '';
+    if (offList.length === 0) {
+      offContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers resting</div>';
+    } else {
+      offList.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between px-2 py-1 rounded-lg bg-yellow-100 text-yellow-950 text-xs font-bold border border-yellow-300';
+        div.innerHTML = `<span class="truncate">${item.name}</span> <span class="text-[10px] px-1 rounded bg-yellow-200">${item.code}</span>`;
+        offContainer.appendChild(div);
+      });
+    }
+  }
+
+  renderAuditStream(records) {
+    const container = document.getElementById('dashboardAuditStreamContainer');
+    if (!container) return;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      container.innerHTML = `
+        <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
+          <i class="ph ph-clock-counter-clockwise text-2xl mb-1 text-slate-300 block"></i>
+          No Active Records (Zero synthetic payloads: genuine events stream here dynamically upon logins & swaps)
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = '';
+    records.slice(0, 10).forEach(rec => {
+      const isAndroid = rec.platform === 'Android App';
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs transition';
+      row.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isAndroid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}">
+            ${rec.platform || 'Web Portal'}
+          </span>
+          <span class="font-bold text-slate-900">${rec.engineer_name || rec.username || 'System'}</span>
+          <span class="text-slate-500">• ${rec.action || 'Activity Event'}</span>
+        </div>
+        <span class="text-slate-400 font-mono text-[11px]">${rec.datetime || ''}</span>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  async loadDiagnosticsTerminal() {
+    const box = document.getElementById('tabTerminalLogsBox');
+    if (!box) return;
+    try {
+      const res = await this.atlasService.getServerLogs();
+      if (res && Array.isArray(res.logs) && res.logs.length > 0) {
+        box.innerHTML = '';
+        res.logs.forEach(line => {
+          const p = document.createElement('div');
+          p.textContent = line;
+          if (line.includes('ERROR')) p.className = 'text-red-400';
+          else if (line.includes('WARN')) p.className = 'text-amber-300';
+          else if (line.includes('SUCCESS') || line.includes('CONNECTED')) p.className = 'text-emerald-300 font-bold';
+          else p.className = 'text-slate-300';
+          box.appendChild(p);
+        });
+        box.scrollTop = box.scrollHeight;
+      } else {
+        box.innerHTML = '<div class="text-slate-500">[LOG BUFFER EMPTY - NO RECENT SERVER LOGS]</div>';
+      }
+    } catch (e) {
+      box.innerHTML = `<div class="text-red-400">[ERROR FETCHING SERVER LOGS: ${e.message}]</div>`;
+    }
+  }
+
+  renderSwapsTabQueue() {
+    const list = document.getElementById('tabSwapsQueueList');
+    if (!list) return;
+    const swaps = this.state.manualSwaps || [];
+    if (swaps.length === 0) {
+      list.innerHTML = `
+        <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
+          <i class="ph ph-arrows-clockwise text-2xl mb-1 text-slate-300 block"></i>
+          No Active Swap Records in Queue
+        </div>
+      `;
+      return;
+    }
+    list.innerHTML = '';
+    swaps.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between p-3.5 rounded-xl bg-amber-50/50 border border-amber-200 text-xs';
+      row.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+            <i class="ph ph-arrows-left-right text-sm"></i>
+          </div>
+          <div>
+            <span class="font-extrabold text-slate-900">${s.requestor} ↔ ${s.targetEngineer}</span>
+            <div class="text-[11px] text-slate-500">Day ${s.requestorDay} (${s.requestorShift}) exchanged with Day ${s.targetDay} (${s.targetShift})</div>
+          </div>
+        </div>
+        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          Validated
+        </span>
+      `;
+      list.appendChild(row);
+    });
+  }
 
   cacheDomElements() {
 
@@ -6607,13 +6925,18 @@ window.openImportModal = () => {
 
 
 
-window.addEventListener('DOMContentLoaded', () => {
+const bootstrapRosterApp = () => {
+  if (!window.rosterApp) {
+    window.rosterApp = new RosterXApp();
+    window.rosterApp.init();
+  }
+};
 
-  window.rosterApp = new RosterXApp();
-
-  window.rosterApp.init();
-
-});
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', bootstrapRosterApp);
+} else {
+  bootstrapRosterApp();
+}
 
 
 
