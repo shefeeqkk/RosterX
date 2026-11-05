@@ -8,15 +8,16 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.11.7`** (Android `versionCode: 37`, Server `SERVER_VERSION = "1.11.7"`)
-- **Previous Versions**: `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.0` (Build 30), `1.10.0` (Build 29), `1.9.1` (Build 28)
+- **Semantic Version**: **`1.11.8`** (Android `versionCode: 38`, Server `SERVER_VERSION = "1.11.8"`)
+- **Previous Versions**: `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.0` (Build 30), `1.10.0` (Build 29), `1.9.1` (Build 28)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
 - **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `password_resets`)
 - **Security & RBAC**: HMAC-SHA256 Signed JWT Tokens, Salted PBKDF2 Password Hashes, Anti-Hijack OTP Dispatch
-- **Email Engine**: 📧 **Native Gmail SMTP with TLS/SSL** (`smtp.gmail.com:465` / `587`) — zero sandbox restrictions!
+- **Email Engine**: 📧 **Multi-Channel Fail-Safe Recovery** (Gmail SMTP Port 465/587 + Automatic HTTPS Port 443 Resend Fallback for Render Free Tier)
+- **Admin Server Logs**: 📜 **Live Terminal Modal** in Admin Web Portal (`GET /api/logs`, `POST /api/logs/clear`) with real-time log stream
 - **Build Verification**: 🟢 `assembleDebug` executed — `BUILD SUCCESSFUL`!
 
 ---
