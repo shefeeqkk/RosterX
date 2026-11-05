@@ -20,6 +20,10 @@ services:
         sync: false
       - key: ALERT_EMAIL
         sync: false
+      - key: SMTP_EMAIL
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
       - key: AUTH_SECRET_KEY
         generateValue: true
       - key: ADMIN_PASSWORD

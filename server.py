@@ -32,11 +32,15 @@ import secrets
 import base64
 import urllib.request
 import urllib.error
+import smtplib
+import ssl
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.11.6"
+SERVER_VERSION = "1.11.7"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -81,6 +85,25 @@ DEFAULT_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "")
 RESEND_API_KEY = DEFAULT_RESEND_API_KEY
 RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <onboarding@resend.dev>")
+
+# Gmail SMTP Configuration for Native Password Recovery OTP
+DEFAULT_SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")
+DEFAULT_SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_EMAIL = DEFAULT_SMTP_EMAIL
+SMTP_PASSWORD = DEFAULT_SMTP_PASSWORD
+
+def get_smtp_credentials():
+    """Retrieve verified Gmail SMTP credentials from environment or .env."""
+    global SMTP_EMAIL, SMTP_PASSWORD
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        env = load_env_variables()
+        SMTP_EMAIL = env.get("SMTP_EMAIL", "").strip() or os.environ.get("SMTP_EMAIL", "").strip()
+        raw_pass = env.get("SMTP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip()
+        SMTP_PASSWORD = raw_pass.replace(" ", "")
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        print("[SMTP CONFIG] Warning: SMTP_EMAIL or SMTP_PASSWORD not configured. OTP dispatch will fail.")
+        return None, None
+    return SMTP_EMAIL, SMTP_PASSWORD
 
 # Official Team Directory
 DEFAULT_SERVER_ENGINEERS = [
@@ -510,6 +533,108 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
     except Exception as e:
         print(f"[RESEND AUDIT] Network/Execution Error: {e}")
         return {"success": False, "error": str(e)}
+
+def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> bool:
+    """
+    Transmit styled HTML body conforming to Neumorphic Soft UI design tokens via Gmail SMTP.
+    Uses Python standard library smtplib with SSL/TLS encryption.
+    """
+    smtp_user, smtp_pass = get_smtp_credentials()
+    if not smtp_user or not smtp_pass:
+        print(f"[SMTP ERROR] Cannot send OTP to {recipient_email}: Missing SMTP credentials.")
+        return False
+
+    display_name = engineer_name or "Engineer"
+    subject = f"🔐 {otp_code} is your RosterX verification code"
+
+    # Neumorphic Soft UI HTML Email Template
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RosterX Verification Code</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef2f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2d3748;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="padding:40px 15px;background-color:#eef2f6;">
+    <tr>
+      <td align="center">
+        <!-- Main Neumorphic Card -->
+        <table width="100%" style="max-width:500px;background:#eef2f6;border-radius:24px;border:1px solid #ffffff;box-shadow:8px 8px 20px #d1d9e6, -8px -8px 20px #ffffff;overflow:hidden;margin:0 auto;">
+          <!-- Header -->
+          <tr>
+            <td style="padding:32px 36px 16px;text-align:center;">
+              <div style="display:inline-block;padding:10px 22px;background:#eef2f6;border-radius:14px;box-shadow:inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff;margin-bottom:12px;">
+                <span style="font-size:18px;font-weight:900;letter-spacing:1.5px;color:#2d3748;">PROJECT ROSTERX</span>
+              </div>
+              <p style="margin:4px 0 0;color:#718096;font-size:12px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">Identity & Access Command</p>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding:10px 36px 36px;">
+              <h2 style="margin:0 0 10px;color:#2d3748;font-size:20px;font-weight:800;text-align:center;">Password Reset Verification</h2>
+              <p style="margin:0 0 20px;color:#4a5568;font-size:14px;line-height:1.6;text-align:center;">
+                Hello <strong>{display_name}</strong>, a password reset request was initiated for your RosterX account. Enter the 6-digit verification code below:
+              </p>
+
+              <!-- Inset Neumorphic Verification Code Display -->
+              <div style="background:#eef2f6;border-radius:16px;padding:22px;text-align:center;margin:24px 0;box-shadow:inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff;border:1px solid rgba(255,255,255,0.7);">
+                <span style="font-family:'Courier New',Courier,monospace;font-size:38px;font-weight:900;letter-spacing:12px;color:#ff5252;display:inline-block;padding-left:12px;">{otp_code}</span>
+              </div>
+
+              <!-- Expiration Notice -->
+              <div style="background:#edf2f7;border-radius:12px;padding:12px 16px;text-align:center;margin-bottom:20px;">
+                <p style="margin:0;color:#718096;font-size:12px;line-height:1.5;">
+                  ⏱️ This code expires in <strong style="color:#2d3748;">10 minutes</strong>.<br>If you did not request this verification, your account remains secure.
+                </p>
+              </div>
+
+              <p style="margin:0;color:#a0aec0;font-size:11px;text-align:center;line-height:1.4;">
+                Automated security notification dispatched by Project RosterX v{SERVER_VERSION}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"RosterX Security <{smtp_user}>"
+    msg["To"] = recipient_email
+    msg.attach(MIMEText(html_content, "html"))
+
+    print(f"[SMTP DISPATCH] Initiating Gmail SMTP transmission to: {recipient_email} (User: {display_name})")
+
+    # Primary Strategy: SMTP_SSL over Port 465
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=12) as server:
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, [recipient_email], msg.as_string())
+        print(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via SSL (Port 465).")
+        return True
+    except Exception as ssl_err:
+        print(f"[SMTP WARNING] Port 465 SSL failed ({ssl_err}). Attempting fallback to Port 587 STARTTLS...")
+
+    # Fallback Strategy: SMTP with STARTTLS over Port 587
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=12) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, [recipient_email], msg.as_string())
+        print(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via STARTTLS (Port 587).")
+        return True
+    except Exception as tls_err:
+        print(f"[SMTP ERROR] Failed to deliver OTP email to '{recipient_email}': {tls_err}")
+        return False
 
 def send_startup_link_email(public_url, lan_ip, port, to_email=None):
     """Dispatch email notification to administrator with live gateway link."""
@@ -1160,6 +1285,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
     def handle_api_post(self, clean_path):
         """Router for POST /api/* requests with strict authorization."""
+        global DEFAULT_SERVER_ENGINEERS
         content_length = int(self.headers.get("Content-Length", 0))
         body_bytes = self.rfile.read(content_length) if content_length > 0 else b"{}"
 
@@ -1314,216 +1440,239 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             
 
-        # 1.2 POST /api/auth/send-otp (Secure Password Reset Dispatch)
-        # CRITICAL FIX: Discard client-chosen email/name; lookup solely in database; uniform response
-        if clean_path in ("/api/auth/send-otp", "/api/auth/send-otp/"):
-            identifier = str(body.get("identifier", "")).strip().lower()[:100]
-            if not identifier:
-                self.send_json_response({"success": False, "message": "Username or email is required."}, 400)
+        # 1.2 POST /api/auth/forgot-password & /api/auth/send-otp (Native Gmail SMTP OTP Dispatch)
+        if clean_path in ("/api/auth/forgot-password", "/api/auth/forgot-password/", "/api/auth/send-otp", "/api/auth/send-otp/"):
+            username = str(body.get("username", "") or body.get("identifier", "")).strip()
+            if not username:
+                self.send_json_response({"success": False, "error": "Username is required.", "message": "Username is required."}, 400)
                 return
 
-            is_limited, limit_msg = check_otp_rate_limit(client_ip, identifier)
+            client_ip = self.client_address[0] if self.client_address else "127.0.0.1"
+            is_limited, limit_msg = check_otp_rate_limit(client_ip, username.lower())
             if is_limited:
-                self.send_json_response({"success": False, "message": limit_msg}, 429)
+                self.send_json_response({"success": False, "error": limit_msg, "message": limit_msg}, 429)
                 return
 
-            record_otp_dispatch(client_ip, identifier)
+            record_otp_dispatch(client_ip, username.lower())
 
-            # Strict database derivation: NEVER accept 'email' or 'name' from caller
-            user = find_user_by_identifier(identifier)
-            recipient_email = user.get("email") if user else None
-            recipient_name = user.get("name") if user else "Engineer"
+            # 1. Look up engineer in MongoDB
+            engineer = None
+            if ATLAS_DB is not None:
+                try:
+                    engineer = ATLAS_DB.engineers.find_one({"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}})
+                    if not engineer:
+                        engineer = ATLAS_DB.engineers.find_one({"email": {"$regex": f"^{re.escape(username)}$", "$options": "i"}})
+                except Exception as e:
+                    print(f"  [MONGODB LOOKUP ERROR] {e}")
 
-            if not recipient_email:
-                print(f"[RESEND AUDIT] OTP request rejected: Identifier '{identifier}' does not match any registered account.")
-                time.sleep(0.2)  # Mitigate timing differences
-                self.send_json_response({
-                    "success": False,
-                    "message": f"No account found matching '{identifier}'. Please check your username or email."
-                }, 404)
+            if not engineer and ATLAS_DB is None:
+                for tm in DEFAULT_SERVER_ENGINEERS:
+                    if tm.get("username", "").lower() == username.lower() or tm.get("email", "").lower() == username.lower():
+                        engineer = dict(tm)
+                        break
+
+            if not engineer or not engineer.get("email"):
+                print(f"[SMTP DISPATCH] Lookup rejected: User '{username}' or registered email not found in MongoDB.")
+                time.sleep(0.2)
+                self.send_json_response({"success": False, "error": "Engineer or registered email not found.", "message": "Engineer or registered email not found."}, 404)
                 return
 
-            # Cryptographically secure OTP generation (secrets.randbelow)
-            otp_code = f"{secrets.randbelow(1000000):06d}"
+            recipient_email = engineer["email"].strip()
+            engineer_name = engineer.get("name", username)
+
+            # 2. Generate 6-digit numeric OTP & store with expiration (10 minutes)
+            otp_code = f"{secrets.randbelow(900000) + 100000}"
+            now_ts = time.time()
+            expires_at = now_ts + 600
+
+            # Store reset_otp and otp_created_at directly in engineer document
+            if ATLAS_DB is not None and "_id" in engineer:
+                try:
+                    ATLAS_DB.engineers.update_one(
+                        {"_id": engineer["_id"]},
+                        {"$set": {
+                            "reset_otp": otp_code,
+                            "otp_created_at": now_ts
+                        }}
+                    )
+                except Exception as e:
+                    print(f"  [OTP DB SAVE ERROR] {e}")
+
+            # Also maintain active in-memory and password_resets record
             otp_hash = hashlib.sha256(otp_code.encode("utf-8")).hexdigest()
-            expires_at = time.time() + 600
-
-            # Store only OTP hash in memory
-            ACTIVE_OTPS[identifier] = {
+            clean_user = engineer.get("username", username).lower()
+            ACTIVE_OTPS[clean_user] = {
                 "hash": otp_hash,
+                "code": otp_code,
                 "expires_at": expires_at,
                 "email": recipient_email,
-                "name": recipient_name,
+                "name": engineer_name,
                 "attempts": 0
             }
-
-            # Persist OTP hash in Atlas DB if available
             if ATLAS_DB is not None:
                 try:
                     ATLAS_DB.password_resets.update_one(
-                        {"identifier": identifier},
+                        {"identifier": clean_user},
                         {"$set": {
-                            "identifier": identifier,
+                            "identifier": clean_user,
                             "email": recipient_email.lower(),
                             "hash": otp_hash,
                             "expires_at": expires_at,
-                            "created_at": time.time(),
+                            "created_at": now_ts,
                             "attempts": 0
                         }},
                         upsert=True
                     )
                 except Exception as e:
-                    print(f"  [OTP DB SAVE] {e}")
+                    pass
 
-            # Send professional HTML email via Resend
-            html_email = f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f1f5f9;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="padding:40px 15px;">
-    <tr>
-      <td align="center">
-        <table width="100%" style="max-width:520px;background:#0f172a;border:1px solid #1e293b;border-radius:16px;overflow:hidden;">
-          <tr>
-            <td style="padding:28px 32px;background:linear-gradient(135deg,#0284c7 0%,#2563eb 50%,#4f46e5 100%);text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:1px;">PROJECT ROSTERX</h1>
-              <p style="margin:6px 0 0;color:#e0f2fe;font-size:13px;">Security & Account Verification</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:32px;">
-              <h2 style="margin:0 0 12px;color:#ffffff;font-size:18px;font-weight:700;">Password Reset Verification</h2>
-              <p style="margin:0 0 20px;color:#94a3b8;font-size:14px;line-height:1.6;">
-                A password reset request was initiated for your RosterX account. Enter the 6-digit verification code below:
-              </p>
-              <div style="background:#020617;border:1.5px solid #0284c7;border-radius:12px;padding:20px;text-align:center;margin:24px 0;">
-                <span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#38bdf8;">{otp_code}</span>
-              </div>
-              <p style="margin:0 0 16px;color:#94a3b8;font-size:13px;">
-                ⏱️ This code expires in <strong>10 minutes</strong>. If you did not request this code, your account remains secure.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>"""
-            resend_result = send_resend_email(recipient_email, f"🔐 {otp_code} is your RosterX verification code", html_email)
-
-            if not resend_result.get("success"):
-                err = resend_result.get("error", "Failed to dispatch verification email via Resend")
-                print(f"[RESEND AUDIT] OTP dispatch failed for identifier '{identifier}': {err}")
+            # 3. Send email to the engineer's registered address via native Gmail SMTP
+            sent = send_otp_email(recipient_email, engineer_name, otp_code)
+            if sent:
+                self.send_json_response({
+                    "success": True,
+                    "message": "OTP verification code sent to registered email address.",
+                    "delivered_to": recipient_email
+                }, 200)
+            else:
                 self.send_json_response({
                     "success": False,
-                    "message": f"Resend error: {err}"
-                }, 502)
-                return
-
-            delivered_to = resend_result.get("delivered_to", recipient_email)
-            print(f"[RESEND AUDIT] OTP dispatch confirmed for '{identifier}' -> Delivered to '{delivered_to}' (Resend ID: {resend_result.get('id')})")
-            self.send_json_response({
-                "success": True,
-                "message": f"A 6-digit verification code has been dispatched to {delivered_to}.",
-                "delivered_to": delivered_to
-            })
+                    "error": "Failed to dispatch verification email. Please check server logs.",
+                    "message": "Failed to dispatch verification email via Gmail SMTP."
+                }, 500)
             return
 
         # 1.3 POST /api/auth/verify-otp (Verify OTP and Update Password with PBKDF2)
         if clean_path in ("/api/auth/verify-otp", "/api/auth/verify-otp/"):
-            identifier = str(body.get("identifier", "")).strip().lower()[:100]
-            otp = str(body.get("otp", "")).strip()[:10]
-            new_pass = str(body.get("newPassword", "")).strip()[:100]
+            username = str(body.get("username", "") or body.get("identifier", "")).strip()
+            otp = str(body.get("otp", "")).strip()
+            new_pass = str(body.get("new_password", "") or body.get("newPassword", "")).strip()
 
-            if not identifier or not otp or not new_pass:
-                self.send_json_response({"success": False, "message": "Identifier, verification code, and new password required."}, 400)
-                return
-
-            if len(new_pass) < 8:
-                self.send_json_response({"success": False, "message": "Password must be at least 8 characters long."}, 400)
-                return
-
-            record = ACTIVE_OTPS.get(identifier)
-            if not record and ATLAS_DB is not None:
-                try:
-                    record = ATLAS_DB.password_resets.find_one({"identifier": identifier})
-                except Exception:
-                    pass
-
-            if not record:
-                self.send_json_response({"success": False, "message": "No active verification code found or code expired."}, 400)
-                return
-
-            if time.time() > record.get("expires_at", 0):
-                ACTIVE_OTPS.pop(identifier, None)
-                if ATLAS_DB is not None:
-                    try:
-                        ATLAS_DB.password_resets.delete_many({"identifier": identifier})
-                    except Exception:
-                        pass
-                self.send_json_response({"success": False, "message": "Verification code has expired (10-minute limit)."}, 400)
-                return
-
-            attempts = record.get("attempts", 0) + 1
-            record["attempts"] = attempts
-            if attempts > 5:
-                ACTIVE_OTPS.pop(identifier, None)
-                if ATLAS_DB is not None:
-                    try:
-                        ATLAS_DB.password_resets.delete_many({"identifier": identifier})
-                    except Exception:
-                        pass
+            if not username or not otp or not new_pass:
                 self.send_json_response({
                     "success": False,
-                    "message": "Too many failed attempts. Verification code has been invalidated."
-                }, 429)
-                return
-
-            input_hash = hashlib.sha256(otp.encode("utf-8")).hexdigest()
-            if not hmac.compare_digest(record.get("hash", ""), input_hash):
-                remaining = 5 - attempts
-                self.send_json_response({
-                    "success": False,
-                    "message": f"Invalid verification code. {remaining} attempt(s) remaining."
+                    "error": "Username, OTP code, and new password are required.",
+                    "code": "MISSING_FIELDS",
+                    "message": "Username, OTP code, and new password are required."
                 }, 400)
                 return
 
-            # Verification succeeded! Invalidate OTP
-            ACTIVE_OTPS.pop(identifier, None)
-            if record.get("email"):
-                ACTIVE_OTPS.pop(record["email"].lower(), None)
+            # Lookup engineer
+            engineer = None
             if ATLAS_DB is not None:
                 try:
-                    ATLAS_DB.password_resets.delete_many({"$or": [{"identifier": identifier}, {"email": record.get("email", "").lower()}]})
+                    engineer = ATLAS_DB.engineers.find_one({"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}})
+                    if not engineer:
+                        engineer = ATLAS_DB.engineers.find_one({"email": {"$regex": f"^{re.escape(username)}$", "$options": "i"}})
+                except Exception as e:
+                    print(f"  [MONGODB LOOKUP ERROR] {e}")
+
+            if not engineer and ATLAS_DB is None:
+                for tm in DEFAULT_SERVER_ENGINEERS:
+                    if tm.get("username", "").lower() == username.lower() or tm.get("email", "").lower() == username.lower():
+                        engineer = dict(tm)
+                        break
+
+            if not engineer:
+                self.send_json_response({
+                    "success": False,
+                    "error": "Account not found.",
+                    "code": "ACCOUNT_NOT_FOUND",
+                    "message": "Account not found."
+                }, 404)
+                return
+
+            # Verify OTP
+            stored_otp = str(engineer.get("reset_otp", "")).strip()
+            otp_created_at = engineer.get("otp_created_at", 0)
+
+            clean_user = engineer.get("username", username).lower()
+            record = ACTIVE_OTPS.get(clean_user)
+            if not record and ATLAS_DB is not None:
+                try:
+                    record = ATLAS_DB.password_resets.find_one({"$or": [{"identifier": clean_user}, {"email": engineer.get("email", "").lower()}]})
                 except Exception:
                     pass
+
+            is_valid_otp = False
+            is_expired = False
+
+            if stored_otp:
+                if stored_otp == otp:
+                    if time.time() - otp_created_at <= 600:
+                        is_valid_otp = True
+                    else:
+                        is_expired = True
+            elif record:
+                input_hash = hashlib.sha256(otp.encode("utf-8")).hexdigest()
+                if record.get("code") == otp or hmac.compare_digest(record.get("hash", ""), input_hash):
+                    if time.time() <= record.get("expires_at", 0):
+                        is_valid_otp = True
+                    else:
+                        is_expired = True
+
+            if is_expired:
+                self.send_json_response({
+                    "success": False,
+                    "error": "Verification code has expired. Please request a new one.",
+                    "code": "EXPIRED_OTP",
+                    "message": "Verification code has expired (10-minute limit)."
+                }, 400)
+                return
+
+            if not is_valid_otp:
+                self.send_json_response({
+                    "success": False,
+                    "error": "Invalid verification code.",
+                    "code": "INVALID_OTP",
+                    "message": "Invalid verification code."
+                }, 400)
+                return
+
+            if len(new_pass) < 6:
+                self.send_json_response({
+                    "success": False,
+                    "error": "Password must be at least 6 characters long.",
+                    "code": "WEAK_PASSWORD",
+                    "message": "Password must be at least 6 characters long."
+                }, 400)
+                return
 
             # Hash new password with salted PBKDF2
             hashed_pass = hash_password(new_pass)
 
-            # Update password in Atlas DB
-            if ATLAS_DB is not None:
+            # Update password and clear reset_otp in MongoDB
+            if ATLAS_DB is not None and "_id" in engineer:
                 try:
-                    ATLAS_DB.engineers.update_many(
-                        {"$or": [
-                            {"username": identifier},
-                            {"id": identifier},
-                            {"email": identifier},
-                            {"email": record.get("email", "").lower()}
-                        ]},
-                        {"$set": {
-                            "password": hashed_pass,
-                            "password_updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                        }}
+                    ATLAS_DB.engineers.update_one(
+                        {"_id": engineer["_id"]},
+                        {
+                            "$set": {
+                                "password": hashed_pass,
+                                "password_updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                            },
+                            "$unset": {
+                                "reset_otp": "",
+                                "otp_created_at": ""
+                            }
+                        }
                     )
                 except Exception as e:
                     print(f"  [OTP] Password update in Atlas error: {e}")
 
+            # Clear memory and password_resets collection
+            ACTIVE_OTPS.pop(clean_user, None)
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.password_resets.delete_many({"$or": [{"identifier": clean_user}, {"email": engineer.get("email", "").lower()}]})
+                except Exception:
+                    pass
+
+            print(f"[AUTH] ✅ Password successfully reset for engineer '{engineer.get('username')}' ({engineer.get('email')}).")
             self.send_json_response({
                 "success": True,
-                "message": "Password successfully reset and verified! You can now log in."
-            })
+                "message": "Password reset successfully. You may now log in with your new password."
+            }, 200)
             return
 
         # ======================================================================
@@ -1826,7 +1975,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 delete_query = {"$or": queries}
                 result = ATLAS_DB.engineers.delete_many(delete_query)
 
-                global DEFAULT_SERVER_ENGINEERS
                 DEFAULT_SERVER_ENGINEERS = [
                     e for e in DEFAULT_SERVER_ENGINEERS
                     if e.get("username") != eng_username and e.get("name") != eng_name
