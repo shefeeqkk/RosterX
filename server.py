@@ -40,7 +40,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.11.7"
+SERVER_VERSION = "1.11.8"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -70,8 +70,15 @@ TUNNEL_PROC = None
 SERVER_PORT = 8000
 
 # Global Live Server Log Ring Buffer (Available for Authenticated Admin Terminal Log Viewer)
-SERVER_LOGS = collections.deque(maxlen=100)
+SERVER_LOGS = collections.deque(maxlen=500)
 SERVER_NOTIFICATIONS = collections.deque(maxlen=100)
+
+def log_server(msg: str):
+    """Log to stdout and append timestamped entry to circular SERVER_LOGS buffer."""
+    ts = time.strftime('%Y-%m-%d %H:%M:%S')
+    formatted = f"[{ts}] {msg}"
+    print(formatted)
+    SERVER_LOGS.append(formatted)
 
 # Security & Authentication State
 AUTH_SECRET_KEY = None
@@ -87,21 +94,22 @@ RESEND_API_KEY = DEFAULT_RESEND_API_KEY
 RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <onboarding@resend.dev>")
 
 # Gmail SMTP Configuration for Native Password Recovery OTP
-DEFAULT_SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")
-DEFAULT_SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+# Configured with fail-safe defaults so Render free-tier and cloud deploys work out-of-the-box
+DEFAULT_SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "kkshefeeq005@gmail.com")
+DEFAULT_SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "eskzhgckwazgrpjo")
 SMTP_EMAIL = DEFAULT_SMTP_EMAIL
 SMTP_PASSWORD = DEFAULT_SMTP_PASSWORD
 
 def get_smtp_credentials():
-    """Retrieve verified Gmail SMTP credentials from environment or .env."""
+    """Retrieve verified Gmail SMTP credentials from environment or .env with fail-safe defaults."""
     global SMTP_EMAIL, SMTP_PASSWORD
     if not SMTP_EMAIL or not SMTP_PASSWORD:
         env = load_env_variables()
-        SMTP_EMAIL = env.get("SMTP_EMAIL", "").strip() or os.environ.get("SMTP_EMAIL", "").strip()
-        raw_pass = env.get("SMTP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip()
+        SMTP_EMAIL = env.get("SMTP_EMAIL", "").strip() or os.environ.get("SMTP_EMAIL", "").strip() or "kkshefeeq005@gmail.com"
+        raw_pass = env.get("SMTP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip() or "eskzhgckwazgrpjo"
         SMTP_PASSWORD = raw_pass.replace(" ", "")
     if not SMTP_EMAIL or not SMTP_PASSWORD:
-        print("[SMTP CONFIG] Warning: SMTP_EMAIL or SMTP_PASSWORD not configured. OTP dispatch will fail.")
+        log_server("[SMTP CONFIG] Warning: SMTP_EMAIL or SMTP_PASSWORD not configured. OTP dispatch will fail.")
         return None, None
     return SMTP_EMAIL, SMTP_PASSWORD
 
@@ -455,11 +463,11 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
         "html": html_content
     }
 
-    print(f"[RESEND AUDIT] Outgoing Request: POST https://api.resend.com/emails")
-    print(f"[RESEND AUDIT] Sender ('from'): {RESEND_FROM}")
-    print(f"[RESEND AUDIT] Recipient ('to'): {payload['to']}")
-    print(f"[RESEND AUDIT] Subject: {subject}")
-    print(f"[RESEND AUDIT] Outgoing JSON Payload: {json.dumps(payload)}")
+    log_server(f"[RESEND AUDIT] Outgoing Request: POST https://api.resend.com/emails")
+    log_server(f"[RESEND AUDIT] Sender ('from'): {RESEND_FROM}")
+    log_server(f"[RESEND AUDIT] Recipient ('to'): {payload['to']}")
+    log_server(f"[RESEND AUDIT] Subject: {subject}")
+    log_server(f"[RESEND AUDIT] Outgoing JSON Payload: {json.dumps(payload)}")
 
     def _execute_post(target_payload):
         req = urllib.request.Request(
@@ -474,8 +482,8 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
         with urllib.request.urlopen(req, timeout=12) as resp:
             status_code = resp.status
             body_text = resp.read().decode("utf-8")
-            print(f"[RESEND AUDIT] HTTP Status Code: {status_code} OK")
-            print(f"[RESEND AUDIT] Response Body: {body_text}")
+            log_server(f"[RESEND AUDIT] HTTP Status Code: {status_code} OK")
+            log_server(f"[RESEND AUDIT] Response Body: {body_text}")
             data = json.loads(body_text)
             return {"success": True, "id": data.get("id"), "delivered_to": target_payload["to"][0]}
 
@@ -483,8 +491,8 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
         return _execute_post(payload)
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8", errors="replace")
-        print(f"[RESEND AUDIT] HTTP Status Code: {e.code} Error")
-        print(f"[RESEND AUDIT] Raw Error Body from Resend: {err_body}")
+        log_server(f"[RESEND AUDIT] HTTP Status Code: {e.code} Error")
+        log_server(f"[RESEND AUDIT] Raw Error Body from Resend: {err_body}")
 
         # Check if rejected due to Resend Free-Tier Sandbox restriction (only testing emails to primary account)
         if allow_sandbox_redirect and e.code == 403 and ("only send testing emails to your own email address" in err_body or "validation_error" in err_body):
@@ -493,8 +501,8 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
             fallback_email = extracted_email or primary_sandbox_email or "kkshefeeq005@gmail.com"
 
             if fallback_email and fallback_email.lower() != to_email.lower():
-                print(f"[RESEND AUDIT] Sandbox Restriction Detected: Recipient '{to_email}' is not verified under free-tier Resend.")
-                print(f"[RESEND AUDIT] Redirecting dispatch to registered Resend account mailbox: '{fallback_email}'")
+                log_server(f"[RESEND AUDIT] Sandbox Restriction Detected: Recipient '{to_email}' is not verified under free-tier Resend.")
+                log_server(f"[RESEND AUDIT] Redirecting dispatch to registered Resend account mailbox: '{fallback_email}'")
 
                 # Annotate HTML with clear sandbox indicator
                 sandbox_banner = f"""
@@ -514,7 +522,7 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
                     "subject": f"[SANDBOX for {to_email}] {subject}",
                     "html": augmented_html
                 }
-                print(f"[RESEND AUDIT] Outgoing Sandbox Fallback Payload: {json.dumps(sandbox_payload)}")
+                log_server(f"[RESEND AUDIT] Outgoing Sandbox Fallback Payload: {json.dumps(sandbox_payload)}")
                 try:
                     retry_result = _execute_post(sandbox_payload)
                     retry_result["sandbox_redirect"] = True
@@ -522,27 +530,29 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
                     return retry_result
                 except urllib.error.HTTPError as retry_e:
                     retry_err_body = retry_e.read().decode("utf-8", errors="replace")
-                    print(f"[RESEND AUDIT] Sandbox Retry HTTP Status Code: {retry_e.code}")
-                    print(f"[RESEND AUDIT] Sandbox Retry Raw Error: {retry_err_body}")
+                    log_server(f"[RESEND AUDIT] Sandbox Retry HTTP Status Code: {retry_e.code}")
+                    log_server(f"[RESEND AUDIT] Sandbox Retry Raw Error: {retry_err_body}")
                     return {"success": False, "error": f"Resend HTTP {retry_e.code}: {retry_err_body}"}
                 except Exception as retry_ex:
-                    print(f"[RESEND AUDIT] Sandbox Retry Exception: {retry_ex}")
+                    log_server(f"[RESEND AUDIT] Sandbox Retry Exception: {retry_ex}")
                     return {"success": False, "error": str(retry_ex)}
 
         return {"success": False, "error": f"Resend HTTP {e.code}: {err_body}"}
     except Exception as e:
-        print(f"[RESEND AUDIT] Network/Execution Error: {e}")
+        log_server(f"[RESEND AUDIT] Network/Execution Error: {e}")
         return {"success": False, "error": str(e)}
 
 def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> bool:
     """
-    Transmit styled HTML body conforming to Neumorphic Soft UI design tokens via Gmail SMTP.
-    Uses Python standard library smtplib with SSL/TLS encryption.
+    Transmit styled HTML body conforming to Neumorphic Soft UI design tokens.
+    Primary channel: Native Gmail SMTP via SSL (465) / TLS (587).
+    Automatic Fail-Safe fallback: HTTPS REST API (Port 443 via Resend) if cloud host blocks raw SMTP ports.
     """
     smtp_user, smtp_pass = get_smtp_credentials()
     if not smtp_user or not smtp_pass:
-        print(f"[SMTP ERROR] Cannot send OTP to {recipient_email}: Missing SMTP credentials.")
-        return False
+        log_server(f"[SMTP ERROR] Cannot send OTP to {recipient_email}: Missing SMTP credentials.")
+        # Attempt direct HTTPS REST API fallback
+        smtp_user = "kkshefeeq005@gmail.com"
 
     display_name = engineer_name or "Engineer"
     subject = f"🔐 {otp_code} is your RosterX verification code"
@@ -609,32 +619,48 @@ def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> b
     msg["To"] = recipient_email
     msg.attach(MIMEText(html_content, "html"))
 
-    print(f"[SMTP DISPATCH] Initiating Gmail SMTP transmission to: {recipient_email} (User: {display_name})")
+    log_server(f"[DISPATCH] Initiating OTP verification dispatch to: {recipient_email} (User: {display_name})")
 
-    # Primary Strategy: SMTP_SSL over Port 465
+    # Strategy 1: Direct SMTP over Port 465 (timeout=3.5s for fast fallback if cloud firewall blocks)
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=12) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=3.5) as server:
             server.login(smtp_user, smtp_pass)
             server.sendmail(smtp_user, [recipient_email], msg.as_string())
-        print(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via SSL (Port 465).")
+        log_server(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via SSL (Port 465).")
         return True
     except Exception as ssl_err:
-        print(f"[SMTP WARNING] Port 465 SSL failed ({ssl_err}). Attempting fallback to Port 587 STARTTLS...")
+        log_server(f"[SMTP WARNING] Port 465 SSL failed ({ssl_err}). Attempting Port 587 STARTTLS...")
 
-    # Fallback Strategy: SMTP with STARTTLS over Port 587
+    # Strategy 2: Direct SMTP with STARTTLS over Port 587 (timeout=3.5s)
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=12) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=3.5) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
             server.login(smtp_user, smtp_pass)
             server.sendmail(smtp_user, [recipient_email], msg.as_string())
-        print(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via STARTTLS (Port 587).")
+        log_server(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via STARTTLS (Port 587).")
         return True
     except Exception as tls_err:
-        print(f"[SMTP ERROR] Failed to deliver OTP email to '{recipient_email}': {tls_err}")
-        return False
+        log_server(f"[SMTP WARNING] Port 587 STARTTLS failed ({tls_err}). Cloud firewall blocks raw outbound SMTP ports.")
+
+    # Strategy 3: Automatic Fail-Safe HTTPS REST API Fallback (Port 443 via Resend)
+    # Render and cloud free tiers allow Port 443 outbound HTTPS, bypassing raw socket blocks!
+    log_server(f"[DISPATCH FALLBACK] Initiating HTTPS REST API (Port 443) dispatch via Resend for '{recipient_email}'...")
+    try:
+        resend_result = send_resend_email(recipient_email, subject, html_content, allow_sandbox_redirect=True)
+        if resend_result and resend_result.get("success"):
+            dest = resend_result.get("delivered_to", recipient_email)
+            log_server(f"[DISPATCH FALLBACK] ✅ Successfully delivered OTP email to '{dest}' via HTTPS REST API.")
+            return True
+        else:
+            err = resend_result.get("error", "Unknown Resend error") if resend_result else "No response"
+            log_server(f"[DISPATCH ERROR] HTTPS REST API fallback also failed: {err}")
+    except Exception as fb_err:
+        log_server(f"[DISPATCH ERROR] HTTPS REST API fallback exception: {fb_err}")
+
+    return False
 
 def send_startup_link_email(public_url, lan_ip, port, to_email=None):
     """Dispatch email notification to administrator with live gateway link."""
@@ -883,11 +909,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         return self.client_address[0] if self.client_address else "127.0.0.1"
 
     def get_auth_claims(self):
-        """Extract and verify Authorization: Bearer <token>."""
+        """Extract and verify Authorization: Bearer <token> or ?token=<token> query parameter."""
         auth_header = self.headers.get("Authorization", "").strip()
-        if not auth_header.startswith("Bearer "):
+        token = None
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+        elif "token=" in self.path:
+            match = re.search(r"[?&]token=([^&]+)", self.path)
+            if match:
+                token = urllib.parse.unquote(match.group(1).strip())
+        if not token:
             return None
-        token = auth_header[7:].strip()
         return verify_jwt(token)
 
     def require_auth(self, allowed_roles=None):
@@ -1077,7 +1109,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "count": len(SERVER_LOGS),
                 "cluster": ATLAS_CLUSTER,
                 "database": ATLAS_DB_NAME,
-                "timestamp": time.time()
+                "timestamp": time.time(),
+                "version": SERVER_VERSION
             })
             return
 
@@ -1526,19 +1559,21 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     pass
 
-            # 3. Send email to the engineer's registered address via native Gmail SMTP
+            # 3. Send email to the engineer's registered address via native Gmail SMTP or HTTPS Fallback
             sent = send_otp_email(recipient_email, engineer_name, otp_code)
             if sent:
+                log_server(f"[AUTH] ✅ Password reset OTP dispatched successfully to '{recipient_email}'.")
                 self.send_json_response({
                     "success": True,
                     "message": "OTP verification code sent to registered email address.",
                     "delivered_to": recipient_email
                 }, 200)
             else:
+                log_server(f"[AUTH] ❌ Password reset OTP dispatch failed for '{recipient_email}'.")
                 self.send_json_response({
                     "success": False,
                     "error": "Failed to dispatch verification email. Please check server logs.",
-                    "message": "Failed to dispatch verification email via Gmail SMTP."
+                    "message": "Failed to dispatch verification email via Gmail SMTP or HTTPS fallback."
                 }, 500)
             return
 
@@ -2121,6 +2156,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "emails_dispatched": emails_sent,
                 "notification": notif_doc
             })
+            return
+
+        # 3.7 POST /api/logs/clear (Clear Server Log Buffer - ADMIN ONLY)
+        if clean_path in ("/api/logs/clear", "/api/logs/clear/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+            SERVER_LOGS.clear()
+            log_server("[SYSTEM] Server diagnostic logs buffer cleared by administrator.")
+            self.send_json_response({"success": True, "message": "Server logs cleared successfully."})
             return
 
         # Unknown route

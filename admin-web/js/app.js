@@ -756,10 +756,25 @@ class RosterXApp {
     this.dom.recoveryModalPeriodLabel = document.getElementById('recoveryModalPeriodLabel');
 
     this.dom.btnCloseRecoveryModal = document.getElementById('btnCloseRecoveryModal');
-
     this.dom.btnCloseRecoveryModalFooter = document.getElementById('btnCloseRecoveryModalFooter');
-
     this.dom.recoverySnapshotsLoading = document.getElementById('recoverySnapshotsLoading');
+
+    // Live Server Logs Terminal Modal
+    this.dom.btnOpenLogsModal = document.getElementById('btnOpenLogsModal');
+    this.dom.logsModal = document.getElementById('logsModal');
+    this.dom.btnCloseLogsModal = document.getElementById('btnCloseLogsModal');
+    this.dom.btnCloseLogsModalFooter = document.getElementById('btnCloseLogsModalFooter');
+    this.dom.btnRefreshLogs = document.getElementById('btnRefreshLogs');
+    this.dom.btnCopyLogs = document.getElementById('btnCopyLogs');
+    this.dom.btnClearServerLogs = document.getElementById('btnClearServerLogs');
+    this.dom.logsSearchInput = document.getElementById('logsSearchInput');
+    this.dom.logsAutoRefreshCheckbox = document.getElementById('logsAutoRefreshCheckbox');
+    this.dom.logsTerminalContainer = document.getElementById('logsTerminalContainer');
+    this.dom.logsList = document.getElementById('logsList');
+    this.dom.logsCountLabel = document.getElementById('logsCountLabel');
+    this.dom.logsLoadingIndicator = document.getElementById('logsLoadingIndicator');
+    this.dom.logsEmptyNotice = document.getElementById('logsEmptyNotice');
+    this.dom.logsServerVersionBadge = document.getElementById('logsServerVersionBadge');
 
     this.dom.recoverySnapshotsEmpty = document.getElementById('recoverySnapshotsEmpty');
 
@@ -1683,13 +1698,32 @@ class RosterXApp {
     }
 
     if (this.dom.btnCloseRecoveryModalFooter) {
-
       this.dom.btnCloseRecoveryModalFooter.addEventListener('click', () => {
-
         if (this.dom.recoveryModal) this.dom.recoveryModal.classList.add('hidden');
-
       });
+    }
 
+    // Live Server Diagnostics Modal Listeners
+    if (this.dom.btnOpenLogsModal) {
+      this.dom.btnOpenLogsModal.addEventListener('click', () => this.openLogsModal());
+    }
+    if (this.dom.btnCloseLogsModal) {
+      this.dom.btnCloseLogsModal.addEventListener('click', () => this.closeLogsModal());
+    }
+    if (this.dom.btnCloseLogsModalFooter) {
+      this.dom.btnCloseLogsModalFooter.addEventListener('click', () => this.closeLogsModal());
+    }
+    if (this.dom.btnRefreshLogs) {
+      this.dom.btnRefreshLogs.addEventListener('click', () => this.refreshLogs(true));
+    }
+    if (this.dom.btnCopyLogs) {
+      this.dom.btnCopyLogs.addEventListener('click', () => this.copyLogs());
+    }
+    if (this.dom.btnClearServerLogs) {
+      this.dom.btnClearServerLogs.addEventListener('click', () => this.clearServerLogs());
+    }
+    if (this.dom.logsSearchInput) {
+      this.dom.logsSearchInput.addEventListener('input', () => this.filterLogs());
     }
 
     if (this.dom.syncBadgeIndicator) {
@@ -6264,28 +6298,132 @@ class RosterXApp {
               this.renderDailyCoverage();
 
               this.runRuleAudit();
-
               this.dom.recoveryModal.classList.add('hidden');
-
               this.showToast('✅ Snapshot restored successfully!');
-
             } else {
-
               alert(res.message || 'Failed to restore snapshot.');
-
             }
-
           }
-
         });
-
       });
-
     }
-
   }
 
+  // --- Live Server Diagnostics & Terminal Logs Modal ---
 
+  openLogsModal() {
+    if (!this.dom.logsModal) return;
+    this.dom.logsModal.classList.remove('hidden');
+    this.refreshLogs(true);
+
+    if (this._logsInterval) clearInterval(this._logsInterval);
+    this._logsInterval = setInterval(() => {
+      if (this.dom.logsAutoRefreshCheckbox && this.dom.logsAutoRefreshCheckbox.checked && !this.dom.logsModal.classList.contains('hidden')) {
+        this.refreshLogs(false);
+      }
+    }, 3000);
+  }
+
+  closeLogsModal() {
+    if (this.dom.logsModal) this.dom.logsModal.classList.add('hidden');
+    if (this._logsInterval) {
+      clearInterval(this._logsInterval);
+      this._logsInterval = null;
+    }
+  }
+
+  async refreshLogs(showLoading = false) {
+    if (!this.dom.logsList) return;
+    if (showLoading && this.dom.logsLoadingIndicator && (!this._cachedLogs || this._cachedLogs.length === 0)) {
+      this.dom.logsLoadingIndicator.classList.remove('hidden');
+      if (this.dom.logsEmptyNotice) this.dom.logsEmptyNotice.classList.add('hidden');
+    }
+
+    const data = await this.atlasService.getServerLogs();
+    if (this.dom.logsLoadingIndicator) this.dom.logsLoadingIndicator.classList.add('hidden');
+
+    if (data && data.version && this.dom.logsServerVersionBadge) {
+      this.dom.logsServerVersionBadge.textContent = `v${data.version}`;
+    }
+
+    const rawLogs = (data && Array.isArray(data.logs)) ? data.logs : [];
+    this._cachedLogs = rawLogs;
+    this.filterLogs();
+  }
+
+  filterLogs() {
+    if (!this.dom.logsList) return;
+    const filter = (this.dom.logsSearchInput ? this.dom.logsSearchInput.value : '').trim().toLowerCase();
+    const allLogs = this._cachedLogs || [];
+    const matched = filter ? allLogs.filter(l => l.toLowerCase().includes(filter)) : allLogs;
+
+    if (this.dom.logsCountLabel) {
+      this.dom.logsCountLabel.textContent = `${matched.length} of ${allLogs.length} entries`;
+    }
+
+    if (matched.length === 0) {
+      if (this.dom.logsEmptyNotice) this.dom.logsEmptyNotice.classList.remove('hidden');
+      this.dom.logsList.innerHTML = '';
+      return;
+    }
+
+    if (this.dom.logsEmptyNotice) this.dom.logsEmptyNotice.classList.add('hidden');
+
+    this.dom.logsList.innerHTML = matched.map(line => {
+      let colorClass = 'text-slate-300';
+      if (line.includes('ERROR') || line.includes('Failed') || line.includes('HTTP 500') || line.includes('HTTP 404')) {
+        colorClass = 'text-red-400 font-semibold';
+      } else if (line.includes('✅') || line.includes('OK') || line.includes('HTTP 200') || line.includes('HTTP 201') || line.includes('Successfully')) {
+        colorClass = 'text-emerald-400';
+      } else if (line.includes('WARNING') || line.includes('HTTP 429') || line.includes('Notice') || line.includes('⚠️')) {
+        colorClass = 'text-amber-400';
+      } else if (line.includes('SMTP') || line.includes('DISPATCH') || line.includes('RESEND')) {
+        colorClass = 'text-cyan-400';
+      } else if (line.includes('ATLAS') || line.includes('MONGODB')) {
+        colorClass = 'text-purple-300';
+      } else if (line.includes('GATEWAY') || line.includes('SYSTEM') || line.includes('RENDER')) {
+        colorClass = 'text-blue-400 font-semibold';
+      }
+
+      const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<div class="py-0.5 px-1.5 rounded hover:bg-slate-900 transition font-mono text-[11.5px] whitespace-pre-wrap break-all ${colorClass}">${escaped}</div>`;
+    }).join('');
+
+    // Auto-scroll to bottom of terminal if user is monitoring live
+    if (this.dom.logsTerminalContainer) {
+      this.dom.logsTerminalContainer.scrollTop = this.dom.logsTerminalContainer.scrollHeight;
+    }
+  }
+
+  copyLogs() {
+    const allLogs = this._cachedLogs || [];
+    if (allLogs.length === 0) {
+      this.showToast('No logs to copy.');
+      return;
+    }
+    const text = allLogs.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.showToast('📋 Copied server logs to clipboard!');
+      }).catch(() => {
+        prompt('Copy logs below:', text);
+      });
+    } else {
+      prompt('Copy logs below:', text);
+    }
+  }
+
+  async clearServerLogs() {
+    if (!confirm('Are you sure you want to clear the server log buffer?')) return;
+    const res = await this.atlasService.clearServerLogs();
+    if (res && res.success) {
+      this._cachedLogs = [];
+      this.filterLogs();
+      this.showToast('🧹 Server logs cleared successfully.');
+    } else {
+      alert('Failed to clear server logs.');
+    }
+  }
 
   // --- Operational Policies Atlas Sync ---
 
