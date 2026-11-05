@@ -36,7 +36,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.11.5"
+SERVER_VERSION = "1.11.6"
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -185,10 +185,26 @@ def find_user_by_identifier(identifier: str):
     """
     Centralized, strict user lookup by identifier (username, email, or id).
     Eliminates loose regex matches and handles database and fallback directory.
+    Supports alert/registered Resend account email resolution.
     """
     if not identifier:
         return None
     clean_id = str(identifier).strip().lower()
+
+    # Match primary administrator / alert email alias (e.g. kkshefeeq005@gmail.com)
+    env = load_env_variables()
+    alert_email = env.get("ALERT_EMAIL", "").strip().lower() or (DEFAULT_ALERT_EMAIL.lower() if DEFAULT_ALERT_EMAIL else "")
+    if alert_email and clean_id == alert_email:
+        if ATLAS_DB is not None:
+            try:
+                user = ATLAS_DB.engineers.find_one({"$or": [{"username": "shefeeqkk"}, {"username": "admin"}, {"role": "admin"}]})
+                if user:
+                    return user
+            except Exception as e:
+                print(f"  [USER LOOKUP ERROR] {e}")
+        for tm in DEFAULT_SERVER_ENGINEERS:
+            if tm.get("username") in ("shefeeqkk", "admin") or tm.get("role") == "admin":
+                return dict(tm)
 
     if ATLAS_DB is not None:
         try:
@@ -392,15 +408,22 @@ def init_atlas_connection(env):
         ATLAS_STATUS = "DISCONNECTED"
         ATLAS_ERROR = str(e)
 
-def send_resend_email(to_email, subject, html_content):
-    """Dispatch real transactional email via Resend API."""
+def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=True):
+    """
+    Dispatch real transactional email via Resend API.
+    Includes comprehensive [RESEND AUDIT] logging and sandbox constraint handling.
+    """
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY
     if not RESEND_API_KEY:
         env = load_env_variables()
         RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "")
     api_key = RESEND_API_KEY or DEFAULT_RESEND_API_KEY
     if not api_key:
+        print("[RESEND AUDIT] ERROR: RESEND_API_KEY is not configured in .env or environment.")
         return {"success": False, "error": "RESEND_API_KEY is not configured in .env"}
+
+    env = load_env_variables()
+    primary_sandbox_email = env.get("ALERT_EMAIL", "").strip() or os.environ.get("ALERT_EMAIL", "kkshefeeq005@gmail.com")
 
     payload = {
         "from": RESEND_FROM,
@@ -409,24 +432,83 @@ def send_resend_email(to_email, subject, html_content):
         "html": html_content
     }
 
-    req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "resend-python:2.0.0"
-        },
-        data=json.dumps(payload).encode("utf-8")
-    )
+    print(f"[RESEND AUDIT] Outgoing Request: POST https://api.resend.com/emails")
+    print(f"[RESEND AUDIT] Sender ('from'): {RESEND_FROM}")
+    print(f"[RESEND AUDIT] Recipient ('to'): {payload['to']}")
+    print(f"[RESEND AUDIT] Subject: {subject}")
+    print(f"[RESEND AUDIT] Outgoing JSON Payload: {json.dumps(payload)}")
+
+    def _execute_post(target_payload):
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "resend-python:2.0.0"
+            },
+            data=json.dumps(target_payload).encode("utf-8")
+        )
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            status_code = resp.status
+            body_text = resp.read().decode("utf-8")
+            print(f"[RESEND AUDIT] HTTP Status Code: {status_code} OK")
+            print(f"[RESEND AUDIT] Response Body: {body_text}")
+            data = json.loads(body_text)
+            return {"success": True, "id": data.get("id"), "delivered_to": target_payload["to"][0]}
 
     try:
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return {"success": True, "id": data.get("id"), "delivered_to": to_email}
+        return _execute_post(payload)
     except urllib.error.HTTPError as e:
-        err_msg = e.read().decode("utf-8", errors="replace")
-        return {"success": False, "error": f"Resend HTTP {e.code}: {err_msg}"}
+        err_body = e.read().decode("utf-8", errors="replace")
+        print(f"[RESEND AUDIT] HTTP Status Code: {e.code} Error")
+        print(f"[RESEND AUDIT] Raw Error Body from Resend: {err_body}")
+
+        # Check if rejected due to Resend Free-Tier Sandbox restriction (only testing emails to primary account)
+        if allow_sandbox_redirect and e.code == 403 and ("only send testing emails to your own email address" in err_body or "validation_error" in err_body):
+            match = re.search(r"\(([^)]+@[^)]+)\)", err_body)
+            extracted_email = match.group(1).strip() if match else None
+            fallback_email = extracted_email or primary_sandbox_email or "kkshefeeq005@gmail.com"
+
+            if fallback_email and fallback_email.lower() != to_email.lower():
+                print(f"[RESEND AUDIT] Sandbox Restriction Detected: Recipient '{to_email}' is not verified under free-tier Resend.")
+                print(f"[RESEND AUDIT] Redirecting dispatch to registered Resend account mailbox: '{fallback_email}'")
+
+                # Annotate HTML with clear sandbox indicator
+                sandbox_banner = f"""
+                <div style="background:#1e293b;border-left:4px solid #f59e0b;padding:12px;margin-bottom:16px;border-radius:6px;font-size:12px;color:#fcd34d;">
+                  ⚠️ <strong>Resend Sandbox Delivery Notice:</strong><br/>
+                  Original intended recipient: <code>{to_email}</code>.<br/>
+                  Delivered to registered account mailbox (<code>{fallback_email}</code>) per Resend free-tier testing policy.
+                </div>
+                """
+                augmented_html = html_content.replace('<td style="padding:32px;">', f'<td style="padding:32px;">{sandbox_banner}', 1)
+                if augmented_html == html_content:
+                    augmented_html = f"{sandbox_banner}{html_content}"
+
+                sandbox_payload = {
+                    "from": RESEND_FROM,
+                    "to": [fallback_email],
+                    "subject": f"[SANDBOX for {to_email}] {subject}",
+                    "html": augmented_html
+                }
+                print(f"[RESEND AUDIT] Outgoing Sandbox Fallback Payload: {json.dumps(sandbox_payload)}")
+                try:
+                    retry_result = _execute_post(sandbox_payload)
+                    retry_result["sandbox_redirect"] = True
+                    retry_result["intended_recipient"] = to_email
+                    return retry_result
+                except urllib.error.HTTPError as retry_e:
+                    retry_err_body = retry_e.read().decode("utf-8", errors="replace")
+                    print(f"[RESEND AUDIT] Sandbox Retry HTTP Status Code: {retry_e.code}")
+                    print(f"[RESEND AUDIT] Sandbox Retry Raw Error: {retry_err_body}")
+                    return {"success": False, "error": f"Resend HTTP {retry_e.code}: {retry_err_body}"}
+                except Exception as retry_ex:
+                    print(f"[RESEND AUDIT] Sandbox Retry Exception: {retry_ex}")
+                    return {"success": False, "error": str(retry_ex)}
+
+        return {"success": False, "error": f"Resend HTTP {e.code}: {err_body}"}
     except Exception as e:
+        print(f"[RESEND AUDIT] Network/Execution Error: {e}")
         return {"success": False, "error": str(e)}
 
 def send_startup_link_email(public_url, lan_ip, port, to_email=None):
@@ -1252,15 +1334,13 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             recipient_email = user.get("email") if user else None
             recipient_name = user.get("name") if user else "Engineer"
 
-            # Always return identical generic message to eliminate user enumeration & email leakage
-            generic_response = {
-                "success": True,
-                "message": "If the account exists, a 6-digit verification code has been dispatched to the registered email."
-            }
-
             if not recipient_email:
+                print(f"[RESEND AUDIT] OTP request rejected: Identifier '{identifier}' does not match any registered account.")
                 time.sleep(0.2)  # Mitigate timing differences
-                self.send_json_response(generic_response)
+                self.send_json_response({
+                    "success": False,
+                    "message": f"No account found matching '{identifier}'. Please check your username or email."
+                }, 404)
                 return
 
             # Cryptographically secure OTP generation (secrets.randbelow)
@@ -1330,10 +1410,24 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
   </table>
 </body>
 </html>"""
-            send_resend_email(recipient_email, f"🔐 {otp_code} is your RosterX verification code", html_email)
+            resend_result = send_resend_email(recipient_email, f"🔐 {otp_code} is your RosterX verification code", html_email)
 
-            # Do not leak recipient email in response
-            self.send_json_response(generic_response)
+            if not resend_result.get("success"):
+                err = resend_result.get("error", "Failed to dispatch verification email via Resend")
+                print(f"[RESEND AUDIT] OTP dispatch failed for identifier '{identifier}': {err}")
+                self.send_json_response({
+                    "success": False,
+                    "message": f"Resend error: {err}"
+                }, 502)
+                return
+
+            delivered_to = resend_result.get("delivered_to", recipient_email)
+            print(f"[RESEND AUDIT] OTP dispatch confirmed for '{identifier}' -> Delivered to '{delivered_to}' (Resend ID: {resend_result.get('id')})")
+            self.send_json_response({
+                "success": True,
+                "message": f"A 6-digit verification code has been dispatched to {delivered_to}.",
+                "delivered_to": delivered_to
+            })
             return
 
         # 1.3 POST /api/auth/verify-otp (Verify OTP and Update Password with PBKDF2)

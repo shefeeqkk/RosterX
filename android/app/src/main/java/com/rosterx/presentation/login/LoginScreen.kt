@@ -85,6 +85,9 @@ fun LoginScreen(
                     if (state.otpMessage != null) {
                         Text(state.otpMessage!!, color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
+                    if (state.errorMessage != null) {
+                        Text(state.errorMessage!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
 
                     if (!state.otpSent) {
                         Text(
