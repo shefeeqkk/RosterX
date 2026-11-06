@@ -28,6 +28,22 @@
 
   </style>
 
+  <!-- Instant Theme Guard: Zero-Flicker Execution Before Render -->
+  <script>
+    (function() {
+      try {
+        var theme = localStorage.getItem('rosterx_theme') || 'system';
+        var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', theme);
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
   <script>
     (function() {
       try {
@@ -68,8 +84,8 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- RosterX Neumorphic (Soft UI) Universal Design System -->
-
+  <!-- RosterX Neumorphic (Soft UI) Universal Design System Tokens & Styles -->
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/neumorphic.css">
 
   <script src="js/tailwind-neumorphic.js"></script>
@@ -114,8 +130,18 @@
 
                   radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.10) 0%, transparent 45%),
 
-                  #090d16;
+                  var(--nm-canvas, #090d16);
 
+      color: var(--nm-text, #f8fafc);
+
+    }
+
+    html:not(.dark) .bg-noc-space {
+      background: radial-gradient(circle at 10% 10%, rgba(14, 165, 233, 0.06) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 15%, rgba(99, 102, 241, 0.06) 0%, transparent 40%),
+                  radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.05) 0%, transparent 45%),
+                  #eef2f6;
+      color: #1e293b;
     }
 
 
@@ -132,7 +158,7 @@
 
     ::-webkit-scrollbar-track {
 
-      background: #0f172a;
+      background: var(--nm-surface, #0f172a);
 
     }
 
@@ -166,6 +192,27 @@
 
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
 
+    }
+
+    html:not(.dark) .glass-panel {
+      background: rgba(255, 255, 255, 0.85);
+      border-color: rgba(203, 213, 225, 0.8);
+      box-shadow: 0 10px 25px -5px rgba(146, 163, 184, 0.35);
+      color: #1e293b;
+    }
+
+    html:not(.dark) header {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-color: #cbd5e1 !important;
+    }
+
+    html:not(.dark) header h1 {
+      color: #0f172a !important;
+    }
+
+    html:not(.dark) .portal-dock {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-color: #cbd5e1 !important;
     }
 
 
@@ -306,11 +353,14 @@
 
 
 
-      <!-- Header Controls: User Pill, Sign Out -->
+      <!-- Header Controls: Theme Toggle, User Pill, Sign Out -->
+      <div class="flex items-center gap-2.5">
 
-      <div class="flex items-center gap-3">
-
-
+        <!-- 🌓 Theme Toggle (Light / Dark / System) -->
+        <button id="portalThemeToggle" class="theme-toggle-btn nm-theme-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700 text-slate-200" title="Switch Theme (System / Light / Dark)">
+          <i class="theme-toggle-icon ph ph-desktop text-sm"></i>
+          <span class="theme-toggle-label text-xs font-mono hidden sm:inline">Auto</span>
+        </button>
 
         <!-- User Profile Pill (Clickable -> Opens Account Profile & Security Modal) -->
 

@@ -1,0 +1,103 @@
+/**
+ * RosterX — Unified Cross-Platform Design Tokens (tokens.css)
+ * 
+ * Auto-generated from design-tokens.json matching Android Compose NeumorphicTokens.kt
+ * Modes: Light (#EEF2F6), Dark (#1E293B), System (auto-adapts to prefers-color-scheme)
+ */
+
+:root {
+  /* Default: Light Palette Baseline */
+  --nm-canvas: #EEF2F6;
+  --nm-surface: #EEF2F6;
+  --nm-surface-contrast: #E2E8F0;
+  --nm-surface-hover: #E7EDF3;
+  --nm-text: #1E293B;
+  --nm-text-muted: #64748B;
+  --nm-text-faint: #94A3B8;
+  --nm-shadow-dark: rgba(146, 163, 184, 0.55);
+  --nm-shadow-light: #FFFFFF;
+  --nm-border: rgba(226, 232, 240, 0.85);
+  --nm-divider: rgba(203, 213, 225, 0.6);
+  --nm-card-bg: #EEF2F6;
+
+  /* Accent & Kinetic Energy Colors */
+  --nm-accent-salmon: #FF5252;
+  --nm-accent-coral: #FF6B6B;
+  --nm-accent-glow: rgba(255, 82, 82, 0.35);
+  --nm-accent-cyan: #0284C7;
+  --nm-accent-cyan-light: #38BDF8;
+  --nm-accent-emerald: #10B981;
+  --nm-accent-amber: #F59E0B;
+  --nm-accent-indigo: #6366F1;
+  --nm-accent-purple: #8B5CF6;
+
+  /* Curvature Radii */
+  --nm-radius-sm: 14px;
+  --nm-radius-md: 20px;
+  --nm-radius-container: 28px;
+  --nm-radius-full: 9999px;
+
+  /* Neumorphic Shadow Physics */
+  --nm-shadow-raised: 6px 6px 14px var(--nm-shadow-dark), -6px -6px 14px var(--nm-shadow-light);
+  --nm-shadow-raised-subtle: 3px 3px 8px var(--nm-shadow-dark), -3px -3px 8px var(--nm-shadow-light);
+  --nm-shadow-inset: inset 4px 4px 8px var(--nm-shadow-dark), inset -4px -4px 8px var(--nm-shadow-light);
+  --nm-shadow-inset-subtle: inset 2px 2px 5px var(--nm-shadow-dark), inset -2px -2px 5px var(--nm-shadow-light);
+  --nm-shadow-floating: 14px 14px 28px var(--nm-shadow-dark), -14px -14px 28px var(--nm-shadow-light);
+
+  /* Animation & Motion */
+  --nm-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --nm-spring: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Explicit Dark Mode */
+html[data-theme="dark"] {
+  --nm-canvas: #1E293B;
+  --nm-surface: #1E293B;
+  --nm-surface-contrast: #334155;
+  --nm-surface-hover: #283548;
+  --nm-text: #F8FAFC;
+  --nm-text-muted: #94A3B8;
+  --nm-text-faint: #64748B;
+  --nm-shadow-dark: rgba(11, 17, 32, 0.80);
+  --nm-shadow-light: rgba(71, 85, 105, 0.25);
+  --nm-border: rgba(51, 65, 85, 0.65);
+  --nm-divider: rgba(51, 65, 85, 0.5);
+  --nm-card-bg: #1E293B;
+  --nm-accent-cyan: #38BDF8;
+}
+
+/* Explicit Light Mode */
+html[data-theme="light"] {
+  --nm-canvas: #EEF2F6;
+  --nm-surface: #EEF2F6;
+  --nm-surface-contrast: #E2E8F0;
+  --nm-surface-hover: #E7EDF3;
+  --nm-text: #1E293B;
+  --nm-text-muted: #64748B;
+  --nm-text-faint: #94A3B8;
+  --nm-shadow-dark: rgba(146, 163, 184, 0.55);
+  --nm-shadow-light: #FFFFFF;
+  --nm-border: rgba(226, 232, 240, 0.85);
+  --nm-divider: rgba(203, 213, 225, 0.6);
+  --nm-card-bg: #EEF2F6;
+  --nm-accent-cyan: #0284C7;
+}
+
+/* Automatic System Mode when theme is 'system' or unset */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    --nm-canvas: #1E293B;
+    --nm-surface: #1E293B;
+    --nm-surface-contrast: #334155;
+    --nm-surface-hover: #283548;
+    --nm-text: #F8FAFC;
+    --nm-text-muted: #94A3B8;
+    --nm-text-faint: #64748B;
+    --nm-shadow-dark: rgba(11, 17, 32, 0.80);
+    --nm-shadow-light: rgba(71, 85, 105, 0.25);
+    --nm-border: rgba(51, 65, 85, 0.65);
+    --nm-divider: rgba(51, 65, 85, 0.5);
+    --nm-card-bg: #1E293B;
+    --nm-accent-cyan: #38BDF8;
+  }
+}

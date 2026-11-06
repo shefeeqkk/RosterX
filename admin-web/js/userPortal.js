@@ -52,6 +52,7 @@ import {
   todayFormatted,
   getIstNow
 } from './dateUtils.js';
+import { themeController } from './themeController.js';
 
 
 
@@ -116,6 +117,7 @@ export class UserPortalController {
   }
 
   async init() {
+    themeController.init();
     // 1. Enforce Authentication
     this.currentUser = authService.enforceAuth('any');
     if (!this.currentUser) return;

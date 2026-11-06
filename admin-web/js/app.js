@@ -66,6 +66,7 @@ import {
   todayFormatted,
   getIstNow
 } from './dateUtils.js';
+import { themeController } from './themeController.js';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -563,6 +564,7 @@ class RosterXApp {
   // --- Initializer ---
 
   async init() {
+    themeController.init();
     this.cacheDomElements();
     this.bindEvents();
     this.setupAtlasSyncBadge();
@@ -685,6 +687,10 @@ class RosterXApp {
       this.showToast('Live telemetry refreshed from MongoDB Atlas & host runtime.');
     });
 
+    document.getElementById('btnOpenTeamModalFromTab')?.addEventListener('click', () => {
+      this.openTeamModal();
+    });
+
     document.getElementById('btnOpenSwapsModalFromTab')?.addEventListener('click', () => {
       this.openSwapsModal();
     });
@@ -745,6 +751,8 @@ class RosterXApp {
     } else if (tabId === 'matrix') {
       this.renderHeaders();
       this.renderRoster();
+    } else if (tabId === 'team') {
+      this.renderTeamTab();
     } else if (tabId === 'swaps') {
       this.renderSwapsTabQueue();
     } else if (tabId === 'diagnostics') {
@@ -954,7 +962,7 @@ class RosterXApp {
       container.innerHTML = `
         <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
           <i class="ph ph-clock-counter-clockwise text-2xl mb-1 text-slate-300 block"></i>
-          No Active Records (Zero synthetic payloads: genuine events stream here dynamically upon logins & swaps)
+          No recent audit events recorded for this operational cycle
         </div>
       `;
       return;
@@ -1036,6 +1044,57 @@ class RosterXApp {
         </span>
       `;
       list.appendChild(row);
+    });
+  }
+
+  renderTeamTab() {
+    const list = document.getElementById('tabTeamDirectoryList');
+    if (!list) return;
+    const engineers = this.state.engineersList || [];
+    if (engineers.length === 0) {
+      list.innerHTML = `
+        <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
+          <i class="ph ph-users text-2xl mb-1 text-slate-300 block"></i>
+          No Registered Engineers Found
+        </div>
+      `;
+      return;
+    }
+    list.innerHTML = '';
+    engineers.forEach(eng => {
+      const card = document.createElement('div');
+      card.className = 'flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-300 transition text-xs flex-wrap gap-2';
+      const roleColor = eng.role === 'admin' ? 'bg-purple-100 text-purple-800 border-purple-300' : (eng.role === 'manager' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : 'bg-blue-100 text-blue-800 border-blue-300');
+      const statusColor = eng.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300';
+      const offs = Array.isArray(eng.default_weekly_offs) ? eng.default_weekly_offs.join(', ') : 'Sat, Sun';
+      card.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-black flex items-center justify-center text-xs">
+            ${(eng.name || 'E').substring(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900 text-sm">${this.escapeHtml(eng.name)}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleColor} uppercase">${eng.role || 'engineer'}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}">${eng.status || 'Active'}</span>
+            </div>
+            <div class="text-[11px] text-slate-500 font-mono">@${this.escapeHtml(eng.username || eng.name?.toLowerCase().replace(/\\s+/g, '') || '')} • Weekly Offs: ${this.escapeHtml(offs)}</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-edit-eng-tab px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-xs transition" data-id="${eng.id}">
+            <i class="ph ph-pencil-simple text-blue-600"></i> Edit Profile
+          </button>
+        </div>
+      `;
+      const editBtn = card.querySelector('.btn-edit-eng-tab');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          this.openTeamModal();
+          this.editEngineer(eng.id);
+        });
+      }
+      list.appendChild(card);
     });
   }
 
@@ -2961,7 +3020,7 @@ class RosterXApp {
 
       const nameTd = document.createElement('td');
 
-      nameTd.className = 'name-col sticky left-0 z-20 bg-white border-r border-b border-slate-300 px-3 py-2 text-left font-bold text-slate-900 tracking-wide flex items-center justify-between text-sm';
+      nameTd.className = 'name-col sticky left-0 z-20 border-r border-b border-slate-300 px-3 py-2 text-left font-bold tracking-wide flex items-center justify-between text-sm nm-table-sticky-col';
 
       nameTd.innerHTML = `
 
@@ -3393,28 +3452,49 @@ class RosterXApp {
 
 
 
+    const dashContainer = document.getElementById('dashRuleAuditContainer');
+
     if (allViolations.length > 0) {
-
       this.dom.ruleAuditAlertBanner.classList.remove('hidden');
-
       this.dom.ruleAuditSummaryText.textContent = `Rule Audit Alert (${allViolations.length} issue${allViolations.length > 1 ? 's' : ''}):`;
-
       
-
       this.dom.ruleAuditChipsContainer.innerHTML = allViolations.slice(0, 4).map(v => `
-
         <span class="bg-red-600 text-white px-2 py-0.5 rounded text-[11px] font-mono cursor-pointer hover:bg-red-700" title="${v.message}">
-
           ${v.day ? 'Day ' + v.day : ''} ${v.type || 'Rule Issue'}
-
         </span>
-
       `).join('') + (allViolations.length > 4 ? `<span class="text-xs text-red-700 font-bold">+${allViolations.length - 4} more</span>` : '');
 
+      if (dashContainer) {
+        dashContainer.innerHTML = `
+          <div class="space-y-2">
+            <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between">
+              <span class="font-bold flex items-center gap-1.5">
+                <i class="ph ph-warning-octagon text-rose-600 text-base"></i>
+                ${allViolations.length} Active Operational Violation${allViolations.length > 1 ? 's' : ''} Detected
+              </span>
+              <span class="text-[10px] font-mono text-rose-700">Supervisor attention recommended</span>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              ${allViolations.slice(0, 5).map(v => `
+                <span class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 border border-rose-300 text-xs font-mono font-semibold" title="${v.message}">
+                  ${v.day ? 'Day ' + v.day : ''} ${v.type || 'Rule Issue'}
+                </span>
+              `).join('')}
+              ${allViolations.length > 5 ? `<span class="text-xs text-rose-700 font-bold">+${allViolations.length - 5} more</span>` : ''}
+            </div>
+          </div>
+        `;
+      }
     } else {
-
       this.dom.ruleAuditAlertBanner.classList.add('hidden');
-
+      if (dashContainer) {
+        dashContainer.innerHTML = `
+          <div class="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5">
+            <i class="ph ph-check-circle text-emerald-600 text-xl shrink-0"></i>
+            <span>No rule violations detected — all shifts comply with NOC operational directives.</span>
+          </div>
+        `;
+      }
     }
 
   }

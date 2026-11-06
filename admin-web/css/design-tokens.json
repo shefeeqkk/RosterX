@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "RosterX Design System Tokens",
+  "version": "1.13.1",
+  "description": "Cross-platform Neumorphic & Theme design tokens shared between Web and Android Compose",
+  "modes": ["light", "dark", "system"],
+  "color": {
+    "light": {
+      "canvas": "#EEF2F6",
+      "surface": "#EEF2F6",
+      "surfaceContrast": "#E2E8F0",
+      "textMain": "#1E293B",
+      "textMuted": "#64748B",
+      "shadowDark": "rgba(146, 163, 184, 0.55)",
+      "shadowLight": "#FFFFFF",
+      "border": "rgba(226, 232, 240, 0.8)",
+      "divider": "rgba(203, 213, 225, 0.6)"
+    },
+    "dark": {
+      "canvas": "#1E293B",
+      "surface": "#1E293B",
+      "surfaceContrast": "#334155",
+      "textMain": "#F8FAFC",
+      "textMuted": "#94A3B8",
+      "shadowDark": "rgba(11, 17, 32, 0.80)",
+      "shadowLight": "rgba(71, 85, 105, 0.25)",
+      "border": "rgba(51, 65, 85, 0.6)",
+      "divider": "rgba(51, 65, 85, 0.5)"
+    },
+    "accent": {
+      "salmon": "#FF5252",
+      "coral": "#FF6B6B",
+      "glow": "rgba(255, 82, 82, 0.35)",
+      "cyan": "#0284C7",
+      "cyanLight": "#38BDF8",
+      "emerald": "#10B981",
+      "amber": "#F59E0B",
+      "indigo": "#6366F1",
+      "purple": "#8B5CF6"
+    },
+    "shifts": {
+      "FS": { "bg": "#BBF7D0", "text": "#064E3B", "border": "#86EFAC" },
+      "FG": { "bg": "#3F6212", "text": "#FFFFFF", "border": "#365314" },
+      "G":  { "bg": "#93C5FD", "text": "#1E3A8A", "border": "#60A5FA" },
+      "SG": { "bg": "#C2410C", "text": "#FFFFFF", "border": "#9A3412" },
+      "SS": { "bg": "#FDBA74", "text": "#7C2D12", "border": "#FB923C" },
+      "NS": { "bg": "#1E293B", "text": "#FFFFFF", "border": "#475569" },
+      "OFF": { "bg": "#FEF08A", "text": "#713F12", "border": "#FDE047" },
+      "SW":  { "bg": "#E2E8F0", "text": "#334155", "border": "#CBD5E1" },
+      "L":   { "bg": "#FCA5A5", "text": "#7F1D1D", "border": "#F87171" }
+    }
+  },
+  "geometry": {
+    "radii": {
+      "sm": "14px",
+      "md": "20px",
+      "container": "28px",
+      "full": "9999px"
+    }
+  },
+  "shadows": {
+    "raised": "6px 6px 14px var(--nm-shadow-dark), -6px -6px 14px var(--nm-shadow-light)",
+    "raisedSubtle": "3px 3px 8px var(--nm-shadow-dark), -3px -3px 8px var(--nm-shadow-light)",
+    "inset": "inset 4px 4px 8px var(--nm-shadow-dark), inset -4px -4px 8px var(--nm-shadow-light)",
+    "insetSubtle": "inset 2px 2px 5px var(--nm-shadow-dark), inset -2px -2px 5px var(--nm-shadow-light)",
+    "floating": "14px 14px 28px var(--nm-shadow-dark), -14px -14px 28px var(--nm-shadow-light)"
+  },
+  "motion": {
+    "standard": "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    "spring": "all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)"
+  }
+}
