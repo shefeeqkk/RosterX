@@ -17,6 +17,7 @@
  */
 
 import { SHIFTS, sortEngineersByWeekOffs, getEngineerSwapCode } from './constants.js?v=1.0';
+import { monthLabel, monthNames } from './dateUtils.js';
 
 // Official Shift Colors formatted for ExcelJS (ARGB Hex) - High Contrast Scheme
 const SHIFT_PALETTE = {
@@ -136,8 +137,7 @@ export class ExcelService {
         properties: { defaultRowHeight: 22 }
       });
 
-      const monthFullNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-      const monthFullName = monthFullNames[month - 1] || periodLabel;
+      const monthFullName = monthLabel(`${year}-${String(month).padStart(2, '0')}`, 'upper');
 
       // 1. Header Row 1: Top Month Banner (Cell A1) + Day Numbers 1 to totalDays + Stats Headers
       const headerRow1Values = [`Month: ${monthFullName.slice(0, 3)} ${year}`];
@@ -473,8 +473,7 @@ export class ExcelService {
    * Export the active roster grid with full cell color-coding and statistics
    */
   static async exportRosterToExcel(gridRoster, year, month, totalDays, constraints = {}) {
-    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const periodLabel = `${monthNames[month - 1]}-${String(year).slice(-2)}`;
+    const periodLabel = monthLabel(`${year}-${String(month).padStart(2, '0')}`, 'code');
     const fileName = `NOC_Shift_Roster_${periodLabel}.xlsx`;
 
     const wb = await ExcelService.buildStyledWorkbook({
@@ -499,10 +498,9 @@ export class ExcelService {
    * matching the official 24/7 NOC Roster layout.
    */
   static async exportMonthGridToPng(gridRoster, year, month, totalDays, constraints = {}) {
-    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const monthNamesFull = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const periodLabel = `${monthNames[month - 1]}-${String(year).slice(-2)}`;
-    const monthTitle = `${monthNamesFull[month - 1]} ${year}`;
+    const periodKey = `${year}-${String(month).padStart(2, '0')}`;
+    const periodLabel = monthLabel(periodKey, 'code');
+    const monthTitle = monthLabel(periodKey, 'short');
     const dayShortNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
     let engineers = Array.isArray(gridRoster) ? [...gridRoster] : [];
@@ -680,8 +678,7 @@ export class ExcelService {
    *    EngineerName Values | ShiftCode Values | SwapStatus Values
    */
   static async buildAppSheetWorkbook({ year, month, totalDays, engineers, manualSwaps = [], allEngineers = [] }) {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthKey = `${monthNames[month - 1]}-${year}`;
+    const monthKey = `${monthNames('short')[month - 1]}-${year}`;
 
     // Ensure engineers are sorted in Weekoffs Day Order
     const sortedEngineers = Array.isArray(engineers) ? sortEngineersByWeekOffs(engineers) : [];
@@ -933,8 +930,7 @@ export class ExcelService {
    * Export the active roster in normalized AppSheet Data format (Shift_Data_Master.xlsx)
    */
   static async exportRosterToAppSheet(gridRoster, year, month, totalDays, manualSwaps = [], allEngineers = []) {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const periodLabel = `${monthNames[month - 1]}_${year}`;
+    const periodLabel = `${monthNames('short')[month - 1]}_${year}`;
     const fileName = `Shift_Data_Master_${periodLabel}.xlsx`;
 
     const wb = await ExcelService.buildAppSheetWorkbook({
@@ -958,8 +954,7 @@ export class ExcelService {
    */
   static async downloadSampleTemplate(year, month, engineers, constraints = {}) {
     const totalDays = new Date(year, month, 0).getDate();
-    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const periodLabel = `${monthNames[month - 1]}-${String(year).slice(-2)}`;
+    const periodLabel = monthLabel(`${year}-${String(month).padStart(2, '0')}`, 'code');
     const fileName = `RosterX_Template_${periodLabel}.xlsx`;
 
     // Exclude Resigned engineers from the template

@@ -488,7 +488,7 @@
 
     <div class="text-center mt-6 text-xs text-slate-500">
 
-      <span>RosterX • &copy; 2026 All rights reserved</span>
+      <span>RosterX • &copy; <span id="copyrightYear"></span> All rights reserved</span>
 
     </div>
 
@@ -1208,7 +1208,8 @@
 
       });
 
-
+      const yrEl = document.getElementById('copyrightYear');
+      if (yrEl) yrEl.textContent = new Date().getFullYear();
 
     });
 

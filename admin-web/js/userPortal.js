@@ -41,6 +41,17 @@ import {
 } from './constants.js?v=1.0';
 
 import { ExcelService } from './excelService.js?v=3.2';
+import {
+  currentPeriodKey,
+  parsePeriodKey,
+  daysInMonth,
+  monthLabel,
+  monthNames,
+  periodRange,
+  populatePeriodSelect,
+  todayFormatted,
+  getIstNow
+} from './dateUtils.js';
 
 
 
@@ -69,78 +80,40 @@ export class UserPortalController {
 
 
     // 1. Live Operational Anchor State (Today & Tomorrow & Team Board)
-
-    // Dynamically synchronized to current real date and time
-
-    const now = new Date();
-
-    const curYear = now.getFullYear();
-
-    const curMonth = now.getMonth() + 1; // 1-12
-
-    let curDay = now.getDate();
-
-
-
-    const totalDays = new Date(curYear, curMonth, 0).getDate();
-
+    // Dynamically synchronized to current real IST date and time
+    const istNow = getIstNow();
+    const curPeriod = currentPeriodKey();
+    const { year: curYear, month: curMonth } = parsePeriodKey(curPeriod);
+    const totalDays = daysInMonth(curYear, curMonth);
+    let curDay = istNow.getDate();
     if (curDay > totalDays) curDay = totalDays;
 
-
-
-    const tomorrow = new Date(now);
-
-    tomorrow.setDate(now.getDate() + 1);
-
+    const tomorrow = new Date(istNow);
+    tomorrow.setDate(istNow.getDate() + 1);
     const tomDay = tomorrow.getDate();
 
-
-
     this.liveState = {
-
       year: curYear,
-
       month: curMonth,
-
       todayDay: curDay,
-
       tomorrowDay: tomDay,
-
       totalDays: totalDays,
-
       roster: []
-
     };
-
-
 
     // 2. Month Shift Grid State (Independently selected in the Grid section)
-
     this.gridState = {
-
       year: curYear,
-
       month: curMonth,
-
       totalDays: totalDays,
-
       roster: [],
-
       filterTerm: ''
-
     };
 
-
-
     this.engineersList = [];
-
     this.constraints = {};
-
     this.chatMessages = [];
-
   }
-
-
 
   async init() {
     // 1. Enforce Authentication
@@ -150,13 +123,43 @@ export class UserPortalController {
     // 2. Instant Optimistic Data Load from Cache / Seed
     this.loadEngineersList();
     this.loadConstraints();
+
+    // Optimistically load cached live roster for the current month so table & hero are NEVER blank or stuck in loading
+    const activeKey = `${this.liveState.year}-${String(this.liveState.month).padStart(2, '0')}`;
+    const cacheKey = `${STORAGE_KEYS.GRID_ROSTER_PREFIX}${this.liveState.year}_${String(this.liveState.month).padStart(2, '0')}`;
+    try {
+      const stored = localStorage.getItem(cacheKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.liveState.roster = parsed;
+          this.gridState.roster = parsed;
+        }
+      }
+    } catch (e) {}
+
+    // If still no roster, populate optimistic baseline from directory
+    if (!this.liveState.roster || this.liveState.roster.length === 0) {
+      const active = this.engineersList.filter(e => e.status !== 'Resigned' && e.role !== 'admin' && e.role !== 'manager');
+      this.liveState.roster = active.map(e => ({
+        id: e.id,
+        name: e.name,
+        shifts: new Array(this.liveState.totalDays).fill(''),
+        status: e.status || 'Active',
+        role: e.role || 'engineer',
+        default_weekly_offs: e.default_weekly_offs || ['Saturday', 'Sunday']
+      }));
+      this.gridState.roster = this.liveState.roster;
+    }
+
     this.matchCurrentUserToEngineer();
 
-    // Sync portalMonthSelect dropdown to grid period
+    // Sync portalMonthSelect dropdown dynamically via dateUtils
     const portalMonthEl = document.getElementById('portalMonthSelect');
     if (portalMonthEl) {
-      const activeKey = `${this.gridState.year}-${String(this.gridState.month).padStart(2, '0')}`;
+      populatePeriodSelect(portalMonthEl, { back: 2, forward: 6, selectedKey: activeKey, style: 'upper' });
       portalMonthEl.value = activeKey;
+    }
     }
 
     // 3. Instant Optimistic Render (<5ms) - Never blank
@@ -665,47 +668,30 @@ export class UserPortalController {
    */
 
   matchCurrentUserToEngineer() {
-
     const u = this.currentUser;
-
     if (!u) return;
 
-
-
     const uName = (u.name || '').trim().toUpperCase();
-
     const uFull = (u.full_name || '').trim().toUpperCase();
-
     const uUser = (u.username || '').trim().toUpperCase();
-
     const uId = u.engineerId || u.id;
 
+    const pool = (this.liveState.roster && this.liveState.roster.length > 0)
+      ? this.liveState.roster
+      : (this.engineersList || []);
 
-
-    let match = this.liveState.roster.find(e =>
-
+    let match = pool.find(e =>
       (uId && (e.id === uId)) ||
-
       (e.name && e.name.trim().toUpperCase() === uName) ||
-
       (e.name && uFull && e.name.trim().toUpperCase() === uFull) ||
-
       (e.name && e.name.trim().toUpperCase().includes(uUser))
-
     );
 
-
-
     if (!match && u.role === 'admin') {
-
-      match = this.liveState.roster.find(e => e.name.toUpperCase().includes('SHEFEEQ')) || this.liveState.roster[0];
-
+      match = pool.find(e => e.name && e.name.toUpperCase().includes('SHEFEEQ')) || pool[0];
     }
 
-
-
-    this.matchedEngineer = match || this.liveState.roster[0];
-
+    this.matchedEngineer = match || pool[0] || null;
   }
 
 
@@ -986,19 +972,8 @@ export class UserPortalController {
 
 
 
-    // Anchor: Today's live calendar date
-
-    const now = new Date();
-
-    const opDay = this.liveState.todayDay;
-
-    const dateObj = new Date(this.liveState.year, this.liveState.month - 1, opDay);
-
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-    const dateStr = dateObj.toLocaleDateString('en-US', options);
-
-    if (dateText) dateText.textContent = dateStr;
+    // Anchor: Today's live calendar date in IST
+    if (dateText) dateText.textContent = todayFormatted('long');
 
 
 
@@ -1486,9 +1461,7 @@ export class UserPortalController {
 
 
 
-    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-    const periodTag = `${monthNames[this.gridState.month - 1]}-${String(this.gridState.year).slice(-2)}`;
+    const periodTag = monthLabel(`${this.gridState.year}-${String(this.gridState.month).padStart(2, '0')}`, 'code');
 
 
 
@@ -2290,8 +2263,7 @@ export class UserPortalController {
     const uName = (this.matchedEngineer ? this.matchedEngineer.name : this.currentUser.name) || 'there';
     const opDay = this.liveState.todayDay || new Date().getDate();
     const nextDay = this.liveState.tomorrowDay || (opDay + 1);
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const curMName = monthNames[(this.liveState.month || new Date().getMonth() + 1) - 1] || 'Nov';
+    const curMName = monthNames('short')[(this.liveState.month || (getIstNow().getMonth() + 1)) - 1] || 'Nov';
     const myToday = this.getShiftForDay(this.matchedEngineer, opDay) || 'OFF';
     const myTomorrow = this.getShiftForDay(this.matchedEngineer, nextDay) || 'OFF';
 
@@ -2495,10 +2467,15 @@ export class UserPortalController {
       return (myId && rId === myId) || (myName && rName === myName) || rName.includes(myId) || (myId && rId.includes(myId));
     }) || roster[0] || null;
 
-    const totalDays = this.liveState.totalDays || 31;
-    const year = this.liveState.year || 2026;
-    const month = this.liveState.month || 10;
-    const todayNum = this.liveState.todayDay || new Date().getDate();
+    const totalDays = this.liveState.totalDays;
+    const year = this.liveState.year;
+    const month = this.liveState.month;
+    const todayNum = this.liveState.todayDay;
+
+    const badgeEl = document.getElementById('myMonthShiftBadge');
+    if (badgeEl) {
+      badgeEl.textContent = monthLabel(`${year}-${String(month).padStart(2, '0')}`, 'upper');
+    }
 
     const shiftColors = {
       FS: 'bg-emerald-100 text-emerald-900 border-emerald-300',

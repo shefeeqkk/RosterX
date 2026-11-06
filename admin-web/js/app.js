@@ -55,6 +55,17 @@ import { RosterAiEngine } from './rosterAiEngine.js';
 import { RosterAiAssistant } from './rosterAiAssistant.js?v=7.1';
 import { AtlasService } from './atlasService.js';
 import { ExcelService } from './excelService.js?v=3.2';
+import { 
+  currentPeriodKey, 
+  parsePeriodKey, 
+  daysInMonth, 
+  monthLabel, 
+  monthNames, 
+  periodRange, 
+  populatePeriodSelect,
+  todayFormatted,
+  getIstNow
+} from './dateUtils.js';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -79,11 +90,10 @@ class RosterXApp {
 
 
 
-    // Determine current real year & month dynamically
-    const _initDate = new Date();
-    const _initYear = _initDate.getFullYear();
-    const _initMonth = _initDate.getMonth() + 1; // 1-12
-    const _initDays = new Date(_initYear, _initMonth, 0).getDate();
+    // Determine current real year & month dynamically via dateUtils
+    const _curPeriod = currentPeriodKey();
+    const { year: _initYear, month: _initMonth } = parsePeriodKey(_curPeriod);
+    const _initDays = daysInMonth(_initYear, _initMonth);
 
     // Load dynamic state
     this.state = {
@@ -560,14 +570,7 @@ class RosterXApp {
     // 1. Instant Optimistic Render: Synchronize controls and render immediately so table is never blank
     const activePeriodKey = `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
     if (this.dom.monthSelect) {
-      let opt = Array.from(this.dom.monthSelect.options).find(o => o.value === activePeriodKey);
-      if (!opt) {
-        const monthFullNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-        opt = document.createElement('option');
-        opt.value = activePeriodKey;
-        opt.textContent = `${monthFullNames[this.state.currentMonth - 1]} ${this.state.currentYear}`;
-        this.dom.monthSelect.appendChild(opt);
-      }
+      populatePeriodSelect(this.dom.monthSelect, { back: 3, forward: 12, selectedKey: activePeriodKey, style: 'select' });
       this.dom.monthSelect.value = activePeriodKey;
     }
 
@@ -824,17 +827,15 @@ class RosterXApp {
   }
 
   async renderTodayNocCoverageRadar() {
-    const today = new Date();
+    const today = getIstNow();
     const todayDay = today.getDate();
     const todayYear = today.getFullYear();
     const todayMonth = today.getMonth() + 1;
     const todayPeriodKey = `${todayYear}-${String(todayMonth).padStart(2, '0')}`;
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     const dateLabel = document.getElementById('radarDateLabel');
     if (dateLabel) {
-      dateLabel.textContent = `Live shift assignments for today: ${dayNames[today.getDay()]}, ${todayDay} ${monthNames[today.getMonth()]} ${today.getFullYear()}`;
+      dateLabel.textContent = `Live shift assignments for today: ${todayFormatted('long')}`;
     }
 
     const fsContainer = document.getElementById('radarFsEngineers');
@@ -2854,21 +2855,14 @@ class RosterXApp {
 
 
     const dayShortNames = ['SUN', 'MON', 'TUES', 'WED', 'THU', 'FRI', 'SAT'];
-
-    const monthCodes = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-    const monthFullNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+    const activePeriodKey = `${year}-${String(month).padStart(2, '0')}`;
 
     if (this.dom.activeMonthDisplay) {
-
-      this.dom.activeMonthDisplay.textContent = `${monthFullNames[month - 1]} ${year}`;
-
+      this.dom.activeMonthDisplay.textContent = monthLabel(activePeriodKey, 'upper');
     }
 
     if (this.dom.periodLabelCell) {
-
-      this.dom.periodLabelCell.textContent = `${monthCodes[month - 1]}-${String(year).slice(-2)}`;
-
+      this.dom.periodLabelCell.textContent = monthLabel(activePeriodKey, 'code');
     }
 
 
@@ -3496,10 +3490,8 @@ class RosterXApp {
     }
 
     this.state.activeCell = { engIndex, dayIndex };
-
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    this.dom.pickerSubHeader.textContent = `${monthNames[this.state.currentMonth - 1]} ${dayIndex + 1} • ${engName}`;
+    const curShortMonths = monthNames('short');
+    this.dom.pickerSubHeader.textContent = `${curShortMonths[this.state.currentMonth - 1]} ${dayIndex + 1} • ${engName}`;
 
     
 
@@ -4896,27 +4888,12 @@ class RosterXApp {
 
     }
 
-    const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-
     let targetYear = this.state.currentYear;
-
     let targetMonth = this.state.currentMonth;
+    const targetPeriodKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+    const totalDays = daysInMonth(targetYear, targetMonth);
 
-
-
-    // If currently on October 2026, suggest November 2026 as target
-
-    if (targetYear === 2026 && targetMonth === 10) {
-
-      targetMonth = 11;
-
-    }
-
-
-
-    const totalDays = new Date(targetYear, targetMonth, 0).getDate();
-
-    this.dom.aiModalPeriodLabel.textContent = `${monthNames[targetMonth - 1]} ${targetYear} (${totalDays} Days)`;
+    this.dom.aiModalPeriodLabel.textContent = monthLabel(targetPeriodKey, 'withDays');
 
 
 
@@ -5157,19 +5134,11 @@ class RosterXApp {
     // Update select element
 
     const val = `${year}-${String(month).padStart(2, '0')}`;
-
     let opt = Array.from(this.dom.monthSelect.options).find(o => o.value === val);
-
     if (!opt) {
-
-      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-      opt = new Option(`${monthNames[month - 1]} ${year} (${monthNames[month - 1]}-${String(year).slice(-2)})`, val);
-
+      opt = new Option(monthLabel(val, 'select'), val);
       this.dom.monthSelect.add(opt);
-
     }
-
     this.dom.monthSelect.value = val;
 
 
@@ -5297,14 +5266,8 @@ class RosterXApp {
     this.updateActiveRulesBanner();
 
     this.atlasService.notifyStatusChange('unsaved');
-
-
-
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-    const curMonthName = monthNames[targetMonth - 1] || `Month ${targetMonth}`;
-
-    this.showToast(`Cleared entire grid for ${curMonthName} ${targetYear}!`);
+    const targetKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+    this.showToast(`Cleared entire grid for ${monthLabel(targetKey, 'long')}!`);
 
 
 
@@ -5344,13 +5307,10 @@ class RosterXApp {
 
     }
 
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-    const curMonthName = monthNames[this.state.currentMonth - 1] || 'Target Month';
-
+    const exportKey = `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
     if (this.dom.exportModalPeriodLabel) {
-
-      this.dom.exportModalPeriodLabel.textContent = `Period: ${curMonthName} ${this.state.currentYear} (${this.state.totalDays} Days)`;
+      this.dom.exportModalPeriodLabel.textContent = `Period: ${monthLabel(exportKey, 'withDays')}`;
+    }
 
     }
 
@@ -5535,58 +5495,27 @@ class RosterXApp {
 
 
     const curVal = `${this.state.currentYear}-${String(this.state.currentMonth).padStart(2, '0')}`;
-
     if (this.dom.importTargetMonthInput) {
-
       this.dom.importTargetMonthInput.value = curVal;
-
     }
-
     if (this.dom.importTargetMonthSelect) {
-
+      populatePeriodSelect(this.dom.importTargetMonthSelect, { back: 3, forward: 12, selectedKey: curVal, style: 'select' });
       this.dom.importTargetMonthSelect.value = curVal;
-
     }
-
-
 
     this.updateImportModalPeriodLabel();
-
     this.renderImportEngineerTags();
-
     this.clearImportFile();
 
-
-
     this.dom.importModal.classList.remove('hidden');
-
     this.dom.importModal.style.display = 'flex';
-
   }
 
-
-
   updateImportModalPeriodLabel() {
-
     const val = this.getImportSelectedPeriod();
-
-    const [yStr, mStr] = val.split('-');
-
-    const year = parseInt(yStr, 10);
-
-    const month = parseInt(mStr, 10);
-
-    const totalDays = new Date(year, month, 0).getDate();
-
-    const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-
-    const curMonthName = monthNames[month - 1] || 'OCTOBER';
-
-
-
     if (this.dom.importModalPeriodLabel) {
-
-      this.dom.importModalPeriodLabel.textContent = `${curMonthName} ${year} (${totalDays} Days)`;
+      this.dom.importModalPeriodLabel.textContent = monthLabel(val, 'withDays');
+    }
 
     }
 
@@ -6106,9 +6035,7 @@ class RosterXApp {
 
 
 
-      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-      this.showToast(`Blank template downloaded for ${monthNames[targetMonth - 1]}-${targetYear} (${activeOnly.length} active engineers)`);
+      this.showToast(`Blank template downloaded for ${monthLabel(`${targetYear}-${String(targetMonth).padStart(2, '0')}`, 'code')} (${activeOnly.length} active engineers)`);
 
     } catch (err) {
 
@@ -6428,11 +6355,7 @@ class RosterXApp {
 
 
 
-    const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-
-    const curMonthName = monthNames[targetMonth - 1] || 'SELECTED MONTH';
-
-    this.showToast(`Roster for ${curMonthName} ${targetYear} imported from Excel!`);
+    this.showToast(`Roster for ${monthLabel(`${targetYear}-${String(targetMonth).padStart(2, '0')}`, 'upper')} imported from Excel!`);
 
     this.closeImportModal();
 

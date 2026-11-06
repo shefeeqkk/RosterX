@@ -7,6 +7,14 @@
  */
 
 import { SHIFTS, getEngineerSwapCode } from './constants.js?v=1.0';
+import {
+  currentPeriodKey,
+  parsePeriodKey,
+  daysInMonth,
+  monthLabel,
+  monthNames,
+  getIstNow
+} from './dateUtils.js';
 
 const STORAGE_KEYS = {
   CHAT_HISTORY: 'rosterx_ai_assistant_chat_history',
@@ -529,9 +537,8 @@ export class RosterAiAssistant {
 
   updatePeriodIndicator() {
     if (!this.dom.periodIndicator || !this.app || !this.app.state) return;
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const curMonth = monthNames[this.app.state.currentMonth - 1] || 'Oct';
-    this.dom.periodIndicator.textContent = `${curMonth} ${this.app.state.currentYear}`;
+    const key = `${this.app.state.currentYear}-${String(this.app.state.currentMonth).padStart(2, '0')}`;
+    this.dom.periodIndicator.textContent = monthLabel(key, 'short');
   }
 
   scrollToBottom() {
@@ -656,9 +663,8 @@ export class RosterAiAssistant {
 
   renderProposalCard(p) {
     if (p.type === 'cleared_grid') {
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      const mName = monthNames[(p.targetMonth || 1) - 1] || 'Target Month';
-      const promptText = `Prepare a full month roster for ${mName} ${p.targetYear} with 24/7 night coverage and balanced day desk`;
+      const mName = monthLabel(`${p.targetYear}-${String(p.targetMonth || 1).padStart(2, '0')}`, 'long');
+      const promptText = `Prepare a full month roster for ${mName} with 24/7 night coverage and balanced day desk`;
       return `
         <div class="mt-3 p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-2 text-xs">
           <div class="flex items-center justify-between pb-1.5 border-b border-rose-200/80">
@@ -1071,23 +1077,22 @@ export class RosterAiAssistant {
     const res = await this.app.clearMonthGrid(targetYear, targetMonth);
     this.updatePeriodIndicator();
 
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const mFullName = monthNames[targetMonth - 1] || `Month ${targetMonth}`;
+    const mFullName = monthLabel(`${targetYear}-${String(targetMonth).padStart(2, '0')}`, 'long');
 
-    const text = `🗑️ **Cleared Entire Month Grid for ${mFullName} ${targetYear}!**\n\n` +
-      `✓ **Target Period:** **${mFullName} ${targetYear}** (${res.totalDays} Days)\n` +
+    const text = `🗑️ **Cleared Entire Month Grid for ${mFullName}!**\n\n` +
+      `✓ **Target Period:** **${mFullName}** (${res.totalDays} Days)\n` +
       `✓ **Engineers Cleared:** **${res.engineerCount}** active team members\n` +
       `✓ **Status:** All cell assignments reset to **Empty / Blank**\n` +
       `✓ **Shift Locks:** All locked cells removed\n\n` +
       `The grid is now clean. You can assign shifts manually, import from Excel, or ask me:\n` +
-      `*"Prepare a full month roster for ${mFullName} ${targetYear} with balanced day desk"*`;
+      `*"Prepare a full month roster for ${mFullName} with balanced day desk"*`;
 
     const proposal = {
       id: 'prop_clear_' + Date.now(),
       type: 'cleared_grid',
       targetMonth,
       targetYear,
-      title: `Cleared Grid: ${mFullName} ${targetYear}`,
+      title: `Cleared Grid: ${mFullName}`,
       subtitle: `${res.engineerCount} Engineers • ${res.totalDays} Days Blanked`,
       applied: true
     };
@@ -1116,21 +1121,20 @@ export class RosterAiAssistant {
     this.updatePeriodIndicator();
     this.app.showToast('Restored previous grid shifts!');
 
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const mFullName = monthNames[month - 1] || `Month ${month}`;
+    const mFullName = monthLabel(`${year}-${String(month).padStart(2, '0')}`, 'long');
 
     this.lastClearedGridBackup = null;
 
     return {
-      text: `↩️ **Restored Grid!**\n\nSuccessfully restored all previous shift assignments and locks for **${mFullName} ${year}**.`
+      text: `↩️ **Restored Grid!**\n\nSuccessfully restored all previous shift assignments and locks for **${mFullName}**.`
     };
   }
 
   // --- Day Roster Generator & Proposal ---
   async generateDayProposal({ day, minDayShifts = 3, originalQuery }) {
-    const curYear = this.app.state.currentYear || 2026;
-    const curMonth = this.app.state.currentMonth || 10;
-    const totalDays = this.app.state.totalDays || 31;
+    const curYear = this.app.state.currentYear;
+    const curMonth = this.app.state.currentMonth;
+    const totalDays = this.app.state.totalDays;
 
     if (day < 1 || day > totalDays) {
       return {
@@ -1140,9 +1144,8 @@ export class RosterAiAssistant {
 
     const dateObj = new Date(curYear, curMonth - 1, day);
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const dayOfWeekName = dayNames[dateObj.getDay()];
-    const monthName = monthNames[curMonth - 1];
+    const monthName = monthNames('long')[curMonth - 1];
 
     // Try calling Gemini API if key is available
     let assignments = null;
@@ -1392,16 +1395,15 @@ Rules:
 
   // --- Full Month Generator Proposal ---
   async generateMonthProposal({ query }) {
-    let targetYear = this.app.state.currentYear || 2026;
-    let targetMonth = this.app.state.currentMonth || 10;
+    let targetYear = this.app.state.currentYear;
+    let targetMonth = this.app.state.currentMonth;
     if (query.toLowerCase().includes('next month')) {
       targetMonth = targetMonth === 12 ? 1 : targetMonth + 1;
       if (targetMonth === 1) targetYear++;
     }
 
-    const totalDays = new Date(targetYear, targetMonth, 0).getDate();
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const curMonthName = monthNames[targetMonth - 1];
+    const totalDays = daysInMonth(targetYear, targetMonth);
+    const curMonthName = monthNames('long')[targetMonth - 1];
 
     const result = await this.app.aiEngine.generateRosterWithGemini({
       year: targetYear,
