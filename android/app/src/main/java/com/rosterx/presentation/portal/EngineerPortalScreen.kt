@@ -790,19 +790,12 @@ fun EngineerPortalScreen(
             }
 
             if (!isFullScreenRoster) {
-                Box(
+                com.rosterx.presentation.components.FloatingAiBotButton(
+                    onClick = { viewModel.openAssistant() },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 16.dp, bottom = 16.dp)
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF0F172A).copy(alpha = 0.95f))
-                        .border(1.5.dp, Color(0xFF06B6D4), CircleShape)
-                        .clickable { viewModel.openAssistant() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("🤖", fontSize = 24.sp)
-                }
+                )
             }
 
         }

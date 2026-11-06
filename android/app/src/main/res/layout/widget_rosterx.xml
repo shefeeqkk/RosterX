@@ -5,10 +5,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg_neumorphic"
     android:orientation="vertical"
-    android:paddingLeft="10dp"
-    android:paddingTop="8dp"
-    android:paddingRight="10dp"
-    android:paddingBottom="8dp">
+    android:paddingLeft="12dp"
+    android:paddingTop="10dp"
+    android:paddingRight="12dp"
+    android:paddingBottom="10dp">
 
     <!-- Header: RosterX Logo, App Name, and Logged-in User -->
     <LinearLayout
@@ -18,8 +18,8 @@
         android:orientation="horizontal">
 
         <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
             android:contentDescription="@string/app_name"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_rosterx_widget_logo" />
@@ -27,7 +27,7 @@
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:fontFamily="sans-serif-black"
             android:text="RosterX"
@@ -47,11 +47,12 @@
             android:textSize="11sp" />
     </LinearLayout>
 
-    <!-- Shift Cards (Today & Tomorrow) -->
+    <!-- Shift Cards (Today & Tomorrow) - weight=1 fills vertical height eliminating bottom gap -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_weight="1"
         android:baselineAligned="false"
         android:orientation="horizontal">
 
@@ -59,156 +60,198 @@
         <LinearLayout
             android:id="@+id/widget_today_card"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="3dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
+            android:gravity="center_vertical"
             android:orientation="vertical"
-            android:paddingLeft="6dp"
+            android:paddingLeft="8dp"
             android:paddingTop="6dp"
-            android:paddingRight="6dp"
+            android:paddingRight="8dp"
             android:paddingBottom="6dp">
 
+            <!-- Title: TODAY (Nov 07) -->
+            <TextView
+                android:id="@+id/widget_today_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-black"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:text="TODAY"
+                android:textColor="@color/widget_text_muted"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <!-- Row: Rounded Square Shift Code + Name & Timing -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/widget_today_title"
+                <!-- Rounded Square Shift Code Badge -->
+                <FrameLayout
+                    android:id="@+id/widget_today_badge_frame"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp">
+
+                    <ImageView
+                        android:id="@+id/widget_today_badge_bg"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/widget_shift_squircle" />
+
+                    <TextView
+                        android:id="@+id/widget_today_badge"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="sans-serif-black"
+                        android:gravity="center"
+                        android:text="--"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </FrameLayout>
+
+                <!-- Name & Timing -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
                     android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-black"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:text="TODAY"
-                    android:textColor="@color/widget_text_muted"
-                    android:textSize="9.5sp"
-                    android:textStyle="bold" />
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/widget_today_badge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/widget_shift_badge"
-                    android:fontFamily="sans-serif-black"
-                    android:paddingLeft="5dp"
-                    android:paddingTop="1dp"
-                    android:paddingRight="5dp"
-                    android:paddingBottom="1dp"
-                    android:text="--"
-                    android:textColor="#0F172A"
-                    android:textSize="9sp"
-                    android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/widget_today_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-bold"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:text="Loading..."
+                        android:textColor="@color/widget_text_main"
+                        android:textSize="11.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/widget_today_timing"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:text="--:-- AM – --:-- PM"
+                        android:textColor="@color/widget_text_muted"
+                        android:textSize="9.5sp" />
+                </LinearLayout>
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/widget_today_name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif-bold"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:text="Loading..."
-                android:textColor="@color/widget_text_main"
-                android:textSize="11.5sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/widget_today_timing"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:text="--:-- AM – --:-- PM"
-                android:textColor="@color/widget_text_muted"
-                android:textSize="9sp" />
         </LinearLayout>
 
         <!-- Tomorrow's Shift Card -->
         <LinearLayout
             android:id="@+id/widget_tomorrow_card"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="3dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="4dp"
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
+            android:gravity="center_vertical"
             android:orientation="vertical"
-            android:paddingLeft="6dp"
+            android:paddingLeft="8dp"
             android:paddingTop="6dp"
-            android:paddingRight="6dp"
+            android:paddingRight="8dp"
             android:paddingBottom="6dp">
 
+            <!-- Title: TOMORROW (Nov 08) -->
+            <TextView
+                android:id="@+id/widget_tomorrow_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-black"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:text="TOMORROW"
+                android:textColor="@color/widget_text_muted"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <!-- Row: Rounded Square Shift Code + Name & Timing -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/widget_tomorrow_title"
+                <!-- Rounded Square Shift Code Badge -->
+                <FrameLayout
+                    android:id="@+id/widget_tomorrow_badge_frame"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp">
+
+                    <ImageView
+                        android:id="@+id/widget_tomorrow_badge_bg"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/widget_shift_squircle" />
+
+                    <TextView
+                        android:id="@+id/widget_tomorrow_badge"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="sans-serif-black"
+                        android:gravity="center"
+                        android:text="--"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </FrameLayout>
+
+                <!-- Name & Timing -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
                     android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-black"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:text="TOMORROW"
-                    android:textColor="@color/widget_text_muted"
-                    android:textSize="9.5sp"
-                    android:textStyle="bold" />
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/widget_tomorrow_badge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/widget_shift_badge"
-                    android:fontFamily="sans-serif-black"
-                    android:paddingLeft="5dp"
-                    android:paddingTop="1dp"
-                    android:paddingRight="5dp"
-                    android:paddingBottom="1dp"
-                    android:text="--"
-                    android:textColor="#0F172A"
-                    android:textSize="9sp"
-                    android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/widget_tomorrow_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-bold"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:text="Loading..."
+                        android:textColor="@color/widget_text_main"
+                        android:textSize="11.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/widget_tomorrow_timing"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:text="--:-- AM – --:-- PM"
+                        android:textColor="@color/widget_text_muted"
+                        android:textSize="9.5sp" />
+                </LinearLayout>
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/widget_tomorrow_name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif-bold"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:text="Loading..."
-                android:textColor="@color/widget_text_main"
-                android:textSize="11.5sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/widget_tomorrow_timing"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:text="--:-- AM – --:-- PM"
-                android:textColor="@color/widget_text_muted"
-                android:textSize="9sp" />
         </LinearLayout>
     </LinearLayout>
 
@@ -227,16 +270,16 @@
             android:background="@drawable/widget_pill_timer"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingLeft="8dp"
-            android:paddingTop="3.5dp"
-            android:paddingRight="8dp"
-            android:paddingBottom="3.5dp">
+            android:paddingLeft="9dp"
+            android:paddingTop="4dp"
+            android:paddingRight="9dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="⏱ "
-                android:textSize="10sp" />
+                android:textSize="10.5sp" />
 
             <TextView
                 android:id="@+id/widget_timer_text"
@@ -257,20 +300,20 @@
             android:id="@+id/widget_rest_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:layout_marginTop="3.5dp"
             android:background="@drawable/widget_pill_rest"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingLeft="8dp"
-            android:paddingTop="3.5dp"
-            android:paddingRight="8dp"
-            android:paddingBottom="3.5dp">
+            android:paddingLeft="9dp"
+            android:paddingTop="4dp"
+            android:paddingRight="9dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🏖 "
-                android:textSize="10sp" />
+                android:textSize="10.5sp" />
 
             <TextView
                 android:id="@+id/widget_rest_text"

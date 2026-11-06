@@ -140,9 +140,13 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             if (shiftsJson.isNullOrBlank()) {
                 views.setTextViewText(R.id.widget_engineer_name, engineerName ?: "NOC Operations")
                 views.setTextViewText(R.id.widget_today_badge, "OK")
+                views.setInt(R.id.widget_today_badge_bg, "setColorFilter", Color.parseColor("#10B981"))
+                views.setTextColor(R.id.widget_today_badge, Color.WHITE)
                 views.setTextViewText(R.id.widget_today_name, "Tap to Sync Shifts")
                 views.setTextViewText(R.id.widget_today_timing, "Open RosterX app")
                 views.setTextViewText(R.id.widget_tomorrow_badge, "OK")
+                views.setInt(R.id.widget_tomorrow_badge_bg, "setColorFilter", Color.parseColor("#10B981"))
+                views.setTextColor(R.id.widget_tomorrow_badge, Color.WHITE)
                 views.setTextViewText(R.id.widget_tomorrow_name, "Sync Active Roster")
                 views.setTextViewText(R.id.widget_tomorrow_timing, "Tap widget to refresh")
                 views.setTextViewText(R.id.widget_timer_text, "Tap widget to sync schedule")
@@ -194,7 +198,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             val todayTitleStr = if (isCompact) "TODAY (${String.format(Locale.US, "%02d", todayNum)})" else "TODAY (${today.format(DateTimeFormatter.ofPattern("MMM dd"))})"
             views.setTextViewText(R.id.widget_today_title, todayTitleStr)
             views.setTextViewText(R.id.widget_today_badge, todayCode)
-            views.setInt(R.id.widget_today_badge, "setBackgroundColor", Color.parseColor(todayMeta.bg))
+            views.setInt(R.id.widget_today_badge_bg, "setColorFilter", Color.parseColor(todayMeta.bg))
             views.setTextColor(R.id.widget_today_badge, Color.parseColor(todayMeta.text))
             views.setTextViewText(R.id.widget_today_name, todayMeta.name)
             views.setTextViewText(R.id.widget_today_timing, todayMeta.timing)
@@ -203,7 +207,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             val tmrwTitleStr = if (isCompact) "TMRW (${String.format(Locale.US, "%02d", tomorrowNum)})" else "TOMORROW (${tomorrow.format(DateTimeFormatter.ofPattern("MMM dd"))})"
             views.setTextViewText(R.id.widget_tomorrow_title, tmrwTitleStr)
             views.setTextViewText(R.id.widget_tomorrow_badge, tomorrowCode)
-            views.setInt(R.id.widget_tomorrow_badge, "setBackgroundColor", Color.parseColor(tomorrowMeta.bg))
+            views.setInt(R.id.widget_tomorrow_badge_bg, "setColorFilter", Color.parseColor(tomorrowMeta.bg))
             views.setTextColor(R.id.widget_tomorrow_badge, Color.parseColor(tomorrowMeta.text))
             views.setTextViewText(R.id.widget_tomorrow_name, tomorrowMeta.name)
             views.setTextViewText(R.id.widget_tomorrow_timing, tomorrowMeta.timing)
