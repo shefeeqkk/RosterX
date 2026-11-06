@@ -1620,11 +1620,6 @@ Rules:
     };
   }
 
-    return {
-      text: `I'm your RosterX AI assistant. Try asking: *"Prepare a roster for 24th with minimum Day shift count as 3"* to generate a live preview card with instant Apply!`
-    };
-  }
-
   // --- Apply Proposal to Active Grid ---
   applyProposalToGrid(proposalId) {
     // Find the proposal in messages

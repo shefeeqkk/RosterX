@@ -52,7 +52,7 @@ import {
 
 import { RosterAiEngine } from './rosterAiEngine.js';
 
-import { RosterAiAssistant } from './rosterAiAssistant.js?v=7.0';
+import { RosterAiAssistant } from './rosterAiAssistant.js?v=7.1';
 import { AtlasService } from './atlasService.js';
 import { ExcelService } from './excelService.js?v=3.2';
 import { KineticTiltController } from './kineticTilt.js';
