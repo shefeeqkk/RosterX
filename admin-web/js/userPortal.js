@@ -884,7 +884,7 @@ export class UserPortalController {
 
           label: `On Duty (${todayCode})`,
 
-          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-emerald-300 font-bold bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-500/60 shadow-sm"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> On Duty (${todayCode}) 🟢</span>`
+          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-500/60 shadow-xs"><span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> On Duty (${todayCode}) 🟢</span>`
 
         };
 
@@ -906,7 +906,7 @@ export class UserPortalController {
 
         label: 'Weekly Off',
 
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-amber-400 font-medium bg-amber-950/40 px-2.5 py-1 rounded-full border border-amber-800/40">Weekly Off</span>`
+        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-amber-800 dark:text-amber-400 font-medium bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1 rounded-full border border-amber-300 dark:border-amber-800/40">Weekly Off</span>`
 
       };
 
@@ -924,7 +924,7 @@ export class UserPortalController {
 
         label: 'On Leave',
 
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-rose-400 font-medium bg-rose-950/40 px-2.5 py-1 rounded-full border border-rose-800/40">On Leave</span>`
+        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-rose-800 dark:text-rose-400 font-medium bg-rose-100 dark:bg-rose-950/40 px-2.5 py-1 rounded-full border border-rose-300 dark:border-rose-800/40">On Leave</span>`
 
       };
 
@@ -944,7 +944,7 @@ export class UserPortalController {
 
         label: `Off Duty (Starts ${range.startStr})`,
 
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-800/70 px-2.5 py-1 rounded-full border border-slate-700/60 font-medium">Off Duty • Starts ${range.startStr}</span>`
+        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/70 px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-700/60 font-medium">Off Duty • Starts ${range.startStr}</span>`
 
       };
 
@@ -964,7 +964,7 @@ export class UserPortalController {
 
         label: 'Shift Ended',
 
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-900/60 px-2.5 py-1 rounded-full border border-slate-800 font-medium">Shift Ended • Off Duty</span>`
+        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/60 px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-800 font-medium">Shift Ended • Off Duty</span>`
 
       };
 
@@ -980,7 +980,7 @@ export class UserPortalController {
 
       label: 'Off Duty',
 
-      statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/60 font-medium">Off Duty</span>`
+      statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-700/60 font-medium">Off Duty</span>`
 
     };
 
@@ -1041,21 +1041,21 @@ export class UserPortalController {
 
         if (isOffCategory(todayShiftCode)) {
 
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-2 shadow-sm';
+          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 flex items-center gap-2 shadow-xs';
 
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Weekly Off (${todayShiftCode})`;
+          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400"></span> Weekly Off (${todayShiftCode})`;
 
         } else if (todayShiftCode) {
 
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800/80 text-slate-300 border border-slate-700 flex items-center gap-2 shadow-sm';
+          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-2 shadow-xs';
 
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span> ${dutyStatus.label}`;
+          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500 dark:bg-slate-400"></span> ${dutyStatus.label}`;
 
         } else {
 
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-2 shadow-sm';
+          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700 flex items-center gap-2 shadow-xs';
 
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span> Unscheduled`;
+          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500"></span> Unscheduled`;
 
         }
 
@@ -1133,17 +1133,19 @@ export class UserPortalController {
 
         todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1 shadow-sm';
 
-        todayCardStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Active Now';
+        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1';
+
+        todayCardStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> Active Now';
 
       } else if (dutyStatus.activeCode === 'OFF' || isOffCategory(dutyStatus.activeCode)) {
 
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/60';
+        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60';
 
         todayCardStatusBadge.textContent = 'Weekly Off';
 
       } else {
 
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700';
 
         todayCardStatusBadge.textContent = dutyStatus.label || 'Scheduled';
 
@@ -1349,15 +1351,15 @@ export class UserPortalController {
 
       const trClass = isMe
 
-        ? 'bg-gradient-to-r from-emerald-950/70 via-slate-900/90 to-emerald-950/70 border-l-4 border-l-emerald-400 border-y border-emerald-500/30 font-semibold shadow-md relative'
+        ? 'bg-emerald-50/80 dark:bg-gradient-to-r dark:from-emerald-950/70 dark:via-slate-900/90 dark:to-emerald-950/70 border-l-4 border-l-emerald-500 border-y border-emerald-300 dark:border-emerald-500/30 font-semibold shadow-xs relative'
 
-        : 'hover:bg-slate-800/40 transition border-b border-slate-800';
+        : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 transition border-b border-slate-200 dark:border-slate-800';
 
 
 
       const userStar = isMe
 
-        ? `<i class="ph-fill ph-star text-amber-400 text-xs ml-1.5 shrink-0" title="Your Schedule"></i>`
+        ? `<i class="ph-fill ph-star text-amber-500 dark:text-amber-400 text-xs ml-1.5 shrink-0" title="Your Schedule"></i>`
 
         : '';
 
@@ -1365,9 +1367,9 @@ export class UserPortalController {
 
       const roleBadge = eng.role === 'apprentice'
 
-        ? `<span class="text-[10px] text-amber-400 font-mono">(Apprentice)</span>`
+        ? `<span class="text-[10px] text-amber-700 dark:text-amber-400 font-mono">(Apprentice)</span>`
 
-        : `<span class="text-[10px] text-slate-400 font-mono">(NOC Eng)</span>`;
+        : `<span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">(NOC Eng)</span>`;
 
 
 
@@ -1385,7 +1387,7 @@ export class UserPortalController {
 
             <div class="flex items-center gap-2">
 
-              <div class="w-8 h-8 rounded-full ${isMe ? 'bg-emerald-500 text-slate-950 font-black ring-2 ring-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-700 text-slate-300'} flex items-center justify-center text-xs font-bold shrink-0">
+              <div class="w-8 h-8 rounded-full ${isMe ? 'bg-emerald-500 text-white font-black ring-2 ring-emerald-400 shadow-sm' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'} flex items-center justify-center text-xs font-bold shrink-0">
 
                 ${eng.name.slice(0, 2).toUpperCase()}
 
@@ -1393,15 +1395,15 @@ export class UserPortalController {
 
               <div>
 
-                <div class="text-sm font-bold ${isMe ? 'text-emerald-300 flex items-center' : 'text-slate-200'}">
+                <div class="text-sm font-bold ${isMe ? 'text-emerald-700 dark:text-emerald-300 flex items-center' : 'text-slate-900 dark:text-slate-100'}">
 
                   ${eng.name} ${userStar}
 
                 </div>
 
-                <div class="text-xs text-slate-400">
+                <div class="text-xs text-slate-500 dark:text-slate-400">
 
-                  ${roleBadge} • Offs: <span class="text-slate-300">${offs}</span>
+                  ${roleBadge} • Offs: <span class="text-slate-700 dark:text-slate-300 font-semibold">${offs}</span>
 
                 </div>
 
@@ -1425,7 +1427,7 @@ export class UserPortalController {
 
               </span>
 
-              <span class="text-[10px] text-slate-400 mt-0.5 font-mono">
+              <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
 
                 ${todayShiftMeta.timings || ''}
 
@@ -1505,9 +1507,9 @@ export class UserPortalController {
 
     let row1 = `
 
-      <th rowspan="2" class="sticky left-0 z-30 bg-slate-900 border border-slate-700 text-left font-bold text-xs text-slate-300 px-3 py-2 name-col-portal" style="width:195px; min-width:195px; max-width:195px;">
+      <th rowspan="2" class="sticky left-0 z-30 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-left font-bold text-xs text-slate-800 dark:text-slate-300 px-3 py-2 name-col-portal" style="width:195px; min-width:195px; max-width:195px;">
 
-        <div class="flex items-center gap-1.5"><i class="ph ph-users text-cyan-400 text-sm"></i> ENGINEER</div>
+        <div class="flex items-center gap-1.5"><i class="ph ph-users text-cyan-600 dark:text-cyan-400 text-sm"></i> ENGINEER</div>
 
       </th>
 
@@ -1531,15 +1533,15 @@ export class UserPortalController {
 
 
 
-      const cellBg1 = isWeekend ? 'bg-red-950/40 text-red-300' : 'bg-slate-800 text-slate-200';
+      const cellBg1 = isWeekend ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200';
 
-      const cellBg2 = isWeekend ? 'bg-red-950/60 text-red-400' : 'bg-slate-900/90 text-slate-400';
+      const cellBg2 = isWeekend ? 'bg-red-100/70 dark:bg-red-950/60 text-red-800 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400';
 
 
 
       row1 += `
 
-        <th class="border border-slate-700 py-1.5 px-0 text-center font-bold text-xs ${cellBg1} cell-box-portal" style="width:44px; min-width:44px; max-width:44px;">
+        <th class="border border-slate-300 dark:border-slate-700 py-1.5 px-0 text-center font-bold text-xs ${cellBg1} cell-box-portal" style="width:44px; min-width:44px; max-width:44px;">
 
           ${day}
 
@@ -1551,7 +1553,7 @@ export class UserPortalController {
 
       row2 += `
 
-        <th class="border border-slate-700 py-1 px-0 text-center text-[10px] font-semibold ${cellBg2} cell-box-portal" style="width:44px; min-width:44px; max-width:44px;">
+        <th class="border border-slate-300 dark:border-slate-700 py-1 px-0 text-center text-[10px] font-semibold ${cellBg2} cell-box-portal" style="width:44px; min-width:44px; max-width:44px;">
 
           ${dowName}
 
@@ -1565,11 +1567,11 @@ export class UserPortalController {
 
     row1 += `
 
-      <th class="border border-slate-700 bg-slate-800 text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Working Duty Shifts">WRK</th>
+      <th class="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Working Duty Shifts">WRK</th>
 
-      <th class="border border-slate-700 bg-slate-800 text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Night Shifts">NS</th>
+      <th class="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Night Shifts">NS</th>
 
-      <th class="border border-slate-700 bg-slate-800 text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Weekly Offs">OFF</th>
+      <th class="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Weekly Offs">OFF</th>
 
     `;
 
@@ -1577,7 +1579,7 @@ export class UserPortalController {
 
     row2 += `
 
-      <th colspan="3" class="border border-slate-700 bg-slate-900/90 text-slate-400 text-[10px] py-1 text-center font-bold">STATS</th>
+      <th colspan="3" class="border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[10px] py-1 text-center font-bold uppercase">STATS</th>
 
     `;
 
@@ -1637,9 +1639,9 @@ export class UserPortalController {
 
       const trClass = isMe
 
-        ? 'bg-gradient-to-r from-emerald-950/60 via-slate-900 to-emerald-950/60 border-l-4 border-l-emerald-400 border-y border-emerald-500/30 font-bold shadow-md'
+        ? 'bg-emerald-50/80 dark:bg-gradient-to-r dark:from-emerald-950/60 dark:via-slate-900 dark:to-emerald-950/60 border-l-4 border-l-emerald-500 border-y border-emerald-300 dark:border-emerald-500/30 font-bold shadow-xs'
 
-        : 'hover:bg-slate-800/40 transition border-b border-slate-800';
+        : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 transition border-b border-slate-200 dark:border-slate-800';
 
 
 
@@ -1703,15 +1705,15 @@ export class UserPortalController {
 
           <!-- Sticky Engineer Name Column -->
 
-          <td class="sticky left-0 z-20 bg-slate-900 border-r border-b border-slate-700 px-3 py-2 text-left text-xs whitespace-nowrap shadow-sm name-col-portal overflow-hidden" style="width:195px; min-width:195px; max-width:195px;">
+          <td class="sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-700 px-3 py-2 text-left text-xs whitespace-nowrap shadow-xs name-col-portal overflow-hidden" style="width:195px; min-width:195px; max-width:195px;">
 
             <div class="flex items-center gap-1.5 overflow-hidden">
 
-              <span class="w-2 h-2 rounded-full shrink-0 ${isMe ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-slate-500'}"></span>
+              <span class="w-2 h-2 rounded-full shrink-0 ${isMe ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-slate-400 dark:bg-slate-500'}"></span>
 
-              <span class="truncate ${isMe ? 'text-emerald-300 font-extrabold flex items-center gap-1' : 'text-slate-200 font-bold'}">
+              <span class="truncate ${isMe ? 'text-emerald-700 dark:text-emerald-300 font-extrabold flex items-center gap-1' : 'text-slate-800 dark:text-slate-200 font-bold'}">
 
-                ${eng.name} ${isMe ? '<i class="ph-fill ph-star text-amber-400 text-xs shrink-0 inline"></i>' : ''}
+                ${eng.name} ${isMe ? '<i class="ph-fill ph-star text-amber-500 dark:text-amber-400 text-xs shrink-0 inline"></i>' : ''}
 
               </span>
 
@@ -1729,19 +1731,19 @@ export class UserPortalController {
 
           <!-- Stats Columns -->
 
-          <td class="border border-slate-800 text-center text-xs font-bold text-emerald-400 bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
+          <td class="border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-slate-50 dark:bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
 
             ${wrkCount}
 
           </td>
 
-          <td class="border border-slate-800 text-center text-xs font-bold text-indigo-300 bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
+          <td class="border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-slate-50 dark:bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
 
             ${nsCount}
 
           </td>
 
-          <td class="border border-slate-800 text-center text-xs font-bold text-amber-300 bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
+          <td class="border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-amber-700 dark:text-amber-300 bg-slate-50 dark:bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
 
             ${offCount}
 
@@ -1851,9 +1853,9 @@ export class UserPortalController {
 
     tabProfile?.addEventListener('click', () => {
 
-      tabProfile.className = 'pb-2 px-3 text-xs font-bold text-cyan-400 border-b-2 border-cyan-400 cursor-pointer';
+      tabProfile.className = 'pb-2 px-3 text-xs font-bold text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 cursor-pointer';
 
-      tabSecurity.className = 'pb-2 px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent cursor-pointer';
+      tabSecurity.className = 'pb-2 px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-b-2 border-transparent cursor-pointer';
 
       contentProfile.classList.remove('hidden');
 
@@ -1865,9 +1867,9 @@ export class UserPortalController {
 
     tabSecurity?.addEventListener('click', () => {
 
-      tabSecurity.className = 'pb-2 px-3 text-xs font-bold text-cyan-400 border-b-2 border-cyan-400 cursor-pointer';
+      tabSecurity.className = 'pb-2 px-3 text-xs font-bold text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 cursor-pointer';
 
-      tabProfile.className = 'pb-2 px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent cursor-pointer';
+      tabProfile.className = 'pb-2 px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-b-2 border-transparent cursor-pointer';
 
       contentSecurity.classList.remove('hidden');
 
@@ -2286,13 +2288,13 @@ export class UserPortalController {
   markdownToHtml(md) {
     if (!md) return '';
     return md
-      .replace(/^### (.*$)/gim, '<h3 class="text-xs font-bold text-cyan-300 mt-2 mb-1">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-sm font-bold text-cyan-300 mt-2 mb-1">$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1 class="text-base font-bold text-cyan-300 mt-2 mb-1">$1</h1>')
-      .replace(/\*\*(.*?)\*\*/gim, '<strong class="text-white font-bold">$1</strong>')
-      .replace(/\*(.*?)\*/gim, '<em class="text-slate-300 italic">$1</em>')
-      .replace(/`([^`]+)`/gim, '<code class="px-1 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-300 font-mono text-[10px]">$1</code>')
-      .replace(/^\s*-\s+(.*$)/gim, '<li class="ml-3 list-disc text-slate-200">$1</li>')
+      .replace(/^### (.*$)/gim, '<h3 class="text-xs font-bold text-cyan-700 dark:text-cyan-300 mt-2 mb-1">$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2 class="text-sm font-bold text-cyan-700 dark:text-cyan-300 mt-2 mb-1">$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1 class="text-base font-bold text-cyan-700 dark:text-cyan-300 mt-2 mb-1">$1</h1>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong class="text-slate-900 dark:text-white font-bold">$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em class="text-slate-700 dark:text-slate-300 italic">$1</em>')
+      .replace(/`([^`]+)`/gim, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-cyan-800 dark:text-cyan-300 font-mono text-[10px]">$1</code>')
+      .replace(/^\s*-\s+(.*$)/gim, '<li class="ml-3 list-disc text-slate-800 dark:text-slate-200">$1</li>')
       .replace(/\n\n+/gim, '<br><br>')
       .replace(/\n/gim, '<br>');
   }
@@ -2309,10 +2311,10 @@ export class UserPortalController {
       Hello <strong>${uName}</strong>! 👋<br><br>
       I'm your <strong>RosterX Operations Assistant</strong> powered by Grounded Gemini AI. Here is your current duty briefing:
       <ul class="list-disc pl-4 mt-1.5 space-y-1 text-xs">
-        <li><strong>Today (${curMName} ${opDay}):</strong> Shift <span class="text-cyan-300 font-bold">${myToday}</span></li>
-        <li><strong>Tomorrow (${curMName} ${nextDay}):</strong> Shift <span class="text-cyan-300 font-bold">${myTomorrow}</span></li>
+        <li><strong>Today (${curMName} ${opDay}):</strong> Shift <span class="text-cyan-700 dark:text-cyan-300 font-bold">${myToday}</span></li>
+        <li><strong>Tomorrow (${curMName} ${nextDay}):</strong> Shift <span class="text-cyan-700 dark:text-cyan-300 font-bold">${myTomorrow}</span></li>
       </ul>
-      <p class="mt-2 text-slate-300">Ask me in plain natural language:<br>
+      <p class="mt-2 text-slate-600 dark:text-slate-300">Ask me in plain natural language:<br>
       • <em>"Who all are in shift now?"</em><br>
       • <em>"When is my next night shift?"</em><br>
       • <em>"Who is on night duty today?"</em></p>
@@ -2345,10 +2347,10 @@ export class UserPortalController {
     const div = document.createElement('div');
     div.className = 'flex items-start gap-2.5';
     div.innerHTML = `
-      <div class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center shrink-0">
         <img src="assets/bot-3d-cutout.png" alt="Bot" class="w-6 h-6 object-contain" />
       </div>
-      <div class="max-w-[85%] rounded-2xl rounded-tl-xs bg-slate-800/90 border border-slate-700 text-slate-200 p-3 text-xs shadow-md leading-relaxed">
+      <div class="max-w-[85%] rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 p-3 text-xs shadow-md leading-relaxed">
         ${html}
       </div>
     `;
@@ -2542,14 +2544,14 @@ export class UserPortalController {
     let html = `
       <table class="w-full text-left border-collapse text-xs">
         <thead>
-          <tr class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+          <tr class="bg-slate-100 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
             <th class="py-2.5 px-4 font-bold">Day & Date</th>
             <th class="py-2.5 px-4 font-bold text-center">Shift Code</th>
             <th class="py-2.5 px-4 font-bold">Operational Timing</th>
             <th class="py-2.5 px-4 font-bold text-right pr-4">Duty Status</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-800/60">
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60">
     `;
 
     for (let day = 1; day <= totalDays; day++) {
@@ -2557,33 +2559,33 @@ export class UserPortalController {
       const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
       const dateStr = `${dayName}, ${month}/${String(day).padStart(2, '0')}`;
       const code = (myRow && myRow.shifts && myRow.shifts[day - 1]) ? myRow.shifts[day - 1].trim().toUpperCase() : 'OFF';
-      const badgeStyle = shiftColors[code] || 'bg-slate-800 text-slate-300 border-slate-700';
+      const badgeStyle = shiftColors[code] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700';
       const timing = shiftTimings[code] || '--:-- – --:--';
       const isToday = (day === todayNum);
       const rowClass = isToday
-        ? 'bg-cyan-950/40 border-l-4 border-l-cyan-400 font-bold'
-        : (day % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent');
+        ? 'bg-cyan-50 dark:bg-cyan-950/40 border-l-4 border-l-cyan-600 dark:border-l-cyan-400 font-bold'
+        : (day % 2 === 0 ? 'bg-slate-50/80 dark:bg-slate-900/30' : 'bg-transparent');
 
       html += `
-        <tr class="${rowClass} hover:bg-slate-800/40 transition">
+        <tr class="${rowClass} hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition">
           <td class="py-2 px-4 flex items-center gap-2">
-            <span class="w-6 text-slate-500 font-mono text-[11px]">${String(day).padStart(2, '0')}</span>
-            <span class="${isToday ? 'text-cyan-300 font-extrabold' : 'text-slate-200'}">${dateStr}</span>
-            ${isToday ? '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-cyan-400 text-slate-950 ml-1.5 animate-pulse">TODAY</span>' : ''}
+            <span class="w-6 text-slate-500 dark:text-slate-400 font-mono text-[11px]">${String(day).padStart(2, '0')}</span>
+            <span class="${isToday ? 'text-cyan-700 dark:text-cyan-300 font-extrabold' : 'text-slate-800 dark:text-slate-200 font-bold'}">${dateStr}</span>
+            ${isToday ? '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-cyan-600 dark:bg-cyan-400 text-white dark:text-slate-950 ml-1.5 animate-pulse">TODAY</span>' : ''}
           </td>
           <td class="py-2 px-4 text-center">
             <span class="inline-block px-2.5 py-0.5 rounded font-black text-[11px] border shadow-xs ${badgeStyle}">
               ${code || 'OFF'}
             </span>
           </td>
-          <td class="py-2 px-4 font-mono text-slate-400 text-[11px]">
+          <td class="py-2 px-4 font-mono text-slate-600 dark:text-slate-400 text-[11px]">
             ${timing}
           </td>
           <td class="py-2 px-4 text-right pr-4">
-            ${code === 'NS' ? '<span class="text-indigo-400 text-[10px] font-bold">Solo Night Duty</span>' :
-          (code === 'OFF' || code === 'SWOFF' ? '<span class="text-amber-400 text-[10px] font-semibold">Scheduled Rest</span>' :
-            (code === 'L' ? '<span class="text-rose-400 text-[10px] font-semibold">Approved Leave</span>' :
-              '<span class="text-emerald-400 text-[10px] font-semibold">Standard Shift</span>'))}
+            ${code === 'NS' ? '<span class="text-indigo-700 dark:text-indigo-400 text-[10px] font-bold">Solo Night Duty</span>' :
+          (code === 'OFF' || code === 'SWOFF' ? '<span class="text-amber-700 dark:text-amber-400 text-[10px] font-semibold">Scheduled Rest</span>' :
+            (code === 'L' ? '<span class="text-rose-700 dark:text-rose-400 text-[10px] font-semibold">Approved Leave</span>' :
+              '<span class="text-emerald-700 dark:text-emerald-400 text-[10px] font-semibold">Standard Shift</span>'))}
           </td>
         </tr>
       `;
@@ -2736,12 +2738,12 @@ export class UserPortalController {
         return '<span class="text-slate-500 italic text-xs">No active personnel</span>';
       }
       return arr.map(eng => `
-        <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/60 border border-slate-800/80">
+        <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
           <div class="flex items-center gap-1.5 truncate">
             <span class="w-1.5 h-1.5 rounded-full ${badgeClass}"></span>
-            <span class="font-bold text-slate-200 text-xs truncate">${this.escapeHtml(eng.name)}</span>
+            <span class="font-bold text-slate-800 dark:text-slate-200 text-xs truncate">${this.escapeHtml(eng.name)}</span>
           </div>
-          <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono">${eng.code}</span>
+          <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-mono">${eng.code}</span>
         </div>
       `).join('');
     };
@@ -2858,21 +2860,21 @@ export class UserPortalController {
 
     if (mySwaps.length === 0) {
       list.innerHTML = `
-        <div class="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-500 text-xs">
-          <i class="ph ph-clipboard-text text-2xl text-slate-600 mb-1.5 block"></i>
-          No Active Records<br><span class="text-[10px] text-slate-600">Your submitted shift swap requests will appear here dynamically.</span>
+        <div class="p-6 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center text-slate-500 text-xs">
+          <i class="ph ph-clipboard-text text-2xl text-slate-400 dark:text-slate-600 mb-1.5 block"></i>
+          No Active Records<br><span class="text-[10px] text-slate-500 dark:text-slate-600">Your submitted shift swap requests will appear here dynamically.</span>
         </div>
       `;
       return;
     }
 
     list.innerHTML = mySwaps.map(s => `
-      <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs space-y-1">
+      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
         <div class="flex items-center justify-between">
-          <span class="font-bold text-slate-200">${this.escapeHtml(s.engineer_a)} ⇄ ${this.escapeHtml(s.engineer_b)}</span>
-          <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">${s.status || 'Pending'}</span>
+          <span class="font-bold text-slate-800 dark:text-slate-200">${this.escapeHtml(s.engineer_a)} ⇄ ${this.escapeHtml(s.engineer_b)}</span>
+          <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">${s.status || 'Pending'}</span>
         </div>
-        <div class="text-[11px] text-slate-400 font-mono">
+        <div class="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
           <span>Date: ${s.date_a || s.date}</span> ${s.date_b ? `⇄ <span>${s.date_b}</span>` : ''}
         </div>
         ${s.reason ? `<div class="text-[10px] text-slate-500 italic">"${this.escapeHtml(s.reason)}"</div>` : ''}

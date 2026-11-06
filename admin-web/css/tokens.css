@@ -155,3 +155,33 @@ html.dark select:not(.bg-transparent) {
   color: var(--nm-text) !important;
 }
 
+/* ==========================================================================
+   Universal Light Mode Contrast & Pure Theming Guard
+   ========================================================================== */
+html:not(.dark) {
+  --nm-canvas: #EEF2F6;
+  --nm-surface: #FFFFFF;
+  --nm-surface-contrast: #E2E8F0;
+  --nm-text: #1E293B;
+  --nm-text-muted: #64748B;
+  --nm-border: #E2E8F0;
+}
+
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-200 {
+  color: var(--nm-text, #1E293B) !important;
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-500 {
+  color: #64748B !important;
+}
+
+

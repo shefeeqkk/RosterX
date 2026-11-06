@@ -258,35 +258,71 @@
     }
 
     /* Muted and secondary texts */
-    html:not(.dark) .text-slate-400 {
-      color: #64748b !important;
+    html:not(.dark) .text-slate-100,
+    html:not(.dark) .text-slate-200 {
+      color: #1e293b !important;
     }
 
     html:not(.dark) .text-slate-300 {
       color: #334155 !important;
     }
 
+    html:not(.dark) .text-slate-400 {
+      color: #475569 !important;
+    }
+
     html:not(.dark) .text-slate-500 {
       color: #64748b !important;
     }
 
-    /* Cyan and Indigo contrast in light mode */
+    /* High-contrast status badges in light mode */
     html:not(.dark) .text-cyan-300 {
       color: #0284c7 !important;
     }
 
-    html:not(.dark) .text-indigo-300 {
+    html:not(.dark) .text-cyan-400 {
+      color: #0369a1 !important;
+    }
+
+    html:not(.dark) .text-indigo-300,
+    html:not(.dark) .text-indigo-400 {
       color: #4338ca !important;
     }
 
-    /* Soft light wells replacing dark boxes */
-    html:not(.dark) .bg-slate-900,
+    html:not(.dark) .text-emerald-300,
+    html:not(.dark) .text-emerald-400 {
+      color: #047857 !important;
+    }
+
+    html:not(.dark) .text-amber-300,
+    html:not(.dark) .text-amber-400 {
+      color: #b45309 !important;
+    }
+
+    html:not(.dark) .text-rose-300,
+    html:not(.dark) .text-rose-400 {
+      color: #b91c1c !important;
+    }
+
+    /* Soft light surfaces replacing dark boxes */
+    html:not(.dark) .bg-slate-900\/30,
+    html:not(.dark) .bg-slate-900\/40,
+    html:not(.dark) .bg-slate-900\/50,
     html:not(.dark) .bg-slate-900\/60,
+    html:not(.dark) .bg-slate-900\/70,
     html:not(.dark) .bg-slate-900\/80,
     html:not(.dark) .bg-slate-900\/90,
     html:not(.dark) .bg-slate-900\/95,
-    html:not(.dark) .bg-slate-950,
+    html:not(.dark) .bg-slate-900,
+    html:not(.dark) .bg-slate-950 {
+      background-color: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #1e293b !important;
+    }
+
     html:not(.dark) .bg-slate-800,
+    html:not(.dark) .bg-slate-800\/60,
+    html:not(.dark) .bg-slate-800\/70,
     html:not(.dark) .bg-slate-800\/80,
     html:not(.dark) .bg-slate-800\/90 {
       background-color: #f1f5f9 !important;
@@ -295,24 +331,39 @@
     }
 
     html:not(.dark) .bg-cyan-950,
-    html:not(.dark) .bg-cyan-950\/80,
-    html:not(.dark) .bg-cyan-950\/70 {
+    html:not(.dark) .bg-cyan-950\/40,
+    html:not(.dark) .bg-cyan-950\/70,
+    html:not(.dark) .bg-cyan-950\/80 {
       background-color: #e0f2fe !important;
       border-color: #7dd3fc !important;
       color: #0369a1 !important;
     }
 
-    html:not(.dark) .bg-indigo-950 {
+    html:not(.dark) .bg-indigo-950,
+    html:not(.dark) .bg-indigo-950\/40,
+    html:not(.dark) .bg-indigo-950\/70,
+    html:not(.dark) .bg-indigo-950\/80 {
       background-color: #e0e7ff !important;
       border-color: #a5b4fc !important;
       color: #4338ca !important;
     }
 
     html:not(.dark) .bg-emerald-950,
-    html:not(.dark) .bg-emerald-950\/70 {
+    html:not(.dark) .bg-emerald-950\/40,
+    html:not(.dark) .bg-emerald-950\/70,
+    html:not(.dark) .bg-emerald-950\/80 {
       background-color: #dcfce7 !important;
       border-color: #86efac !important;
       color: #15803d !important;
+    }
+
+    html:not(.dark) .bg-amber-950,
+    html:not(.dark) .bg-amber-950\/40,
+    html:not(.dark) .bg-amber-950\/70,
+    html:not(.dark) .bg-amber-950\/80 {
+      background-color: #fef3c7 !important;
+      border-color: #fcd34d !important;
+      color: #92400e !important;
     }
 
     html:not(.dark) .border-slate-800,
@@ -380,19 +431,22 @@
 
     /* Table in Light Mode */
     html:not(.dark) #teamDutyTable thead tr,
-    html:not(.dark) #userMonthGridTable thead tr {
+    html:not(.dark) #userMonthGridTable thead tr,
+    html:not(.dark) #myMonthlyShiftsContainer thead tr {
       background-color: #f1f5f9 !important;
       border-color: #cbd5e1 !important;
-      color: #475569 !important;
+      color: #334155 !important;
     }
 
     html:not(.dark) #teamDutyTable tbody tr,
-    html:not(.dark) #userMonthGridTable tbody tr {
+    html:not(.dark) #userMonthGridTable tbody tr,
+    html:not(.dark) #myMonthlyShiftsContainer tbody tr {
       border-color: #e2e8f0 !important;
     }
 
     html:not(.dark) #teamDutyTable tbody tr:hover,
-    html:not(.dark) #userMonthGridTable tbody tr:hover {
+    html:not(.dark) #userMonthGridTable tbody tr:hover,
+    html:not(.dark) #myMonthlyShiftsContainer tbody tr:hover {
       background-color: #f8fafc !important;
     }
 
@@ -492,7 +546,7 @@
 
   <!-- ============================================================== -->
 
-  <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-5 py-3 shadow-md">
+  <header class="bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-5 py-3 shadow-xs">
 
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
 
@@ -512,21 +566,21 @@
 
           <div class="flex items-center gap-2">
 
-            <h1 class="text-base font-extrabold tracking-tight font-outfit text-white">
+            <h1 class="text-base font-extrabold tracking-tight font-outfit text-slate-900 dark:text-white">
 
               RosterX NOC Portal
 
             </h1>
 
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700/50 flex items-center gap-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/50 flex items-center gap-1">
 
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live Operations
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span> Live Operations
 
             </span>
 
           </div>
 
-          <p class="text-xs text-slate-400">24/7 Shift Rotation & Real-time Duty Briefings</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">24/7 Shift Rotation & Real-time Duty Briefings</p>
 
         </div>
 
@@ -538,14 +592,14 @@
       <div class="flex items-center gap-2.5">
 
         <!-- 🌓 Theme Toggle (Light / Dark / System) -->
-        <button id="portalThemeToggle" class="theme-toggle-btn nm-theme-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700 text-slate-200" title="Switch Theme (System / Light / Dark)">
+        <button id="portalThemeToggle" class="theme-toggle-btn nm-theme-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs" title="Switch Theme (System / Light / Dark)">
           <i class="theme-toggle-icon ph ph-desktop text-sm"></i>
           <span class="theme-toggle-label text-xs font-mono hidden sm:inline">Auto</span>
         </button>
 
         <!-- User Profile Pill (Clickable -> Opens Account Profile & Security Modal) -->
 
-        <div id="userProfileBtn" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700 shadow-sm cursor-pointer transition group" title="View Account Profile & Change Password">
+        <div id="userProfileBtn" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 shadow-xs cursor-pointer transition group" title="View Account Profile & Change Password">
 
           <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-black shadow-xs group-hover:scale-105 transition">
 
@@ -555,13 +609,13 @@
 
           <div class="text-left hidden sm:block">
 
-            <div id="userDisplayName" class="text-xs font-bold text-slate-200 leading-tight group-hover:text-cyan-300 transition">Engineer</div>
+            <div id="userDisplayName" class="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition">Engineer</div>
 
-            <div id="userRoleBadge" class="text-[10px] text-cyan-400 font-semibold leading-tight">NOC ENGINEER</div>
+            <div id="userRoleBadge" class="text-[10px] text-cyan-700 dark:text-cyan-400 font-semibold leading-tight">NOC ENGINEER</div>
 
           </div>
 
-          <i class="ph ph-caret-down text-slate-400 text-xs ml-0.5 group-hover:text-white transition"></i>
+          <i class="ph ph-caret-down text-slate-500 dark:text-slate-400 text-xs ml-0.5 group-hover:text-slate-900 dark:group-hover:text-white transition"></i>
 
         </div>
 
@@ -569,7 +623,7 @@
 
         <!-- Sign Out Button -->
 
-        <button id="btnSignOut" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-semibold transition cursor-pointer shadow-sm">
+        <button id="btnSignOut" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 text-xs font-semibold transition cursor-pointer shadow-xs">
 
           <i class="ph ph-sign-out text-sm"></i>
 
@@ -588,7 +642,7 @@
   <!-- ============================================================== -->
   <!-- DESKTOP TOP NAVIGATION DOCK (> 1024px) -->
   <!-- ============================================================== -->
-  <nav class="hidden md:flex bg-slate-900/90 border-b border-slate-800 px-6 py-2.5 items-center justify-between no-print shadow-sm sticky top-[57px] z-30 backdrop-blur-md">
+  <nav class="hidden md:flex bg-white/95 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 px-6 py-2.5 items-center justify-between no-print shadow-xs sticky top-[57px] z-30 backdrop-blur-md">
     <div class="flex items-center gap-2 overflow-x-auto py-1">
       <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-cyan-600 text-white cursor-pointer" data-tab="my_schedule">
         <i class="ph ph-calendar-check text-base"></i> My Schedule
@@ -614,7 +668,7 @@
   <!-- ============================================================== -->
   <!-- MOBILE FLOATING BOTTOM NAVIGATION DOCK (< 768px) -->
   <!-- ============================================================== -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-3 py-1.5 shadow-2xl flex items-center justify-around">
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-2xl flex items-center justify-around">
     <button class="user-mobile-nav-btn flex flex-col items-center justify-center p-2 text-cyan-400 relative" data-tab="my_schedule">
       <i class="ph ph-calendar-check text-xl"></i>
       <span class="text-[10px] font-bold mt-0.5">Schedule</span>
@@ -729,21 +783,21 @@
         <!-- CARD 3: MONTHLY DUTY STATS -->
         <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-emerald-500 flex flex-col justify-between shadow-sm">
           <div>
-            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-2">
+            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
               <i class="ph ph-chart-donut text-emerald-600 dark:text-emerald-400 text-sm"></i> Monthly Duties
             </span>
             <div class="grid grid-cols-2 gap-2 mt-2">
               <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center">
-                <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Day Shifts</div>
+                <div class="text-[10px] text-slate-600 dark:text-slate-400 uppercase font-semibold">Day Shifts</div>
                 <div id="metricDayCount" class="text-lg font-black text-emerald-600 dark:text-emerald-400">0</div>
               </div>
               <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center">
-                <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Night Shifts</div>
+                <div class="text-[10px] text-slate-600 dark:text-slate-400 uppercase font-semibold">Night Shifts</div>
                 <div id="metricNightCount" class="text-lg font-black text-indigo-600 dark:text-indigo-400">0</div>
               </div>
             </div>
           </div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 text-center">
+          <div class="text-[11px] text-slate-600 dark:text-slate-400 mt-2 text-center">
             Total Assigned Duties: <strong id="metricTotalDuty" class="text-slate-900 dark:text-white">0</strong> days
           </div>
         </div>
@@ -751,18 +805,18 @@
         <!-- CARD 4: SCHEDULED REST DAYS -->
         <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-amber-500 flex flex-col justify-between shadow-sm">
           <div>
-            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-2">
+            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
               <i class="ph ph-sun-horizon text-amber-600 dark:text-amber-400 text-sm"></i> Scheduled Rest Days
             </span>
             <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
               <div>
-                <div class="text-xs text-slate-800 dark:text-slate-300 font-bold">Weekly Offs (OFF)</div>
-                <div class="text-[10px] text-slate-500">Full 24h rest window</div>
+                <div class="text-xs text-slate-800 dark:text-slate-200 font-bold">Weekly Offs (OFF)</div>
+                <div class="text-[10px] text-slate-600 dark:text-slate-400">Full 24h rest window</div>
               </div>
               <div id="metricOffCount" class="text-2xl font-black text-amber-600 dark:text-amber-400">0</div>
             </div>
           </div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-2">
+          <div class="text-[11px] text-slate-600 dark:text-slate-400 text-center mt-2">
             Strict fatigue compliance enabled
           </div>
         </div>
