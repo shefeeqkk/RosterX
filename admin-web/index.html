@@ -397,6 +397,21 @@
       color: #f8fafc !important;
     }
 
+    /* Prevent mobile horizontal page overflow */
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    /* Clean swipable scroll containers */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
   </style>
 
 </head>
@@ -405,13 +420,13 @@
 
 
 
-  <!-- Top Navigation Bar (Section 4 Layout) -->
+  <!-- Top Navigation Bar (Clean & Uncluttered Header) -->
 
-  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between shadow-xs sticky top-0 z-40 no-print">
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-xs sticky top-0 z-40 no-print">
 
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2.5 sm:gap-3">
 
-      <div class="w-10 h-10 shrink-0">
+      <div class="w-8 h-8 sm:w-10 sm:h-10 shrink-0">
 
         <img src="assets/logo.png" alt="RosterX Logo" class="w-full h-full object-contain drop-shadow" />
 
@@ -419,13 +434,11 @@
 
       <div>
 
-        <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+        <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
 
           RosterX Operations Console
 
         </h1>
-
-        <p class="text-xs text-slate-500 dark:text-slate-400">Dynamic 24/7 NOC Roster • Zero-Hardcoding • Gemini AI Smart Swaps</p>
 
       </div>
 
@@ -433,59 +446,21 @@
 
 
 
-    <!-- Actions & Modals Triggers -->
+    <!-- Header Actions (Lean & Uncluttered) -->
 
-    <div class="flex items-center gap-2 mt-2 lg:mt-0 flex-wrap">
-
-      <!-- Month & Year Selector -->
-
-      <select id="monthSelect" class="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs text-slate-800 dark:text-slate-200 shadow-xs focus:ring-2 focus:ring-emerald-500">
-        <option value="">Loading...</option>
-      </select>
-
-
-
-      <!-- ⚙️ Constraints Button -->
-
-      <button id="btnOpenConstraintsModal" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs">
-
-        <i class="ph ph-sliders text-base text-purple-600"></i> ⚙️ Constraints
-
-      </button>
-
-
-
-      <!-- 👥 Team Management Button -->
-
-      <button id="btnOpenTeamModal" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs">
-
-        <i class="ph ph-users-three text-base text-blue-600"></i> 👥 Team (<span id="activeTeamBadge">10</span>)
-
-      </button>
-
-
-
-      <!-- 🔄 Swaps & Absences Button -->
-
-      <button id="btnOpenSwapsModal" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs">
-
-        <i class="ph ph-arrows-clockwise text-base text-amber-600"></i> 🔄 Swaps & Leaves
-
-      </button>
-
-
+    <div class="flex items-center gap-2">
 
       <!-- 🤖 AI Assistant -->
 
-      <button id="btnOpenAiModal" class="flex items-center gap-2 bg-gradient-to-r from-indigo-600 via-indigo-700 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 dark:hover:from-slate-800 dark:hover:to-indigo-900 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-cyan-500/20 cursor-pointer group border border-indigo-400/30 dark:border-slate-700">
+      <button id="btnOpenAiModal" class="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-indigo-600 via-indigo-700 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 dark:hover:from-slate-800 dark:hover:to-indigo-900 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-cyan-500/20 cursor-pointer group border border-indigo-400/30 dark:border-slate-700">
 
-        <div class="w-6 h-6 shrink-0 flex items-center justify-center">
+        <div class="w-5 h-5 sm:w-6 sm:h-6 shrink-0 flex items-center justify-center">
 
           <img src="assets/bot-3d.png" alt="AI Assistant" class="w-full h-full object-contain group-hover:scale-110 transition drop-shadow-xs" />
 
         </div>
 
-        <span class="tracking-wide">AI Assistant</span>
+        <span class="tracking-wide hidden xs:inline">AI Assistant</span>
 
         <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
 
@@ -493,63 +468,21 @@
 
 
 
-      <!-- 📊 Export Data -->
-
-      <button id="btnExportXlsx" class="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-300 dark:border-emerald-800 transition shadow-xs cursor-pointer">
-
-        <i class="ph ph-file-xls text-base"></i> Export Data
-
-      </button>
-
-
-
-      <!-- 📥 Import Data -->
-
-      <button id="btnOpenImportModal" onclick="if(window.rosterApp && window.rosterApp.openImportModal){ window.rosterApp.openImportModal(); }" class="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-800 dark:text-blue-300 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 dark:border-blue-800 transition shadow-xs cursor-pointer">
-
-        <i class="ph ph-file-arrow-up text-base text-blue-600"></i> Import Data
-
-      </button>
-
-
-
-      <!-- 💾 Save & Publish -->
-
-      <button id="btnSaveAtlasDirect" class="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer">
-
-        <i class="ph ph-cloud-arrow-up text-base"></i> Save & Publish
-
-      </button>
-
-
-
-      <!-- 🕘 Recovery / History Snapshots -->
-      <button id="btnOpenRecoveryModal" class="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-300 dark:border-amber-800 transition shadow-xs cursor-pointer" title="View automatic recovery snapshots & restore prior versions">
-        <i class="ph ph-clock-counter-clockwise text-base text-amber-700 dark:text-amber-400"></i> Recovery
-      </button>
-
-      <!-- 📜 Server Logs & Cloud Diagnostics Terminal -->
-      <button id="btnOpenLogsModal" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-700 transition shadow-xs cursor-pointer" title="Inspect Live Server Logs, SMTP dispatches, MongoDB events & cloud diagnostics">
-        <i class="ph ph-terminal-window text-base text-emerald-600 dark:text-emerald-400"></i> Server Logs
-      </button>
-
-
-
       <!-- 🌓 3-Way Theme Toggle (Light / Dark / System) -->
-      <button id="btnThemeToggle" class="theme-toggle-btn nm-theme-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs" title="Switch Theme (System / Light / Dark)">
+      <button id="btnThemeToggle" class="theme-toggle-btn nm-theme-toggle flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs" title="Switch Theme (System / Light / Dark)">
         <i class="theme-toggle-icon ph ph-desktop text-sm"></i>
-        <span class="theme-toggle-label text-xs font-mono">Auto</span>
+        <span class="theme-toggle-label text-xs font-mono hidden sm:inline">Auto</span>
       </button>
 
       <!-- 👑 Admin User Pill & Sign Out -->
 
-      <div class="flex items-center gap-2 pl-2 border-l border-slate-300 dark:border-slate-700">
+      <div class="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-300 dark:border-slate-700">
 
-        <div id="adminUserPill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 cursor-pointer transition" title="View Admin Profile & Change Password">
+        <div id="adminUserPill" class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 cursor-pointer transition" title="View Admin Profile & Change Password">
 
           <i class="ph ph-shield-check text-emerald-600 dark:text-emerald-400 text-sm"></i>
 
-          <span id="adminUserName" class="font-bold">Admin</span>
+          <span id="adminUserName" class="font-bold hidden sm:inline">Admin</span>
 
           <i class="ph ph-caret-down text-slate-400 text-xs ml-0.5"></i>
 
@@ -567,115 +500,89 @@
 
   </header>
 
-  <!-- Top Horizontal Neumorphic Dock (Desktop Viewports > 1024px) -->
-  <nav class="bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-2.5 flex items-center justify-between no-print shadow-xs flex-wrap gap-2">
-    <div class="flex items-center gap-2 overflow-x-auto py-1">
-      <button class="nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-indigo-600 text-white border border-indigo-700 dark:border-indigo-500 cursor-pointer" data-tab="dashboard">
+  <!-- Top Horizontal Neumorphic Dock -->
+  <nav class="bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-2 sm:px-6 py-1.5 sm:py-2.5 flex items-center justify-between no-print shadow-xs gap-2 overflow-x-auto no-scrollbar">
+    <div class="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 shrink-0">
+      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition shadow-sm bg-indigo-600 text-white border border-indigo-700 dark:border-indigo-500 cursor-pointer whitespace-nowrap" data-tab="dashboard">
         <i class="ph ph-gauge text-base text-cyan-300"></i> Operations Dashboard
       </button>
-      <button class="nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="matrix">
+      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="matrix">
         <i class="ph ph-table text-base text-indigo-600 dark:text-indigo-400"></i> Roster Matrix
       </button>
-      <button class="nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="team">
+      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="team">
         <i class="ph ph-users-three text-base text-blue-600 dark:text-blue-400"></i> Team Directory
       </button>
-      <button class="nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="swaps">
+      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="swaps">
         <i class="ph ph-arrows-left-right text-base text-amber-600 dark:text-amber-400"></i> Swaps & Leaves
       </button>
-      <button class="nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="diagnostics">
+      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="diagnostics">
         <i class="ph ph-dots-three-circle text-base text-emerald-600 dark:text-emerald-400"></i> Hub & Diagnostics
       </button>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="text-xs text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1.5 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        Telemetry: <strong id="telemetryStatusBadge" class="text-emerald-700 dark:text-emerald-400 font-bold">ONLINE</strong>
+    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1 sm:gap-1.5 bg-white dark:bg-slate-800 px-2 sm:px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs whitespace-nowrap">
+        <span class="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <strong id="telemetryStatusBadge" class="text-emerald-700 dark:text-emerald-400 font-bold">ONLINE</strong>
       </span>
-      <button id="btnHeaderRefreshTelemetry" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-xs transition" title="Refresh Live Backend Telemetry">
-        <i class="ph ph-arrows-clockwise text-sm text-blue-600 dark:text-blue-400"></i> Refresh
+      <button id="btnHeaderRefreshTelemetry" class="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-xs transition whitespace-nowrap" title="Refresh Live Backend Telemetry">
+        <i class="ph ph-arrows-clockwise text-sm text-blue-600 dark:text-blue-400"></i> <span class="hidden sm:inline">Refresh</span>
       </button>
     </div>
   </nav>
 
-
-
-  <!-- Active Rules & Policies Bar (Section 4 Layout) -->
-
-  <section class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-2 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 no-print flex-wrap gap-2">
-
-    <div class="flex items-center gap-2 flex-wrap">
-
-      <span class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-
-        <i class="ph ph-info text-blue-600 dark:text-blue-400"></i> Active Rules:
-
+  <!-- Active Rules & Policies Bar -->
+  <section class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 py-1.5 sm:py-2 flex items-center justify-between text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 no-print gap-2 overflow-x-auto no-scrollbar">
+    <div class="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0">
+      <span class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 whitespace-nowrap">
+        <i class="ph ph-info text-blue-600 dark:text-blue-400"></i> Rules:
       </span>
-
-      <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono">Night: <strong id="ruleNightText">1/night</strong></span>
-
-      <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono">FS: <strong id="ruleFsText">≥1</strong></span>
-
-      <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono">SS: <strong id="ruleSsText">≥1</strong></span>
-
-      <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono">Post-NS Rest: <strong id="ruleRestText">48h (2d)</strong></span>
-
-      <span class="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800">Policy: Swap-First</span>
-
-      <span class="text-slate-400 dark:text-slate-500 italic" id="ruleDirectivesSnippet"></span>
-
+      <span class="bg-white dark:bg-slate-800 px-1.5 sm:px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono whitespace-nowrap">Night: <strong id="ruleNightText">1/night</strong></span>
+      <span class="bg-white dark:bg-slate-800 px-1.5 sm:px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono whitespace-nowrap">FS: <strong id="ruleFsText">≥1</strong></span>
+      <span class="bg-white dark:bg-slate-800 px-1.5 sm:px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono whitespace-nowrap">SS: <strong id="ruleSsText">≥1</strong></span>
+      <span class="bg-white dark:bg-slate-800 px-1.5 sm:px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono whitespace-nowrap">Rest: <strong id="ruleRestText">48h</strong></span>
+      <span class="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold px-1.5 sm:px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800 whitespace-nowrap">Swap-First</span>
+      <span class="text-slate-400 dark:text-slate-500 italic hidden md:inline" id="ruleDirectivesSnippet"></span>
     </div>
-
-    <div class="flex items-center gap-3">
-
-      <button id="btnQuickEditRules" class="text-purple-700 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300 font-bold underline text-xs">
-
-        [Edit Policies]
-
+    <div class="flex items-center gap-2 shrink-0">
+      <button id="btnQuickEditRules" class="text-purple-700 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300 font-bold underline text-xs whitespace-nowrap">
+        [Edit]
       </button>
-
-      <span id="syncBadgeIndicator" class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer">
-
-        <span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span>
-
-        <span id="syncBadgeText">Local Storage</span>
-
+      <span id="syncBadgeIndicator" class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 whitespace-nowrap cursor-pointer">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-500 inline-block"></span>
+        <span id="syncBadgeText">Atlas M0</span>
       </span>
-
     </div>
-
   </section>
 
-
-
-  <!-- Main Content Body -->
-  <main class="flex-1 p-5 max-w-[1720px] w-full mx-auto space-y-6" id="printArea">
+  <!-- Main Content Body (Compact Responsive Layout) -->
+  <main class="flex-1 p-2.5 sm:p-4 lg:p-5 max-w-[1720px] w-full mx-auto space-y-3 sm:space-y-4 lg:space-y-6" id="printArea">
 
     <!-- ========================================================================= -->
     <!-- TAB 1: OPERATIONS DASHBOARD (Default Landing View)                        -->
     <!-- ========================================================================= -->
-    <section id="tabContent_dashboard" class="tab-panel space-y-6">
+    <section id="tabContent_dashboard" class="tab-panel space-y-3 sm:space-y-4 lg:space-y-6">
 
       <!-- Operations Dashboard Header Banner -->
-      <div class="glass-panel bg-gradient-to-r from-white via-indigo-50/40 to-cyan-50/40 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 rounded-2xl p-6 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+      <div class="glass-panel bg-gradient-to-r from-white via-indigo-50/40 to-cyan-50/40 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 lg:p-6 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
         <div class="absolute -right-10 -bottom-10 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 relative z-10">
           <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-100 dark:bg-cyan-950/80 border border-cyan-300 dark:border-cyan-700/60 text-xs font-semibold text-cyan-900 dark:text-cyan-300 mb-2 shadow-xs">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-950/80 border border-cyan-300 dark:border-cyan-700/60 text-[11px] font-semibold text-cyan-900 dark:text-cyan-300 mb-1.5 shadow-2xs">
               <span class="w-2 h-2 rounded-full bg-cyan-500 animate-ping"></span>
-              Live 24/7 Operations Command Center
+              NOC Operations Command Center
             </div>
-            <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white font-outfit">
+            <h2 class="text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white font-outfit">
               Operations Telemetry & Shift Coverage Radar
             </h2>
-            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-2xl">
-              Real-time operational metrics queried dynamically from MongoDB Atlas & host runtime. Strictly zero synthetic or mock records.
+            <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl">
+              Live operational telemetry and shift assignments.
             </p>
           </div>
-          <div class="flex items-center gap-2.5 flex-wrap">
-            <button id="btnDashJumpToMatrix" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="btnDashJumpToMatrix" class="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition shadow-md cursor-pointer">
               <i class="ph ph-table text-base"></i> Open Shift Grid Matrix
             </button>
-            <button id="btnDashTriggerAudit" class="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-600 transition shadow-xs cursor-pointer">
+            <button id="btnDashTriggerAudit" class="flex items-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-600 transition shadow-xs cursor-pointer">
               <i class="ph ph-shield-check text-base text-emerald-500"></i> Run Rule Audit
             </button>
           </div>
@@ -683,28 +590,28 @@
       </div>
 
       <!-- ============================================================= -->
-      <!-- PRIORITY 1: TODAY'S NOC 24/7 COVERAGE RADAR                     -->
+      <!-- PRIORITY 1: TODAY'S SHIFT COVERAGE RADAR                       -->
       <!-- ============================================================= -->
-      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm p-6 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 flex-wrap gap-2">
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-[#FF5252] flex items-center justify-center text-lg font-bold">
+      <div class="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm p-3.5 sm:p-5 lg:p-6 space-y-3 sm:space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 sm:pb-3 flex-wrap gap-2">
+          <div class="flex items-center gap-2 sm:gap-2.5">
+            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-50 dark:bg-rose-950/50 text-[#FF5252] flex items-center justify-center text-base sm:text-lg font-bold">
               <i class="ph ph-radar"></i>
             </div>
             <div>
-              <h3 class="font-extrabold text-slate-900 dark:text-white text-sm">Today's NOC 24/7 Coverage Radar</h3>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400" id="radarDateLabel">Computing live active shift assignments from MongoDB Atlas...</p>
+              <h3 class="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">Today's Shift Coverage Radar</h3>
+              <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400" id="radarDateLabel">Computing live active shift assignments...</p>
             </div>
           </div>
-          <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+          <span class="text-[10px] sm:text-xs font-mono font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
             Target: ≥3 Day / 1 Night
           </span>
         </div>
 
         <!-- Radar Shifts Grid (4 Pillars: Morning, Afternoon, Night, No Duty) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3.5">
           <!-- 1. Morning Shift: FS, FG, G, SG -->
-          <div class="bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl p-3.5 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
+          <div class="bg-emerald-50/70 dark:bg-emerald-950/30 rounded-lg sm:rounded-xl p-2.5 sm:p-3.5 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
             <div class="flex items-center justify-between">
               <span class="text-xs font-black text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Morning Shift
@@ -712,7 +619,7 @@
               <span class="text-[10px] font-mono text-emerald-700 dark:text-emerald-300 font-bold">FS · FG · G · SG</span>
             </div>
             <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">07:30 – 20:00 (Peak Operations)</div>
-            <div id="radarMorningEngineers" class="space-y-1.5 min-h-[48px]">
+            <div id="radarMorningEngineers" class="space-y-1 sm:space-y-1.5 min-h-[32px] sm:min-h-[48px]">
               <div class="text-[11px] text-slate-400 italic">No engineers assigned</div>
             </div>
             <!-- Backward compatibility hidden anchors -->
@@ -721,7 +628,7 @@
           </div>
 
           <!-- 2. Afternoon Shift: SS -->
-          <div class="bg-amber-50/70 dark:bg-amber-950/30 rounded-xl p-3.5 border border-amber-200 dark:border-amber-800/60 space-y-2">
+          <div class="bg-amber-50/70 dark:bg-amber-950/30 rounded-lg sm:rounded-xl p-2.5 sm:p-3.5 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
             <div class="flex items-center justify-between">
               <span class="text-xs font-black text-amber-950 dark:text-amber-100 flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Afternoon Shift
@@ -729,7 +636,7 @@
               <span class="text-[10px] font-mono text-amber-700 dark:text-amber-300 font-bold">SS</span>
             </div>
             <div class="text-[10px] text-amber-600 dark:text-amber-400 font-mono">13:00 – 22:00 (Evening Handoff)</div>
-            <div id="radarAfternoonEngineers" class="space-y-1.5 min-h-[48px]">
+            <div id="radarAfternoonEngineers" class="space-y-1 sm:space-y-1.5 min-h-[32px] sm:min-h-[48px]">
               <div class="text-[11px] text-slate-400 italic">No engineers assigned</div>
             </div>
             <!-- Backward compatibility hidden anchor -->
@@ -737,7 +644,7 @@
           </div>
 
           <!-- 3. Night Shift: NS -->
-          <div class="bg-indigo-50/70 dark:bg-slate-900 rounded-xl p-3.5 border border-indigo-200 dark:border-slate-800 space-y-2 shadow-xs">
+          <div class="bg-indigo-50/70 dark:bg-slate-900 rounded-lg sm:rounded-xl p-2.5 sm:p-3.5 border border-indigo-200 dark:border-slate-800 space-y-1.5 shadow-xs">
             <div class="flex items-center justify-between">
               <span class="text-xs font-black text-indigo-950 dark:text-slate-100 flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span> Night Shift
@@ -745,7 +652,7 @@
               <span class="text-[10px] font-mono text-indigo-700 dark:text-indigo-300 font-bold">NS (Solo Duty)</span>
             </div>
             <div class="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">21:00 – 07:30 (+1 Overnight)</div>
-            <div id="radarNightEngineers" class="space-y-1.5 min-h-[48px]">
+            <div id="radarNightEngineers" class="space-y-1 sm:space-y-1.5 min-h-[32px] sm:min-h-[48px]">
               <div class="text-[11px] text-slate-400 italic">No engineers assigned</div>
             </div>
             <!-- Backward compatibility hidden anchor -->
@@ -753,7 +660,7 @@
           </div>
 
           <!-- 4. No Duty: OFF, L, SW* -->
-          <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 space-y-2">
+          <div class="bg-slate-50 dark:bg-slate-800/60 rounded-lg sm:rounded-xl p-2.5 sm:p-3.5 border border-slate-200 dark:border-slate-700 space-y-1.5">
             <div class="flex items-center justify-between">
               <span class="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-slate-500"></span> No Duty
@@ -761,7 +668,7 @@
               <span class="text-[10px] font-mono text-slate-600 dark:text-slate-400 font-bold">OFF · L · SW*</span>
             </div>
             <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Rest Days & Approved Leave</div>
-            <div id="radarNoDutyEngineers" class="space-y-1.5 min-h-[48px]">
+            <div id="radarNoDutyEngineers" class="space-y-1 sm:space-y-1.5 min-h-[32px] sm:min-h-[48px]">
               <div class="text-[11px] text-slate-400 italic">No engineers resting</div>
             </div>
             <!-- Backward compatibility hidden anchor -->
@@ -773,24 +680,24 @@
       <!-- ============================================================= -->
       <!-- PRIORITY 2: RULE COMPLIANCE & FATIGUE ALERT STREAM             -->
       <!-- ============================================================= -->
-      <div id="dashRuleAuditCard" class="bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-3">
-        <div class="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
+      <div id="dashRuleAuditCard" class="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm p-3.5 sm:p-5 lg:p-6 space-y-2 sm:space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 sm:pb-3 flex-wrap gap-2">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-lg font-bold">
+            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400 flex items-center justify-center text-base sm:text-lg font-bold">
               <i class="ph ph-shield-check"></i>
             </div>
             <div>
-              <h3 class="font-extrabold text-slate-900 text-sm">Rule Compliance & Fatigue Guard Stream</h3>
-              <p class="text-[11px] text-slate-500">Live NOC rule validator: Night Shift cap (1/night), minimum day desk coverage (≥3), rest intervals (48h)</p>
+              <h3 class="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">Rule Compliance & Fatigue Guard Stream</h3>
+              <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Night Shift cap (1/night), minimum day desk coverage (≥3), rest intervals (48h)</p>
             </div>
           </div>
-          <button id="btnDashOpenAuditDetails" onclick="if(window.rosterApp){ window.rosterApp.openAuditDetailsModal(); }" class="text-xs text-purple-700 hover:text-purple-900 font-bold underline flex items-center gap-1 cursor-pointer">
+          <button id="btnDashOpenAuditDetails" onclick="if(window.rosterApp){ window.rosterApp.openAuditDetailsModal(); }" class="text-xs text-purple-700 dark:text-purple-400 hover:underline font-bold flex items-center gap-1 cursor-pointer">
             <i class="ph ph-list-checks text-sm"></i> Full Audit Details
           </button>
         </div>
         <div id="dashRuleAuditContainer">
-          <div class="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5">
-            <i class="ph ph-check-circle text-emerald-600 text-xl shrink-0"></i>
+          <div class="p-3 sm:p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <i class="ph ph-check-circle text-emerald-600 dark:text-emerald-400 text-lg shrink-0"></i>
             <span>No rule violations detected — all shifts comply with NOC operational directives.</span>
           </div>
         </div>
@@ -799,18 +706,18 @@
       <!-- ============================================================= -->
       <!-- PRIORITY 3: REAL-TIME OPERATIONAL AUDIT STREAM                 -->
       <!-- ============================================================= -->
-      <div class="bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-3">
-        <div class="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
+      <div class="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm p-3.5 sm:p-5 lg:p-6 space-y-2 sm:space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 sm:pb-3 flex-wrap gap-2">
           <div class="flex items-center gap-2">
-            <i class="ph ph-scroll text-blue-600 text-lg"></i>
-            <h3 class="font-extrabold text-slate-900 text-sm">Real-Time Operational Audit Stream</h3>
+            <i class="ph ph-scroll text-blue-600 dark:text-blue-400 text-lg"></i>
+            <h3 class="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">Real-Time Operational Audit Stream</h3>
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Live Atlas Collection 'audit_logs'</span>
           </div>
-          <span class="text-xs text-slate-500 font-mono" id="auditStreamTimestamp">Last checked: Just now</span>
+          <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono" id="auditStreamTimestamp">Last checked: Just now</span>
         </div>
         <div id="dashboardAuditStreamContainer" class="space-y-2">
-          <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
-            <i class="ph ph-clock-counter-clockwise text-2xl mb-1 text-slate-300 block"></i>
+          <div class="p-4 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-center text-slate-400 text-xs font-medium">
+            <i class="ph ph-clock-counter-clockwise text-xl sm:text-2xl mb-1 text-slate-300 dark:text-slate-600 block"></i>
             No recent audit events recorded for this operational cycle
           </div>
         </div>
@@ -821,45 +728,70 @@
     <!-- ========================================================================= -->
     <!-- TAB 2: ROSTER MATRIX (Dedicated Shift Grid View)                          -->
     <!-- ========================================================================= -->
-    <section id="tabContent_matrix" class="tab-panel hidden space-y-4">
+    <section id="tabContent_matrix" class="tab-panel hidden space-y-3 sm:space-y-4">
 
-    
+      <!-- Hidden fallbacks for legacy bindings -->
+      <div id="btnOpenTeamModal" class="hidden"></div>
+      <div id="btnOpenSwapsModal" class="hidden"></div>
+      <div id="btnOpenLogsModal" class="hidden"></div>
 
-    <!-- Rule Audit Alert Banner (Real-time Validator) -->
-
-    <div id="ruleAuditAlertBanner" class="hidden mb-3 bg-red-100 border border-red-300 text-red-800 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs font-semibold shadow-sm">
-
-      <div class="flex items-center gap-2 flex-wrap">
-
-        <i class="ph ph-warning-circle text-lg text-red-600"></i>
-
-        <span id="ruleAuditSummaryText">Rule Violation Detected:</span>
-
-        <div class="flex items-center gap-1.5 ml-2 flex-wrap" id="ruleAuditChipsContainer"></div>
-
+      <!-- Rule Audit Alert Banner (Real-time Validator) -->
+      <div id="ruleAuditAlertBanner" class="hidden mb-2 bg-red-100 border border-red-300 text-red-800 px-3 sm:px-4 py-2 rounded-xl flex items-center justify-between text-xs font-semibold shadow-sm">
+        <div class="flex items-center gap-2 flex-wrap">
+          <i class="ph ph-warning-circle text-lg text-red-600"></i>
+          <span id="ruleAuditSummaryText">Rule Violation Detected:</span>
+          <div class="flex items-center gap-1.5 ml-2 flex-wrap" id="ruleAuditChipsContainer"></div>
+        </div>
+        <button id="btnViewAuditDetails" class="text-xs text-red-700 underline font-semibold hover:text-red-900 cursor-pointer">
+          Inspect Details
+        </button>
       </div>
 
-      <button id="btnViewAuditDetails" class="text-xs text-red-700 underline font-semibold hover:text-red-900">
+      <!-- Roster Matrix Operations Toolbar (Consolidated from Top Bar) -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 p-2.5 sm:p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
+        <!-- Left: Month selection & Constraints -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">Period:</span>
+            <select id="monthSelect" class="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs text-slate-800 dark:text-slate-200 shadow-xs focus:ring-2 focus:ring-emerald-500">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <button id="btnOpenConstraintsModal" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs cursor-pointer">
+            <i class="ph ph-sliders text-base text-purple-600 dark:text-purple-400"></i> Constraints
+          </button>
+        </div>
 
-        Inspect Details
-
-      </button>
-
-    </div>
+        <!-- Right: Actions (Import, Export, Recovery, Save & Publish) -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btnExportXlsx" class="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-300 dark:border-emerald-800 transition shadow-xs cursor-pointer">
+            <i class="ph ph-file-xls text-base"></i> Export Data
+          </button>
+          <button id="btnOpenImportModal" onclick="if(window.rosterApp && window.rosterApp.openImportModal){ window.rosterApp.openImportModal(); }" class="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-800 dark:text-blue-300 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-300 dark:border-blue-800 transition shadow-xs cursor-pointer">
+            <i class="ph ph-file-arrow-up text-base text-blue-600 dark:text-blue-400"></i> Import Data
+          </button>
+          <button id="btnOpenRecoveryModal" class="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-300 dark:border-amber-800 transition shadow-xs cursor-pointer" title="View automatic recovery snapshots & restore prior versions">
+            <i class="ph ph-clock-counter-clockwise text-base text-amber-700 dark:text-amber-400"></i> Recovery
+          </button>
+          <button id="btnSaveAtlasDirect" class="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer">
+            <i class="ph ph-cloud-arrow-up text-base"></i> Save & Publish
+          </button>
+        </div>
+      </div>
 
 
 
     <!-- Sticky Master Roster Matrix Container (Section 4 Layout) -->
 
-    <div class="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden flex flex-col">
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col max-w-full">
 
       
 
       <!-- Filter and Info Bar -->
 
-      <div class="px-4 py-2 bg-slate-50 border-b border-slate-300 flex items-center justify-between text-xs flex-wrap gap-2">
+      <div class="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 flex items-center justify-between text-xs flex-wrap gap-2">
 
-        <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
 
           <div class="relative">
 
@@ -867,7 +799,7 @@
 
             <input type="text" id="searchInput" placeholder="Filter engineer..."
 
-                   class="pl-8 pr-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-40">
+                   class="pl-8 pr-2.5 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-32 sm:w-40 text-slate-800 dark:text-slate-200">
 
           </div>
 

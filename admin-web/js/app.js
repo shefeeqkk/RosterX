@@ -1675,17 +1675,27 @@ class RosterXApp {
 
     // Top Action Buttons
 
-    this.dom.btnOpenConstraintsModal.addEventListener('click', () => this.openConstraintsModal());
+    if (this.dom.btnOpenConstraintsModal) {
+      this.dom.btnOpenConstraintsModal.addEventListener('click', () => this.openConstraintsModal());
+    }
 
-    this.dom.btnQuickEditRules.addEventListener('click', () => this.openConstraintsModal());
+    if (this.dom.btnQuickEditRules) {
+      this.dom.btnQuickEditRules.addEventListener('click', () => this.openConstraintsModal());
+    }
 
-    this.dom.btnCloseConstraintsModal.addEventListener('click', () => this.dom.constraintsModal.classList.add('hidden'));
+    if (this.dom.btnCloseConstraintsModal) {
+      this.dom.btnCloseConstraintsModal.addEventListener('click', () => this.dom.constraintsModal.classList.add('hidden'));
+    }
 
-    this.dom.btnSaveConstraints.addEventListener('click', () => this.saveOperationalConstraints());
+    if (this.dom.btnSaveConstraints) {
+      this.dom.btnSaveConstraints.addEventListener('click', () => this.saveOperationalConstraints());
+    }
 
 
 
-    this.dom.btnOpenTeamModal.addEventListener('click', () => this.openTeamModal());
+    if (this.dom.btnOpenTeamModal) {
+      this.dom.btnOpenTeamModal.addEventListener('click', () => this.openTeamModal());
+    }
 
     this.dom.btnCloseTeamModal.addEventListener('click', () => {
 
@@ -1832,29 +1842,51 @@ class RosterXApp {
     }
 
 
-    this.dom.btnOpenSwapsModal.addEventListener('click', () => this.openSwapsModal());
+    if (this.dom.btnOpenSwapsModal) {
+      this.dom.btnOpenSwapsModal.addEventListener('click', () => this.openSwapsModal());
+    }
 
-    this.dom.btnCloseSwapsModal.addEventListener('click', () => this.dom.swapsModal.classList.add('hidden'));
+    if (this.dom.btnCloseSwapsModal) {
+      this.dom.btnCloseSwapsModal.addEventListener('click', () => this.dom.swapsModal.classList.add('hidden'));
+    }
 
-    this.dom.tabBtnMutualSwaps.addEventListener('click', () => this.switchSwapsTab('tabMutual'));
+    if (this.dom.tabBtnMutualSwaps) {
+      this.dom.tabBtnMutualSwaps.addEventListener('click', () => this.switchSwapsTab('tabMutual'));
+    }
 
-    this.dom.tabBtnSmartAbsences.addEventListener('click', () => this.switchSwapsTab('tabSmart'));
+    if (this.dom.tabBtnSmartAbsences) {
+      this.dom.tabBtnSmartAbsences.addEventListener('click', () => this.switchSwapsTab('tabSmart'));
+    }
 
-    this.dom.btnAddMutualSwap.addEventListener('click', () => this.handleAddMutualSwap());
+    if (this.dom.btnAddMutualSwap) {
+      this.dom.btnAddMutualSwap.addEventListener('click', () => this.handleAddMutualSwap());
+    }
 
-    this.dom.btnAddAbsenceRequest.addEventListener('click', () => this.handleAddAbsenceRequest());
+    if (this.dom.btnAddAbsenceRequest) {
+      this.dom.btnAddAbsenceRequest.addEventListener('click', () => this.handleAddAbsenceRequest());
+    }
 
 
 
-    this.dom.btnOpenAiModal.addEventListener('click', () => this.openAiModal());
+    if (this.dom.btnOpenAiModal) {
+      this.dom.btnOpenAiModal.addEventListener('click', () => this.openAiModal());
+    }
 
-    this.dom.btnCloseAiModal.addEventListener('click', () => this.dom.aiModal.classList.add('hidden'));
+    if (this.dom.btnCloseAiModal) {
+      this.dom.btnCloseAiModal.addEventListener('click', () => this.dom.aiModal.classList.add('hidden'));
+    }
 
-    this.dom.btnRunAiGeneration.addEventListener('click', () => this.runAiGeneration());
+    if (this.dom.btnRunAiGeneration) {
+      this.dom.btnRunAiGeneration.addEventListener('click', () => this.runAiGeneration());
+    }
 
-    this.dom.btnApplyAiDraft.addEventListener('click', () => this.applyAiDraft());
+    if (this.dom.btnApplyAiDraft) {
+      this.dom.btnApplyAiDraft.addEventListener('click', () => this.applyAiDraft());
+    }
 
-    this.dom.btnOpenGeminiSettingsInline.addEventListener('click', () => this.openGeminiSettings());
+    if (this.dom.btnOpenGeminiSettingsInline) {
+      this.dom.btnOpenGeminiSettingsInline.addEventListener('click', () => this.openGeminiSettings());
+    }
 
 
 
