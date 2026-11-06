@@ -26,11 +26,11 @@ import { authService } from './authService.js';
 
 import { AtlasService } from './atlasService.js';
 
-import { 
+import {
 
-  SHIFTS, 
+  SHIFTS,
 
-  DEFAULT_ENGINEERS, 
+  DEFAULT_ENGINEERS,
 
   sortEngineersByWeekOffs,
 
@@ -226,7 +226,7 @@ export class UserPortalController {
 
       if (stored) list = JSON.parse(stored);
 
-    } catch (e) {}
+    } catch (e) { }
 
     if (!list || !Array.isArray(list) || list.length === 0) {
 
@@ -280,7 +280,7 @@ export class UserPortalController {
 
       if (stored) this.constraints = JSON.parse(stored);
 
-    } catch (e) {}
+    } catch (e) { }
 
   }
 
@@ -404,7 +404,7 @@ export class UserPortalController {
 
         }
 
-      } catch (eDirect) {}
+      } catch (eDirect) { }
 
     }
 
@@ -422,7 +422,7 @@ export class UserPortalController {
 
           const parsed = JSON.parse(stored);
 
-          const hasValid = Array.isArray(parsed) && parsed.length > 0 && 
+          const hasValid = Array.isArray(parsed) && parsed.length > 0 &&
 
             parsed.some(e => Array.isArray(e.shifts) && e.shifts.some(s => s && String(s).trim() !== ''));
 
@@ -430,7 +430,7 @@ export class UserPortalController {
 
         }
 
-      } catch (e) {}
+      } catch (e) { }
 
     }
 
@@ -594,7 +594,7 @@ export class UserPortalController {
 
         }
 
-      } catch (eDirect) {}
+      } catch (eDirect) { }
 
     }
 
@@ -612,7 +612,7 @@ export class UserPortalController {
 
           const parsed = JSON.parse(stored);
 
-          const hasValid = Array.isArray(parsed) && parsed.length > 0 && 
+          const hasValid = Array.isArray(parsed) && parsed.length > 0 &&
 
             parsed.some(e => Array.isArray(e.shifts) && e.shifts.some(s => s && String(s).trim() !== ''));
 
@@ -620,7 +620,7 @@ export class UserPortalController {
 
         }
 
-      } catch (e) {}
+      } catch (e) { }
 
     }
 
@@ -682,7 +682,7 @@ export class UserPortalController {
 
 
 
-    let match = this.liveState.roster.find(e => 
+    let match = this.liveState.roster.find(e =>
 
       (uId && (e.id === uId)) ||
 
@@ -768,7 +768,7 @@ export class UserPortalController {
 
     const todayCode = this.getShiftForDay(engineer, dayNumber) || 'OFF';
 
-    
+
 
     // Yesterday's shift code (needed for NS overnight duty before 07:30 AM)
 
@@ -780,17 +780,17 @@ export class UserPortalController {
 
     const SHIFT_RANGES = {
 
-      FS: { start: 7 * 60 + 30,  end: 16 * 60 + 30, startStr: '07:30 AM' },
+      FS: { start: 7 * 60 + 30, end: 16 * 60 + 30, startStr: '07:30 AM' },
 
-      FG: { start: 8 * 60 + 30,  end: 17 * 60 + 30, startStr: '08:30 AM' },
+      FG: { start: 8 * 60 + 30, end: 17 * 60 + 30, startStr: '08:30 AM' },
 
-      G:  { start: 9 * 60 + 30,  end: 18 * 60 + 30, startStr: '09:30 AM' },
+      G: { start: 9 * 60 + 30, end: 18 * 60 + 30, startStr: '09:30 AM' },
 
-      SG: { start: 11 * 60,      end: 20 * 60,       startStr: '11:00 AM' },
+      SG: { start: 11 * 60, end: 20 * 60, startStr: '11:00 AM' },
 
-      SS: { start: 13 * 60,      end: 22 * 60,       startStr: '01:00 PM' },
+      SS: { start: 13 * 60, end: 22 * 60, startStr: '01:00 PM' },
 
-      NS: { start: 21 * 60,      end: 7 * 60 + 30,  startStr: '09:00 PM' }
+      NS: { start: 21 * 60, end: 7 * 60 + 30, startStr: '09:00 PM' }
 
     };
 
@@ -1334,15 +1334,15 @@ export class UserPortalController {
 
 
 
-      const trClass = isMe 
+      const trClass = isMe
 
-        ? 'bg-gradient-to-r from-emerald-950/70 via-slate-900/90 to-emerald-950/70 border-l-4 border-l-emerald-400 border-y border-emerald-500/30 font-semibold shadow-md relative' 
+        ? 'bg-gradient-to-r from-emerald-950/70 via-slate-900/90 to-emerald-950/70 border-l-4 border-l-emerald-400 border-y border-emerald-500/30 font-semibold shadow-md relative'
 
         : 'hover:bg-slate-800/40 transition border-b border-slate-800';
 
 
 
-      const userStar = isMe 
+      const userStar = isMe
 
         ? `<i class="ph-fill ph-star text-amber-400 text-xs ml-1.5 shrink-0" title="Your Schedule"></i>`
 
@@ -1624,9 +1624,9 @@ export class UserPortalController {
 
 
 
-      const trClass = isMe 
+      const trClass = isMe
 
-        ? 'bg-gradient-to-r from-emerald-950/60 via-slate-900 to-emerald-950/60 border-l-4 border-l-emerald-400 border-y border-emerald-500/30 font-bold shadow-md' 
+        ? 'bg-gradient-to-r from-emerald-950/60 via-slate-900 to-emerald-950/60 border-l-4 border-l-emerald-400 border-y border-emerald-500/30 font-bold shadow-md'
 
         : 'hover:bg-slate-800/40 transition border-b border-slate-800';
 
@@ -1648,7 +1648,7 @@ export class UserPortalController {
 
         const shiftMeta = SHIFTS[code] || { bg: '#1e293b', text: '#94a3b8', name: code };
 
-        
+
 
         if (code === 'NS') nsCount++;
 
@@ -2503,7 +2503,7 @@ export class UserPortalController {
     const shiftColors = {
       FS: 'bg-emerald-100 text-emerald-900 border-emerald-300',
       FG: 'bg-emerald-800 text-white border-emerald-900',
-      G:  'bg-sky-100 text-sky-900 border-sky-300',
+      G: 'bg-sky-100 text-sky-900 border-sky-300',
       SG: 'bg-orange-600 text-white border-orange-700',
       SS: 'bg-orange-100 text-orange-950 border-orange-300',
       NS: 'bg-slate-950 text-white border-slate-700',
@@ -2515,7 +2515,7 @@ export class UserPortalController {
     const shiftTimings = {
       FS: '07:30 – 16:30',
       FG: '08:30 – 17:30',
-      G:  '09:30 – 18:30',
+      G: '09:30 – 18:30',
       SG: '11:00 – 20:00',
       SS: '13:00 – 22:00',
       NS: '21:00 – 07:30 (+1)',
@@ -2545,8 +2545,8 @@ export class UserPortalController {
       const badgeStyle = shiftColors[code] || 'bg-slate-800 text-slate-300 border-slate-700';
       const timing = shiftTimings[code] || '--:-- – --:--';
       const isToday = (day === todayNum);
-      const rowClass = isToday 
-        ? 'bg-cyan-950/40 border-l-4 border-l-cyan-400 font-bold' 
+      const rowClass = isToday
+        ? 'bg-cyan-950/40 border-l-4 border-l-cyan-400 font-bold'
         : (day % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent');
 
       html += `
@@ -2566,8 +2566,8 @@ export class UserPortalController {
           </td>
           <td class="py-2 px-4 text-right pr-4">
             ${code === 'NS' ? '<span class="text-indigo-400 text-[10px] font-bold">Solo Night Duty</span>' :
-              (code === 'OFF' || code === 'SWOFF' ? '<span class="text-amber-400 text-[10px] font-semibold">Scheduled Rest</span>' :
-              (code === 'L' ? '<span class="text-rose-400 text-[10px] font-semibold">Approved Leave</span>' :
+          (code === 'OFF' || code === 'SWOFF' ? '<span class="text-amber-400 text-[10px] font-semibold">Scheduled Rest</span>' :
+            (code === 'L' ? '<span class="text-rose-400 text-[10px] font-semibold">Approved Leave</span>' :
               '<span class="text-emerald-400 text-[10px] font-semibold">Standard Shift</span>'))}
           </td>
         </tr>
@@ -2617,10 +2617,10 @@ export class UserPortalController {
     const windows = {
       FS: { start: 7.5 * 3600, end: 16.5 * 3600, name: 'First Shift' },
       FG: { start: 8.5 * 3600, end: 17.5 * 3600, name: 'First General' },
-      G:  { start: 9.5 * 3600, end: 18.5 * 3600, name: 'General Shift' },
-      SG: { start: 11 * 3600,  end: 20 * 3600,   name: 'Second General' },
-      SS: { start: 13 * 3600,  end: 22 * 3600,   name: 'Second Shift' },
-      NS: { start: 21 * 3600,  end: (24 + 7.5) * 3600, name: 'Night Shift' }
+      G: { start: 9.5 * 3600, end: 18.5 * 3600, name: 'General Shift' },
+      SG: { start: 11 * 3600, end: 20 * 3600, name: 'Second General' },
+      SS: { start: 13 * 3600, end: 22 * 3600, name: 'Second Shift' },
+      NS: { start: 21 * 3600, end: (24 + 7.5) * 3600, name: 'Night Shift' }
     };
 
     const formatDelta = (sec) => {
@@ -2832,7 +2832,7 @@ export class UserPortalController {
     let swaps = [];
     try {
       swaps = JSON.parse(localStorage.getItem('rosterx_manual_swaps') || '[]');
-    } catch (e) {}
+    } catch (e) { }
 
     const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
     const mySwaps = swaps.filter(s => {

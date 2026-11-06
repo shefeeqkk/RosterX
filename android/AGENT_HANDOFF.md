@@ -13,7 +13,6 @@
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
-- **Zero-G WebGL Showcase**: `https://rosterx-vc30.onrender.com/zero-g/`
 - **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `password_resets`, `audit_logs`)
 - **Security & RBAC**: HMAC-SHA256 Signed JWT Tokens, Salted PBKDF2 Password Hashes, Anti-Hijack OTP Dispatch

@@ -55,7 +55,6 @@ import { RosterAiEngine } from './rosterAiEngine.js';
 import { RosterAiAssistant } from './rosterAiAssistant.js?v=7.1';
 import { AtlasService } from './atlasService.js';
 import { ExcelService } from './excelService.js?v=3.2';
-import { KineticTiltController } from './kineticTilt.js';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -77,7 +76,6 @@ class RosterXApp {
     this.aiEngine = new RosterAiEngine();
     this.aiAssistant = new RosterAiAssistant(this);
     this.activeTab = 'dashboard';
-    this.kineticTilt = null;
 
 
 
@@ -639,15 +637,8 @@ class RosterXApp {
       }
     })();
 
-    // 3. Tab Architecture & Kinetic Tilt Initialization
+    // 3. Tab Architecture Initialization
     this.bindTabEvents();
-    if (typeof KineticTiltController !== 'undefined') {
-      try {
-        this.kineticTilt = new KineticTiltController('.kinetic-hero-card');
-      } catch (eKin) {
-        console.warn('KineticTilt initialization note:', eKin);
-      }
-    }
     this.refreshDashboardTelemetry();
 
     // Initialize Conversational AI Assistant
@@ -748,7 +739,6 @@ class RosterXApp {
     // Contextual refresh based on tab
     if (tabId === 'dashboard') {
       this.refreshDashboardTelemetry();
-      this.kineticTilt?.refresh();
     } else if (tabId === 'matrix') {
       this.renderHeaders();
       this.renderRoster();
