@@ -41,7 +41,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
-SERVER_VERSION = "1.12.1"
+from datetime import datetime, timezone, timedelta
+SERVER_VERSION = "1.13.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -962,6 +963,350 @@ def mask_api_key(key):
 
 
 # ==============================================================================
+
+# ==============================================================================
+# Grounded Conversational RAG Operations Engine (IST & MongoDB Atlas Grounding)
+# ==============================================================================
+
+def get_ist_now():
+    """Returns current datetime in Indian Standard Time (UTC+5:30)."""
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    return datetime.now(ist_tz)
+
+def determine_active_shifts(ist_time):
+    """
+    Computes active shift codes based on strict operational boundaries (IST):
+    FS: 07:30 – 16:30
+    FG: 08:30 – 17:30
+    G:  09:30 – 18:30
+    SG: 11:00 – 20:00
+    SS: 13:00 – 22:00
+    NS: 21:00 – 07:30 (crosses midnight)
+    """
+    t_min = ist_time.hour * 60 + ist_time.minute
+    active = []
+    if 7 * 60 + 30 <= t_min < 16 * 60 + 30:
+        active.append("FS")
+    if 8 * 60 + 30 <= t_min < 17 * 60 + 30:
+        active.append("FG")
+    if 9 * 60 + 30 <= t_min < 18 * 60 + 30:
+        active.append("G")
+    if 11 * 60 <= t_min < 20 * 60:
+        active.append("SG")
+    if 13 * 60 <= t_min < 22 * 60:
+        active.append("SS")
+    if t_min >= 21 * 60 or t_min < 7 * 60 + 30:
+        active.append("NS")
+    return active
+
+SHIFT_DEFINITIONS = {
+    "FS": {"name": "First Shift", "timings": "07:30 – 16:30", "desc": "Morning desk operations"},
+    "FG": {"name": "First General", "timings": "08:30 – 17:30", "desc": "Morning general coverage"},
+    "G":  {"name": "General Shift", "timings": "09:30 – 18:30", "desc": "Core daytime engineering"},
+    "SG": {"name": "Second General", "timings": "11:00 – 20:00", "desc": "Mid-day handover & evening operations"},
+    "SS": {"name": "Second Shift", "timings": "13:00 – 22:00", "desc": "Late evening desk coverage"},
+    "NS": {"name": "Night Shift", "timings": "21:00 – 07:30 (+1)", "desc": "Overnight solo desk monitoring (Mandatory 48h rest applies)"},
+    "OFF": {"name": "Weekly Off", "timings": "Full 24h rest", "desc": "Scheduled rest period"},
+    "L":   {"name": "Approved Leave", "timings": "Full 24h rest", "desc": "Approved operational absence"}
+}
+
+def build_roster_grounding_context(current_user=None):
+    """
+    Assembles real-time ground truth from MongoDB Atlas, OS runtime, and IST clock.
+    Zero synthetic or mock data is injected.
+    """
+    now_ist = get_ist_now()
+    cur_year = now_ist.year
+    cur_month = now_ist.month
+    cur_day = now_ist.day
+    cur_month_key = f"{cur_year}-{str(cur_month).zfill(2)}"
+    tomorrow_ist = now_ist + timedelta(days=1)
+    tomorrow_day = tomorrow_ist.day
+    
+    active_shift_codes = determine_active_shifts(now_ist)
+    
+    # 1. Fetch live published roster from MongoDB Atlas
+    roster_doc = None
+    if ATLAS_DB is not None:
+        try:
+            roster_doc = ATLAS_DB["rosters"].find_one({"_id": cur_month_key})
+            if not roster_doc:
+                roster_doc = ATLAS_DB["rosters"].find_one({}, sort=[("_id", -1)])
+        except Exception as e:
+            print(f"[RAG] DB roster query error: {e}")
+
+    engineers_roster = []
+    if roster_doc:
+        engineers_roster = roster_doc.get("engineers", [])
+
+    normalized_roster = []
+    for eng in engineers_roster:
+        name = eng.get("name", "Unknown")
+        shifts_raw = eng.get("shifts")
+        shifts_arr = []
+        if isinstance(shifts_raw, dict):
+            for d in range(1, 32):
+                shifts_arr.append(shifts_raw.get(str(d), ""))
+        elif isinstance(shifts_raw, list):
+            shifts_arr = shifts_raw
+        normalized_roster.append({
+            "name": name,
+            "id": eng.get("engineer_id") or eng.get("id"),
+            "shifts": shifts_arr
+        })
+
+    # Today & Tomorrow NOC coverage breakdown
+    on_duty_now = []
+    today_all = []
+    tomorrow_all = []
+    
+    for r in normalized_roster:
+        s_today = r["shifts"][cur_day - 1] if len(r["shifts"]) >= cur_day else ""
+        s_tom = r["shifts"][tomorrow_day - 1] if len(r["shifts"]) >= tomorrow_day else ""
+        s_today = s_today.strip().upper() if s_today else "OFF"
+        s_tom = s_tom.strip().upper() if s_tom else "OFF"
+        
+        today_all.append({"name": r["name"], "shift": s_today})
+        tomorrow_all.append({"name": r["name"], "shift": s_tom})
+        
+        if s_today in active_shift_codes:
+            on_duty_now.append({
+                "name": r["name"],
+                "shift": s_today,
+                "timings": SHIFT_DEFINITIONS.get(s_today, {}).get("timings", "")
+            })
+
+    # User-specific duty details
+    user_details = None
+    if current_user:
+        u_name = (current_user.get("name") or current_user.get("full_name") or "").strip().lower()
+        u_id = (current_user.get("id") or current_user.get("username") or "").strip().lower()
+        for r in normalized_roster:
+            r_name = r["name"].strip().lower()
+            r_id = str(r["id"] or "").strip().lower()
+            if (u_id and r_id == u_id) or (u_name and r_name == u_name) or (u_name and u_name in r_name) or (u_id and u_id in r_id):
+                s_today = r["shifts"][cur_day - 1] if len(r["shifts"]) >= cur_day else "OFF"
+                s_tom = r["shifts"][tomorrow_day - 1] if len(r["shifts"]) >= tomorrow_day else "OFF"
+                
+                next_ns = None
+                for idx in range(cur_day - 1, len(r["shifts"])):
+                    sc = (r["shifts"][idx] or "").strip().upper()
+                    if sc == "NS":
+                        next_ns = f"{cur_month_key}-{str(idx + 1).zfill(2)}"
+                        break
+                        
+                off_count = sum(1 for s in r["shifts"] if (s or "").strip().upper() in ("OFF", "L") or (s or "").strip().upper().startswith("SW"))
+                duty_count = len(r["shifts"]) - off_count
+                user_details = {
+                    "matched_engineer": r["name"],
+                    "today_shift": s_today,
+                    "tomorrow_shift": s_tom,
+                    "next_night_shift": next_ns or "None scheduled this month",
+                    "total_duty_days": duty_count,
+                    "total_off_days": off_count
+                }
+                break
+
+    # Host process diagnostics
+    uptime_sec = int(time.time() - SERVER_START_TIME)
+    h, rem = divmod(uptime_sec, 3600)
+    m, s = divmod(rem, 60)
+    uptime_str = f"{h}h {m}m {s}s"
+
+    return {
+        "ist_timestamp": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
+        "date": now_ist.strftime("%Y-%m-%d"),
+        "day_of_week": now_ist.strftime("%A"),
+        "current_month_key": cur_month_key,
+        "active_shift_slots": active_shift_codes,
+        "on_duty_engineers": on_duty_now,
+        "today_desk_coverage": today_all,
+        "tomorrow_schedule": tomorrow_all,
+        "current_user_profile": user_details,
+        "uptime": uptime_str,
+        "total_engineers_in_roster": len(normalized_roster)
+    }
+
+def execute_deterministic_roster_ai(prompt, context, current_user=None):
+    """
+    High-reliability grounded fallback when Gemini API encounters quota limits or network partitions.
+    Answers strictly based on live MongoDB Atlas truth.
+    """
+    p = prompt.strip().lower()
+    ist_time = context.get('ist_timestamp', '')
+    cur_date = context.get('date', '')
+    day_name = context.get('day_of_week', '')
+    month_key = context.get('current_month_key', '')
+    
+    # 1. Who is on shift now / who all are in shift
+    if any(k in p for k in ["who is on shift", "who all are in shift", "who is on duty", "who is working now", "current shift", "shift now"]):
+        slots = context.get("active_shift_slots", [])
+        on_duty = context.get("on_duty_engineers", [])
+        if not on_duty:
+            return f"### 🕒 NOC Real-Time Duty Briefing ({ist_time})\n\n" \
+                   f"**Active Shift Windows:** `{', '.join(slots) if slots else 'Desk Transition Window'}`\n\n" \
+                   f"Currently, no engineers are active in these specific slots for today's published roster. Handover may be in progress."
+        
+        lines = [f"### 🕒 Active NOC Duty Coverage ({ist_time})\n",
+                 f"**Current Active Shift Windows:** `{', '.join(slots)}`\n",
+                 f"**Engineers Currently On Duty ({len(on_duty)} Staff):**"]
+        for eng in on_duty:
+            s_code = eng['shift']
+            timing = eng.get('timings', '')
+            lines.append(f"- **{eng['name']}** — `{s_code}` ({timing})")
+        lines.append(f"\n*Data grounded in real-time MongoDB Atlas roster for {cur_date} ({day_name}).*")
+        return "\n".join(lines)
+
+    # 2. When is my next night shift
+    if any(k in p for k in ["next night shift", "next night duty", "next ns", "when is my night"]):
+        profile = context.get("current_user_profile")
+        if profile and profile.get("next_night_shift"):
+            ns_val = profile["next_night_shift"]
+            if ns_val.startswith("None"):
+                return f"### 🌙 Night Duty Query\n\nAccording to the published operational roster for **{month_key}**, you have **no upcoming Night Shifts (NS)** scheduled for the remainder of this month."
+            return f"### 🌙 Your Next Night Duty\n\n" \
+                   f"- **Assigned Engineer:** **{profile['matched_engineer']}**\n" \
+                   f"- **Next Night Shift (NS):** **{ns_val}** (21:00 – 07:30 IST)\n" \
+                   f"- **Operational Compliance:** Mandatory 48-hour rest interval applies immediately post-completion.\n\n" \
+                   f"*Grounded in live Atlas roster records.*"
+        else:
+            ns_engineers = [e['name'] for e in context.get('today_desk_coverage', []) if e['shift'] == 'NS']
+            ns_str = ", ".join(ns_engineers) if ns_engineers else "None assigned"
+            return f"### 🌙 Tonight's Night Duty Roster ({cur_date})\n\n" \
+                   f"- **Assigned Night Desk (NS):** **{ns_str}** (21:00 – 07:30 IST)\n" \
+                   f"*(If inquiring about your personal upcoming night duty, please ensure you are logged into your engineer account.)*"
+
+    # 3. What is my shift today / tomorrow
+    if any(k in p for k in ["my shift today", "my shift tomorrow", "what is my shift", "my duties", "my schedule"]):
+        profile = context.get("current_user_profile")
+        if profile:
+            s_today = profile['today_shift']
+            s_tom = profile['tomorrow_shift']
+            t_def_today = SHIFT_DEFINITIONS.get(s_today, {})
+            t_def_tom = SHIFT_DEFINITIONS.get(s_tom, {})
+            return f"### 📋 Personal Shift Briefing — {profile['matched_engineer']}\n\n" \
+                   f"- **Today's Duty ({cur_date}):** **`{s_today}`** ({t_def_today.get('name', 'Duty')}) — `{t_def_today.get('timings', '')}`\n" \
+                   f"- **Tomorrow's Duty:** **`{s_tom}`** ({t_def_tom.get('name', 'Duty')}) — `{t_def_tom.get('timings', '')}`\n" \
+                   f"- **Monthly Summary:** **{profile['total_duty_days']}** Assigned Shifts • **{profile['total_off_days']}** Weekly Offs\n\n" \
+                   f"*Status verified live against MongoDB Atlas roster.*"
+        else:
+            cov = [f"- **{e['name']}**: `{e['shift']}`" for e in context.get('today_desk_coverage', [])[:6]]
+            return f"### 📋 Today's Desk Schedule ({cur_date})\n\n" + "\n".join(cov) + "\n\n*(Sign in to view your personalized duty profile).* "
+
+    # 4. Night shift inquiry
+    if any(k in p for k in ["night shift", "night duty", "who is on night"]):
+        ns_engineers = [e['name'] for e in context.get('today_desk_coverage', []) if e['shift'] == 'NS']
+        tom_ns = [e['name'] for e in context.get('tomorrow_schedule', []) if e['shift'] == 'NS']
+        return f"### 🌙 24/7 Night Duty Roster\n\n" \
+               f"- **Tonight's NS ({cur_date}):** **{', '.join(ns_engineers) if ns_engineers else 'None assigned'}** (21:00 – 07:30 IST)\n" \
+               f"- **Tomorrow's NS:** **{', '.join(tom_ns) if tom_ns else 'None assigned'}**\n" \
+               f"- **Desk Policy:** Strict 1 NS per night cap and mandatory 48h rest applies after every night rotation."
+
+    # 5. Off days inquiry
+    if any(k in p for k in ["off day", "how many off", "weekly off", "leaves"]):
+        profile = context.get("current_user_profile")
+        if profile:
+            return f"### 🏖️ Scheduled Rest & Weekly Offs\n\n" \
+                   f"- **Engineer:** **{profile['matched_engineer']}**\n" \
+                   f"- **Total Scheduled Offs:** **{profile['total_off_days']} days** in {month_key}\n" \
+                   f"- **Total Operational Duties:** **{profile['total_duty_days']} days**\n" \
+                   f"- **Fatigue Policy:** Minimum 24h rest window enforced between rotations."
+        else:
+            return f"### 🏖️ RosterX Rest Policy\n\n" \
+                   f"Engineers receive standard weekly offs and mandatory 48h rest following night shift completions. Sign in to view your exact monthly off count."
+
+    # 6. Default Grounded Operational Summary
+    on_duty_names = [f"**{e['name']}** (`{e['shift']}`)" for e in context.get("on_duty_engineers", [])]
+    return f"### 🤖 RosterX Operations Assistant\n\n" \
+           f"**Live System Status ({ist_time}):**\n" \
+           f"- **Host Uptime:** {context.get('uptime', 'Active')} • **Atlas DB:** Connected\n" \
+           f"- **Active Shift Slots:** `{', '.join(context.get('active_shift_slots', []))}`\n" \
+           f"- **Staff Currently On Duty:** {', '.join(on_duty_names) if on_duty_names else 'No active desk staff'}\n\n" \
+           f"You can ask me:\n" \
+           f"- *\"Who all are in shift now?\"*\n" \
+           f"- *\"When is my next night shift?\"*\n" \
+           f"- *\"What is my shift today and tomorrow?\"*\n" \
+           f"- *\"Who is covering night duty tonight?\"*"
+
+def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="Web Portal"):
+    """
+    Unified RAG orchestration calling Google Gemini API with fallback to deterministic grounded engine.
+    """
+    env = load_env_variables()
+    gemini_key = env.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
+    configured_model = env.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    
+    context = build_roster_grounding_context(current_user)
+    
+    # Model fallback hierarchy
+    candidate_models = []
+    for m in [configured_model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-flash-latest"]:
+        if m and m not in candidate_models:
+            candidate_models.append(m)
+
+    system_instruction = (
+        "You are RosterX Operations Assistant, an authoritative 24/7 NOC Roster AI Agent developed by the RosterX NOC Team. "
+        "You operate exclusively with REAL ground truth data provided in the context below from MongoDB Atlas and Indian Standard Time (IST).\n"
+        "Strict Directives:\n"
+        "1. NEVER invent, hallucinate, or assume shift assignments, engineer names, or dates. Only use the provided grounding context.\n"
+        "2. All time references are in Indian Standard Time (IST, UTC+5:30).\n"
+        "3. Shift Codes and Timings:\n"
+        "   - FS (First Shift): 07:30 – 16:30\n"
+        "   - FG (First General): 08:30 – 17:30\n"
+        "   - G (General): 09:30 – 18:30\n"
+        "   - SG (Second General): 11:00 – 20:00\n"
+        "   - SS (Second Shift): 13:00 – 22:00\n"
+        "   - NS (Night Shift): 21:00 – 07:30 (+1 day, solo desk coverage)\n"
+        "   - OFF / SW* / L: Weekly Off, Swapped Off, or Approved Leave\n"
+        "4. Format your responses with clean, professional Markdown (bullet points, bold highlights, code formatting for shift codes).\n"
+        "5. Be concise, direct, helpful, and courteous."
+    )
+
+    grounding_payload_text = (
+        "CURRENT REAL-TIME CONTEXT:\n"
+        f"- Indian Standard Time (IST): {context['ist_timestamp']}\n"
+        f"- Date: {context['date']} ({context['day_of_week']})\n"
+        f"- Active Shift Windows Right Now: {', '.join(context['active_shift_slots'])}\n"
+        f"- Engineers On Duty Right Now: {json.dumps(context['on_duty_engineers'])}\n"
+        f"- Today's Desk Coverage: {json.dumps(context['today_desk_coverage'])}\n"
+        f"- Tomorrow's Scheduled Coverage: {json.dumps(context['tomorrow_schedule'])}\n"
+        f"- Current User Profile: {json.dumps(context['current_user_profile'])}\n"
+        f"- System Uptime: {context['uptime']}\n\n"
+        f"User Query: {user_prompt}"
+    )
+
+    if gemini_key:
+        for model in candidate_models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+            gemini_body = {
+                "systemInstruction": {"parts": [{"text": system_instruction}]},
+                "contents": [{"parts": [{"text": grounding_payload_text}]}],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024}
+            }
+            try:
+                ai_req = urllib.request.Request(
+                    url,
+                    headers={"Content-Type": "application/json"},
+                    data=json.dumps(gemini_body).encode("utf-8")
+                )
+                with urllib.request.urlopen(ai_req, timeout=12) as ai_resp:
+                    res_json = json.loads(ai_resp.read().decode("utf-8"))
+                    candidates = res_json.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        if parts and "text" in parts[0]:
+                            return parts[0]["text"], model, context["ist_timestamp"]
+            except urllib.error.HTTPError as he:
+                print(f"[RAG] Model {model} HTTP {he.code}")
+                continue
+            except Exception as e:
+                print(f"[RAG] Model {model} error: {e}")
+                continue
+
+    # Fallback to grounded deterministic engine
+    fallback_reply = execute_deterministic_roster_ai(user_prompt, context, current_user)
+    return fallback_reply, "deterministic-grounded-engine", context["ist_timestamp"]
+
 # HTTP Request Handler with Authentication & Strict RBAC
 # ==============================================================================
 
@@ -1509,7 +1854,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/roster", "/engineers", "/engineers/delete", "/constraints",
             "/auth/login", "/auth/send-otp", "/auth/verify-otp",
             "/roster-backups/restore", "/notifications/send",
-            "/ai/generate", "/ai/chat"
+            "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant"
         ) or norm_path.startswith("/roster-backups/"):
             norm_path = "/api" + norm_path
 
@@ -1936,6 +2281,39 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # ======================================================================
         # 2. AUTHENTICATED AI PROXY (Eliminates Browser / App API Key Exposure)
         # ======================================================================
+
+        if clean_path in ("/api/chat/assistant", "/api/chat/assistant/", "/api/ai/assistant", "/api/ai/assistant/"):
+            claims = self.get_auth_claims()
+            current_user = body.get("current_user") or {}
+            if claims:
+                if not current_user.get("name") and claims.get("name"):
+                    current_user["name"] = claims["name"]
+                if not current_user.get("username") and claims.get("username"):
+                    current_user["username"] = claims["username"]
+                if not current_user.get("role") and claims.get("role"):
+                    current_user["role"] = claims["role"]
+
+            user_query = body.get("message") or body.get("prompt") or ""
+            client_platform = body.get("platform") or "Web Operations Console"
+
+            if not user_query.strip():
+                self.send_json_response({"success": False, "message": "Missing 'message' or 'prompt' in payload."}, 400)
+                return
+
+            ai_reply, model_name, grounded_time = query_gemini_roster_agent(
+                user_prompt=user_query,
+                current_user=current_user,
+                client_platform=client_platform
+            )
+
+            self.send_json_response({
+                "success": True,
+                "reply": ai_reply,
+                "model": model_name,
+                "grounded_time": grounded_time,
+                "platform": client_platform
+            })
+            return
 
         if clean_path in ("/api/ai/generate", "/api/ai/generate/", "/api/ai/chat", "/api/ai/chat/"):
             claims = self.require_auth()

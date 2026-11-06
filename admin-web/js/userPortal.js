@@ -2272,291 +2272,132 @@ export class UserPortalController {
 
 
 
+  markdownToHtml(md) {
+    if (!md) return '';
+    return md
+      .replace(/^### (.*$)/gim, '<h3 class="text-xs font-bold text-cyan-300 mt-2 mb-1">$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2 class="text-sm font-bold text-cyan-300 mt-2 mb-1">$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1 class="text-base font-bold text-cyan-300 mt-2 mb-1">$1</h1>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong class="text-white font-bold">$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em class="text-slate-300 italic">$1</em>')
+      .replace(/`([^`]+)`/gim, '<code class="px-1 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-300 font-mono text-[10px]">$1</code>')
+      .replace(/^\s*-\s+(.*$)/gim, '<li class="ml-3 list-disc text-slate-200">$1</li>')
+      .replace(/\n\n+/gim, '<br><br>')
+      .replace(/\n/gim, '<br>');
+  }
+
   sendBotGreeting() {
-
     const uName = (this.matchedEngineer ? this.matchedEngineer.name : this.currentUser.name) || 'there';
-
-    const opDay = this.liveState.todayDay;
-
-    const nextDay = this.liveState.tomorrowDay;
-
+    const opDay = this.liveState.todayDay || new Date().getDate();
+    const nextDay = this.liveState.tomorrowDay || (opDay + 1);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const curMName = monthNames[(this.liveState.month || new Date().getMonth() + 1) - 1] || 'Nov';
     const myToday = this.getShiftForDay(this.matchedEngineer, opDay) || 'OFF';
-
     const myTomorrow = this.getShiftForDay(this.matchedEngineer, nextDay) || 'OFF';
 
-
-
     const greeting = `
-
       Hello <strong>${uName}</strong>! 👋<br><br>
-
-      I'm your <strong>RosterX Operations Assistant</strong>. Here is your current duty briefing:
-
+      I'm your <strong>RosterX Operations Assistant</strong> powered by Grounded Gemini AI. Here is your current duty briefing:
       <ul class="list-disc pl-4 mt-1.5 space-y-1 text-xs">
-
-        <li><strong>Today (Oct ${opDay}):</strong> Shift <span class="text-cyan-300 font-bold">${myToday}</span></li>
-
-        <li><strong>Tomorrow (Oct ${nextDay}):</strong> Shift <span class="text-cyan-300 font-bold">${myTomorrow}</span></li>
-
+        <li><strong>Today (${curMName} ${opDay}):</strong> Shift <span class="text-cyan-300 font-bold">${myToday}</span></li>
+        <li><strong>Tomorrow (${curMName} ${nextDay}):</strong> Shift <span class="text-cyan-300 font-bold">${myTomorrow}</span></li>
       </ul>
-
-      <p class="mt-2 text-slate-300">You can ask me questions like <em>"Who is on night duty today?"</em>, <em>"When is my next OFF day?"</em>, or <em>"Who is covering day shift tomorrow?"</em>.</p>
-
+      <p class="mt-2 text-slate-300">Ask me in plain natural language:<br>
+      • <em>"Who all are in shift now?"</em><br>
+      • <em>"When is my next night shift?"</em><br>
+      • <em>"Who is on night duty today?"</em></p>
     `;
-
-
 
     this.appendBotMessage(greeting);
-
   }
-
-
 
   appendUserMessage(text) {
-
     this.chatMessages.push({ role: 'user', content: text });
-
     const container = document.getElementById('aiMessagesContainer');
-
     if (!container) return;
 
-
-
     const div = document.createElement('div');
-
     div.className = 'flex justify-end';
-
     div.innerHTML = `
-
       <div class="max-w-[80%] rounded-2xl rounded-tr-xs bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-3 text-xs shadow-md">
-
         ${this.escapeHtml(text)}
-
       </div>
-
     `;
-
     container.appendChild(div);
-
     container.scrollTop = container.scrollHeight;
-
   }
-
-
 
   appendBotMessage(html) {
-
     this.chatMessages.push({ role: 'assistant', content: html });
-
     const container = document.getElementById('aiMessagesContainer');
-
     if (!container) return;
 
-
-
     const div = document.createElement('div');
-
     div.className = 'flex items-start gap-2.5';
-
     div.innerHTML = `
-
       <div class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
-
         <img src="assets/bot-3d-cutout.png" alt="Bot" class="w-6 h-6 object-contain" />
-
       </div>
-
       <div class="max-w-[85%] rounded-2xl rounded-tl-xs bg-slate-800/90 border border-slate-700 text-slate-200 p-3 text-xs shadow-md leading-relaxed">
-
         ${html}
-
       </div>
-
     `;
-
     container.appendChild(div);
-
     container.scrollTop = container.scrollHeight;
-
   }
 
-
-
-  handleUserQuestion(query) {
-
+  async handleUserQuestion(query) {
     this.appendUserMessage(query);
 
-
-
-    const q = query.toLowerCase();
-
-    const opDay = this.liveState.todayDay;
-
-    const nextDay = this.liveState.tomorrowDay;
-
-    const eng = this.matchedEngineer;
-
-
-
-    let reply = '';
-
-
-
-    // Query 1: My shifts
-
-    if (q.includes('my shift') || q.includes('my duty') || q.includes('when is my shift') || q.includes('today')) {
-
-      const todayCode = this.getShiftForDay(eng, opDay) || 'OFF';
-
-      const tomorrowCode = this.getShiftForDay(eng, nextDay) || 'OFF';
-
-      const todayInfo = SHIFTS[todayCode] || { name: todayCode, timings: 'Standard Duty' };
-
-      const tomInfo = SHIFTS[tomorrowCode] || { name: tomorrowCode, timings: 'Standard Duty' };
-
-
-
-      reply = `
-
-        Your duty schedule for today and tomorrow:<br>
-
-        • <strong>Today (Oct ${opDay}):</strong> <strong>${todayCode}</strong> (${todayInfo.name}) — <em>${todayInfo.timings}</em><br>
-
-        • <strong>Tomorrow (Oct ${nextDay}):</strong> <strong>${tomorrowCode}</strong> (${tomInfo.name}) — <em>${tomInfo.timings}</em>
-
-      `;
-
+    const container = document.getElementById('aiMessagesContainer');
+    let thinkingEl = null;
+    if (container) {
+      thinkingEl = document.createElement('div');
+      thinkingEl.className = 'flex items-center gap-2 text-cyan-400 text-xs italic p-2';
+      thinkingEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span> Consulting Grounded AI Operations Agent...';
+      container.appendChild(thinkingEl);
+      container.scrollTop = container.scrollHeight;
     }
 
-    // Query 2: Night duty today / tomorrow
+    try {
+      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('rosterx_auth_token')) || '';
+      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    else if (q.includes('night') || q.includes('night duty') || q.includes('ns')) {
-
-      const targetDay = (q.includes('tomorrow') || q.includes('next')) ? nextDay : opDay;
-
-      const dayLabel = (targetDay === opDay) ? `Today (Oct ${opDay})` : `Tomorrow (Oct ${nextDay})`;
-
-      const nightStaff = this.liveState.roster.filter(e => this.getShiftForDay(e, targetDay) === 'NS');
-
-      const names = nightStaff.map(e => e.name).join(', ') || 'None assigned';
-
-
-
-      reply = `
-
-        🌙 <strong>Night Shift (NS) Coverage for ${dayLabel}:</strong><br>
-
-        • Assigned Staff: <strong class="text-cyan-300">${names}</strong><br>
-
-        • Timings: <strong>09:00 PM – 07:30 AM</strong> (Mandatory 48h rest applies after completion).
-
-      `;
-
-    }
-
-    // Query 3: Day shift
-
-    else if (q.includes('tomorrow') || q.includes('day shift') || q.includes('fs') || q.includes('morning')) {
-
-      const targetDay = nextDay;
-
-      const morningStaff = this.liveState.roster.filter(e => {
-
-        const s = this.getShiftForDay(e, targetDay);
-
-        return s === 'FS' || s === 'FG' || s === 'G';
-
+      const res = await fetch('/api/chat/assistant', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: query,
+          current_user: this.currentUser,
+          platform: 'Web Portal'
+        })
       });
 
-      const names = morningStaff.map(e => `${e.name} (${this.getShiftForDay(e, targetDay)})`).join('<br>• ') || 'None';
+      if (thinkingEl) thinkingEl.remove();
 
-
-
-      reply = `
-
-        ☀️ <strong>Day / Morning Shift Coverage Tomorrow (Oct ${targetDay}):</strong><br>
-
-        • ${names}
-
-      `;
-
-    }
-
-    // Query 4: Off days
-
-    else if (q.includes('off') || q.includes('leave') || q.includes('holiday') || q.includes('weekend')) {
-
-      let offDays = [];
-
-      if (eng && Array.isArray(eng.shifts)) {
-
-        eng.shifts.forEach((s, idx) => {
-
-          if (isOffCategory(s)) offDays.push(idx + 1);
-
-        });
-
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.reply) {
+          const html = this.markdownToHtml(data.reply);
+          this.appendBotMessage(html);
+          return;
+        }
       }
-
-      reply = `
-
-        🏖️ <strong>Your Scheduled Weekly Offs this month:</strong><br>
-
-        You have <strong>${offDays.length} OFF days</strong> scheduled on dates:<br>
-
-        <div class="mt-1 flex flex-wrap gap-1 font-mono text-[11px] text-amber-300">
-
-          ${offDays.map(d => `<span class="bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800">${d}th</span>`).join(' ')}
-
-        </div>
-
-      `;
-
+    } catch (err) {
+      console.warn('[AI Chat] Backend query error, using local fallback:', err);
     }
 
-    // Query 5: Operational change requests
+    if (thinkingEl) thinkingEl.remove();
 
-    else if (q.includes('change') || q.includes('swap') || q.includes('generate') || q.includes('apply')) {
-
-      reply = `
-
-        ℹ️ <strong>Operational Schedule Notice:</strong><br>
-
-        Active operational rosters are published by Operations Command.<br>
-
-        To request a shift swap or time off, please submit a mutual swap request to your Operations Lead.
-
-      `;
-
-    }
-
-    // Fallback general query
-
-    else {
-
-      reply = `
-
-        I have full visibility of the active month roster for <strong>${this.liveState.roster.length} engineers</strong>.<br>
-
-        Try asking:<br>
-
-        • <em>"When is my next night shift?"</em><br>
-
-        • <em>"Who is working night duty today?"</em><br>
-
-        • <em>"How many OFF days do I have this month?"</em>
-
-      `;
-
-    }
-
-
-
-    setTimeout(() => {
-
-      this.appendBotMessage(reply);
-
-    }, 350);
+    this.appendBotMessage(
+      `### 🤖 RosterX Operations Assistant<br><br>` +
+      `I can help coordinate your operational shift schedule live from Atlas! Try asking:<br>` +
+      `• <em>"Who all are in shift now?"</em><br>` +
+      `• <em>"When is my next night shift?"</em><br>` +
+      `• <em>"What is my shift today and tomorrow?"</em>`
+    );
+  }
 
   }
 

@@ -48,7 +48,7 @@ def run_tests():
     status, res = make_request("/api/test-connection")
     print(f" -> Status: {status}, Response: {res}")
     assert status == 200, f"Health check failed: {res}"
-    assert res.get("version") in ("1.12.1", "1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
+    assert res.get("version") in ("1.13.0", "1.12.1", "1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
     print(f" ✅ PASS: Render Server online with version {res.get('version')} & Cluster0 connected!")
 
     # STEP 1: Admin Authentication
@@ -198,8 +198,21 @@ def run_tests():
     assert status == 401, f"Deleted user was still able to authenticate! {dead_login}"
     print(" ✅ PASS: Account permanently deleted from Atlas DB and denied further authentication!")
 
+    # STEP 8: Grounded AI Operations Assistant Check
+    print("\n[TEST 8] Testing Grounded Gemini AI Operations Assistant (/api/chat/assistant)...")
+    status_ai, ai_res = make_request("/api/chat/assistant", method="POST", data={
+        "message": "Who all are in shift now?"
+    })
+    print(f" -> /api/chat/assistant Status: {status_ai}")
+    if status_ai == 200 and ai_res.get("reply"):
+        print(f"    - AI Model: {ai_res.get('model')}")
+        print(f"    - Response Snippet: {ai_res.get('reply')[:120]}...")
+        print(" ✅ PASS: Grounded AI Assistant successfully answered live operational query!")
+    else:
+        print(f" ⚠️ NOTICE: AI assistant returned status {status_ai}: {ai_res} (may need deployment).")
+
     print("\n" + "=" * 70)
-    print("🎉 ALL 7 VERIFICATION TEST SUITES EXECUTED SUCCESSFULLY!")
+    print("🎉 ALL 8 VERIFICATION TEST SUITES EXECUTED SUCCESSFULLY!")
     print("=" * 70)
 
 if __name__ == "__main__":

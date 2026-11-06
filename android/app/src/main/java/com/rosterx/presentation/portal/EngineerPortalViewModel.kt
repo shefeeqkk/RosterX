@@ -78,7 +78,13 @@ data class PortalState(
 
     val notifications: List<com.rosterx.data.remote.NotificationDto> = emptyList(),
 
-    val dismissedNotificationIds: Set<String> = emptySet()
+    val dismissedNotificationIds: Set<String> = emptySet(),
+
+    val isAssistantOpen: Boolean = false,
+
+    val isAssistantThinking: Boolean = false,
+
+    val assistantMessages: List<com.rosterx.presentation.components.AssistantChatMessage> = emptyList()
 
 )
 
@@ -440,6 +446,67 @@ class EngineerPortalViewModel @Inject constructor(
 
     fun logout() {
         sessionManager.clearSession()
+    }
+
+    fun openAssistant() {
+        val msgs = if (_state.value.assistantMessages.isEmpty()) {
+            val engName = _state.value.loggedInEngineer?.name ?: "Engineer"
+            listOf(
+                com.rosterx.presentation.components.AssistantChatMessage(
+                    id = "init",
+                    role = "assistant",
+                    text = "### 🤖 RosterX Operations Assistant\n\nHello **$engName**! I have real-time visibility into the NOC roster, shift schedules, and duty handovers.\n\nAsk me anything like:\n- *\"Who all are in shift now?\"*\n- *\"When is my next night shift?\"*\n- *\"What is my shift today?\"*",
+                    timestamp = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                )
+            )
+        } else _state.value.assistantMessages
+
+        _state.value = _state.value.copy(isAssistantOpen = true, assistantMessages = msgs)
+    }
+
+    fun closeAssistant() {
+        _state.value = _state.value.copy(isAssistantOpen = false)
+    }
+
+    fun sendAssistantMessage(prompt: String) {
+        val q = prompt.trim()
+        if (q.isBlank() || _state.value.isAssistantThinking) return
+
+        val nowTime = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+        val userMsg = com.rosterx.presentation.components.AssistantChatMessage(
+            id = "user_${System.currentTimeMillis()}",
+            role = "user",
+            text = q,
+            timestamp = nowTime
+        )
+        _state.value = _state.value.copy(
+            assistantMessages = _state.value.assistantMessages + userMsg,
+            isAssistantThinking = true
+        )
+
+        viewModelScope.launch {
+            val eng = _state.value.loggedInEngineer
+            val userMap = eng?.let {
+                mapOf<String, Any?>(
+                    "id" to it.id,
+                    "name" to it.name,
+                    "username" to it.username,
+                    "role" to it.role.name.lowercase()
+                )
+            }
+            val res = repository.queryAssistant(q, userMap)
+            val botText = res.getOrNull()?.reply ?: res.exceptionOrNull()?.message ?: "Unable to complete assistant request."
+            val botMsg = com.rosterx.presentation.components.AssistantChatMessage(
+                id = "bot_${System.currentTimeMillis()}",
+                role = "assistant",
+                text = botText,
+                timestamp = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+            )
+            _state.value = _state.value.copy(
+                assistantMessages = _state.value.assistantMessages + botMsg,
+                isAssistantThinking = false
+            )
+        }
     }
 }
 

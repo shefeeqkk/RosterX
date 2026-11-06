@@ -58,6 +58,8 @@ import androidx.compose.ui.text.style.TextOverflow
 
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.ui.unit.sp
 
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -452,11 +454,35 @@ fun AdminMainScreen(
 
                 }
 
+                if (!isFullScreenRoster) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 16.dp)
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0F172A).copy(alpha = 0.95f))
+                            .border(1.5.dp, Color(0xFF06B6D4), CircleShape)
+                            .clickable { viewModel.openAssistant() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🤖", fontSize = 24.sp)
+                    }
+                }
+
             }
 
         }
 
     }
+
+    RosterXAssistantBottomSheet(
+        isOpen = state.isAssistantOpen,
+        onDismiss = { viewModel.closeAssistant() },
+        messages = state.assistantMessages,
+        isThinking = state.isAssistantThinking,
+        onSendMessage = { prompt -> viewModel.sendAssistantMessage(prompt) }
+    )
 
 }
 

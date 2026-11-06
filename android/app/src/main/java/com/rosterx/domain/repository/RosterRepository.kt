@@ -57,6 +57,7 @@ interface RosterRepository {
         sendInApp: Boolean = true
     ): Result<com.rosterx.data.remote.SendNotificationResponse>
     suspend fun dismissNotification(notificationId: String, dismissAll: Boolean = false): Result<Unit>
+    suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>? = null): Result<com.rosterx.data.remote.AssistantChatResponse>
 }
 
 

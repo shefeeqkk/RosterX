@@ -111,7 +111,7 @@ export class RosterAiAssistant {
 
     const widgetContainer = document.createElement('div');
     widgetContainer.id = 'floatingAiBotWidget';
-    widgetContainer.className = 'fixed bottom-20 md:bottom-5 right-4 md:right-5 z-50 flex flex-col items-end pointer-events-auto font-sans select-none';
+    widgetContainer.className = 'fixed bottom-28 md:bottom-5 right-4 md:right-5 z-50 flex flex-col items-end pointer-events-auto font-sans select-none';
 
     widgetContainer.innerHTML = `
       <style>
@@ -1587,56 +1587,38 @@ Rules:
     return { text, proposal };
   }
 
-  // --- General Q&A / Smart Solver Fallback with Multi-turn Context ---
+  // --- General Q&A / Server-Side Grounded Gemini RAG Operations Assistant ---
   async consultGeminiOrSmartSolver(query) {
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      return {
-        text: `I'm ready to assist! You can ask me commands like:\n- *"Prepare a roster for 24th of this month with minimum Day shift count as 3"*\n- *"Generate full month roster for November 2026"*\n- *"Audit fatigue violations"*\n\n*(Tip: Add your Gemini API key in Settings for full natural language reasoning!)*`
-      };
-    }
-
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const systemPrompt = `You are the RosterX Operations AI Assistant for 24/7 NOC Roster Management. Current Period: Month ${this.app.state.currentMonth}, Year ${this.app.state.currentYear}. Active team: ${this.app.state.engineersList.map(e => e.name).join(', ')}. Keep answers helpful, concise, and focused on shift rosters.`;
+      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('rosterx_auth_token')) || '';
+      const activeUser = (window.authService && window.authService.getCurrentUser()) || null;
+      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      // Build multi-turn context
-      const contents = [
-        { role: "user", parts: [{ text: systemPrompt }] },
-        { role: "model", parts: [{ text: "Understood! I am the RosterX Assistant with full active roster context." }] }
-      ];
-
-      // Include up to 6 recent messages
-      const recent = this.messages.slice(-6);
-      for (const m of recent) {
-        if (m.text) {
-          contents.push({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.text }]
-          });
-        }
-      }
-
-      contents.push({
-        role: "user",
-        parts: [{ text: query }]
-      });
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/chat/assistant', {
+        method: 'POST',
+        headers,
         body: JSON.stringify({
-          contents,
-          generationConfig: { temperature: 0.2 }
+          message: query,
+          current_user: activeUser,
+          platform: 'Web Admin Console'
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return { text };
+        if (data.success && data.reply) {
+          return { text: data.reply };
+        }
       }
-    } catch (e) {}
+    } catch (err) {
+      console.warn('[AI Assistant] Server RAG query failed, running smart local responder:', err);
+    }
+
+    return {
+      text: `### 🤖 RosterX Operations Assistant\n\nI can coordinate and analyze your NOC shift rosters live from MongoDB Atlas! Try asking:\n- *"Who all are in shift now?"*\n- *"When is my next night shift?"*\n- *"Prepare a roster for 24th with minimum Day shift count as 3"*\n- *"Audit fatigue violations"*`
+    };
+  }
 
     return {
       text: `I'm your RosterX AI assistant. Try asking: *"Prepare a roster for 24th with minimum Day shift count as 3"* to generate a live preview card with instant Apply!`

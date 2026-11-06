@@ -52,7 +52,7 @@ import {
 
 import { RosterAiEngine } from './rosterAiEngine.js';
 
-import { RosterAiAssistant } from './rosterAiAssistant.js';
+import { RosterAiAssistant } from './rosterAiAssistant.js?v=7.0';
 import { AtlasService } from './atlasService.js';
 import { ExcelService } from './excelService.js?v=3.2';
 import { KineticTiltController } from './kineticTilt.js';
@@ -827,15 +827,18 @@ class RosterXApp {
         this.renderAuditStream(userTel.recent_audit_log || []);
       }
 
-      this.renderTodayNocCoverageRadar();
+      await this.renderTodayNocCoverageRadar();
     } catch (e) {
       console.warn('Failed to refresh dashboard telemetry:', e);
     }
   }
 
-  renderTodayNocCoverageRadar() {
+  async renderTodayNocCoverageRadar() {
     const today = new Date();
     const todayDay = today.getDate();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth() + 1;
+    const todayPeriodKey = `${todayYear}-${String(todayMonth).padStart(2, '0')}`;
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -852,20 +855,41 @@ class RosterXApp {
 
     if (!fsContainer || !fgContainer || !ssContainer || !nsContainer || !offContainer) return;
 
+    let sourceRoster = [];
+    if (this.state.currentYear === todayYear && this.state.currentMonth === todayMonth && this.state.gridRoster && this.state.gridRoster.length > 0) {
+      this.state.todayRoster = this.state.gridRoster;
+      sourceRoster = this.state.gridRoster;
+    } else if (this.state.todayRoster && this.state.todayRoster.length > 0) {
+      sourceRoster = this.state.todayRoster;
+    } else {
+      // Explicitly load current month roster from MongoDB Atlas to guarantee zero synthetic or mismatched data
+      try {
+        const remoteDoc = await this.atlasService.getRoster(todayPeriodKey);
+        if (remoteDoc && remoteDoc.engineers && remoteDoc.engineers.length > 0) {
+          const totalDays = new Date(todayYear, todayMonth, 0).getDate();
+          this.state.todayRoster = remoteDoc.engineers.map(e => {
+            let shifts = e.shifts;
+            if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
+              shifts = shiftsMapToArray(shifts, totalDays);
+            }
+            return {
+              id: e.engineer_id || e.id,
+              name: e.name,
+              shifts: Array.isArray(shifts) ? [...shifts] : []
+            };
+          });
+          sourceRoster = this.state.todayRoster;
+        }
+      } catch (eRadar) {
+        console.warn('[CoverageRadar] Failed to fetch current month roster:', eRadar);
+      }
+    }
+
     const fsList = [];
     const fgList = [];
     const ssList = [];
     const nsList = [];
     const offList = [];
-
-    const todayYear = today.getFullYear();
-    const todayMonth = today.getMonth() + 1;
-    let sourceRoster = this.state.gridRoster || [];
-    if (this.state.currentYear === todayYear && this.state.currentMonth === todayMonth) {
-      this.state.todayRoster = this.state.gridRoster;
-    } else if (this.state.todayRoster && this.state.todayRoster.length > 0) {
-      sourceRoster = this.state.todayRoster;
-    }
 
     const dIdx = todayDay - 1;
     sourceRoster.forEach(eng => {
