@@ -819,130 +819,278 @@ fun EngineerPortalScreen(
 
 }
 
+data class PortalTimersData(
+    val shiftLabel: String,
+    val shiftTime: String,
+    val isShiftRunning: Boolean,
+    val restLabel: String,
+    val restValue: String
+)
 
-
-@Composable
-
-fun DashboardView(
-
-    state: PortalState,
-
-    onDismissNotification: (String) -> Unit = {},
-
-    onClearAllNotifications: () -> Unit = {}
-
-) {
-
-    val engineer = state.loggedInEngineer
-
-    val roster = getRosterForEngineer(state.liveRoster, engineer)
-
-    val today = LocalDate.now()
-
-    val tomorrow = today.plusDays(1)
-
-
-
+private fun computePortalTimers(
+    roster: Map<String, ShiftCode>,
+    today: LocalDate,
+    currentTimeSec: Long
+): PortalTimersData {
     val todayShift = roster[today.dayOfMonth.toString()]
+    val todayCode = todayShift?.code?.uppercase() ?: "OFF"
 
-    val tomorrowShift = roster[tomorrow.dayOfMonth.toString()]
+    data class ShiftWindow(val start: Long, val end: Long)
+    val windows = mapOf(
+        "FS" to ShiftWindow(27000L, 59400L),       // 07:30 - 16:30
+        "FG" to ShiftWindow(30600L, 63000L),       // 08:30 - 17:30
+        "G"  to ShiftWindow(34200L, 66600L),       // 09:30 - 18:30
+        "SG" to ShiftWindow(39600L, 72000L),       // 11:00 - 20:00
+        "SS" to ShiftWindow(46800L, 79200L),       // 13:00 - 22:00
+        "NS" to ShiftWindow(75600L, 113400L)       // 21:00 - 07:30 (+1)
+    )
 
-
-
-    var dayShiftsCount = 0
-
-    var nightShiftsCount = 0
-
-    var restDaysCount = 0
-
-
-
-    roster.values.forEach { shift ->
-
-        when (shift) {
-
-            is ShiftCode.NS -> nightShiftsCount++
-
-            is ShiftCode.OFF -> restDaysCount++
-
-            is ShiftCode.L -> restDaysCount++
-
-            else -> if (shift.code.startsWith("SW")) restDaysCount++ else dayShiftsCount++
-
-        }
-
+    fun formatDelta(sec: Long): String {
+        val safeSec = sec.coerceAtLeast(0)
+        val h = safeSec / 3600
+        val m = (safeSec % 3600) / 60
+        val s = safeSec % 60
+        return String.format(Locale.US, "%02dh %02dm %02ds", h, m, s)
     }
 
+    var shiftLabel = "Next Shift Starts in:"
+    var shiftTime = "No upcoming duty scheduled"
+    var isRunning = false
 
+    val w = windows[todayCode]
+    if (w != null) {
+        var adjCur = currentTimeSec
+        if (todayCode == "NS" && currentTimeSec < 27000L) {
+            adjCur += 86400L
+        }
+
+        if (adjCur in w.start until w.end) {
+            shiftLabel = "Shift Ends in:"
+            shiftTime = formatDelta(w.end - adjCur)
+            isRunning = true
+        } else if (adjCur < w.start) {
+            shiftLabel = "Duty Starts in:"
+            shiftTime = formatDelta(w.start - adjCur)
+        }
+    }
+
+    // If duty for today has finished or today is OFF, calculate time until next duty starts
+    if (shiftTime == "No upcoming duty scheduled" || (w != null && currentTimeSec >= w.end && todayCode != "NS")) {
+        var nextDutyCode: String? = null
+        var daysAhead = 0
+
+        for (d in (today.dayOfMonth + 1)..today.lengthOfMonth()) {
+            val candidate = roster[d.toString()]?.code?.uppercase() ?: ""
+            if (windows.containsKey(candidate)) {
+                nextDutyCode = candidate
+                daysAhead = d - today.dayOfMonth
+                break
+            }
+        }
+
+        if (nextDutyCode != null && windows.containsKey(nextDutyCode)) {
+            val nextWin = windows[nextDutyCode]!!
+            val secondsUntilMidnight = (86400L - currentTimeSec).coerceAtLeast(0)
+            val intermediateSeconds = (daysAhead - 1) * 86400L
+            val totalSec = secondsUntilMidnight + intermediateSeconds + nextWin.start
+            shiftLabel = "Next Shift Starts in:"
+            shiftTime = formatDelta(totalSec)
+        }
+    }
+
+    // Dynamic Upcoming Rest Day Calculation
+    val todayIsRest = todayCode == "OFF" || todayCode.startsWith("SW") || todayCode == "L"
+    var restLabel = "Next Rest Day:"
+    var restValue = "Scheduled Next Cycle"
+
+    if (todayIsRest) {
+        restLabel = "Rest Day:"
+        restValue = "Today (Full Rest)"
+    } else {
+        var restDaysAway: Int? = null
+        var restDateFormatted: String? = null
+
+        for (d in (today.dayOfMonth + 1)..today.lengthOfMonth()) {
+            val s = roster[d.toString()]?.code?.uppercase() ?: ""
+            if (s == "OFF" || s.startsWith("SW") || s == "L") {
+                restDaysAway = d - today.dayOfMonth
+                val dObj = today.withDayOfMonth(d)
+                val dFmt = dObj.format(DateTimeFormatter.ofPattern("EEE, MMM dd"))
+                restDateFormatted = dFmt
+                break
+            }
+        }
+
+        if (restDaysAway == 1) {
+            restLabel = "Next Rest Day:"
+            restValue = "Tomorrow ($restDateFormatted)"
+        } else if (restDaysAway == 2) {
+            restLabel = "Next Rest Day:"
+            restValue = "In 2 Days ($restDateFormatted)"
+        } else if (restDaysAway != null) {
+            restLabel = "Next Rest Day:"
+            restValue = "In $restDaysAway Days ($restDateFormatted)"
+        }
+    }
+
+    return PortalTimersData(
+        shiftLabel = shiftLabel,
+        shiftTime = shiftTime,
+        isShiftRunning = isRunning,
+        restLabel = restLabel,
+        restValue = restValue
+    )
+}
+
+@Composable
+fun DashboardView(
+    state: PortalState,
+    onDismissNotification: (String) -> Unit = {},
+    onClearAllNotifications: () -> Unit = {}
+) {
+    val engineer = state.loggedInEngineer
+    val roster = getRosterForEngineer(state.liveRoster, engineer)
+    val today = LocalDate.now()
+    val tomorrow = today.plusDays(1)
+
+    var currentTimeSec by remember {
+        mutableStateOf(java.time.LocalTime.now().toSecondOfDay().toLong())
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000L)
+            currentTimeSec = java.time.LocalTime.now().toSecondOfDay().toLong()
+        }
+    }
+
+    val timers = remember(roster, today, currentTimeSec) {
+        computePortalTimers(roster, today, currentTimeSec)
+    }
+
+    val todayShift = roster[today.dayOfMonth.toString()]
+    val tomorrowShift = roster[tomorrow.dayOfMonth.toString()]
+
+    var dayShiftsCount = 0
+    var nightShiftsCount = 0
+    var restDaysCount = 0
+
+    roster.values.forEach { shift ->
+        when (shift) {
+            is ShiftCode.NS -> nightShiftsCount++
+            is ShiftCode.OFF -> restDaysCount++
+            is ShiftCode.L -> restDaysCount++
+            else -> if (shift.code.startsWith("SW")) restDaysCount++ else dayShiftsCount++
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
         // Hero Welcome Banner
-
         item {
-
             NeumorphicCard(
-
                 modifier = Modifier.fillMaxWidth(),
-
                 shape = RoundedCornerShape(24.dp),
-
                 style = NeumorphicElevationStyle.Raised,
-
                 surfaceColor = NeumorphicTokens.Surface,
-
                 contentPadding = 20.dp
-
             ) {
-
                 Column {
-
                     Text(
-
                         text = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
-
                         color = NeumorphicTokens.AccentSalmon,
-
                         fontSize = 12.sp,
-
                         fontWeight = FontWeight.Bold
-
                     )
-
                     Spacer(modifier = Modifier.height(6.dp))
-
                     Text(
-
                         text = "Welcome, ${engineer?.name ?: "Engineer"}! \uD83D\uDC4B",
-
                         fontSize = 22.sp,
-
                         fontWeight = FontWeight.ExtraBold,
-
                         color = NeumorphicTokens.TextMain
-
                     )
-
                     Spacer(modifier = Modifier.height(4.dp))
-
                     Text(
-
-                        text = "24/7 operational shift overview and live verified team duty briefing.",
-
+                        text = "Operational shift overview and live verified team duty briefing.",
                         fontSize = 13.sp,
-
                         color = NeumorphicTokens.TextMuted
-
                     )
 
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Shift Timer Badge
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (timers.isShiftRunning) Color(0xFF06B6D4).copy(alpha = 0.12f) else NeumorphicTokens.SurfaceContrast,
+                            border = BorderStroke(1.dp, if (timers.isShiftRunning) Color(0xFF06B6D4) else Color(0xFFCBD5E1).copy(alpha = 0.6f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = null,
+                                    tint = if (timers.isShiftRunning) Color(0xFF0891B2) else NeumorphicTokens.StatusCyan,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = timers.shiftLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = NeumorphicTokens.TextMuted
+                                )
+                                Text(
+                                    text = timers.shiftTime,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (timers.isShiftRunning) Color(0xFF0891B2) else NeumorphicTokens.TextMain
+                                )
+                            }
+                        }
+
+                        // Upcoming Rest Day Badge
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFEF3C7).copy(alpha = 0.35f),
+                            border = BorderStroke(1.dp, Color(0xFFFCD34D).copy(alpha = 0.8f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.WbSunny,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = timers.restLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFB45309)
+                                )
+                                Text(
+                                    text = timers.restValue,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF92400E)
+                                )
+                            }
+                        }
+                    }
                 }
-
             }
-
         }
 
 
@@ -1021,7 +1169,7 @@ fun DashboardView(
 
                     metrics = listOf("Weekly Offs" to restDaysCount),
 
-                    bottomText = "Strict fatigue compliance",
+                    bottomText = "${timers.restLabel} ${timers.restValue}",
 
                     accentColor = Color(0xFFF59E0B),
 

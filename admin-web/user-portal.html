@@ -653,26 +653,28 @@
   <!-- ============================================================== -->
   <!-- DESKTOP TOP NAVIGATION DOCK (> 1024px) -->
   <!-- ============================================================== -->
-  <nav class="hidden md:flex bg-white/95 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 px-6 py-2.5 items-center justify-between no-print shadow-xs sticky top-[57px] z-30 backdrop-blur-md">
-    <div class="flex items-center gap-2 overflow-x-auto py-1">
-      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-cyan-600 text-white cursor-pointer" data-tab="my_schedule">
-        <i class="ph ph-calendar-check text-base"></i> My Schedule
-      </button>
-      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="team_handover">
-        <i class="ph ph-users-three text-base"></i> Desk Handover & Team View
-      </button>
-      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="request_swap">
-        <i class="ph ph-arrows-left-right text-base"></i> Request Shift Swap
-      </button>
-      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="monthly_overview">
-        <i class="ph ph-chart-donut text-base"></i> Monthly Overview
-      </button>
-    </div>
-    <div class="flex items-center gap-3 text-xs font-mono text-slate-600 dark:text-slate-400">
-      <span class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
-        <span id="userPortalStatusBadge">Atlas Connected</span>
-      </span>
+  <nav class="hidden md:flex bg-white/95 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 py-2 items-center no-print shadow-xs sticky top-[57px] z-30 backdrop-blur-md">
+    <div class="max-w-7xl w-full mx-auto flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-cyan-600 text-white cursor-pointer" data-tab="my_schedule">
+          <i class="ph ph-calendar-check text-base"></i> My Schedule
+        </button>
+        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="team_handover">
+          <i class="ph ph-users-three text-base"></i> Desk Handover & Team View
+        </button>
+        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="request_swap">
+          <i class="ph ph-arrows-left-right text-base"></i> Request Shift Swap
+        </button>
+        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="monthly_overview">
+          <i class="ph ph-chart-donut text-base"></i> Monthly Overview
+        </button>
+      </div>
+      <div class="flex items-center gap-3 text-xs font-mono text-slate-600 dark:text-slate-400 shrink-0">
+        <span class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
+          <span id="userPortalStatusBadge">Atlas Connected</span>
+        </span>
+      </div>
     </div>
   </nav>
 
@@ -728,10 +730,20 @@
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Operational shift overview and live verified team duty briefing.
             </p>
-            <div id="shiftCountdownBox" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-mono shadow-xs">
-              <i class="ph ph-timer text-cyan-600 dark:text-cyan-400 text-sm"></i>
-              <span id="shiftCountdownLabel" class="text-slate-500 dark:text-slate-400">Next Shift Starts in:</span>
-              <span id="shiftCountdownTime" class="font-bold text-cyan-700 dark:text-cyan-300 tracking-wide">Calculating...</span>
+            <div class="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
+              <!-- Shift Countdown Box -->
+              <div id="shiftCountdownBox" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-mono shadow-xs">
+                <i class="ph ph-timer text-cyan-600 dark:text-cyan-400 text-sm"></i>
+                <span id="shiftCountdownLabel" class="text-slate-500 dark:text-slate-400">Next Shift Starts in:</span>
+                <span id="shiftCountdownTime" class="font-bold text-cyan-700 dark:text-cyan-300 tracking-wide">Calculating...</span>
+              </div>
+
+              <!-- Upcoming Rest Day Notice Box -->
+              <div id="restDayNoticeBox" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/60 text-xs text-amber-800 dark:text-amber-300 font-mono shadow-xs">
+                <i class="ph ph-sun-horizon text-amber-600 dark:text-amber-400 text-sm"></i>
+                <span id="restDayNoticeLabel" class="text-slate-500 dark:text-slate-400">Next Rest Day:</span>
+                <span id="restDayNoticeValue" class="font-bold text-amber-700 dark:text-amber-300 tracking-wide">Calculating...</span>
+              </div>
             </div>
           </div>
 
@@ -827,8 +839,8 @@
               <div id="metricOffCount" class="text-2xl font-black text-amber-600 dark:text-amber-400">0</div>
             </div>
           </div>
-          <div class="text-[11px] text-slate-600 dark:text-slate-400 text-center mt-2">
-            Strict fatigue compliance enabled
+          <div id="cardUpcomingRestDay" class="text-[11px] text-amber-700 dark:text-amber-400 font-semibold text-center mt-2">
+            Next Rest Day: Calculating...
           </div>
         </div>
 

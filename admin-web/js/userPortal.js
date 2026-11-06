@@ -2647,6 +2647,10 @@ export class UserPortalController {
       return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
     };
 
+    let shiftLabel = 'Next Shift Starts in:';
+    let shiftTime = 'No upcoming duty scheduled';
+    let shiftTimeClass = 'font-bold text-slate-400 tracking-wide';
+
     if (windows[code]) {
       const w = windows[code];
       let adjCur = curTotalSec;
@@ -2655,48 +2659,93 @@ export class UserPortalController {
       }
 
       if (adjCur >= w.start && adjCur < w.end) {
-        if (labelEl) labelEl.textContent = 'Shift Handover in:';
-        timeEl.textContent = formatDelta(w.end - adjCur);
-        timeEl.className = 'font-bold text-cyan-300 tracking-wide';
-        return;
+        shiftLabel = 'Shift Ends in:';
+        shiftTime = formatDelta(w.end - adjCur);
+        shiftTimeClass = 'font-bold text-cyan-700 dark:text-cyan-300 tracking-wide';
       } else if (adjCur < w.start) {
-        if (labelEl) labelEl.textContent = 'Duty Starts in:';
-        timeEl.textContent = formatDelta(w.start - adjCur);
-        timeEl.className = 'font-bold text-amber-300 tracking-wide';
-        return;
+        shiftLabel = 'Duty Starts in:';
+        shiftTime = formatDelta(w.start - adjCur);
+        shiftTimeClass = 'font-bold text-amber-700 dark:text-amber-300 tracking-wide';
       }
     }
 
-    // Today's shift has ended OR today is OFF / Leave:
-    // Dynamically calculate time until the NEXT scheduled duty shift starts
     const shifts = (myRow && myRow.shifts) || [];
-    let nextDutyCode = null;
-    let daysAhead = 0;
 
-    for (let idx = todayNum; idx < shifts.length; idx++) {
-      const candidate = String(shifts[idx] || '').trim().toUpperCase();
-      if (windows[candidate]) {
-        nextDutyCode = candidate;
-        daysAhead = (idx - todayNum) + 1; // 1 = tomorrow, 2 = day after tomorrow, etc.
-        break;
+    // If duty for today has completed or today is OFF/Leave, find time until next duty starts
+    if (shiftTime === 'No upcoming duty scheduled' || (windows[code] && curTotalSec >= windows[code].end && code !== 'NS')) {
+      let nextDutyCode = null;
+      let daysAhead = 0;
+
+      for (let idx = todayNum; idx < shifts.length; idx++) {
+        const candidate = String(shifts[idx] || '').trim().toUpperCase();
+        if (windows[candidate]) {
+          nextDutyCode = candidate;
+          daysAhead = (idx - todayNum) + 1; // 1 = tomorrow, 2 = day after tomorrow, etc.
+          break;
+        }
+      }
+
+      if (nextDutyCode && windows[nextDutyCode]) {
+        const secondsUntilMidnight = Math.max(0, 24 * 3600 - curTotalSec);
+        const intermediateDaysSeconds = (daysAhead - 1) * 24 * 3600;
+        const nextShiftStartSeconds = windows[nextDutyCode].start;
+        const totalSecUntilNextDuty = secondsUntilMidnight + intermediateDaysSeconds + nextShiftStartSeconds;
+
+        shiftLabel = 'Next Shift Starts in:';
+        shiftTime = formatDelta(totalSecUntilNextDuty);
+        shiftTimeClass = 'font-bold text-cyan-700 dark:text-cyan-300 tracking-wide';
       }
     }
 
-    if (nextDutyCode && windows[nextDutyCode]) {
-      const secondsUntilMidnight = Math.max(0, 24 * 3600 - curTotalSec);
-      const intermediateDaysSeconds = (daysAhead - 1) * 24 * 3600;
-      const nextShiftStartSeconds = windows[nextDutyCode].start;
-      const totalSecUntilNextDuty = secondsUntilMidnight + intermediateDaysSeconds + nextShiftStartSeconds;
-
-      if (labelEl) labelEl.textContent = 'Next Shift Starts in:';
-      timeEl.textContent = formatDelta(totalSecUntilNextDuty);
-      timeEl.className = 'font-bold text-cyan-300 tracking-wide';
-      return;
+    if (labelEl) labelEl.textContent = shiftLabel;
+    if (timeEl) {
+      timeEl.textContent = shiftTime;
+      timeEl.className = shiftTimeClass;
     }
 
-    if (labelEl) labelEl.textContent = 'Next Shift Starts in:';
-    timeEl.textContent = 'No upcoming duty scheduled';
-    timeEl.className = 'font-bold text-slate-400 tracking-wide';
+    // --- Dynamic Upcoming Rest Day Calculation (Item 5) ---
+    const restNoticeLabelEl = document.getElementById('restDayNoticeLabel');
+    const restNoticeValEl = document.getElementById('restDayNoticeValue');
+    const cardRestDayEl = document.getElementById('cardUpcomingRestDay');
+
+    const todayShiftCode = (shifts[todayNum - 1] || '').trim().toUpperCase();
+    let restLabel = 'Next Rest Day:';
+    let restValue = 'Scheduled Next Cycle';
+
+    if (todayShiftCode === 'OFF' || todayShiftCode.startsWith('OFF') || todayShiftCode === 'L') {
+      restLabel = 'Rest Day:';
+      restValue = 'Today (Full Rest)';
+    } else {
+      let restDaysAway = null;
+      let restDateFormatted = null;
+
+      for (let idx = todayNum; idx < shifts.length; idx++) {
+        const s = String(shifts[idx] || '').trim().toUpperCase();
+        if (s === 'OFF' || s.startsWith('OFF') || s === 'L') {
+          restDaysAway = (idx - todayNum) + 1; // 1 = tomorrow, 2 = day after tomorrow
+          const d = new Date(now.getFullYear(), now.getMonth(), idx + 1);
+          const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+          const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+          restDateFormatted = `${dayName}, ${monthName} ${idx + 1}`;
+          break;
+        }
+      }
+
+      if (restDaysAway === 1) {
+        restLabel = 'Next Rest Day:';
+        restValue = `Tomorrow (${restDateFormatted})`;
+      } else if (restDaysAway === 2) {
+        restLabel = 'Next Rest Day:';
+        restValue = `In 2 Days (${restDateFormatted})`;
+      } else if (restDaysAway !== null) {
+        restLabel = 'Next Rest Day:';
+        restValue = `In ${restDaysAway} Days (${restDateFormatted})`;
+      }
+    }
+
+    if (restNoticeLabelEl) restNoticeLabelEl.textContent = restLabel;
+    if (restNoticeValEl) restNoticeValEl.textContent = restValue;
+    if (cardRestDayEl) cardRestDayEl.textContent = `${restLabel} ${restValue}`;
   }
 
   // ==============================================================

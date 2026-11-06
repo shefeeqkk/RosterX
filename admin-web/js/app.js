@@ -637,6 +637,9 @@ class RosterXApp {
         this.updateShiftFilterUI();
         this.runRuleAudit();
         this.refreshDashboardTelemetry();
+        if (this.activeTab === 'team') {
+          this.renderTeamTab();
+        }
       } catch (err) {
         console.warn('Atlas background sync error:', err);
       }
@@ -1085,14 +1088,24 @@ class RosterXApp {
     });
   }
 
+  escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   renderTeamTab() {
     const list = document.getElementById('tabTeamDirectoryList');
     if (!list) return;
     const engineers = this.state.engineersList || [];
     if (engineers.length === 0) {
       list.innerHTML = `
-        <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
-          <i class="ph ph-users text-2xl mb-1 text-slate-300 block"></i>
+        <div class="p-6 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+          <i class="ph ph-users text-2xl mb-1 text-slate-300 dark:text-slate-600 block"></i>
           No Registered Engineers Found
         </div>
       `;
@@ -1101,27 +1114,33 @@ class RosterXApp {
     list.innerHTML = '';
     engineers.forEach(eng => {
       const card = document.createElement('div');
-      card.className = 'flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-300 transition text-xs flex-wrap gap-2';
-      const roleColor = eng.role === 'admin' ? 'bg-purple-100 text-purple-800 border-purple-300' : (eng.role === 'manager' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : 'bg-blue-100 text-blue-800 border-blue-300');
-      const statusColor = eng.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300';
+      card.className = 'flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 transition text-xs flex-wrap gap-2';
+      const roleColor = eng.role === 'admin' 
+        ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700' 
+        : (eng.role === 'manager' 
+            ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700' 
+            : 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700');
+      const statusColor = eng.status === 'Active' 
+        ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' 
+        : 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700';
       const offs = Array.isArray(eng.default_weekly_offs) ? eng.default_weekly_offs.join(', ') : 'Sat, Sun';
       card.innerHTML = `
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-black flex items-center justify-center text-xs">
-            ${(eng.name || 'E').substring(0, 2).toUpperCase()}
+          <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-black flex items-center justify-center text-xs">
+            ${this.escapeHtml((eng.name || 'E').substring(0, 2).toUpperCase())}
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-900 text-sm">${this.escapeHtml(eng.name)}</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleColor} uppercase">${eng.role || 'engineer'}</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}">${eng.status || 'Active'}</span>
+              <span class="font-bold text-slate-900 dark:text-white text-sm">${this.escapeHtml(eng.name)}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleColor} uppercase">${this.escapeHtml(eng.role || 'engineer')}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}">${this.escapeHtml(eng.status || 'Active')}</span>
             </div>
-            <div class="text-[11px] text-slate-500 font-mono">@${this.escapeHtml(eng.username || eng.name?.toLowerCase().replace(/\\s+/g, '') || '')} • Weekly Offs: ${this.escapeHtml(offs)}</div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">@${this.escapeHtml(eng.username || eng.name?.toLowerCase().replace(/\\s+/g, '') || '')} • Weekly Offs: ${this.escapeHtml(offs)}</div>
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button class="btn-edit-eng-tab px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-xs transition" data-id="${eng.id}">
-            <i class="ph ph-pencil-simple text-blue-600"></i> Edit Profile
+          <button class="btn-edit-eng-tab px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 cursor-pointer shadow-xs transition" data-id="${this.escapeHtml(eng.id)}">
+            <i class="ph ph-pencil-simple text-blue-600 dark:text-blue-400"></i> Edit Profile
           </button>
         </div>
       `;
