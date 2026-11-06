@@ -226,14 +226,10 @@ export class ExcelService {
           rowValues.push(code);
 
           if (!isTemplate) {
-            if (code === 'OFF' || (code && code.startsWith('SW'))) {
-              off++;
-            } else if (code === 'NS') {
-              ns++;
-              wrk++;
-            } else if (code !== 'L' && code !== '') {
-              wrk++;
-            }
+            const sClean = (code || '').trim().toUpperCase();
+            if (['FS', 'FG', 'G', 'SG', 'SS', 'NS'].includes(sClean)) wrk++;
+            if (sClean === 'NS') ns++;
+            if (sClean === 'OFF' || sClean === 'L' || sClean.startsWith('SW')) off++;
           }
         }
 
@@ -450,9 +446,10 @@ export class ExcelService {
           }
           row.push(code);
           if (!isTemplate) {
-            if (code === 'OFF' || (code && code.startsWith('SW'))) off++;
-            else if (code === 'NS') { ns++; wrk++; }
-            else if (code !== 'L' && code !== '') wrk++;
+            const sClean = (code || '').trim().toUpperCase();
+            if (['FS', 'FG', 'G', 'SG', 'SS', 'NS'].includes(sClean)) wrk++;
+            if (sClean === 'NS') ns++;
+            if (sClean === 'OFF' || sClean === 'L' || sClean.startsWith('SW')) off++;
           }
         }
         row.push(isTemplate ? '' : wrk, isTemplate ? '' : ns, isTemplate ? '' : off, eng.status || 'Active');

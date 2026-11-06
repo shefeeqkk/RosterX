@@ -3243,26 +3243,19 @@ class RosterXApp {
 
 
 
-        // Stats calculation: only count populated shifts
-
-        if (shift === 'OFF' || shift.startsWith('SW')) {
-
-          totalOff++;
-
-        } else if (shift === 'NS') {
-
+        // Stats calculation as per NOC operational standards:
+        // - Working consists of FS, FG, G, SG, SS, NS
+        // - Night only counts NS
+        // - OFF counts OFF, L and all SW* offs
+        const sClean = (shift || '').trim().toUpperCase();
+        if (['FS', 'FG', 'G', 'SG', 'SS', 'NS'].includes(sClean)) {
+          totalWorking++;
+        }
+        if (sClean === 'NS') {
           totalNight++;
-
-          totalWorking++;
-
-        } else if (shift === 'L') {
-
-          // Leave day
-
-        } else if (shift) {
-
-          totalWorking++;
-
+        }
+        if (sClean === 'OFF' || sClean === 'L' || sClean.startsWith('SW')) {
+          totalOff++;
         }
 
       }
@@ -3451,7 +3444,7 @@ class RosterXApp {
 
           dayCell.className = `cell-box flex items-center justify-center border-r border-slate-300 font-black text-sm ${
 
-            dayCount < minDayStaff ? 'bg-amber-100 text-amber-900 font-black' : 'text-emerald-800'
+            dayCount < minDayStaff ? 'bg-amber-100 text-amber-900 font-black' : 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300'
 
           }`;
 
@@ -3479,7 +3472,7 @@ class RosterXApp {
 
         } else {
 
-          let nsClass = 'text-slate-900 font-black text-sm';
+          let nsClass = 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-300 font-black text-sm';
 
           if (nsCount === 0) {
 

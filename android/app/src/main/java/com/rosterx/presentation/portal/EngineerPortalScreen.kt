@@ -2903,16 +2903,15 @@ fun MonthRosterView(
 
                                         
 
-                                        // Calculate stats
-
+                                        // Calculate stats as per NOC operational standards:
+                                        // - Working consists of FS, FG, G, SG, SS, NS
+                                        // - Night only counts NS
+                                        // - OFF counts OFF, L and all SW* offs
                                         if (shift != null) {
-
-                                            if (shift.code == "NS") nsCount++
-
-                                            else if (shift.code == "OFF" || shift.code == "CO" || shift.code == "AL" || shift.code == "SL" || shift.code == "ML") offCount++
-
-                                            else if (shift.code.isNotEmpty()) wrkCount++
-
+                                            val c = shift.code.trim().uppercase()
+                                            if (c in listOf("FS", "FG", "G", "SG", "SS", "NS")) wrkCount++
+                                            if (c == "NS") nsCount++
+                                            if (c == "OFF" || c == "L" || c.startsWith("SW") || c == "CO" || c == "AL" || c == "SL" || c == "ML") offCount++
                                         }
 
 
@@ -3169,9 +3168,9 @@ fun MonthRosterView(
 
                                             val dayMet = dVal >= minDayStaff
 
-                                            val dayTextColor = if (dayMet) Color(0xFF047857) else Color(0xFFB45309)
+                                            val dayTextColor = if (dayMet) Color(0xFF0369A1) else Color(0xFFB45309)
 
-                                            val dayBgColor = if (dayMet) Color(0xFFD1FAE5) else Color(0xFFFEF3C7)
+                                            val dayBgColor = if (dayMet) Color(0xFFE0F2FE) else Color(0xFFFEF3C7)
 
 
 
@@ -3313,7 +3312,7 @@ fun MonthRosterView(
 
                                                 nVal != targetNight -> Pair(Color(0xFFB45309), Color(0xFFFEF3C7)) // Over/under warning
 
-                                                else -> Pair(Color(0xFF047857), Color(0xFFD1FAE5)) // Target met
+                                                else -> Pair(Color(0xFF4338CA), Color(0xFFEEF2FF)) // Target met (Soft Indigo)
 
                                             }
 

@@ -1585,9 +1585,9 @@ fun MonthRostersTab(
 
                                 val dayMet = dVal >= minDayStaff
 
-                                val dayTextColor = if (dayMet) Color(0xFF047857) else Color(0xFFB45309)
+                                val dayTextColor = if (dayMet) Color(0xFF0369A1) else Color(0xFFB45309)
 
-                                val dayBgColor = if (dayMet) Color(0xFFD1FAE5) else Color(0xFFFEF3C7)
+                                val dayBgColor = if (dayMet) Color(0xFFE0F2FE) else Color(0xFFFEF3C7)
 
 
 
@@ -1729,7 +1729,7 @@ fun MonthRostersTab(
 
                                     nVal != targetNight -> Pair(Color(0xFFB45309), Color(0xFFFEF3C7))
 
-                                    else -> Pair(Color(0xFF047857), Color(0xFFD1FAE5))
+                                    else -> Pair(Color(0xFF4338CA), Color(0xFFEEF2FF)) // Target met (Soft Indigo)
 
                                 }
 

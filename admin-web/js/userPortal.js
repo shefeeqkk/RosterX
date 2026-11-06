@@ -1663,11 +1663,10 @@ export class UserPortalController {
 
 
 
-        if (code === 'NS') nsCount++;
-
-        else if (isOffCategory(code)) offCount++;
-
-        else if (code) wrkCount++;
+        const sClean = (code || '').trim().toUpperCase();
+        if (['FS', 'FG', 'G', 'SG', 'SS', 'NS'].includes(sClean)) wrkCount++;
+        if (sClean === 'NS') nsCount++;
+        if (sClean === 'OFF' || sClean === 'L' || sClean.startsWith('SW')) offCount++;
 
 
 

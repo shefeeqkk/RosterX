@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.14.10"
+SERVER_VERSION = "1.14.11"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1080,11 +1080,12 @@ def build_roster_grounding_context(current_user=None):
     user_details = None
     if current_user:
         u_name = (current_user.get("name") or current_user.get("full_name") or "").strip().lower()
-        u_id = (current_user.get("id") or current_user.get("username") or "").strip().lower()
+        u_id = str(current_user.get("id") or current_user.get("username") or "").strip().lower()
         for r in normalized_roster:
             r_name = r["name"].strip().lower()
             r_id = str(r["id"] or "").strip().lower()
-            if (u_id and r_id == u_id) or (u_name and r_name == u_name) or (u_name and u_name in r_name) or (u_id and u_id in r_id):
+            if (u_id and (r_id == u_id or u_id in r_id or r_id in u_id)) or \
+               (u_name and (r_name == u_name or u_name in r_name or r_name in u_name)):
                 s_today = r["shifts"][cur_day - 1] if len(r["shifts"]) >= cur_day else "OFF"
                 s_tom = r["shifts"][tomorrow_day - 1] if len(r["shifts"]) >= tomorrow_day else "OFF"
                 
@@ -1103,7 +1104,8 @@ def build_roster_grounding_context(current_user=None):
                     "tomorrow_shift": s_tom,
                     "next_night_shift": next_ns or "None scheduled this month",
                     "total_duty_days": duty_count,
-                    "total_off_days": off_count
+                    "total_off_days": off_count,
+                    "shifts": r["shifts"]
                 }
                 break
 
@@ -1113,15 +1115,23 @@ def build_roster_grounding_context(current_user=None):
     m, s = divmod(rem, 60)
     uptime_str = f"{h}h {m}m {s}s"
 
+    import calendar
+    _, days_in_month = calendar.monthrange(cur_year, cur_month)
+
     return {
         "ist_timestamp": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
         "date": now_ist.strftime("%Y-%m-%d"),
         "day_of_week": now_ist.strftime("%A"),
+        "cur_day": cur_day,
+        "cur_month": cur_month,
+        "cur_year": cur_year,
+        "days_in_month": days_in_month,
         "current_month_key": cur_month_key,
         "active_shift_slots": active_shift_codes,
         "on_duty_engineers": on_duty_now,
         "today_desk_coverage": today_all,
         "tomorrow_schedule": tomorrow_all,
+        "normalized_roster": normalized_roster,
         "current_user_profile": user_details,
         "uptime": uptime_str,
         "total_engineers_in_roster": len(normalized_roster)
@@ -1129,104 +1139,192 @@ def build_roster_grounding_context(current_user=None):
 
 def execute_deterministic_roster_ai(prompt, context, current_user=None):
     """
-    High-reliability grounded fallback when Gemini API encounters quota limits or network partitions.
-    Answers strictly based on live MongoDB Atlas truth.
+    High-reliability grounded AI engine answering strictly based on live MongoDB Atlas truth.
+    Provides brief, concise (1-2 sentences), direct, and 100% accurate answers.
     """
+    import datetime
+    import calendar
     p = prompt.strip().lower()
     ist_time = context.get('ist_timestamp', '')
     cur_date = context.get('date', '')
-    day_name = context.get('day_of_week', '')
-    month_key = context.get('current_month_key', '')
-    
-    # 1. Who is on shift now / who all are in shift
-    if any(k in p for k in ["who is on shift", "who all are in shift", "who is on duty", "who is working now", "current shift", "shift now"]):
-        slots = context.get("active_shift_slots", [])
-        on_duty = context.get("on_duty_engineers", [])
-        if not on_duty:
-            return f"### 🕒 NOC Real-Time Duty Briefing ({ist_time})\n\n" \
-                   f"**Active Shift Windows:** `{', '.join(slots) if slots else 'Desk Transition Window'}`\n\n" \
-                   f"Currently, no engineers are active in these specific slots for today's published roster. Handover may be in progress."
-        
-        lines = [f"### 🕒 Active NOC Duty Coverage ({ist_time})\n",
-                 f"**Current Active Shift Windows:** `{', '.join(slots)}`\n",
-                 f"**Engineers Currently On Duty ({len(on_duty)} Staff):**"]
-        for eng in on_duty:
-            s_code = eng['shift']
-            timing = eng.get('timings', '')
-            lines.append(f"- **{eng['name']}** — `{s_code}` ({timing})")
-        lines.append(f"\n*Data grounded in real-time MongoDB Atlas roster for {cur_date} ({day_name}).*")
-        return "\n".join(lines)
+    cur_day = context.get('cur_day', 1)
+    cur_month = context.get('cur_month', 11)
+    cur_year = context.get('cur_year', 2026)
+    days_in_month = context.get('days_in_month', 30)
+    month_name = datetime.date(cur_year, cur_month, 1).strftime('%B %Y')
+    roster = context.get('normalized_roster', [])
+    profile = context.get('current_user_profile')
 
-    # 2. When is my next night shift
-    if any(k in p for k in ["next night shift", "next night duty", "next ns", "when is my night"]):
-        profile = context.get("current_user_profile")
-        if profile and profile.get("next_night_shift"):
-            ns_val = profile["next_night_shift"]
-            if ns_val.startswith("None"):
-                return f"### 🌙 Night Duty Query\n\nAccording to the published operational roster for **{month_key}**, you have **no upcoming Night Shifts (NS)** scheduled for the remainder of this month."
-            return f"### 🌙 Your Next Night Duty\n\n" \
-                   f"- **Assigned Engineer:** **{profile['matched_engineer']}**\n" \
-                   f"- **Next Night Shift (NS):** **{ns_val}** (21:00 – 07:30 IST)\n" \
-                   f"- **Operational Compliance:** Mandatory 48-hour rest interval applies immediately post-completion.\n\n" \
-                   f"*Grounded in live Atlas roster records.*"
-        else:
+    # 1. Identify target engineer
+    target_eng = None
+    target_eng_name = None
+    for eng in roster:
+        eng_n = eng['name'].lower()
+        parts = [part for part in eng_n.split() if len(part) >= 3]
+        if eng_n in p or any(part in p for part in parts):
+            target_eng = eng
+            target_eng_name = eng['name']
+            break
+
+    # If no specific engineer matched, fall back to current user profile
+    if not target_eng and profile and profile.get('matched_engineer'):
+        target_eng_name = profile['matched_engineer']
+        for eng in roster:
+            if eng['name'].lower() == target_eng_name.lower():
+                target_eng = eng
+                break
+
+    is_self = (not target_eng or (profile and target_eng_name and target_eng_name.lower() == profile.get('matched_engineer', '').lower()))
+
+    # 2. Identify shift code from query
+    target_shift = None
+    target_shift_label = None
+    if "second general" in p or re.search(r'\b(sg)\b', p):
+        target_shift = "SG"
+        target_shift_label = "Second General (SG)"
+    elif "first general" in p or re.search(r'\b(fg)\b', p):
+        target_shift = "FG"
+        target_shift_label = "First General (FG)"
+    elif "first shift" in p or re.search(r'\b(fs)\b', p):
+        target_shift = "FS"
+        target_shift_label = "First Shift (FS)"
+    elif "second shift" in p or re.search(r'\b(ss)\b', p):
+        target_shift = "SS"
+        target_shift_label = "Second Shift (SS)"
+    elif "night shift" in p or "night duty" in p or re.search(r'\b(ns|night)\b', p):
+        target_shift = "NS"
+        target_shift_label = "Night Shift (NS)"
+    elif "general shift" in p or (re.search(r'\bg\b', p) and "second" not in p and "first" not in p):
+        target_shift = "G"
+        target_shift_label = "General Shift (G)"
+    elif any(k in p for k in ["weekly off", "rest day", "off day", "day off", "next off"]):
+        target_shift = "OFF"
+        target_shift_label = "Rest Day (OFF)"
+    elif "leave" in p or re.search(r'\b(leave|l)\b', p):
+        target_shift = "L"
+        target_shift_label = "Approved Leave (L)"
+
+    # Helper: format date
+    def fmt_day(d):
+        try:
+            dt = datetime.date(cur_year, cur_month, d)
+            return dt.strftime("%A, %b %d")
+        except Exception:
+            return f"Day {d}"
+
+    def fmt_day_short(d):
+        try:
+            dt = datetime.date(cur_year, cur_month, d)
+            return dt.strftime("%b %d")
+        except Exception:
+            return f"Day {d}"
+
+    # INTENT A: Query for a specific shift occurrence (e.g. "when is my second general shift", "when is my next NS", "when is Atul on night")
+    is_who_query = any(w in p for w in ["who is", "who are", "who's", "who all", "who "]) or p.startswith("who") or "covering" in p
+    has_date_intent = any(k in p for k in ["when", "next", "which date", "what date", "have"]) or bool(re.search(r'\bon\b', p))
+    if target_shift and has_date_intent and not is_who_query:
+        if target_eng and target_eng.get("shifts"):
+            shifts = target_eng["shifts"]
+            subject = "Your" if is_self else f"**{target_eng_name}**'s"
+            timings = SHIFT_DEFINITIONS.get(target_shift, {}).get("timings", "")
+            time_str = f" ({timings} IST)" if timings and target_shift not in ("OFF", "L") else ""
+
+            # Check if today is the target shift
+            is_today = False
+            if len(shifts) >= cur_day:
+                cur_code = (shifts[cur_day - 1] or "").strip().upper()
+                if target_shift == "OFF":
+                    is_today = (cur_code in ("OFF", "L") or cur_code.startswith("SW"))
+                else:
+                    is_today = (cur_code == target_shift)
+
+            # Find upcoming occurrences from tomorrow onwards
+            upcoming = []
+            for d in range(cur_day + 1, min(len(shifts) + 1, days_in_month + 1)):
+                code = (shifts[d - 1] or "").strip().upper()
+                match = (code in ("OFF", "L") or code.startswith("SW")) if target_shift == "OFF" else (code == target_shift)
+                if match:
+                    upcoming.append(d)
+
+            if is_today:
+                if upcoming:
+                    next_dt = fmt_day_short(upcoming[0])
+                    return f"{subject} **{target_shift_label}** is **today, {fmt_day(cur_day)}**{time_str}. The next one is on **{next_dt}**."
+                else:
+                    return f"{subject} **{target_shift_label}** is **today, {fmt_day(cur_day)}**{time_str}."
+            elif upcoming:
+                first_d = upcoming[0]
+                diff = first_d - cur_day
+                rel = "tomorrow" if diff == 1 else f"in {diff} days"
+                extra = f" (also on {', '.join(fmt_day_short(x) for x in upcoming[1:3])})" if len(upcoming) > 1 else ""
+                return f"{subject} next **{target_shift_label}** is on **{fmt_day(first_d)}** ({rel}){time_str}{extra}."
+            else:
+                return f"{subject} has no upcoming **{target_shift_label}** scheduled for the rest of {month_name}."
+
+        elif target_shift == "NS":
+            # NS query when user not resolved
             ns_engineers = [e['name'] for e in context.get('today_desk_coverage', []) if e['shift'] == 'NS']
             ns_str = ", ".join(ns_engineers) if ns_engineers else "None assigned"
-            return f"### 🌙 Tonight's Night Duty Roster ({cur_date})\n\n" \
-                   f"- **Assigned Night Desk (NS):** **{ns_str}** (21:00 – 07:30 IST)\n" \
-                   f"*(If inquiring about your personal upcoming night duty, please ensure you are logged into your engineer account.)*"
+            return f"Tonight's Night Shift (**NS**): **{ns_str}** (21:00 – 07:30 IST)."
 
-    # 3. What is my shift today / tomorrow
-    if any(k in p for k in ["my shift today", "my shift tomorrow", "what is my shift", "my duties", "my schedule"]):
-        profile = context.get("current_user_profile")
-        if profile:
-            s_today = profile['today_shift']
-            s_tom = profile['tomorrow_shift']
-            t_def_today = SHIFT_DEFINITIONS.get(s_today, {})
-            t_def_tom = SHIFT_DEFINITIONS.get(s_tom, {})
-            return f"### 📋 Personal Shift Briefing — {profile['matched_engineer']}\n\n" \
-                   f"- **Today's Duty ({cur_date}):** **`{s_today}`** ({t_def_today.get('name', 'Duty')}) — `{t_def_today.get('timings', '')}`\n" \
-                   f"- **Tomorrow's Duty:** **`{s_tom}`** ({t_def_tom.get('name', 'Duty')}) — `{t_def_tom.get('timings', '')}`\n" \
-                   f"- **Monthly Summary:** **{profile['total_duty_days']}** Assigned Shifts • **{profile['total_off_days']}** Weekly Offs\n\n" \
-                   f"*Status verified live against MongoDB Atlas roster.*"
-        else:
-            cov = [f"- **{e['name']}**: `{e['shift']}`" for e in context.get('today_desk_coverage', [])[:6]]
-            return f"### 📋 Today's Desk Schedule ({cur_date})\n\n" + "\n".join(cov) + "\n\n*(Sign in to view your personalized duty profile).* "
+    # INTENT B: Who is on shift now / who all are in shift now / who is working now
+    if any(k in p for k in ["who is on shift", "who all are in shift", "who is on duty", "who is working now", "current shift", "shift now"]):
+        on_duty = context.get("on_duty_engineers", [])
+        time_display = ist_time.split()[1][:5] if " " in ist_time else "now"
+        if not on_duty:
+            slots = context.get("active_shift_slots", [])
+            return f"Currently no engineers are scheduled in active shift windows ({', '.join(slots) if slots else 'Desk transition'})."
+        
+        staff_str = ", ".join([f"**{e['name']}** (`{e['shift']}`)" for e in on_duty])
+        return f"Currently on duty ({time_display} IST): {staff_str}."
 
-    # 4. Night shift inquiry
-    if any(k in p for k in ["night shift", "night duty", "who is on night"]):
-        ns_engineers = [e['name'] for e in context.get('today_desk_coverage', []) if e['shift'] == 'NS']
-        tom_ns = [e['name'] for e in context.get('tomorrow_schedule', []) if e['shift'] == 'NS']
-        return f"### 🌙 24/7 Night Duty Roster\n\n" \
-               f"- **Tonight's NS ({cur_date}):** **{', '.join(ns_engineers) if ns_engineers else 'None assigned'}** (21:00 – 07:30 IST)\n" \
-               f"- **Tomorrow's NS:** **{', '.join(tom_ns) if tom_ns else 'None assigned'}**\n" \
-               f"- **Desk Policy:** Strict 1 NS per night cap and mandatory 48h rest applies after every night rotation."
+    # INTENT C: Who is on night shift / night duty tonight
+    if any(k in p for k in ["who is on night", "night duty tonight", "tonight's night", "night shift tonight", "covering night", "who has night", "who covers night"]):
+        ns_today = [e['name'] for e in context.get('today_desk_coverage', []) if e['shift'] == 'NS']
+        ns_tom = [e['name'] for e in context.get('tomorrow_schedule', []) if e['shift'] == 'NS']
+        reply = f"Tonight's Night Shift (**NS**): **{', '.join(ns_today) if ns_today else 'None assigned'}** (21:00 – 07:30 IST)."
+        if ns_tom:
+            reply += f" Tomorrow: **{', '.join(ns_tom)}**."
+        return reply
 
-    # 5. Off days inquiry
-    if any(k in p for k in ["off day", "how many off", "weekly off", "leaves"]):
-        profile = context.get("current_user_profile")
-        if profile:
-            return f"### 🏖️ Scheduled Rest & Weekly Offs\n\n" \
-                   f"- **Engineer:** **{profile['matched_engineer']}**\n" \
-                   f"- **Total Scheduled Offs:** **{profile['total_off_days']} days** in {month_key}\n" \
-                   f"- **Total Operational Duties:** **{profile['total_duty_days']} days**\n" \
-                   f"- **Fatigue Policy:** Minimum 24h rest window enforced between rotations."
-        else:
-            return f"### 🏖️ RosterX Rest Policy\n\n" \
-                   f"Engineers receive standard weekly offs and mandatory 48h rest following night shift completions. Sign in to view your exact monthly off count."
+    # INTENT D: What is my / engineer's shift today or tomorrow
+    if any(k in p for k in ["my shift", "my duty", "what shift", "shift today", "shift tomorrow", "schedule today", "today and tomorrow"]):
+        if target_eng and target_eng.get("shifts"):
+            shifts = target_eng["shifts"]
+            subject = "Your" if is_self else f"**{target_eng_name}**'s"
+            s_today = (shifts[cur_day - 1] or "OFF").strip().upper() if len(shifts) >= cur_day else "OFF"
+            s_tom = (shifts[cur_day] or "OFF").strip().upper() if len(shifts) > cur_day else "OFF"
+            t_today = SHIFT_DEFINITIONS.get(s_today, {})
+            t_tom = SHIFT_DEFINITIONS.get(s_tom, {})
 
-    # 6. Default Grounded Operational Summary
-    on_duty_names = [f"**{e['name']}** (`{e['shift']}`)" for e in context.get("on_duty_engineers", [])]
-    return f"### 🤖 RosterX Operations Assistant\n\n" \
-           f"**Live System Status ({ist_time}):**\n" \
-           f"- **Host Uptime:** {context.get('uptime', 'Active')} • **Atlas DB:** Connected\n" \
-           f"- **Active Shift Slots:** `{', '.join(context.get('active_shift_slots', []))}`\n" \
-           f"- **Staff Currently On Duty:** {', '.join(on_duty_names) if on_duty_names else 'No active desk staff'}\n\n" \
-           f"You can ask me:\n" \
-           f"- *\"Who all are in shift now?\"*\n" \
-           f"- *\"When is my next night shift?\"*\n" \
-           f"- *\"What is my shift today and tomorrow?\"*\n" \
-           f"- *\"Who is covering night duty tonight?\"*"
+            if "tomorrow" in p and "today" not in p:
+                return f"{subject} shift tomorrow (**{fmt_day_short(cur_day + 1)}**) is **`{s_tom}`** ({t_today.get('name', s_tom)}, {t_tom.get('timings', '')})."
+            if "today" in p and "tomorrow" not in p:
+                return f"{subject} shift today (**{fmt_day(cur_day)}**) is **`{s_today}`** ({t_today.get('name', s_today)}, {t_today.get('timings', '')})."
+            return f"Today (**{fmt_day_short(cur_day)}**): **`{s_today}`** ({t_today.get('name', s_today)}, {t_today.get('timings', '')}).\nTomorrow (**{fmt_day_short(cur_day + 1)}**): **`{s_tom}`** ({t_tom.get('name', s_tom)}, {t_tom.get('timings', '')})."
+
+    # INTENT E: Off days count / schedule
+    if any(k in p for k in ["off day", "how many off", "weekly off", "my leaves", "rest days"]):
+        if target_eng and target_eng.get("shifts"):
+            shifts = target_eng["shifts"]
+            subject = "You have" if is_self else f"**{target_eng_name}** has"
+            off_count = sum(1 for s in shifts if (s or "").strip().upper() in ("OFF", "L") or (s or "").strip().upper().startswith("SW"))
+            ns_count = sum(1 for s in shifts if (s or "").strip().upper() == "NS")
+            duty_count = len(shifts) - off_count
+            return f"{subject} **{duty_count} operational duties** ({ns_count} Night Shifts) and **{off_count} scheduled rest days (OFF)** in {month_name}."
+
+    # INTENT F: Explicit system status / telemetry request
+    if any(k in p for k in ["system status", "server status", "uptime", "telemetry", "atlas db"]):
+        on_duty_names = [f"**{e['name']}** (`{e['shift']}`)" for e in context.get("on_duty_engineers", [])]
+        return f"**System Status ({ist_time}):**\n• Uptime: {context.get('uptime', 'Active')} • Atlas DB: Connected\n• Active Slots: `{', '.join(context.get('active_shift_slots', []))}`\n• Staff On Duty: {', '.join(on_duty_names) if on_duty_names else 'None'}."
+
+    # INTENT G: Friendly greeting (using word boundaries to avoid matching 'hi' inside 'shift')
+    if re.search(r'\b(hi|hello|hey|good\s+morning|good\s+evening|namaste)\b', p):
+        name_str = f" {profile['matched_engineer']}" if profile and profile.get('matched_engineer') else ""
+        return f"Hello{name_str}! I'm your RosterX Assistant. Ask me about your upcoming shifts, next night duty, weekly offs, or current desk coverage."
+
+    # INTENT H: Concise Fallback
+    return "I can help with shift timings, upcoming duties, night shifts, and NOC desk coverage. Ask me questions like:\n• *\"When is my second general shift?\"*\n• *\"Who is on shift now?\"*\n• *\"What is my shift tomorrow?\"*"
 
 def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="Web Portal"):
     """
@@ -1256,7 +1354,7 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         "   - Night Shift: NS (21:00 – 07:30, +1 day, solo desk coverage)\n"
         "   - No Duty: OFF, L, SW* (Weekly Off, Approved Leave, Swapped Off)\n"
         "4. Format your responses with clean, professional Markdown (bullet points, bold highlights, code formatting for shift codes).\n"
-        "5. Be concise, direct, helpful, and courteous."
+        "5. Keep all responses very brief, concise, and direct (1 to 2 sentences maximum). Do not output headers, telemetry dumps, or system status unless specifically requested."
     )
 
     grounding_payload_text = (
@@ -1267,6 +1365,7 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         f"- Engineers On Duty Right Now: {json.dumps(context['on_duty_engineers'])}\n"
         f"- Today's Desk Coverage: {json.dumps(context['today_desk_coverage'])}\n"
         f"- Tomorrow's Scheduled Coverage: {json.dumps(context['tomorrow_schedule'])}\n"
+        f"- Monthly Published Roster (All Engineers & Shifts): {json.dumps(context.get('normalized_roster', []))}\n"
         f"- Current User Profile: {json.dumps(context['current_user_profile'])}\n"
         f"- System Uptime: {context['uptime']}\n\n"
         f"User Query: {user_prompt}"
