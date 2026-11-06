@@ -5,7 +5,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg_neumorphic"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:paddingLeft="12dp"
+    android:paddingTop="12dp"
+    android:paddingRight="12dp"
+    android:paddingBottom="12dp">
 
     <!-- Header: RosterX Logo, App Name, and Logged-in User -->
     <LinearLayout
@@ -19,22 +22,18 @@
             android:layout_height="22dp"
             android:contentDescription="@string/app_name"
             android:scaleType="fitCenter"
-            android:src="@drawable/ic_rosterx_logo" />
+            android:src="@drawable/ic_rosterx_widget_logo" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
             android:fontFamily="sans-serif-black"
             android:text="RosterX"
             android:textColor="@color/widget_text_main"
             android:textSize="13sp"
             android:textStyle="bold" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
 
         <TextView
             android:id="@+id/widget_engineer_name"
@@ -65,7 +64,10 @@
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:paddingLeft="8dp"
+            android:paddingTop="8dp"
+            android:paddingRight="8dp"
+            android:paddingBottom="8dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -90,8 +92,10 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/widget_shift_badge"
                     android:fontFamily="sans-serif-black"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="2dp"
+                    android:paddingLeft="6dp"
+                    android:paddingTop="2dp"
+                    android:paddingRight="6dp"
+                    android:paddingBottom="2dp"
                     android:text="--"
                     android:textColor="#0F172A"
                     android:textSize="10sp"
@@ -133,7 +137,10 @@
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:paddingLeft="8dp"
+            android:paddingTop="8dp"
+            android:paddingRight="8dp"
+            android:paddingBottom="8dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -158,8 +165,10 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/widget_shift_badge"
                     android:fontFamily="sans-serif-black"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="2dp"
+                    android:paddingLeft="6dp"
+                    android:paddingTop="2dp"
+                    android:paddingRight="6dp"
+                    android:paddingBottom="2dp"
                     android:text="--"
                     android:textColor="#0F172A"
                     android:textSize="10sp"
@@ -208,8 +217,10 @@
             android:background="@drawable/widget_pill_timer"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="9dp"
-            android:paddingVertical="5dp">
+            android:paddingLeft="9dp"
+            android:paddingTop="5dp"
+            android:paddingRight="9dp"
+            android:paddingBottom="5dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -239,8 +250,10 @@
             android:background="@drawable/widget_pill_rest"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="9dp"
-            android:paddingVertical="5dp">
+            android:paddingLeft="9dp"
+            android:paddingTop="5dp"
+            android:paddingRight="9dp"
+            android:paddingBottom="5dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -263,4 +276,3 @@
     </LinearLayout>
 
 </LinearLayout>
-
