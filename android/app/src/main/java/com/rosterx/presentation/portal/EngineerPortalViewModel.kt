@@ -14,6 +14,8 @@ import com.rosterx.domain.model.ShiftCode
 
 import com.rosterx.domain.repository.RosterRepository
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,7 +98,9 @@ class EngineerPortalViewModel @Inject constructor(
 
     private val repository: RosterRepository,
 
-    private val sessionManager: UserSessionManager
+    private val sessionManager: UserSessionManager,
+
+    @ApplicationContext private val context: Context
 
 ) : ViewModel() {
 
@@ -274,6 +278,27 @@ class EngineerPortalViewModel @Inject constructor(
                 dismissedNotificationIds = savedDismissed,
                 isConnected = engineersResult.isSuccess
             )
+
+            // Auto-sync Home Screen App Widget with latest duty assignments
+            val currentEng = _state.value.loggedInEngineer
+            if (currentEng != null) {
+                val effectiveLive = if (liveRosterResult.isSuccess) liveRosterMap else (rosterCache[liveMonthKey] ?: emptyMap())
+                val engShifts = effectiveLive[currentEng.username]
+                    ?: effectiveLive[currentEng.id]
+                    ?: effectiveLive[currentEng.name]
+                    ?: effectiveLive[currentEng.name.uppercase()]
+                    ?: effectiveLive[currentEng.name.lowercase()]
+                    ?: emptyMap()
+                if (engShifts.isNotEmpty()) {
+                    val stringMap = engShifts.mapValues { it.value.code }
+                    com.rosterx.widget.RosterXAppWidgetProvider.saveWidgetData(
+                        context,
+                        currentEng.name,
+                        stringMap,
+                        liveMonthKey
+                    )
+                }
+            }
 
             if (engineersResult.isFailure) {
                 _state.value = _state.value.copy(

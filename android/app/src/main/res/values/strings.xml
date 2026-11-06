@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">RosterX</string>
+    <string name="widget_name">RosterX Duty &amp; Shifts</string>
+    <string name="widget_description">Live view of Today &amp; Tomorrow shifts, duty countdown timer, and upcoming rest day.</string>
 </resources>

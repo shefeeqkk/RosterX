@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- RosterX Neumorphic App Widget Colors (Dark Theme Baseline) -->
+    <color name="widget_surface">#FF1E293B</color>
+    <color name="widget_border">#FF334155</color>
+    <color name="widget_text_main">#FFF8FAFC</color>
+    <color name="widget_text_muted">#FF94A3B8</color>
+    <color name="widget_inner_surface">#FF0F172A</color>
+    <color name="widget_inner_border">#FF1E293B</color>
+    <color name="widget_timer_bg">#FF082F49</color>
+    <color name="widget_timer_border">#FF0369A1</color>
+    <color name="widget_timer_text">#FF38BDF8</color>
+    <color name="widget_rest_bg">#FF451A03</color>
+    <color name="widget_rest_border">#FF92400E</color>
+    <color name="widget_rest_text">#FFFCD34D</color>
+    <color name="widget_brand">#FF38BDF8</color>
+</resources>
+

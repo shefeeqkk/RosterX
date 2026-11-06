@@ -8,4 +8,19 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="ic_launcher_background_color">#FFFFFFFF</color>
+
+    <!-- RosterX Neumorphic App Widget Colors (Light Theme Baseline) -->
+    <color name="widget_surface">#FFEEF2F6</color>
+    <color name="widget_border">#FFCBD5E1</color>
+    <color name="widget_text_main">#FF0F172A</color>
+    <color name="widget_text_muted">#FF64748B</color>
+    <color name="widget_inner_surface">#FFFFFFFF</color>
+    <color name="widget_inner_border">#FFE2E8F0</color>
+    <color name="widget_timer_bg">#FFE0F2FE</color>
+    <color name="widget_timer_border">#FF7DD3FC</color>
+    <color name="widget_timer_text">#FF0369A1</color>
+    <color name="widget_rest_bg">#FFFEF3C7</color>
+    <color name="widget_rest_border">#FFFCD34D</color>
+    <color name="widget_rest_text">#FF92400E</color>
+    <color name="widget_brand">#FF0284C7</color>
 </resources>

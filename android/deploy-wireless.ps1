@@ -45,3 +45,4 @@ Write-Host "`n🚀 Launching RosterX on device..." -ForegroundColor Green
 adb shell am start -n com.rosterx/.MainActivity
 
 Write-Host "`n✅ Deployed & launched successfully on your phone!" -ForegroundColor Green
+
