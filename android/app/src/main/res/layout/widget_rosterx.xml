@@ -5,10 +5,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg_neumorphic"
     android:orientation="vertical"
-    android:paddingLeft="12dp"
-    android:paddingTop="12dp"
-    android:paddingRight="12dp"
-    android:paddingBottom="12dp">
+    android:paddingLeft="10dp"
+    android:paddingTop="8dp"
+    android:paddingRight="10dp"
+    android:paddingBottom="8dp">
 
     <!-- Header: RosterX Logo, App Name, and Logged-in User -->
     <LinearLayout
@@ -18,8 +18,8 @@
         android:orientation="horizontal">
 
         <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:contentDescription="@string/app_name"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_rosterx_widget_logo" />
@@ -27,7 +27,7 @@
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="7dp"
             android:layout_weight="1"
             android:fontFamily="sans-serif-black"
             android:text="RosterX"
@@ -51,7 +51,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="5dp"
         android:baselineAligned="false"
         android:orientation="horizontal">
 
@@ -60,14 +60,14 @@
             android:id="@+id/widget_today_card"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="3dp"
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
             android:orientation="vertical"
-            android:paddingLeft="8dp"
-            android:paddingTop="8dp"
-            android:paddingRight="8dp"
-            android:paddingBottom="8dp">
+            android:paddingLeft="6dp"
+            android:paddingTop="6dp"
+            android:paddingRight="6dp"
+            android:paddingBottom="6dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -80,10 +80,13 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:ellipsize="end"
                     android:fontFamily="sans-serif-black"
+                    android:maxLines="1"
+                    android:singleLine="true"
                     android:text="TODAY"
                     android:textColor="@color/widget_text_muted"
-                    android:textSize="10sp"
+                    android:textSize="9.5sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -92,13 +95,13 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/widget_shift_badge"
                     android:fontFamily="sans-serif-black"
-                    android:paddingLeft="6dp"
-                    android:paddingTop="2dp"
-                    android:paddingRight="6dp"
-                    android:paddingBottom="2dp"
+                    android:paddingLeft="5dp"
+                    android:paddingTop="1dp"
+                    android:paddingRight="5dp"
+                    android:paddingBottom="1dp"
                     android:text="--"
                     android:textColor="#0F172A"
-                    android:textSize="10sp"
+                    android:textSize="9sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -106,13 +109,14 @@
                 android:id="@+id/widget_today_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-bold"
                 android:maxLines="1"
+                android:singleLine="true"
                 android:text="Loading..."
                 android:textColor="@color/widget_text_main"
-                android:textSize="12sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -123,9 +127,10 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
+                android:singleLine="true"
                 android:text="--:-- AM – --:-- PM"
                 android:textColor="@color/widget_text_muted"
-                android:textSize="10sp" />
+                android:textSize="9sp" />
         </LinearLayout>
 
         <!-- Tomorrow's Shift Card -->
@@ -133,14 +138,14 @@
             android:id="@+id/widget_tomorrow_card"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="3dp"
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
             android:orientation="vertical"
-            android:paddingLeft="8dp"
-            android:paddingTop="8dp"
-            android:paddingRight="8dp"
-            android:paddingBottom="8dp">
+            android:paddingLeft="6dp"
+            android:paddingTop="6dp"
+            android:paddingRight="6dp"
+            android:paddingBottom="6dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -153,10 +158,13 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:ellipsize="end"
                     android:fontFamily="sans-serif-black"
+                    android:maxLines="1"
+                    android:singleLine="true"
                     android:text="TOMORROW"
                     android:textColor="@color/widget_text_muted"
-                    android:textSize="10sp"
+                    android:textSize="9.5sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -165,13 +173,13 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/widget_shift_badge"
                     android:fontFamily="sans-serif-black"
-                    android:paddingLeft="6dp"
-                    android:paddingTop="2dp"
-                    android:paddingRight="6dp"
-                    android:paddingBottom="2dp"
+                    android:paddingLeft="5dp"
+                    android:paddingTop="1dp"
+                    android:paddingRight="5dp"
+                    android:paddingBottom="1dp"
                     android:text="--"
                     android:textColor="#0F172A"
-                    android:textSize="10sp"
+                    android:textSize="9sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -179,13 +187,14 @@
                 android:id="@+id/widget_tomorrow_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-bold"
                 android:maxLines="1"
+                android:singleLine="true"
                 android:text="Loading..."
                 android:textColor="@color/widget_text_main"
-                android:textSize="12sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -196,9 +205,10 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
+                android:singleLine="true"
                 android:text="--:-- AM – --:-- PM"
                 android:textColor="@color/widget_text_muted"
-                android:textSize="10sp" />
+                android:textSize="9sp" />
         </LinearLayout>
     </LinearLayout>
 
@@ -206,7 +216,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="5dp"
         android:orientation="vertical">
 
         <!-- Shift Timer Pill -->
@@ -217,16 +227,16 @@
             android:background="@drawable/widget_pill_timer"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingLeft="9dp"
-            android:paddingTop="5dp"
-            android:paddingRight="9dp"
-            android:paddingBottom="5dp">
+            android:paddingLeft="8dp"
+            android:paddingTop="3.5dp"
+            android:paddingRight="8dp"
+            android:paddingBottom="3.5dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="⏱ "
-                android:textSize="11sp" />
+                android:textSize="10sp" />
 
             <TextView
                 android:id="@+id/widget_timer_text"
@@ -235,9 +245,10 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
+                android:singleLine="true"
                 android:text="Calculating duty status..."
                 android:textColor="@color/widget_timer_text"
-                android:textSize="11sp"
+                android:textSize="10.5sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -246,20 +257,20 @@
             android:id="@+id/widget_rest_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="3dp"
             android:background="@drawable/widget_pill_rest"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingLeft="9dp"
-            android:paddingTop="5dp"
-            android:paddingRight="9dp"
-            android:paddingBottom="5dp">
+            android:paddingLeft="8dp"
+            android:paddingTop="3.5dp"
+            android:paddingRight="8dp"
+            android:paddingBottom="3.5dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🏖 "
-                android:textSize="11sp" />
+                android:textSize="10sp" />
 
             <TextView
                 android:id="@+id/widget_rest_text"
@@ -268,9 +279,10 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
+                android:singleLine="true"
                 android:text="Calculating upcoming rest..."
                 android:textColor="@color/widget_rest_text"
-                android:textSize="11sp"
+                android:textSize="10.5sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>

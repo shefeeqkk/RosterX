@@ -1,5 +1,6 @@
 package com.rosterx.widget
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -7,6 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.os.Bundle
 import android.util.Log
 import android.widget.RemoteViews
 import com.google.gson.Gson
@@ -16,6 +18,7 @@ import com.rosterx.R
 import com.rosterx.domain.model.Engineer
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -70,6 +73,16 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        updateWidget(context, appWidgetManager, appWidgetId)
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_UPDATE_WIDGET || intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
@@ -87,6 +100,11 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
     private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
         try {
             val views = RemoteViews(context.packageName, R.layout.widget_rosterx)
+
+            // Detect widget dimensions for responsive layout adaptation
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val minWidth = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 0
+            val isCompact = minWidth in 1..210
 
             // 1. PendingIntent: Launch MainActivity on widget click
             val launchIntent = Intent(context, MainActivity::class.java).apply {
@@ -172,8 +190,9 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             val todayMeta = resolveMeta(todayCode)
             val tomorrowMeta = resolveMeta(tomorrowCode)
 
-            // Today Card
-            views.setTextViewText(R.id.widget_today_title, "TODAY (${today.format(DateTimeFormatter.ofPattern("MMM dd"))})")
+            // Today Card (responsive titles to prevent multi-line wrap on narrow 2x2 widgets)
+            val todayTitleStr = if (isCompact) "TODAY (${String.format(Locale.US, "%02d", todayNum)})" else "TODAY (${today.format(DateTimeFormatter.ofPattern("MMM dd"))})"
+            views.setTextViewText(R.id.widget_today_title, todayTitleStr)
             views.setTextViewText(R.id.widget_today_badge, todayCode)
             views.setInt(R.id.widget_today_badge, "setBackgroundColor", Color.parseColor(todayMeta.bg))
             views.setTextColor(R.id.widget_today_badge, Color.parseColor(todayMeta.text))
@@ -181,7 +200,8 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_today_timing, todayMeta.timing)
 
             // Tomorrow Card
-            views.setTextViewText(R.id.widget_tomorrow_title, "TOMORROW (${tomorrow.format(DateTimeFormatter.ofPattern("MMM dd"))})")
+            val tmrwTitleStr = if (isCompact) "TMRW (${String.format(Locale.US, "%02d", tomorrowNum)})" else "TOMORROW (${tomorrow.format(DateTimeFormatter.ofPattern("MMM dd"))})"
+            views.setTextViewText(R.id.widget_tomorrow_title, tmrwTitleStr)
             views.setTextViewText(R.id.widget_tomorrow_badge, tomorrowCode)
             views.setInt(R.id.widget_tomorrow_badge, "setBackgroundColor", Color.parseColor(tomorrowMeta.bg))
             views.setTextColor(R.id.widget_tomorrow_badge, Color.parseColor(tomorrowMeta.text))
@@ -201,6 +221,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
 
             var shiftTimerText = "No upcoming duty scheduled"
             val activeWindow = shiftRegistry[todayCode]
+            var nextAlarmEpochMillis: Long? = null
 
             if (activeWindow != null && activeWindow.endSec > 0) {
                 var adjCur = curSec
@@ -209,9 +230,15 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 }
 
                 if (adjCur in activeWindow.startSec until activeWindow.endSec) {
-                    shiftTimerText = "Shift Ends in: ${formatDelta(activeWindow.endSec - adjCur)}"
+                    val remainingSec = activeWindow.endSec - adjCur
+                    shiftTimerText = "Shift Ends in: ${formatDelta(remainingSec)}"
+                    // Schedule alarm right when shift ends
+                    nextAlarmEpochMillis = System.currentTimeMillis() + (remainingSec * 1000L)
                 } else if (adjCur < activeWindow.startSec) {
-                    shiftTimerText = "Duty Starts in: ${formatDelta(activeWindow.startSec - adjCur)}"
+                    val untilStartSec = activeWindow.startSec - adjCur
+                    shiftTimerText = "Duty Starts in: ${formatDelta(untilStartSec)}"
+                    // Schedule alarm right when shift begins
+                    nextAlarmEpochMillis = System.currentTimeMillis() + (untilStartSec * 1000L)
                 }
             }
 
@@ -240,10 +267,10 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
 
             // 5. Dynamic Upcoming Rest Day Calculation
             val todayIsRest = todayCode == "OFF" || todayCode.startsWith("SW") || todayCode == "L"
-            var restDayText = "Next Rest Day: Scheduled Next Cycle"
+            var restDayText = if (isCompact) "Next Rest: Next Cycle" else "Next Rest Day: Scheduled Next Cycle"
 
             if (todayIsRest) {
-                restDayText = "Rest Day: Today"
+                restDayText = if (isCompact) "Rest: Today" else "Rest Day: Today"
             } else {
                 var restDaysAway: Int? = null
                 var restDateFmt: String? = null
@@ -259,18 +286,41 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 }
 
                 if (restDaysAway == 1) {
-                    restDayText = "Next Rest Day: Tomorrow ($restDateFmt)"
+                    restDayText = if (isCompact) "Next Rest: Tomorrow" else "Next Rest Day: Tomorrow ($restDateFmt)"
                 } else if (restDaysAway == 2) {
-                    restDayText = "Next Rest Day: In 2 Days ($restDateFmt)"
+                    restDayText = if (isCompact) "Next Rest: In 2 Days" else "Next Rest Day: In 2 Days ($restDateFmt)"
                 } else if (restDaysAway != null) {
-                    restDayText = "Next Rest Day: In $restDaysAway Days ($restDateFmt)"
+                    restDayText = if (isCompact) "Next Rest: In $restDaysAway Days" else "Next Rest Day: In $restDaysAway Days ($restDateFmt)"
                 }
             }
             views.setTextViewText(R.id.widget_rest_text, restDayText)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
+
+            // 6. Schedule transition alarm when applicable
+            if (nextAlarmEpochMillis != null && nextAlarmEpochMillis > System.currentTimeMillis()) {
+                scheduleAlarm(context, nextAlarmEpochMillis)
+            }
         } catch (e: Throwable) {
             Log.e(TAG, "Fatal error inside updateWidget for id $appWidgetId", e)
+        }
+    }
+
+    private fun scheduleAlarm(context: Context, epochMillis: Long) {
+        try {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            val intent = Intent(context, RosterXAppWidgetProvider::class.java).apply {
+                action = ACTION_UPDATE_WIDGET
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                9999,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC, epochMillis, pendingIntent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not schedule transition alarm", e)
         }
     }
 }
