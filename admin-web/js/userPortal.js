@@ -142,7 +142,7 @@ export class UserPortalController {
 
     // If still no roster, populate optimistic baseline from directory
     if (!this.liveState.roster || this.liveState.roster.length === 0) {
-      const active = this.engineersList.filter(e => e.status !== 'Resigned' && e.role !== 'admin' && e.role !== 'manager');
+      const active = this.engineersList.filter(e => e.status !== 'Resigned' && !this.isPureMgmt(e));
       this.liveState.roster = active.map(e => ({
         id: e.id,
         name: e.name,
@@ -444,7 +444,7 @@ export class UserPortalController {
 
     if (!loaded) {
 
-      const active = this.engineersList.filter(e => e.status !== 'Resigned' && e.role !== 'admin' && e.role !== 'manager');
+      const active = this.engineersList.filter(e => e.status !== 'Resigned' && !this.isPureMgmt(e));
 
       loaded = active.map(e => ({
 
@@ -634,7 +634,7 @@ export class UserPortalController {
 
     if (!loaded) {
 
-      const active = this.engineersList.filter(e => e.status !== 'Resigned' && e.role !== 'admin' && e.role !== 'manager');
+      const active = this.engineersList.filter(e => e.status !== 'Resigned' && !this.isPureMgmt(e));
 
       loaded = active.map(e => ({
 
@@ -662,37 +662,74 @@ export class UserPortalController {
 
 
 
+  isPureMgmt(e) {
+    if (!e) return false;
+    const u = String(e.username || e.id || '').trim().toLowerCase();
+    const n = String(e.name || '').trim().toLowerCase();
+    const r = String(e.role || '').trim().toLowerCase();
+    if (u === 'shefeeqkk' || u === 'shefeeq' || n === 'shefeeq' || u === 'athulka') return false;
+    return u === 'admin' || u === 'manager' || r === 'manager' || (r === 'admin' && u === 'admin');
+  }
+
   /**
-
    * Match current logged in user to an engineer in the roster
-
    */
-
   matchCurrentUserToEngineer() {
     const u = this.currentUser;
     if (!u) return;
 
-    const uName = (u.name || '').trim().toUpperCase();
-    const uFull = (u.full_name || '').trim().toUpperCase();
-    const uUser = (u.username || '').trim().toUpperCase();
-    const uId = u.engineerId || u.id;
+    const uName = String(u.name || '').trim().toUpperCase();
+    const uFull = String(u.full_name || '').trim().toUpperCase();
+    const uUser = String(u.username || '').trim().toUpperCase();
+    const uId = String(u.engineerId || u.id || '').trim().toUpperCase();
 
     const pool = (this.liveState.roster && this.liveState.roster.length > 0)
       ? this.liveState.roster
       : (this.engineersList || []);
 
-    let match = pool.find(e =>
-      (uId && (e.id === uId)) ||
-      (e.name && e.name.trim().toUpperCase() === uName) ||
-      (e.name && uFull && e.name.trim().toUpperCase() === uFull) ||
-      (e.name && e.name.trim().toUpperCase().includes(uUser))
-    );
+    let match = pool.find(e => {
+      const eName = String(e.name || '').trim().toUpperCase();
+      const eFull = String(e.full_name || '').trim().toUpperCase();
+      const eUser = String(e.username || '').trim().toUpperCase();
+      const eId = String(e.id || e.engineer_id || '').trim().toUpperCase();
 
-    if (!match && u.role === 'admin') {
+      return (uId && eId && (eId === uId || eId.includes(uId))) ||
+             (uName && eName && (eName === uName || eName.includes(uName) || uName.includes(eName))) ||
+             (uFull && eName && (eName === uFull || uFull.includes(eName) || eName.includes(uFull))) ||
+             (uUser && eUser && eUser === uUser) ||
+             (uUser && eName && (eName.includes(uUser) || uUser.includes(eName.toLowerCase())));
+    });
+
+    if (!match && this.engineersList && this.engineersList.length > 0) {
+      match = this.engineersList.find(e => {
+        const eName = String(e.name || '').trim().toUpperCase();
+        const eFull = String(e.full_name || '').trim().toUpperCase();
+        const eUser = String(e.username || '').trim().toUpperCase();
+        return (uName && eName && (eName === uName || eName.includes(uName))) ||
+               (uUser && eUser && eUser === uUser) ||
+               (uFull && eFull && (eFull === uFull || eFull.includes(uFull)));
+      });
+    }
+
+    if (!match && (u.role === 'admin' || uUser === 'ADMIN')) {
+      // Pure system administrator fallback only
       match = pool.find(e => e.name && e.name.toUpperCase().includes('SHEFEEQ')) || pool[0];
     }
 
-    this.matchedEngineer = match || pool[0] || null;
+    if (!match) {
+      // NEVER assign another person's identity to the logged-in engineer!
+      match = {
+        id: uId || `eng_${uUser.toLowerCase() || 'user'}`,
+        name: u.name || u.full_name || u.username || 'Engineer',
+        username: u.username || '',
+        shifts: new Array(this.liveState.totalDays).fill(''),
+        status: 'Active',
+        role: u.role || 'engineer',
+        default_weekly_offs: u.default_weekly_offs || ['Monday', 'Tuesday']
+      };
+    }
+
+    this.matchedEngineer = match;
   }
 
 
@@ -976,8 +1013,8 @@ export class UserPortalController {
     // Anchor: Today's live calendar date in IST
     if (dateText) dateText.textContent = todayFormatted('long');
 
-
-
+    const now = getIstNow();
+    const opDay = this.liveState.todayDay || now.getDate();
     const dutyStatus = this.getRealtimeDutyStatus(this.matchedEngineer, opDay, now);
 
     if (shiftBadge) {
@@ -2725,9 +2762,9 @@ export class UserPortalController {
     const colleagueDateSelect = document.getElementById('userSwapColleagueDate');
     if (!myDateSelect || !colleagueSelect || !colleagueDateSelect) return;
 
-    const totalDays = this.liveState.totalDays || 31;
-    const year = this.liveState.year || 2026;
-    const month = this.liveState.month || 10;
+    const totalDays = this.liveState.totalDays || daysInMonth(this.liveState.year, this.liveState.month);
+    const year = this.liveState.year || getIstNow().getFullYear();
+    const month = this.liveState.month || (getIstNow().getMonth() + 1);
     const engineers = this.engineersList || [];
     const myId = (this.currentUser?.id || this.currentUser?.username || '').trim().toLowerCase();
 
