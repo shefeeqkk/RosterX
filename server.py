@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.14.3"
+SERVER_VERSION = "1.14.4"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1250,14 +1250,11 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         "Strict Directives:\n"
         "1. NEVER invent, hallucinate, or assume shift assignments, engineer names, or dates. Only use the provided grounding context.\n"
         "2. All time references are in Indian Standard Time (IST, UTC+5:30).\n"
-        "3. Shift Codes and Timings:\n"
-        "   - FS (First Shift): 07:30 – 16:30\n"
-        "   - FG (First General): 08:30 – 17:30\n"
-        "   - G (General): 09:30 – 18:30\n"
-        "   - SG (Second General): 11:00 – 20:00\n"
-        "   - SS (Second Shift): 13:00 – 22:00\n"
-        "   - NS (Night Shift): 21:00 – 07:30 (+1 day, solo desk coverage)\n"
-        "   - OFF / SW* / L: Weekly Off, Swapped Off, or Approved Leave\n"
+        "3. Operational Shift Structure & Categories:\n"
+        "   - Morning Shift: FS (07:30 – 16:30), FG (08:30 – 17:30), G (09:30 – 18:30), SG (11:00 – 20:00)\n"
+        "   - Afternoon Shift: SS (13:00 – 22:00)\n"
+        "   - Night Shift: NS (21:00 – 07:30, +1 day, solo desk coverage)\n"
+        "   - No Duty: OFF, L, SW* (Weekly Off, Approved Leave, Swapped Off)\n"
         "4. Format your responses with clean, professional Markdown (bullet points, bold highlights, code formatting for shift codes).\n"
         "5. Be concise, direct, helpful, and courteous."
     )

@@ -726,9 +726,9 @@ class RosterXApp {
     document.querySelectorAll('.nav-tab-btn').forEach(btn => {
       const isTarget = btn.dataset.tab === tabId;
       if (isTarget) {
-        btn.className = 'nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-slate-900 text-white cursor-pointer';
+        btn.className = 'nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-indigo-600 text-white border border-indigo-700 dark:border-indigo-500 cursor-pointer';
       } else {
-        btn.className = 'nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 cursor-pointer shadow-xs';
+        btn.className = 'nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs';
       }
     });
 
@@ -846,13 +846,19 @@ class RosterXApp {
       dateLabel.textContent = `Live shift assignments for today: ${todayFormatted('long')}`;
     }
 
+    const morningContainer = document.getElementById('radarMorningEngineers');
+    const afternoonContainer = document.getElementById('radarAfternoonEngineers');
+    const nightContainer = document.getElementById('radarNightEngineers');
+    const noDutyContainer = document.getElementById('radarNoDutyEngineers');
+
+    // Backward compatibility anchors
     const fsContainer = document.getElementById('radarFsEngineers');
     const fgContainer = document.getElementById('radarFgEngineers');
     const ssContainer = document.getElementById('radarSsEngineers');
     const nsContainer = document.getElementById('radarNsEngineers');
     const offContainer = document.getElementById('radarOffEngineers');
 
-    if (!fsContainer || !fgContainer || !ssContainer || !nsContainer || !offContainer) return;
+    if (!morningContainer && !fsContainer) return;
 
     let sourceRoster = [];
     if (this.state.currentYear === todayYear && this.state.currentMonth === todayMonth && this.state.gridRoster && this.state.gridRoster.length > 0) {
@@ -884,73 +890,105 @@ class RosterXApp {
       }
     }
 
-    const fsList = [];
-    const fgList = [];
-    const ssList = [];
-    const nsList = [];
-    const offList = [];
+    const morningList = [];
+    const afternoonList = [];
+    const nightList = [];
+    const noDutyList = [];
 
     const dIdx = todayDay - 1;
     sourceRoster.forEach(eng => {
       const shift = String(eng.shifts && eng.shifts[dIdx] !== undefined ? eng.shifts[dIdx] : '').trim().toUpperCase();
       if (!shift) return;
-      if (shift === 'FS') fsList.push(eng.name);
-      else if (shift === 'FG' || shift === 'G') fgList.push(eng.name);
-      else if (shift === 'SS' || shift === 'SG') ssList.push(eng.name);
-      else if (shift === 'NS') nsList.push(eng.name);
-      else if (shift === 'OFF' || shift.startsWith('SW') || shift === 'L') offList.push({ name: eng.name, code: shift });
+      if (['FS', 'FG', 'G', 'SG'].includes(shift)) {
+        morningList.push({ name: eng.name, code: shift });
+      } else if (shift === 'SS') {
+        afternoonList.push({ name: eng.name, code: shift });
+      } else if (shift === 'NS') {
+        nightList.push({ name: eng.name, code: shift });
+      } else {
+        noDutyList.push({ name: eng.name, code: shift });
+      }
     });
 
-    const createPill = (name, bg, text) => {
+    const createPill = (item, bgClass, textClass, badgeBgClass) => {
       const div = document.createElement('div');
-      div.className = `flex items-center gap-1.5 px-2 py-1 rounded-lg ${bg} ${text} text-xs font-bold border border-current/20 shadow-2xs`;
-      div.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current"></span> <span class="truncate">${name}</span>`;
+      div.className = `flex items-center justify-between px-2.5 py-1.5 rounded-lg ${bgClass} ${textClass} text-xs font-bold border border-current/20 shadow-2xs`;
+      div.innerHTML = `
+        <div class="flex items-center gap-1.5 truncate">
+          <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0"></span>
+          <span class="truncate">${item.name}</span>
+        </div>
+        <span class="text-[10px] font-mono font-black px-1.5 py-0.5 rounded ${badgeBgClass} ml-1 shrink-0">${item.code}</span>
+      `;
       return div;
     };
 
-    // FS
-    fsContainer.innerHTML = '';
-    if (fsList.length === 0) {
-      fsContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
-    } else {
-      fsList.forEach(n => fsContainer.appendChild(createPill(n, 'bg-emerald-100', 'text-emerald-900')));
+    // 1. Morning Shift: FS, FG, G, SG
+    if (morningContainer) {
+      morningContainer.innerHTML = '';
+      if (morningList.length === 0) {
+        morningContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
+      } else {
+        morningList.forEach(item => {
+          morningContainer.appendChild(createPill(
+            item,
+            'bg-emerald-100 dark:bg-emerald-950/60',
+            'text-emerald-950 dark:text-emerald-100',
+            'bg-emerald-200/80 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100'
+          ));
+        });
+      }
     }
 
-    // FG
-    fgContainer.innerHTML = '';
-    if (fgList.length === 0) {
-      fgContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
-    } else {
-      fgList.forEach(n => fgContainer.appendChild(createPill(n, 'bg-teal-100', 'text-teal-900')));
+    // 2. Afternoon Shift: SS
+    if (afternoonContainer) {
+      afternoonContainer.innerHTML = '';
+      if (afternoonList.length === 0) {
+        afternoonContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
+      } else {
+        afternoonList.forEach(item => {
+          afternoonContainer.appendChild(createPill(
+            item,
+            'bg-amber-100 dark:bg-amber-950/60',
+            'text-amber-950 dark:text-amber-100',
+            'bg-amber-200/80 dark:bg-amber-800 text-amber-900 dark:text-amber-100'
+          ));
+        });
+      }
     }
 
-    // SS
-    ssContainer.innerHTML = '';
-    if (ssList.length === 0) {
-      ssContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
-    } else {
-      ssList.forEach(n => ssContainer.appendChild(createPill(n, 'bg-amber-100', 'text-amber-900')));
+    // 3. Night Shift: NS
+    if (nightContainer) {
+      nightContainer.innerHTML = '';
+      if (nightList.length === 0) {
+        nightContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
+      } else {
+        nightList.forEach(item => {
+          nightContainer.appendChild(createPill(
+            item,
+            'bg-indigo-100 dark:bg-slate-800',
+            'text-indigo-950 dark:text-indigo-100',
+            'bg-indigo-200/80 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200'
+          ));
+        });
+      }
     }
 
-    // NS
-    nsContainer.innerHTML = '';
-    if (nsList.length === 0) {
-      nsContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers assigned</div>';
-    } else {
-      nsList.forEach(n => nsContainer.appendChild(createPill(n, 'bg-slate-800', 'text-indigo-200')));
-    }
-
-    // OFF / SW
-    offContainer.innerHTML = '';
-    if (offList.length === 0) {
-      offContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers resting</div>';
-    } else {
-      offList.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'flex items-center justify-between px-2 py-1 rounded-lg bg-yellow-100 text-yellow-950 text-xs font-bold border border-yellow-300';
-        div.innerHTML = `<span class="truncate">${item.name}</span> <span class="text-[10px] px-1 rounded bg-yellow-200">${item.code}</span>`;
-        offContainer.appendChild(div);
-      });
+    // 4. No Duty: OFF, L, SW*
+    if (noDutyContainer) {
+      noDutyContainer.innerHTML = '';
+      if (noDutyList.length === 0) {
+        noDutyContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">No engineers resting</div>';
+      } else {
+        noDutyList.forEach(item => {
+          noDutyContainer.appendChild(createPill(
+            item,
+            'bg-slate-100 dark:bg-slate-800/80',
+            'text-slate-900 dark:text-slate-100',
+            'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200'
+          ));
+        });
+      }
     }
   }
 

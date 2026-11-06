@@ -105,83 +105,41 @@ html[data-theme="light"] {
 /* ==========================================================================
    Universal Theme Adaptation Rules (Tailwind & Neumorphic Hybrid)
    ========================================================================== */
+html.dark {
+  color-scheme: dark;
+}
+
+html:not(.dark) {
+  color-scheme: light;
+}
+
 html.dark body {
-  background-color: var(--nm-canvas) !important;
-  color: var(--nm-text) !important;
+  background-color: var(--nm-canvas, #0B1120) !important;
+  color: var(--nm-text, #F8FAFC) !important;
 }
 
-html.dark header:not(.bg-gradient-to-r),
-html.dark nav:not(.bg-gradient-to-r) {
-  background-color: var(--nm-surface) !important;
-  border-color: var(--nm-border) !important;
-  color: var(--nm-text) !important;
+html:not(.dark) body {
+  background-color: var(--nm-canvas, #F8FAFC) !important;
+  color: var(--nm-text, #0F172A) !important;
 }
 
-html.dark .bg-white {
-  background-color: var(--nm-surface) !important;
-  border-color: var(--nm-border) !important;
-  color: var(--nm-text) !important;
-}
-
-html.dark .bg-slate-50,
-html.dark .bg-slate-100 {
-  background-color: var(--nm-surface-contrast) !important;
-  border-color: var(--nm-border) !important;
-  color: var(--nm-text) !important;
-}
-
-html.dark .text-slate-900,
-html.dark .text-slate-800,
-html.dark .text-slate-700 {
-  color: var(--nm-text) !important;
-}
-
-html.dark .text-slate-500,
-html.dark .text-slate-600 {
-  color: var(--nm-text-muted) !important;
-}
-
-html.dark .border-slate-200,
-html.dark .border-slate-300 {
-  border-color: var(--nm-border) !important;
-}
-
-/* Table inputs in Dark mode */
+/* Explicit form input styling */
 html.dark input[type="text"]:not(.bg-transparent),
 html.dark input[type="password"]:not(.bg-transparent),
-html.dark select:not(.bg-transparent) {
-  background-color: var(--nm-surface-contrast) !important;
-  border-color: var(--nm-border) !important;
-  color: var(--nm-text) !important;
+html.dark select:not(.bg-transparent),
+html.dark textarea:not(.bg-transparent) {
+  background-color: var(--nm-surface-contrast, #1E293B) !important;
+  border-color: var(--nm-border, #334155) !important;
+  color: var(--nm-text, #F8FAFC) !important;
 }
 
-/* ==========================================================================
-   Universal Light Mode Contrast & Pure Theming Guard
-   ========================================================================== */
-html:not(.dark) {
-  --nm-canvas: #EEF2F6;
-  --nm-surface: #FFFFFF;
-  --nm-surface-contrast: #E2E8F0;
-  --nm-text: #1E293B;
-  --nm-text-muted: #64748B;
-  --nm-border: #E2E8F0;
-}
-
-html:not(.dark) .text-slate-100,
-html:not(.dark) .text-slate-200 {
-  color: var(--nm-text, #1E293B) !important;
-}
-
-html:not(.dark) .text-slate-300 {
-  color: #334155 !important;
-}
-
-html:not(.dark) .text-slate-400 {
-  color: #475569 !important;
-}
-
-html:not(.dark) .text-slate-500 {
-  color: #64748B !important;
+html:not(.dark) input[type="text"]:not(.bg-transparent),
+html:not(.dark) input[type="password"]:not(.bg-transparent),
+html:not(.dark) select:not(.bg-transparent),
+html:not(.dark) textarea:not(.bg-transparent) {
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
 }
 
 

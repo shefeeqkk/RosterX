@@ -2727,8 +2727,8 @@ export class UserPortalController {
 
       const item = { name, code, phone, email };
 
-      if (['FS', 'FG', 'G'].includes(code)) morning.push(item);
-      else if (['SG', 'SS'].includes(code)) second.push(item);
+      if (['FS', 'FG', 'G', 'SG'].includes(code)) morning.push(item);
+      else if (code === 'SS') second.push(item);
       else if (code === 'NS') night.push(item);
       else off.push(item);
     });

@@ -4,6 +4,7 @@
  */
 if (typeof tailwind !== 'undefined') {
   tailwind.config = {
+    darkMode: 'class',
     theme: {
       extend: {
         colors: {
