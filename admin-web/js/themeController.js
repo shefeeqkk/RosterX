@@ -13,14 +13,16 @@ const THEME_STORAGE_KEY = 'rosterx_theme';
 export class ThemeController {
   constructor() {
     this.currentTheme = this.getStoredTheme();
-    this.mediaQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    this.mediaQuery = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   }
 
   getStoredTheme() {
     try {
-      const stored = localStorage.getItem(THEME_STORAGE_KEY);
-      if (stored === 'light' || stored === 'dark' || stored === 'system') {
-        return stored;
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY);
+        if (stored === 'light' || stored === 'dark' || stored === 'system') {
+          return stored;
+        }
       }
     } catch (e) {}
     return 'system';
@@ -35,16 +37,20 @@ export class ThemeController {
   applyTheme(theme = this.currentTheme) {
     this.currentTheme = theme;
     try {
-      localStorage.setItem(THEME_STORAGE_KEY, theme);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+      }
     } catch (e) {}
 
-    const htmlEl = document.documentElement;
-    htmlEl.setAttribute('data-theme', theme);
+    const htmlEl = (typeof document !== 'undefined') ? document.documentElement : null;
+    if (htmlEl) {
+      htmlEl.setAttribute('data-theme', theme);
 
-    if (this.isDarkEffective()) {
-      htmlEl.classList.add('dark');
-    } else {
-      htmlEl.classList.remove('dark');
+      if (this.isDarkEffective()) {
+        htmlEl.classList.add('dark');
+      } else {
+        htmlEl.classList.remove('dark');
+      }
     }
 
     this.updateToggleUi();
@@ -141,3 +147,4 @@ export const themeController = new ThemeController();
 if (typeof window !== 'undefined') {
   window.themeController = themeController;
 }
+

@@ -81,3 +81,4 @@ Both the Admin Operations Console and Native Android app adhere to the identical
 | `OFF` | Weekly Off | Full 24h rest | Off | Default 2 days per week (e.g. Sat/Sun) |
 | `L` | Approved Leave | Full 24h leave | Leave | Pre-approved time off |
 | `SW*` | Swapped Duty | Variable | Swap | Format: `SW` + Engineer Initial (e.g., `SWM`, `SWDY`) |
+

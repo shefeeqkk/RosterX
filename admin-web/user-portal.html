@@ -194,25 +194,206 @@
 
     }
 
-    html:not(.dark) .glass-panel {
-      background: rgba(255, 255, 255, 0.85);
-      border-color: rgba(203, 213, 225, 0.8);
-      box-shadow: 0 10px 25px -5px rgba(146, 163, 184, 0.35);
-      color: #1e293b;
+    /* ============================================================== */
+    /* Light Mode Universal Modernization Overrides                   */
+    /* ============================================================== */
+    html:not(.dark) {
+      color-scheme: light;
+      --nm-canvas: #eef2f6;
+      --nm-surface: #ffffff;
+      --nm-surface-contrast: #e2e8f0;
+      --nm-text: #1e293b;
+      --nm-text-muted: #64748b;
+      --nm-border: #e2e8f0;
+    }
+
+    html:not(.dark) body {
+      background-color: #eef2f6 !important;
+      color: #1e293b !important;
+    }
+
+    html:not(.dark) .bg-noc-space {
+      background: radial-gradient(circle at 10% 10%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                  radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.06) 0%, transparent 45%),
+                  #eef2f6 !important;
+      color: #1e293b !important;
     }
 
     html:not(.dark) header {
       background: rgba(255, 255, 255, 0.95) !important;
       border-color: #cbd5e1 !important;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
     }
 
     html:not(.dark) header h1 {
       color: #0f172a !important;
     }
 
-    html:not(.dark) .portal-dock {
-      background: rgba(255, 255, 255, 0.95) !important;
+    html:not(.dark) .glass-panel {
+      background: #ffffff !important;
+      border: 1px solid #e2e8f0 !important;
+      box-shadow: 0 4px 20px -2px rgba(146, 163, 184, 0.22) !important;
+      color: #1e293b !important;
+    }
+
+    /* Headings & Text that have text-white */
+    html:not(.dark) h1.text-white,
+    html:not(.dark) h2.text-white,
+    html:not(.dark) h3.text-white,
+    html:not(.dark) h4.text-white,
+    html:not(.dark) span.text-white,
+    html:not(.dark) div.text-white,
+    html:not(.dark) strong.text-white,
+    html:not(.dark) p.text-white {
+      color: #0f172a !important;
+    }
+
+    /* Target specific IDs that might have text-white */
+    html:not(.dark) #todayShiftName,
+    html:not(.dark) #tomorrowShiftName,
+    html:not(.dark) #metricTotalDuty,
+    html:not(.dark) #modalAccountName {
+      color: #0f172a !important;
+    }
+
+    /* Muted and secondary texts */
+    html:not(.dark) .text-slate-400 {
+      color: #64748b !important;
+    }
+
+    html:not(.dark) .text-slate-300 {
+      color: #334155 !important;
+    }
+
+    html:not(.dark) .text-slate-500 {
+      color: #64748b !important;
+    }
+
+    /* Cyan and Indigo contrast in light mode */
+    html:not(.dark) .text-cyan-300 {
+      color: #0284c7 !important;
+    }
+
+    html:not(.dark) .text-indigo-300 {
+      color: #4338ca !important;
+    }
+
+    /* Soft light wells replacing dark boxes */
+    html:not(.dark) .bg-slate-900,
+    html:not(.dark) .bg-slate-900\/60,
+    html:not(.dark) .bg-slate-900\/80,
+    html:not(.dark) .bg-slate-900\/90,
+    html:not(.dark) .bg-slate-900\/95,
+    html:not(.dark) .bg-slate-950,
+    html:not(.dark) .bg-slate-800,
+    html:not(.dark) .bg-slate-800\/80,
+    html:not(.dark) .bg-slate-800\/90 {
+      background-color: #f1f5f9 !important;
       border-color: #cbd5e1 !important;
+      color: #1e293b !important;
+    }
+
+    html:not(.dark) .bg-cyan-950,
+    html:not(.dark) .bg-cyan-950\/80,
+    html:not(.dark) .bg-cyan-950\/70 {
+      background-color: #e0f2fe !important;
+      border-color: #7dd3fc !important;
+      color: #0369a1 !important;
+    }
+
+    html:not(.dark) .bg-indigo-950 {
+      background-color: #e0e7ff !important;
+      border-color: #a5b4fc !important;
+      color: #4338ca !important;
+    }
+
+    html:not(.dark) .bg-emerald-950,
+    html:not(.dark) .bg-emerald-950\/70 {
+      background-color: #dcfce7 !important;
+      border-color: #86efac !important;
+      color: #15803d !important;
+    }
+
+    html:not(.dark) .border-slate-800,
+    html:not(.dark) .border-slate-700 {
+      border-color: #e2e8f0 !important;
+    }
+
+    /* Form controls in Light Mode */
+    html:not(.dark) select,
+    html:not(.dark) textarea,
+    html:not(.dark) input[type="text"],
+    html:not(.dark) input[type="password"] {
+      background-color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+
+    html:not(.dark) select option {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+    }
+
+    /* Top Nav Tabs in Light Mode */
+    html:not(.dark) .user-nav-tab-btn:not([data-active="true"]):not(.bg-cyan-600) {
+      background-color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #475569 !important;
+    }
+
+    html:not(.dark) .user-nav-tab-btn:not([data-active="true"]):not(.bg-cyan-600):hover {
+      background-color: #f1f5f9 !important;
+      color: #0f172a !important;
+    }
+
+    /* Mobile Bottom Dock in Light Mode */
+    html:not(.dark) nav.md\:hidden {
+      background-color: rgba(255, 255, 255, 0.95) !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    html:not(.dark) .user-mobile-nav-btn {
+      color: #64748b !important;
+    }
+
+    /* Top Header & Desktop Nav in Light Mode */
+    html:not(.dark) header {
+      background-color: rgba(255, 255, 255, 0.95) !important;
+      border-color: #cbd5e1 !important;
+    }
+
+    html:not(.dark) nav.hidden.md\:flex {
+      background-color: rgba(255, 255, 255, 0.92) !important;
+      border-color: #cbd5e1 !important;
+    }
+
+    /* Modal dialogs in Light Mode */
+    html:not(.dark) #userAccountModal > div,
+    html:not(.dark) #accountProfileModal > div,
+    html:not(.dark) #aiChatDrawer {
+      background-color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+
+    /* Table in Light Mode */
+    html:not(.dark) #teamDutyTable thead tr,
+    html:not(.dark) #userMonthGridTable thead tr {
+      background-color: #f1f5f9 !important;
+      border-color: #cbd5e1 !important;
+      color: #475569 !important;
+    }
+
+    html:not(.dark) #teamDutyTable tbody tr,
+    html:not(.dark) #userMonthGridTable tbody tr {
+      border-color: #e2e8f0 !important;
+    }
+
+    html:not(.dark) #teamDutyTable tbody tr:hover,
+    html:not(.dark) #userMonthGridTable tbody tr:hover {
+      background-color: #f8fafc !important;
     }
 
 
@@ -412,19 +593,19 @@
       <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-cyan-600 text-white cursor-pointer" data-tab="my_schedule">
         <i class="ph ph-calendar-check text-base"></i> My Schedule
       </button>
-      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 cursor-pointer shadow-xs" data-tab="team_handover">
+      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="team_handover">
         <i class="ph ph-users-three text-base"></i> Desk Handover & Team View
       </button>
-      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 cursor-pointer shadow-xs" data-tab="request_swap">
+      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="request_swap">
         <i class="ph ph-arrows-left-right text-base"></i> Request Shift Swap
       </button>
-      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 cursor-pointer shadow-xs" data-tab="monthly_overview">
+      <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="monthly_overview">
         <i class="ph ph-chart-donut text-base"></i> Monthly Overview
       </button>
     </div>
-    <div class="flex items-center gap-3 text-xs font-mono text-slate-400">
-      <span class="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+    <div class="flex items-center gap-3 text-xs font-mono text-slate-600 dark:text-slate-400">
+      <span class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
         <span id="userPortalStatusBadge">Atlas Connected</span>
       </span>
     </div>
@@ -472,26 +653,26 @@
 
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-800 text-[11px] font-semibold text-cyan-300 mb-2">
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-950/80 border border-cyan-300 dark:border-cyan-800 text-[11px] font-semibold text-cyan-800 dark:text-cyan-300 mb-2">
               <i class="ph ph-calendar-check text-xs"></i>
               <span id="heroCurrentDate">Loading...</span>
             </div>
-            <h2 class="text-2xl font-black font-outfit text-white">
-              Welcome, <span id="heroWelcomeName" class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Engineer</span>! 👋
+            <h2 class="text-2xl font-black font-outfit text-slate-900 dark:text-white">
+              Welcome, <span id="heroWelcomeName" class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-400 dark:to-blue-400">Engineer</span>! 👋
             </h2>
-            <p class="text-xs text-slate-400 mt-1">
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
               24/7 operational shift overview and live verified team duty briefing.
             </p>
-            <div id="shiftCountdownBox" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs text-slate-300 font-mono shadow-xs">
-              <i class="ph ph-timer text-cyan-400 text-sm"></i>
-              <span id="shiftCountdownLabel" class="text-slate-400">Next Shift Starts in:</span>
-              <span id="shiftCountdownTime" class="font-bold text-cyan-300 tracking-wide">Calculating...</span>
+            <div id="shiftCountdownBox" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-mono shadow-xs">
+              <i class="ph ph-timer text-cyan-600 dark:text-cyan-400 text-sm"></i>
+              <span id="shiftCountdownLabel" class="text-slate-500 dark:text-slate-400">Next Shift Starts in:</span>
+              <span id="shiftCountdownTime" class="font-bold text-cyan-700 dark:text-cyan-300 tracking-wide">Calculating...</span>
             </div>
           </div>
 
           <div class="flex items-center gap-3">
-            <div id="heroDutyBadge" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-2 shadow-sm">
-              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <div id="heroDutyBadge" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 flex items-center gap-2 shadow-sm">
+              <span class="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse"></span>
               Checking Duty Status...
             </div>
           </div>
@@ -502,86 +683,86 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         <!-- CARD 1: FEATURED / TODAY'S SHIFT -->
-        <div id="todayShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-cyan-400 relative overflow-hidden group hover:border-slate-600 transition shadow-sm">
+        <div id="todayShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-cyan-500 relative overflow-hidden group hover:border-slate-400 dark:hover:border-slate-600 transition shadow-sm">
           <div class="flex items-center justify-between mb-3">
-            <span id="todayCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5">
-              <i class="ph ph-clock text-cyan-400 text-sm"></i> Duty Shift
+            <span id="todayCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <i class="ph ph-clock text-cyan-600 dark:text-cyan-400 text-sm"></i> Duty Shift
             </span>
-            <span id="todayCardStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">Scheduled</span>
+            <span id="todayCardStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">Scheduled</span>
           </div>
           <div class="flex items-baseline gap-3">
             <span id="todayShiftCode" class="text-2xl font-black px-3 py-1 rounded-xl shadow-sm shift-FS">
               --
             </span>
             <div>
-              <div id="todayShiftName" class="text-sm font-bold text-white">Loading...</div>
-              <div id="todayShiftTimings" class="text-xs font-mono text-cyan-300 mt-0.5">--:-- AM – --:-- PM</div>
+              <div id="todayShiftName" class="text-sm font-bold text-slate-900 dark:text-white">Loading...</div>
+              <div id="todayShiftTimings" class="text-xs font-mono text-cyan-700 dark:text-cyan-300 mt-0.5">--:-- AM – --:-- PM</div>
             </div>
           </div>
-          <p id="todayShiftDesc" class="text-xs text-slate-400 mt-3 line-clamp-2">
+          <p id="todayShiftDesc" class="text-xs text-slate-500 dark:text-slate-400 mt-3 line-clamp-2">
             Scheduled operational duty assignment for current period.
           </p>
         </div>
 
         <!-- CARD 2: NEXT DAY'S SHIFT -->
-        <div id="tomorrowShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-indigo-400 relative overflow-hidden group hover:border-slate-600 transition shadow-sm">
+        <div id="tomorrowShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-indigo-500 relative overflow-hidden group hover:border-slate-400 dark:hover:border-slate-600 transition shadow-sm">
           <div class="flex items-center justify-between mb-3">
-            <span id="tomorrowCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5">
-              <i class="ph ph-calendar-plus text-indigo-400 text-sm"></i> Next Shift
+            <span id="tomorrowCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <i class="ph ph-calendar-plus text-indigo-600 dark:text-indigo-400 text-sm"></i> Next Shift
             </span>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Next</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">Next</span>
           </div>
           <div class="flex items-baseline gap-3">
             <span id="tomorrowShiftCode" class="text-2xl font-black px-3 py-1 rounded-xl shadow-sm shift-G">
               --
             </span>
             <div>
-              <div id="tomorrowShiftName" class="text-sm font-bold text-white">Loading...</div>
-              <div id="tomorrowShiftTimings" class="text-xs font-mono text-indigo-300 mt-0.5">--:-- AM – --:-- PM</div>
+              <div id="tomorrowShiftName" class="text-sm font-bold text-slate-900 dark:text-white">Loading...</div>
+              <div id="tomorrowShiftTimings" class="text-xs font-mono text-indigo-700 dark:text-indigo-300 mt-0.5">--:-- AM – --:-- PM</div>
             </div>
           </div>
-          <p id="tomorrowShiftDesc" class="text-xs text-slate-400 mt-3 line-clamp-2">
+          <p id="tomorrowShiftDesc" class="text-xs text-slate-500 dark:text-slate-400 mt-3 line-clamp-2">
             Upcoming rotation sequence for following day.
           </p>
         </div>
 
         <!-- CARD 3: MONTHLY DUTY STATS -->
-        <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-emerald-400 flex flex-col justify-between shadow-sm">
+        <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-emerald-500 flex flex-col justify-between shadow-sm">
           <div>
-            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5 mb-2">
-              <i class="ph ph-chart-donut text-emerald-400 text-sm"></i> Monthly Duties
+            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-2">
+              <i class="ph ph-chart-donut text-emerald-600 dark:text-emerald-400 text-sm"></i> Monthly Duties
             </span>
             <div class="grid grid-cols-2 gap-2 mt-2">
-              <div class="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
-                <div class="text-[10px] text-slate-400 uppercase font-semibold">Day Shifts</div>
-                <div id="metricDayCount" class="text-lg font-black text-emerald-400">0</div>
+              <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center">
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Day Shifts</div>
+                <div id="metricDayCount" class="text-lg font-black text-emerald-600 dark:text-emerald-400">0</div>
               </div>
-              <div class="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
-                <div class="text-[10px] text-slate-400 uppercase font-semibold">Night Shifts</div>
-                <div id="metricNightCount" class="text-lg font-black text-indigo-400">0</div>
+              <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center">
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Night Shifts</div>
+                <div id="metricNightCount" class="text-lg font-black text-indigo-600 dark:text-indigo-400">0</div>
               </div>
             </div>
           </div>
-          <div class="text-[11px] text-slate-400 mt-2 text-center">
-            Total Assigned Duties: <strong id="metricTotalDuty" class="text-white">0</strong> days
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 text-center">
+            Total Assigned Duties: <strong id="metricTotalDuty" class="text-slate-900 dark:text-white">0</strong> days
           </div>
         </div>
 
         <!-- CARD 4: SCHEDULED REST DAYS -->
-        <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-amber-400 flex flex-col justify-between shadow-sm">
+        <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-amber-500 flex flex-col justify-between shadow-sm">
           <div>
-            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-400 flex items-center gap-1.5 mb-2">
-              <i class="ph ph-sun-horizon text-amber-400 text-sm"></i> Scheduled Rest Days
+            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-2">
+              <i class="ph ph-sun-horizon text-amber-600 dark:text-amber-400 text-sm"></i> Scheduled Rest Days
             </span>
-            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between mt-2">
+            <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
               <div>
-                <div class="text-xs text-slate-300 font-bold">Weekly Offs (OFF)</div>
+                <div class="text-xs text-slate-800 dark:text-slate-300 font-bold">Weekly Offs (OFF)</div>
                 <div class="text-[10px] text-slate-500">Full 24h rest window</div>
               </div>
-              <div id="metricOffCount" class="text-2xl font-black text-amber-400">0</div>
+              <div id="metricOffCount" class="text-2xl font-black text-amber-600 dark:text-amber-400">0</div>
             </div>
           </div>
-          <div class="text-[11px] text-slate-400 text-center mt-2">
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-2">
             Strict fatigue compliance enabled
           </div>
         </div>
@@ -592,18 +773,18 @@
       <div class="glass-panel rounded-2xl p-6 relative">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            <h3 class="text-base font-bold font-outfit text-white flex items-center gap-2">
-              <i class="ph ph-calendar-check text-cyan-400 text-lg"></i>
+            <h3 class="text-base font-bold font-outfit text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="ph ph-calendar-check text-cyan-600 dark:text-cyan-400 text-lg"></i>
               My Assigned Shifts This Month
             </h3>
-            <p class="text-xs text-slate-400">Chronological daily breakdown of your operational shift duties and rest windows</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Chronological daily breakdown of your operational shift duties and rest windows</p>
           </div>
-          <div id="myMonthShiftBadge" class="text-xs font-mono font-bold text-cyan-300 bg-slate-900 px-3 py-1 rounded-xl border border-slate-700">
+          <div id="myMonthShiftBadge" class="text-xs font-mono font-bold text-cyan-800 dark:text-cyan-300 bg-cyan-100 dark:bg-slate-900 px-3 py-1 rounded-xl border border-cyan-200 dark:border-slate-700">
             Loading...
           </div>
         </div>
 
-        <div id="myMonthlyShiftsContainer" class="overflow-x-auto rounded-xl border border-slate-800 max-h-[420px]">
+        <div id="myMonthlyShiftsContainer" class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 max-h-[420px]">
           <!-- Dynamic Chronological Shift List injected via userPortal.js -->
         </div>
       </div>
@@ -619,13 +800,13 @@
       <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-800 text-[11px] font-semibold text-cyan-300 mb-2">
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-950/80 border border-cyan-300 dark:border-cyan-800 text-[11px] font-semibold text-cyan-800 dark:text-cyan-300 mb-2">
               <i class="ph ph-handshake text-xs"></i> 24/7 Shift Handover Coordination
             </div>
-            <h2 class="text-xl font-black font-outfit text-white">
+            <h2 class="text-xl font-black font-outfit text-slate-900 dark:text-white">
               Desk Handover & Live Team Roster
             </h2>
-            <p class="text-xs text-slate-400 mt-1">
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Real-time colleague roster lookup across all shifts to streamline outgoing and incoming shift handovers.
             </p>
           </div>
@@ -700,31 +881,31 @@
       <div class="glass-panel rounded-2xl p-5 relative">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            <h3 class="text-base font-bold font-outfit text-white flex items-center gap-2">
-              <i class="ph ph-users-three text-cyan-400 text-lg"></i>
+            <h3 class="text-base font-bold font-outfit text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="ph ph-users-three text-cyan-600 dark:text-cyan-400 text-lg"></i>
               24/7 Team Duty Schedule
             </h3>
-            <p class="text-xs text-slate-400">Real-time duty overview across all personnel. Your row is prominently highlighted.</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Real-time duty overview across all personnel. Your row is prominently highlighted.</p>
           </div>
-          <div class="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 font-semibold tracking-wide">
+          <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 font-semibold tracking-wide">
               <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-              <i class="ph-fill ph-star text-amber-400 text-xs"></i> Your Schedule (Highlighted)
+              <i class="ph-fill ph-star text-amber-500 dark:text-amber-400 text-xs"></i> Your Schedule (Highlighted)
             </span>
           </div>
         </div>
 
-        <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
           <table class="w-full text-left border-collapse" id="teamDutyTable">
             <thead>
-              <tr class="bg-slate-900/90 text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-800">
+              <tr class="bg-slate-100 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <th class="py-3 px-4 font-bold text-left">Engineer</th>
                 <th class="py-3 px-4 font-bold text-center" id="teamHeaderToday">Current Duty</th>
                 <th class="py-3 px-4 font-bold text-center" id="teamHeaderTomorrow">Next Duty</th>
                 <th class="py-3 px-4 font-bold text-right pr-6">Operational Status</th>
               </tr>
             </thead>
-            <tbody id="teamDutyTableBody" class="divide-y divide-slate-800 text-xs text-slate-300">
+            <tbody id="teamDutyTableBody" class="divide-y divide-slate-200 dark:divide-slate-800 text-xs text-slate-700 dark:text-slate-300">
               <!-- Dynamic Rows injected via userPortal.js -->
             </tbody>
           </table>
@@ -742,13 +923,13 @@
       <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-amber-950/80 border border-amber-800 text-[11px] font-semibold text-amber-300 mb-2">
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 text-[11px] font-semibold text-amber-800 dark:text-amber-300 mb-2">
               <i class="ph ph-arrows-left-right text-xs"></i> Mutual Swap & Absence Requests
             </div>
-            <h2 class="text-xl font-black font-outfit text-white">
+            <h2 class="text-xl font-black font-outfit text-slate-900 dark:text-white">
               Shift Swap Request Center
             </h2>
-            <p class="text-xs text-slate-400 mt-1">
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Submit peer-to-peer shift swap requests with automated fatigue & rest-guard policy checks.
             </p>
           </div>
@@ -759,22 +940,22 @@
         
         <!-- Left Column: Request Form -->
         <div class="lg:col-span-7 glass-panel rounded-2xl p-6 space-y-4">
-          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <i class="ph ph-pencil-simple-line text-cyan-400"></i> New Shift Swap Application
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <i class="ph ph-pencil-simple-line text-cyan-600 dark:text-cyan-400"></i> New Shift Swap Application
           </h3>
 
           <form id="userSwapForm" class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">My Shift Date (To Give Up)</label>
-                <select id="userSwapMyDate" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">My Shift Date (To Give Up)</label>
+                <select id="userSwapMyDate" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
                   <option value="">Select your shift date...</option>
                 </select>
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Swap With Colleague</label>
-                <select id="userSwapColleague" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Swap With Colleague</label>
+                <select id="userSwapColleague" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
                   <option value="">Select colleague...</option>
                 </select>
               </div>
@@ -782,15 +963,15 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Colleague's Shift Date (To Take)</label>
-                <select id="userSwapColleagueDate" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Colleague's Shift Date (To Take)</label>
+                <select id="userSwapColleagueDate" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
                   <option value="">Select target date...</option>
                 </select>
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Swap Category</label>
-                <select id="userSwapCategory" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Swap Category</label>
+                <select id="userSwapCategory" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
                   <option value="mutual">Mutual 1-to-1 Shift Exchange</option>
                   <option value="cover">Emergency Shift Cover</option>
                   <option value="personal">Personal Leave Adjustment</option>
@@ -799,12 +980,12 @@
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Reason / Operational Justification</label>
-              <textarea id="userSwapReason" rows="3" placeholder="Explain the operational reason for this swap..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reason / Operational Justification</label>
+              <textarea id="userSwapReason" rows="3" placeholder="Explain the operational reason for this swap..." class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
             </div>
 
             <!-- Client-side Validation Alert Box -->
-            <div id="userSwapValidationAlert" class="hidden p-3 rounded-xl bg-amber-950/50 border border-amber-800 text-xs text-amber-300 flex items-center gap-2">
+            <div id="userSwapValidationAlert" class="hidden p-3 rounded-xl bg-amber-100 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
               <i class="ph ph-warning text-base shrink-0"></i>
               <span id="userSwapValidationText">Checking policy compatibility...</span>
             </div>
@@ -820,17 +1001,17 @@
         <!-- Right Column: My Swaps History & Status Queue -->
         <div class="lg:col-span-5 glass-panel rounded-2xl p-6 space-y-4">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-              <i class="ph ph-clock-counter-clockwise text-indigo-400"></i> My Swap History
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+              <i class="ph ph-clock-counter-clockwise text-indigo-600 dark:text-indigo-400"></i> My Swap History
             </h3>
-            <span class="text-[10px] text-slate-400 font-mono">Live Atlas Queue</span>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Live Atlas Queue</span>
           </div>
 
           <div id="userSwapsQueueList" class="space-y-2.5 max-h-[380px] overflow-y-auto">
             <!-- Dynamically populated or 'No Active Records' placeholder -->
-            <div class="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-slate-500 text-xs">
-              <i class="ph ph-clipboard-text text-2xl text-slate-600 mb-1.5 block"></i>
-              No Active Records<br><span class="text-[10px] text-slate-600">Your submitted shift swap requests will appear here dynamically.</span>
+            <div class="p-6 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center text-slate-500 text-xs">
+              <i class="ph ph-clipboard-text text-2xl text-slate-400 dark:text-slate-600 mb-1.5 block"></i>
+              No Active Records<br><span class="text-[10px] text-slate-400 dark:text-slate-600">Your submitted shift swap requests will appear here dynamically.</span>
             </div>
           </div>
         </div>
@@ -850,26 +1031,26 @@
         <!-- Grid Toolbar -->
         <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h3 class="text-base font-bold font-outfit text-white flex items-center gap-2">
-              <i class="ph ph-table text-indigo-400 text-lg"></i>
+            <h3 class="text-base font-bold font-outfit text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="ph ph-table text-indigo-600 dark:text-indigo-400 text-lg"></i>
               Month Shift Master Grid
             </h3>
-            <p class="text-xs text-slate-400">Complete month operational matrix with standard NOC color codes</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Complete month operational matrix with standard NOC color codes</p>
           </div>
 
           <div class="flex items-center gap-3 flex-wrap">
             <!-- Month Navigator with Left & Right Arrows -->
-            <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden shadow-sm">
-              <button id="btnPortalPrevMonth" type="button" title="Previous Month" class="px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition border-r border-slate-800 cursor-pointer">
+            <div class="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+              <button id="btnPortalPrevMonth" type="button" title="Previous Month" class="px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition border-r border-slate-300 dark:border-slate-800 cursor-pointer">
                 <i class="ph ph-caret-left font-bold text-sm"></i>
               </button>
-              <div class="flex items-center gap-1.5 px-3 py-1 bg-slate-900/90">
-                <i class="ph ph-calendar text-cyan-400 text-sm"></i>
-                <select id="portalMonthSelect" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
+              <div class="flex items-center gap-1.5 px-3 py-1 bg-slate-100/90 dark:bg-slate-900/90">
+                <i class="ph ph-calendar text-cyan-600 dark:text-cyan-400 text-sm"></i>
+                <select id="portalMonthSelect" class="bg-transparent text-xs font-bold text-slate-800 dark:text-white focus:outline-none cursor-pointer">
                   <option value="">Loading...</option>
                 </select>
               </div>
-              <button id="btnPortalNextMonth" type="button" title="Next Month" class="px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition border-l border-slate-800 cursor-pointer">
+              <button id="btnPortalNextMonth" type="button" title="Next Month" class="px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition border-l border-slate-300 dark:border-slate-800 cursor-pointer">
                 <i class="ph ph-caret-right font-bold text-sm"></i>
               </button>
             </div>
@@ -881,7 +1062,7 @@
                 type="text" 
                 id="portalSearchInput" 
                 placeholder="Filter engineer..."
-                class="pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-44"
+                class="pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-44"
               />
             </div>
 
@@ -968,101 +1149,53 @@
 
 
       <!-- Modal Header -->
-
-      <div class="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-800">
-
+      <div class="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xl font-black shadow-md shrink-0">
-
           <i class="ph ph-user-circle"></i>
-
         </div>
-
         <div>
-
-          <h3 class="text-base font-bold text-white font-outfit" id="modalAccountName">User Profile</h3>
-
-          <p class="text-xs text-slate-400">Account Credentials, Contact Data & Password Management</p>
-
+          <h3 class="text-base font-bold text-slate-900 dark:text-white font-outfit" id="modalAccountName">User Profile</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Account Credentials, Contact Data & Password Management</p>
         </div>
-
       </div>
-
-
 
       <!-- Account Navigation Tabs -->
-
-      <div class="flex border-b border-slate-800 mb-4 gap-2">
-
-        <button type="button" id="tabBtnProfile" class="pb-2 px-3 text-xs font-bold text-cyan-400 border-b-2 border-cyan-400 cursor-pointer">
-
+      <div class="flex border-b border-slate-200 dark:border-slate-800 mb-4 gap-2">
+        <button type="button" id="tabBtnProfile" class="pb-2 px-3 text-xs font-bold text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 cursor-pointer">
           <i class="ph ph-identification-card mr-1"></i> Profile Information
-
         </button>
-
-        <button type="button" id="tabBtnSecurity" class="pb-2 px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent cursor-pointer">
-
+        <button type="button" id="tabBtnSecurity" class="pb-2 px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-b-2 border-transparent cursor-pointer">
           <i class="ph ph-shield-key mr-1"></i> Security & Password
-
         </button>
-
       </div>
 
-
-
       <!-- TAB 1: Profile Information -->
-
       <div id="accountTabProfile" class="space-y-3.5">
-
         <div class="grid grid-cols-2 gap-3 text-xs">
-
-          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Full Name</span>
-
-            <span id="profileFullName" class="font-bold text-slate-100 text-xs">--</span>
-
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Full Name</span>
+            <span id="profileFullName" class="font-bold text-slate-900 dark:text-slate-100 text-xs">--</span>
           </div>
-
-          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Username / Staff ID</span>
-
-            <span id="profileUsername" class="font-mono font-bold text-cyan-300 text-xs">--</span>
-
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Username / Staff ID</span>
+            <span id="profileUsername" class="font-mono font-bold text-cyan-600 dark:text-cyan-300 text-xs">--</span>
           </div>
-
-          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Official Email</span>
-
-            <span id="profileEmail" class="font-semibold text-slate-200 text-xs break-all">--</span>
-
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Official Email</span>
+            <span id="profileEmail" class="font-semibold text-slate-700 dark:text-slate-200 text-xs break-all">--</span>
           </div>
-
-          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Contact Phone</span>
-
-            <span id="profilePhone" class="font-semibold text-slate-200 text-xs">--</span>
-
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Contact Phone</span>
+            <span id="profilePhone" class="font-semibold text-slate-700 dark:text-slate-200 text-xs">--</span>
           </div>
-
-          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Operational Role</span>
-
-            <span id="profileRole" class="font-bold text-cyan-400 text-xs">--</span>
-
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Operational Role</span>
+            <span id="profileRole" class="font-bold text-cyan-600 dark:text-cyan-400 text-xs">--</span>
           </div>
-
-          <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Scheduled Weekly Offs</span>
-
-            <span id="profileOffs" class="font-semibold text-amber-300 text-xs">--</span>
-
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Scheduled Weekly Offs</span>
+            <span id="profileOffs" class="font-semibold text-amber-600 dark:text-amber-300 text-xs">--</span>
           </div>
-
         </div>
 
       </div>
@@ -1088,85 +1221,45 @@
 
 
         <div>
-
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Current Password</label>
-
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
           <div class="relative">
-
             <input 
-
               type="password" 
-
               id="currentPassInput" 
-
               placeholder="Enter current password"
-
-              class="w-full pl-3.5 pr-10 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
+              class="w-full pl-3.5 pr-10 py-2 bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
-
-            <button type="button" id="toggleCurrentPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white cursor-pointer">
-
+            <button type="button" id="toggleCurrentPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
               <i class="ph ph-eye text-sm" id="eyeCurrentPass"></i>
-
             </button>
-
           </div>
-
         </div>
 
-
-
         <div>
-
-          <label class="block text-xs font-semibold text-slate-300 mb-1">New Password</label>
-
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Password</label>
           <div class="relative">
-
             <input 
-
               type="password" 
-
               id="newPassChangeInput" 
-
               placeholder="Min 4 characters"
-
-              class="w-full pl-3.5 pr-10 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
+              class="w-full pl-3.5 pr-10 py-2 bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
-
-            <button type="button" id="toggleNewPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white cursor-pointer">
-
+            <button type="button" id="toggleNewPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
               <i class="ph ph-eye text-sm" id="eyeNewPass"></i>
-
             </button>
-
           </div>
-
         </div>
 
-
-
         <div>
-
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Confirm New Password</label>
-
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
           <div class="relative">
-
             <input 
-
               type="password" 
-
               id="confirmPassChangeInput" 
-
               placeholder="Confirm new password"
-
-              class="w-full pl-3.5 pr-10 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
+              class="w-full pl-3.5 pr-10 py-2 bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
-
           </div>
-
         </div>
 
 

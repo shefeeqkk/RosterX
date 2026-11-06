@@ -5392,8 +5392,6 @@ class RosterXApp {
       this.dom.exportModalPeriodLabel.textContent = `Period: ${monthLabel(exportKey, 'withDays')}`;
     }
 
-    }
-
     this.dom.exportModal.classList.remove('hidden');
 
     this.dom.exportModal.style.display = 'flex';
@@ -5596,9 +5594,6 @@ class RosterXApp {
     if (this.dom.importModalPeriodLabel) {
       this.dom.importModalPeriodLabel.textContent = monthLabel(val, 'withDays');
     }
-
-    }
-
   }
 
 

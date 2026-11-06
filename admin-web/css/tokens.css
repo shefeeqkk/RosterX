@@ -101,3 +101,57 @@ html[data-theme="light"] {
     --nm-accent-cyan: #38BDF8;
   }
 }
+
+/* ==========================================================================
+   Universal Theme Adaptation Rules (Tailwind & Neumorphic Hybrid)
+   ========================================================================== */
+html.dark body {
+  background-color: var(--nm-canvas) !important;
+  color: var(--nm-text) !important;
+}
+
+html.dark header:not(.bg-gradient-to-r),
+html.dark nav:not(.bg-gradient-to-r) {
+  background-color: var(--nm-surface) !important;
+  border-color: var(--nm-border) !important;
+  color: var(--nm-text) !important;
+}
+
+html.dark .bg-white {
+  background-color: var(--nm-surface) !important;
+  border-color: var(--nm-border) !important;
+  color: var(--nm-text) !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  background-color: var(--nm-surface-contrast) !important;
+  border-color: var(--nm-border) !important;
+  color: var(--nm-text) !important;
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: var(--nm-text) !important;
+}
+
+html.dark .text-slate-500,
+html.dark .text-slate-600 {
+  color: var(--nm-text-muted) !important;
+}
+
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: var(--nm-border) !important;
+}
+
+/* Table inputs in Dark mode */
+html.dark input[type="text"]:not(.bg-transparent),
+html.dark input[type="password"]:not(.bg-transparent),
+html.dark select:not(.bg-transparent) {
+  background-color: var(--nm-surface-contrast) !important;
+  border-color: var(--nm-border) !important;
+  color: var(--nm-text) !important;
+}
+

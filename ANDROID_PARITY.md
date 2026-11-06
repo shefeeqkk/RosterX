@@ -74,3 +74,4 @@ Web CSS custom properties in `tokens.css` match these values identically:
 - The Floating AI Bot button must never block the bottom navigation dock.
 - Position: strictly `bottom-28` (or `bottom-24`) on mobile screens to preserve at least 16dp / 16px of clearance above the dock.
 - Styling: Pure 3D cutout bot without artificial round background discs.
+

@@ -232,3 +232,4 @@ export function getAdjacentPeriodKey(key, deltaMonths = 1) {
   const nextM = String(d.getMonth() + 1).padStart(2, '0');
   return `${nextY}-${nextM}`;
 }
+

@@ -51,6 +51,7 @@ export class RosterAiAssistant {
     this.cacheDom();
     this.bindEvents();
     this.loadChatHistory();
+    this.updatePeriodIndicator();
     this.updateModelDisplay();
   }  // --- SVG Icons & Mascot Fallback ---
   getBotSvg(size = 32) {
@@ -334,7 +335,7 @@ export class RosterAiAssistant {
           </form>
           <div class="mt-1.5 flex items-center justify-between text-[10px] text-slate-600 px-1">
             <span id="aiActiveModelFooter">Powered by Google Gemini 1.5 & NOC Rules</span>
-            <span id="aiActivePeriodIndicator" class="font-mono text-indigo-600 font-bold">Oct 2026</span>
+            <span id="aiActivePeriodIndicator" class="font-mono text-indigo-600 font-bold">Current Period</span>
           </div>
         </div>
       </div>
