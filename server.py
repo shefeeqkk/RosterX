@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.14.12"
+SERVER_VERSION = "1.14.13"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1197,7 +1197,7 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
     elif "general shift" in p or (re.search(r'\bg\b', p) and "second" not in p and "first" not in p):
         target_shift = "G"
         target_shift_label = "General Shift (G)"
-    elif any(k in p for k in ["weekly off", "rest day", "off day", "day off", "next off"]):
+    elif any(k in p for k in ["weekly off", "rest day", "off day", "day off", "next off"]) or re.search(r'\b(off|offs)\b', p):
         target_shift = "OFF"
         target_shift_label = "Rest Day (OFF)"
     elif "leave" in p or re.search(r'\b(leave|l)\b', p):
@@ -1219,8 +1219,88 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
         except Exception:
             return f"Day {d}"
 
-    # INTENT A: Query for a specific shift occurrence (e.g. "when is my second general shift", "when is my next NS", "when is Atul on night")
-    is_who_query = any(w in p for w in ["who is", "who are", "who's", "who all", "who "]) or p.startswith("who") or "covering" in p
+    # Target Day Resolution (default to today, detect tomorrow, yesterday, specific numbers)
+    target_day = cur_day
+    day_label = f"today ({fmt_day_short(cur_day)})"
+    if "tomorrow" in p or "tomorow" in p:
+        target_day = cur_day + 1
+        day_label = f"tomorrow ({fmt_day_short(target_day)})"
+    elif "yesterday" in p:
+        target_day = cur_day - 1
+        day_label = f"yesterday ({fmt_day_short(target_day)})"
+    elif "day after tomorrow" in p or "day after" in p:
+        target_day = cur_day + 2
+        day_label = f"in 2 days ({fmt_day_short(target_day)})"
+    else:
+        m_day = re.search(r'\b(?:on|day|nov|november|date)\s*(\d{1,2})(?:st|nd|rd|th)?\b', p)
+        if not m_day:
+            m_day = re.search(r'\b(\d{1,2})(?:st|nd|rd|th)\b', p)
+        if m_day:
+            try:
+                parsed_d = int(m_day.group(1))
+                if 1 <= parsed_d <= days_in_month:
+                    target_day = parsed_d
+                    day_label = fmt_day(target_day)
+            except Exception:
+                pass
+
+    is_who_query = any(w in p for w in ["who is", "who are", "who's", "who all", "who "]) or p.startswith("who") or "available" in p or "covering" in p
+
+    # INTENT A1: Query for WHO is assigned / available for a specific shift on a date
+    # (e.g. "who is in SG for tomorrow", "who is available for NS tomorrow", "who has FS today", "who is on night shift tomorrow")
+    if is_who_query and target_shift:
+        matching = []
+        for eng in roster:
+            shifts = eng.get("shifts") or []
+            if len(shifts) >= target_day and target_day >= 1:
+                code = (shifts[target_day - 1] or "").strip().upper()
+                if target_shift == "OFF":
+                    if code in ("OFF", "L") or code.startswith("SW"):
+                        matching.append(eng['name'])
+                elif code == target_shift:
+                    matching.append(eng['name'])
+
+        timings = SHIFT_DEFINITIONS.get(target_shift, {}).get("timings", "")
+        time_str = f" ({timings} IST)" if timings and target_shift not in ("OFF", "L") else ""
+
+        if matching:
+            names_str = ", ".join(f"**{n}**" for n in matching)
+            verb = "is" if len(matching) == 1 else "are"
+            return f"For {day_label}, {names_str} {verb} scheduled for **{target_shift_label}**{time_str}."
+        else:
+            return f"No engineers are scheduled for **{target_shift_label}** on {day_label}."
+
+    # INTENT A2: Query for duty roster / working coverage on a specific date
+    # (e.g. "who has duty tomorrow", "who is working tomorrow", "tomorrow coverage", "schedule tomorrow")
+    if any(k in p for k in ["who is working", "who has duty", "duty tomorrow", "coverage tomorrow", "tomorrow's coverage", "schedule tomorrow", "roster tomorrow", "who works tomorrow", "working tomorrow", "coverage today", "schedule today"]):
+        duty_list = []
+        for eng in roster:
+            shifts = eng.get("shifts") or []
+            if len(shifts) >= target_day and target_day >= 1:
+                code = (shifts[target_day - 1] or "").strip().upper()
+                if code and code not in ("OFF", "L") and not code.startswith("SW"):
+                    duty_list.append(f"**{eng['name']}** (`{code}`)")
+        if duty_list:
+            return f"Scheduled duties for {day_label}: {', '.join(duty_list)}."
+        else:
+            return f"No operational duties scheduled for {day_label}."
+
+    # INTENT A3: Query for who is resting / off / leave on a specific date
+    # (e.g. "who is off tomorrow", "who has off tomorrow", "who all are off", "offs tomorrow")
+    if any(k in p for k in ["who is off", "who has off", "who all are off", "who is on leave", "offs tomorrow", "off tomorrow", "leave tomorrow"]):
+        off_list = []
+        for eng in roster:
+            shifts = eng.get("shifts") or []
+            if len(shifts) >= target_day and target_day >= 1:
+                code = (shifts[target_day - 1] or "").strip().upper()
+                if code in ("OFF", "L") or code.startswith("SW"):
+                    off_list.append(f"**{eng['name']}** (`{code}`)")
+        if off_list:
+            return f"Scheduled for rest/leave on {day_label}: {', '.join(off_list)}."
+        else:
+            return f"No engineers are scheduled for rest/leave on {day_label}."
+
+    # INTENT A4: Query for a specific shift occurrence (e.g. "when is my second general shift", "when is my next NS", "when is Atul on night")
     has_date_intent = any(k in p for k in ["when", "next", "which date", "what date", "have"]) or bool(re.search(r'\bon\b', p))
     if target_shift and has_date_intent and not is_who_query:
         if target_eng and target_eng.get("shifts"):
@@ -1323,8 +1403,13 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
         name_str = f" {profile['matched_engineer']}" if profile and profile.get('matched_engineer') else ""
         return f"Hello{name_str}! I'm your RosterX Assistant. Ask me about your upcoming shifts, next night duty, weekly offs, or current desk coverage."
 
-    # INTENT H: Concise Fallback
-    return "I can help with shift timings, upcoming duties, night shifts, and NOC desk coverage. Ask me questions like:\n• *\"When is my second general shift?\"*\n• *\"Who is on shift now?\"*\n• *\"What is my shift tomorrow?\"*"
+    # INTENT H: Intelligent Situational Fallback (Never return empty canned error)
+    user_name = profile.get('matched_engineer', 'Engineer') if profile else 'Engineer'
+    s_today = profile.get('today_shift', 'OFF') if profile else 'OFF'
+    s_tom = profile.get('tomorrow_shift', 'OFF') if profile else 'OFF'
+    on_duty = context.get("on_duty_engineers", [])
+    staff_str = ", ".join([f"**{e['name']}** (`{e['shift']}`)" for e in on_duty]) if on_duty else "desk transition"
+    return f"**{user_name}**: Your shift today is **`{s_today}`** and tomorrow is **`{s_tom}`**. Currently on duty: {staff_str}. You can ask me about upcoming shifts, teammate duties, or desk coverage!"
 
 def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="Web Portal"):
     """
@@ -1336,9 +1421,9 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
     
     context = build_roster_grounding_context(current_user)
     
-    # Model fallback hierarchy
+    # Model fallback hierarchy (fast, responsive Gemini 3 models)
     candidate_models = []
-    for m in [configured_model, "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-3.8-flash", "gemini-flash-lite-latest"]:
+    for m in [configured_model, "gemini-3.1-flash-lite", "gemini-3-flash-preview"]:
         if m and m not in candidate_models:
             candidate_models.append(m)
 
@@ -2945,7 +3030,7 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     cluster_name = env.get("ATLAS_CLUSTER", "Cluster0")
     db_name = env.get("ATLAS_DATABASE", "rosterx")
     gemini_key = env.get("GEMINI_API_KEY", "")
-    gemini_model = env.get("GEMINI_MODEL", "gemini-2.5-flash")
+    gemini_model = env.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
     tunnel_proc = None
     public_url = None

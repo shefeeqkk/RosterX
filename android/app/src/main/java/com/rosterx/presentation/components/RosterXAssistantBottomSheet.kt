@@ -2,6 +2,7 @@ package com.rosterx.presentation.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -99,13 +101,21 @@ fun RosterXAssistantBottomSheet(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF1E293B))
-                            .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                                )
+                            )
+                            .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("🤖", fontSize = 20.sp)
+                        Image(
+                            painter = painterResource(id = com.rosterx.R.drawable.ic_bot_3d_cutout),
+                            contentDescription = "RosterX Operations Assistant",
+                            modifier = Modifier.size(36.dp)
+                        )
                     }
 
                     Column {
@@ -152,13 +162,19 @@ fun RosterXAssistantBottomSheet(
             }
 
             // Quick Prompt Chips (Horizontally Scrollable)
-            val suggestionChips = listOf(
-                "Who all are in shift now?",
-                "When is my next night shift?",
-                "What is my shift today?",
-                "Who is on night duty?",
-                "How many OFF days do I have?"
-            )
+            data class QuickChip(val label: String, val prompt: String)
+            val suggestionChips = remember {
+                listOf(
+                    QuickChip("⚡ On duty now?", "Who all are in shift now?"),
+                    QuickChip("🌅 SG tomorrow?", "who is in SG for tomorrow"),
+                    QuickChip("🌙 NS tomorrow?", "who is available for NS tomorrow"),
+                    QuickChip("📅 My shift today?", "What is my shift today?"),
+                    QuickChip("📋 Duties tomorrow?", "Who has duty tomorrow?"),
+                    QuickChip("🏖️ Off tomorrow?", "Who is off tomorrow?"),
+                    QuickChip("🌙 Next night shift?", "When is my next night shift?"),
+                    QuickChip("🏖️ Rest days count?", "How many OFF days do I have?")
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -166,19 +182,19 @@ fun RosterXAssistantBottomSheet(
                     .padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                suggestionChips.forEach { chipText ->
+                suggestionChips.forEach { chip ->
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color(0xFF1E293B))
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(16.dp))
+                            .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                             .clickable {
-                                onSendMessage(chipText)
+                                onSendMessage(chip.prompt)
                             }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = chipText,
+                            text = chip.label,
                             fontSize = 12.sp,
                             color = Color(0xFF38BDF8),
                             fontWeight = FontWeight.SemiBold
@@ -300,21 +316,25 @@ private fun ChatBubble(message: AssistantChatMessage) {
         if (!isUser) {
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF1E293B))
                     .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), CircleShape)
-                    .padding(end = 0.dp),
+                    .padding(2.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🤖", fontSize = 14.sp)
+                Image(
+                    painter = painterResource(id = com.rosterx.R.drawable.ic_bot_3d_cutout),
+                    contentDescription = "AI Assistant Avatar",
+                    modifier = Modifier.size(26.dp)
+                )
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
 
         Box(
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(max = 290.dp)
                 .clip(
                     RoundedCornerShape(
                         topStart = 16.dp,
@@ -329,7 +349,7 @@ private fun ChatBubble(message: AssistantChatMessage) {
                 )
                 .border(
                     width = 1.dp,
-                    color = if (isUser) Color.Transparent else Color(0xFF334155),
+                    color = if (isUser) Color(0xFF38BDF8).copy(alpha = 0.4f) else Color(0xFF334155),
                     shape = RoundedCornerShape(
                         topStart = 16.dp,
                         topEnd = 16.dp,
@@ -337,20 +357,21 @@ private fun ChatBubble(message: AssistantChatMessage) {
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .padding(12.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Column {
                 Text(
                     text = cleanMarkdownForMobile(message.text),
-                    fontSize = 13.sp,
+                    fontSize = 13.5.sp,
                     color = Color.White,
-                    lineHeight = 18.sp
+                    lineHeight = 19.sp,
+                    fontWeight = if (isUser) FontWeight.Medium else FontWeight.Normal
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = message.timestamp,
                     fontSize = 10.sp,
-                    color = if (isUser) Color.White.copy(alpha = 0.7f) else Color(0xFF64748B),
+                    color = if (isUser) Color.White.copy(alpha = 0.75f) else Color(0xFF94A3B8),
                     modifier = Modifier.align(Alignment.End),
                     fontFamily = FontFamily.Monospace
                 )
@@ -380,12 +401,18 @@ private fun ThinkingBubble() {
     ) {
         Box(
             modifier = Modifier
-                .size(28.dp)
+                .size(32.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF1E293B)),
+                .background(Color(0xFF1E293B))
+                .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), CircleShape)
+                .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("🤖", fontSize = 14.sp)
+            Image(
+                painter = painterResource(id = com.rosterx.R.drawable.ic_bot_3d_cutout),
+                contentDescription = "AI Assistant Thinking",
+                modifier = Modifier.size(26.dp)
+            )
         }
         Spacer(modifier = Modifier.width(8.dp))
         Row(
