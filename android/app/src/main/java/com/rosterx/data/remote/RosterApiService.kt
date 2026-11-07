@@ -91,7 +91,8 @@ data class EngineerDto(
     @SerializedName("default_weekly_offs") val defaultWeeklyOffs: List<String>?,
     @SerializedName("join_date") val joinDate: String?,
     @SerializedName("resignation_date") val resignationDate: String?,
-    @SerializedName("password") val password: String? = null
+    @SerializedName("password") val password: String? = null,
+    @SerializedName("original_username") val originalUsername: String? = null
 )
 
 data class RosterResponse(

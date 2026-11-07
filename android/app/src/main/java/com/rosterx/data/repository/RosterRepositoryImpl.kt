@@ -823,79 +823,44 @@ class RosterRepositoryImpl @Inject constructor(
 
 
     private fun EngineerDto.toDomain(): Engineer {
-
-        val resolvedId = id ?: engineerId ?: ""
-
         val resolvedName = name ?: ""
-
-        val resolvedUsername = username ?: if (resolvedName.isNotBlank()) resolvedName.split(" ")[0].lowercase() else resolvedId
-
-        
+        val resolvedUsername = username ?: if (resolvedName.isNotBlank()) resolvedName.split(" ")[0].lowercase() else ""
+        val resolvedId = id?.ifBlank { null } ?: engineerId?.ifBlank { null } ?: resolvedUsername
 
         return Engineer(
-
             id = resolvedId,
-
             name = resolvedName,
-
             fullName = resolvedName,
-
             email = email ?: "",
-
             username = resolvedUsername,
-
             phone = phone ?: "",
-
             role = try { EngineerRole.valueOf((role ?: "ENGINEER").uppercase()) } catch (e: Exception) { EngineerRole.ENGINEER },
-
             status = try { EngineerStatus.valueOf((status ?: "ACTIVE").uppercase()) } catch (e: Exception) { EngineerStatus.ACTIVE },
-
             defaultWeeklyOffs = defaultWeeklyOffs ?: emptyList(),
-
             joinDate = joinDate ?: "",
-
-            resignationDate = resignationDate
-
+            resignationDate = resignationDate,
+            originalUsername = originalUsername
         )
-
     }
-
-
 
     private fun Engineer.toDto(): EngineerDto {
-
         val canonicalId = username.ifBlank { id }
-
         return EngineerDto(
-
             id = canonicalId,
-
             engineerId = canonicalId,
-
             name = name,
-
             username = canonicalId,
-
             email = email,
-
             phone = phone,
-
             role = role.name.lowercase(),
-
             status = status.name.lowercase(),
-
             defaultWeeklyOffs = defaultWeeklyOffs,
-
             joinDate = joinDate,
-
             resignationDate = resignationDate,
-
-            password = password
-
+            password = password,
+            originalUsername = originalUsername
         )
-
     }
-
 
     override suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>?): Result<AssistantChatResponse> = withContext(Dispatchers.IO) {
         try {

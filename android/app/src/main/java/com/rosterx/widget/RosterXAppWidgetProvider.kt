@@ -212,18 +212,19 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_tomorrow_name, tomorrowMeta.name)
             views.setTextViewText(R.id.widget_tomorrow_timing, tomorrowMeta.timing)
 
-            // 4. Live Duty Countdown Calculation
+            // 4. Widget Shift Status Display (Static times without minutes to avoid stale widget countdowns)
             val now = LocalTime.now()
             val curSec = now.toSecondOfDay().toLong()
 
-            fun formatDelta(sec: Long): String {
-                val safe = sec.coerceAtLeast(0)
-                val h = safe / 3600
-                val m = (safe % 3600) / 60
-                return String.format(Locale.US, "%02dh %02dm", h, m)
+            fun extractTimingBounds(timingStr: String): Pair<String, String> {
+                val cleaned = timingStr.replace("(+1)", "").trim()
+                val parts = cleaned.split("–", "-").map { it.trim() }
+                val start = parts.getOrNull(0) ?: "09:00"
+                val end = parts.getOrNull(1) ?: "18:00"
+                return Pair(start, end)
             }
 
-            var shiftTimerText = "No upcoming duty scheduled"
+            var shiftTimerText = "Scheduled Rest Day (OFF)"
             val activeWindow = shiftRegistry[todayCode]
             var nextAlarmEpochMillis: Long? = null
 
@@ -233,20 +234,22 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                     adjCur += 86400L
                 }
 
+                val (startTime, endTime) = extractTimingBounds(activeWindow.timing)
+
                 if (adjCur in activeWindow.startSec until activeWindow.endSec) {
                     val remainingSec = activeWindow.endSec - adjCur
-                    shiftTimerText = "Shift Ends in: ${formatDelta(remainingSec)}"
-                    // Schedule alarm right when shift ends
+                    shiftTimerText = "Shift Ends at $endTime"
+                    // Schedule alarm right when shift ends so widget seamlessly updates
                     nextAlarmEpochMillis = System.currentTimeMillis() + (remainingSec * 1000L)
                 } else if (adjCur < activeWindow.startSec) {
                     val untilStartSec = activeWindow.startSec - adjCur
-                    shiftTimerText = "Duty Starts in: ${formatDelta(untilStartSec)}"
-                    // Schedule alarm right when shift begins
+                    shiftTimerText = "Duty Starts at $startTime"
+                    // Schedule alarm right when shift begins so widget seamlessly updates
                     nextAlarmEpochMillis = System.currentTimeMillis() + (untilStartSec * 1000L)
                 }
             }
 
-            if (shiftTimerText == "No upcoming duty scheduled" || (activeWindow != null && curSec >= activeWindow.endSec && todayCode != "NS")) {
+            if (shiftTimerText == "Scheduled Rest Day (OFF)" || (activeWindow != null && curSec >= activeWindow.endSec && todayCode != "NS")) {
                 var nextCode: String? = null
                 var daysAhead = 0
 
@@ -261,10 +264,19 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
 
                 if (nextCode != null && shiftRegistry.containsKey(nextCode)) {
                     val nextMeta = shiftRegistry[nextCode]!!
+                    val (nextStart, _) = extractTimingBounds(nextMeta.timing)
                     val secUntilMidnight = (86400L - curSec).coerceAtLeast(0)
                     val interSec = (daysAhead - 1) * 86400L
                     val totalSec = secUntilMidnight + interSec + nextMeta.startSec
-                    shiftTimerText = "Next Shift Starts in: ${formatDelta(totalSec)}"
+                    nextAlarmEpochMillis = System.currentTimeMillis() + (totalSec * 1000L)
+
+                    shiftTimerText = if (daysAhead == 1) {
+                        "Next Shift: Tomorrow at $nextStart"
+                    } else {
+                        val nextDate = today.plusDays(daysAhead.toLong())
+                        val nextDateStr = nextDate.format(DateTimeFormatter.ofPattern("EEE, MMM dd"))
+                        "Next Shift: $nextDateStr at $nextStart"
+                    }
                 }
             }
             views.setTextViewText(R.id.widget_timer_text, shiftTimerText)

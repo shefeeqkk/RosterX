@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.14.13"
+SERVER_VERSION = "1.14.14"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2721,16 +2721,29 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 for eng in engineers:
                     eng_email = str(eng.get("email") or "").strip().lower()
                     eng_name = str(eng.get("name") or "").strip()
-                    # Username is strictly derived from domain ID of engineer's email address
-                    if eng_email and "@" in eng_email:
-                        eng_user = eng_email.split("@")[0].strip().lower()
-                    else:
-                        eng_user = str(eng.get("username") or "").strip().lower()
-                    if not eng_user and eng_name:
-                        eng_user = eng_name.split()[0].lower()
+                    # Domain username is primarily taken from username, with fallback to email domain ID or name
+                    eng_user = str(eng.get("username") or "").strip().lower()
+                    if not eng_user:
+                        if eng_email and "@" in eng_email:
+                            eng_user = eng_email.split("@")[0].strip().lower()
+                        elif eng_name:
+                            eng_user = eng_name.split()[0].lower()
 
                     if not eng_user:
                         continue
+
+                    # Check if an account rename or replacement was performed
+                    old_user = str(eng.pop("original_username", None) or eng.pop("old_username", None) or "").strip().lower()
+                    if old_user and old_user != eng_user:
+                        old_doc = ATLAS_DB.engineers.find_one({"username": old_user})
+                        if old_doc:
+                            # Preserve existing password hash and creation timestamp if not provided in update
+                            if ("password" not in eng or not eng["password"]) and old_doc.get("password"):
+                                eng["password"] = old_doc["password"]
+                            if "created_at" in old_doc and "created_at" not in eng:
+                                eng["created_at"] = old_doc["created_at"]
+                        print(f"  [ATLAS] Account renamed/replaced: removing old account '{old_user}' in favor of '{eng_user}'")
+                        ATLAS_DB.engineers.delete_many({"username": old_user})
 
                     eng["username"] = eng_user
                     # Remove legacy id fields to keep username as the sole unique key

@@ -4360,65 +4360,43 @@ class RosterXApp {
     );
 
     const resolvedUsername = username || (editingUser && editingUser.username) || name.toLowerCase().replace(/[\s\W]+/g, '');
+    const oldUsername = (editingUser && editingUser.username) ? editingUser.username.trim().toLowerCase() : null;
 
     const engData = {
-
       name,
-
       full_name: fullName,
-
       username: resolvedUsername,
-
       email,
-
       phone,
-
       role,
-
       status,
-
       default_weekly_offs: [off1, off2],
-
       join_date: joinDate,
-
       resignation_date: resignDate,
-
       preferred_shifts: ["FS", "FG", "SS"]
-
     };
 
-    if (rawPass) {
-
-      engData.password = rawPass;
-
+    if (oldUsername && oldUsername !== resolvedUsername.toLowerCase()) {
+      engData.original_username = oldUsername;
     }
 
-
+    if (rawPass) {
+      engData.password = rawPass;
+    }
 
     const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));
 
-
-
     if (existingIdx >= 0) {
-
       this.state.engineersList[existingIdx] = engData;
-
       if (isComingMonth && status === 'Resigned') {
-
         this.state.gridRoster = this.state.gridRoster.filter(e => (e.name && e.name.trim().toUpperCase() !== name) && e.id !== id);
-
       } else {
-
-        const gridIdx = this.state.gridRoster.findIndex(e => (e.name && e.name.trim().toUpperCase() === name) || e.id === id);
-
+        const gridIdx = this.state.gridRoster.findIndex(e => (editingUser && (e.name === editingUser.name || e.username === editingUser.username)) || (e.name && e.name.trim().toUpperCase() === name) || e.id === id);
         if (gridIdx >= 0) {
-
+          this.state.gridRoster[gridIdx].name = name;
           this.state.gridRoster[gridIdx].status = status;
-
           this.state.gridRoster[gridIdx].role = role;
-
           this.state.gridRoster[gridIdx].default_weekly_offs = [off1, off2];
-
         } else if (status === 'Active') {
 
           this.state.gridRoster.push({

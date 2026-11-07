@@ -3550,7 +3550,7 @@ fun AccountView(
 
         item {
 
-            var showGatewaySettings by remember { mutableStateOf(true) }
+            var showGatewaySettings by remember { mutableStateOf(false) }
 
             var urlInput by remember(state.currentBaseUrl) { mutableStateOf(state.currentBaseUrl) }
 
