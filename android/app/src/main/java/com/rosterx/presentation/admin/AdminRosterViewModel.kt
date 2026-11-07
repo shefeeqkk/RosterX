@@ -383,8 +383,12 @@ class AdminRosterViewModel @Inject constructor(
 
             if (res.isSuccess) {
 
-                val current = _state.value.engineers.filter { it.id != engineer.id && it.name.uppercase() != engineer.name.uppercase() }
-
+                val current = _state.value.engineers.filter { 
+                    val matchesUser = engineer.username.isNotBlank() && it.username.equals(engineer.username, ignoreCase = true)
+                    val matchesId = engineer.id.isNotBlank() && it.id.equals(engineer.id, ignoreCase = true)
+                    val matchesName = (engineer.username.isBlank() && engineer.id.isBlank()) && it.name.equals(engineer.name, ignoreCase = true)
+                    !(matchesUser || matchesId || matchesName)
+                }
                 _state.value = _state.value.copy(engineers = current)
 
                 loadData()

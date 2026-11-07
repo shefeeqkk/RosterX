@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.14.14"
+SERVER_VERSION = "1.14.15"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2799,20 +2799,30 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 return
 
             try:
-                queries = []
+                # Prioritize unique domain username/id to prevent accidentally deleting other accounts that share a display name
                 if eng_username:
-                    queries.extend([{"username": eng_username}, {"username": {"$regex": f"^{re.escape(eng_username)}$", "$options": "i"}}])
-                if eng_name:
-                    queries.extend([{"name": eng_name}, {"name": {"$regex": f"^{re.escape(eng_name)}$", "$options": "i"}}])
-                if eng_id:
-                    queries.extend([{"id": eng_id}, {"engineer_id": eng_id}])
+                    delete_query = {"$or": [
+                        {"username": eng_username},
+                        {"username": {"$regex": f"^{re.escape(eng_username)}$", "$options": "i"}}
+                    ]}
+                elif eng_id:
+                    delete_query = {"$or": [{"id": eng_id}, {"engineer_id": eng_id}]}
+                elif eng_name:
+                    delete_query = {"$or": [
+                        {"name": eng_name},
+                        {"name": {"$regex": f"^{re.escape(eng_name)}$", "$options": "i"}}
+                    ]}
+                else:
+                    self.send_json_response({"success": False, "message": "Identifier required for deletion"}, 400)
+                    return
 
-                delete_query = {"$or": queries}
                 result = ATLAS_DB.engineers.delete_many(delete_query)
 
                 DEFAULT_SERVER_ENGINEERS = [
                     e for e in DEFAULT_SERVER_ENGINEERS
-                    if e.get("username") != eng_username and e.get("name") != eng_name
+                    if (not eng_username or e.get("username") != eng_username) and
+                       (not eng_id or e.get("id") != eng_id) and
+                       (eng_username or eng_id or e.get("name") != eng_name)
                 ]
 
                 self.send_json_response({
