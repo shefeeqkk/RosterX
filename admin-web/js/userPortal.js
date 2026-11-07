@@ -2781,6 +2781,32 @@ export class UserPortalController {
       else off.push(item);
     });
 
+    // Sort Morning Shift strictly by shift start timing: FS (07:30) -> FG (08:30) -> G (09:30) -> SG (11:00)
+    const morningShiftOrder = { 'FS': 1, 'FG': 2, 'G': 3, 'SG': 4 };
+    morning.sort((a, b) => {
+      const rankA = morningShiftOrder[a.code] || 99;
+      const rankB = morningShiftOrder[b.code] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    // Sort No Duty strictly by required priority: OFF -> SW* -> L -> others
+    const getNoDutyRank = (code) => {
+      if (code === 'OFF') return 1;
+      if (code && code.startsWith('SW')) return 2;
+      if (code === 'L') return 3;
+      return 4;
+    };
+    off.sort((a, b) => {
+      const rankA = getNoDutyRank(a.code);
+      const rankB = getNoDutyRank(b.code);
+      if (rankA !== rankB) return rankA - rankB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    second.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    night.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
     const renderSlotList = (arr, badgeClass) => {
       if (!arr || arr.length === 0) {
         return '<span class="text-slate-500 italic text-xs">No active personnel</span>';

@@ -279,7 +279,7 @@ class RosterRepositoryImpl @Inject constructor(
 
             val dtoList = engineers.map { it.toDto() }
 
-            val payload = mapOf("engineers" to dtoList)
+            val payload = com.rosterx.data.remote.SyncEngineersRequest(dtoList)
 
             val response = apiService.syncEngineers(payload)
 
@@ -311,7 +311,7 @@ class RosterRepositoryImpl @Inject constructor(
 
         try {
 
-            val payload = mapOf("id" to id, "name" to name, "username" to username)
+            val payload = com.rosterx.data.remote.DeleteEngineerRequest(id = id, name = name, username = username, engineerId = id)
 
             val response = apiService.deleteEngineer(payload)
 
@@ -776,12 +776,10 @@ class RosterRepositoryImpl @Inject constructor(
 
     override suspend fun dismissNotification(notificationId: String, dismissAll: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val payload = mutableMapOf<String, Any>()
-            if (dismissAll) {
-                payload["all"] = true
-            } else {
-                payload["notification_id"] = notificationId
-            }
+            val payload = com.rosterx.data.remote.DismissNotificationRequest(
+                id = if (!dismissAll) notificationId else null,
+                all = if (dismissAll) true else null
+            )
             val response = apiService.dismissNotification(payload)
             if (response.success) {
                 Result.success(Unit)

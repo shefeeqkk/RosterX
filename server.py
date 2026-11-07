@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.14.11"
+SERVER_VERSION = "1.14.12"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1037,7 +1037,7 @@ def build_roster_grounding_context(current_user=None):
 
     engineers_roster = []
     if roster_doc:
-        engineers_roster = roster_doc.get("engineers", [])
+        engineers_roster = roster_doc.get("engineers") or roster_doc.get("roster") or []
 
     normalized_roster = []
     for eng in engineers_roster:
@@ -1332,13 +1332,13 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
     """
     env = load_env_variables()
     gemini_key = env.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
-    configured_model = env.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    configured_model = env.get("GEMINI_MODEL", "gemini-3.1-flash-lite").strip()
     
     context = build_roster_grounding_context(current_user)
     
     # Model fallback hierarchy
     candidate_models = []
-    for m in [configured_model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-flash-latest"]:
+    for m in [configured_model, "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-3.8-flash", "gemini-flash-lite-latest"]:
         if m and m not in candidate_models:
             candidate_models.append(m)
 
@@ -1348,11 +1348,16 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         "Strict Directives:\n"
         "1. NEVER invent, hallucinate, or assume shift assignments, engineer names, or dates. Only use the provided grounding context.\n"
         "2. All time references are in Indian Standard Time (IST, UTC+5:30).\n"
-        "3. Operational Shift Structure & Categories:\n"
-        "   - Morning Shift: FS (07:30 – 16:30), FG (08:30 – 17:30), G (09:30 – 18:30), SG (11:00 – 20:00)\n"
-        "   - Afternoon Shift: SS (13:00 – 22:00)\n"
-        "   - Night Shift: NS (21:00 – 07:30, +1 day, solo desk coverage)\n"
-        "   - No Duty: OFF, L, SW* (Weekly Off, Approved Leave, Swapped Off)\n"
+        "3. Operational Shift Structure & Shift Code Definitions:\n"
+        "   - FS = First Shift (07:30 – 16:30 IST)\n"
+        "   - FG = First General (08:30 – 17:30 IST)\n"
+        "   - G = General Shift (09:30 – 18:30 IST)\n"
+        "   - SG = Second General (11:00 – 20:00 IST) [Note: 'Second General' specifically refers to 'SG', NOT 'G']\n"
+        "   - SS = Second Shift / Afternoon (13:00 – 22:00 IST)\n"
+        "   - NS = Night Shift (21:00 – 07:30 IST next morning)\n"
+        "   - OFF = Weekly Off / Scheduled Rest Day\n"
+        "   - L = Approved Leave\n"
+        "   - SW* = Swapped Off\n"
         "4. Format your responses with clean, professional Markdown (bullet points, bold highlights, code formatting for shift codes).\n"
         "5. Keep all responses very brief, concise, and direct (1 to 2 sentences maximum). Do not output headers, telemetry dumps, or system status unless specifically requested."
     )
@@ -1360,13 +1365,13 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
     grounding_payload_text = (
         "CURRENT REAL-TIME CONTEXT:\n"
         f"- Indian Standard Time (IST): {context['ist_timestamp']}\n"
-        f"- Date: {context['date']} ({context['day_of_week']})\n"
+        f"- Today's Date: {context['date']} ({context['day_of_week']}), Day {context.get('cur_day', 1)} of {context.get('days_in_month', 30)}\n"
         f"- Active Shift Windows Right Now: {', '.join(context['active_shift_slots'])}\n"
         f"- Engineers On Duty Right Now: {json.dumps(context['on_duty_engineers'])}\n"
         f"- Today's Desk Coverage: {json.dumps(context['today_desk_coverage'])}\n"
         f"- Tomorrow's Scheduled Coverage: {json.dumps(context['tomorrow_schedule'])}\n"
-        f"- Monthly Published Roster (All Engineers & Shifts): {json.dumps(context.get('normalized_roster', []))}\n"
-        f"- Current User Profile: {json.dumps(context['current_user_profile'])}\n"
+        f"- Current User Profile (Target): {json.dumps(context['current_user_profile'])}\n"
+        f"- Monthly Published Roster (All Engineers & Daily Shifts 1 to {context.get('days_in_month', 30)}): {json.dumps(context.get('normalized_roster', []))}\n"
         f"- System Uptime: {context['uptime']}\n\n"
         f"User Query: {user_prompt}"
     )
@@ -1385,7 +1390,7 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
                     headers={"Content-Type": "application/json"},
                     data=json.dumps(gemini_body).encode("utf-8")
                 )
-                with urllib.request.urlopen(ai_req, timeout=12) as ai_resp:
+                with urllib.request.urlopen(ai_req, timeout=6) as ai_resp:
                     res_json = json.loads(ai_resp.read().decode("utf-8"))
                     candidates = res_json.get("candidates", [])
                     if candidates and "content" in candidates[0]:
@@ -2418,7 +2423,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             env = load_env_variables()
             gemini_key = env.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
-            gemini_model = env.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+            gemini_model = env.get("GEMINI_MODEL", "gemini-3.1-flash-lite").strip()
 
             if not gemini_key:
                 self.send_json_response({

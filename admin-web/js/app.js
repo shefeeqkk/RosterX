@@ -691,7 +691,7 @@ class RosterXApp {
     });
 
     document.getElementById('btnOpenTeamModalFromTab')?.addEventListener('click', () => {
-      this.openTeamModal();
+      this.openEngineerForm(null);
     });
 
     document.getElementById('btnOpenSwapsModalFromTab')?.addEventListener('click', () => {
@@ -912,6 +912,33 @@ class RosterXApp {
         noDutyList.push({ name: eng.name, code: shift });
       }
     });
+
+    // Sort Morning Shift strictly by shift start timing: FS (07:30) -> FG (08:30) -> G (09:30) -> SG (11:00)
+    const morningShiftOrder = { 'FS': 1, 'FG': 2, 'G': 3, 'SG': 4 };
+    morningList.sort((a, b) => {
+      const rankA = morningShiftOrder[a.code] || 99;
+      const rankB = morningShiftOrder[b.code] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    // Sort No Duty strictly by required priority: OFF -> SW* -> L -> others
+    const getNoDutyRank = (code) => {
+      if (code === 'OFF') return 1;
+      if (code && code.startsWith('SW')) return 2;
+      if (code === 'L') return 3;
+      return 4;
+    };
+    noDutyList.sort((a, b) => {
+      const rankA = getNoDutyRank(a.code);
+      const rankB = getNoDutyRank(b.code);
+      if (rankA !== rankB) return rankA - rankB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    // Sort Afternoon & Night engineers alphabetically by name
+    afternoonList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    nightList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const createPill = (item, bgClass, textClass, badgeBgClass) => {
       const div = document.createElement('div');
@@ -1147,8 +1174,7 @@ class RosterXApp {
       const editBtn = card.querySelector('.btn-edit-eng-tab');
       if (editBtn) {
         editBtn.addEventListener('click', () => {
-          this.openTeamModal();
-          this.editEngineer(eng.id);
+          this.openEngineerForm(eng);
         });
       }
       list.appendChild(card);
@@ -3989,13 +4015,19 @@ class RosterXApp {
 
     this.state.editingEngineerId = eng ? eng.id : null;
 
+    if (this.dom.teamModal) this.dom.teamModal.classList.remove('hidden');
+
     this.dom.engineerFormContainer.classList.remove('hidden');
 
-
+    const modalTitleEl = document.getElementById('engineerModalMainTitle');
+    const modalSubtitleEl = document.getElementById('engineerModalMainSubtitle');
 
     if (eng) {
 
       const username = this.getEngineerUsername(eng);
+
+      if (modalTitleEl) modalTitleEl.textContent = `Edit Account Details: ${eng.name}`;
+      if (modalSubtitleEl) modalSubtitleEl.textContent = 'Update profile, domain credentials, and operational role';
 
       this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-pencil-simple text-blue-600"></i> Edit Account Details: <span class="text-blue-700 font-black">${eng.name}</span> <span class="ml-2 font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">@${username}</span>`;
 
@@ -4049,6 +4081,9 @@ class RosterXApp {
 
     } else {
 
+      if (modalTitleEl) modalTitleEl.textContent = 'Register New Account';
+      if (modalSubtitleEl) modalSubtitleEl.textContent = 'Create new engineer, manager, or admin credential profile';
+
       this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-user-plus text-blue-600"></i> Register New Account`;
 
       if (this.dom.formEngPasswordLabel) this.dom.formEngPasswordLabel.textContent = 'Initial Password *:';
@@ -4093,7 +4128,7 @@ class RosterXApp {
 
       this.dom.formEngOff2.value = 'Sunday';
 
-    if (this.dom.formEngPassword) this.dom.formEngPassword.value = '';
+      if (this.dom.formEngPassword) this.dom.formEngPassword.value = '';
 
       if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.add('hidden');
 
@@ -4113,9 +4148,10 @@ class RosterXApp {
 
 
 
-    // Re-render table to display active row highlight
+    // Re-render table and tab
 
     this.renderTeamTable();
+    this.renderTeamTab();
 
   }
 
@@ -4125,11 +4161,16 @@ class RosterXApp {
 
     this.state.editingEngineerId = null;
 
+    if (this.dom.teamModal) this.dom.teamModal.classList.add('hidden');
+
     this.dom.engineerFormContainer.classList.add('hidden');
 
     if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.add('hidden');
 
     this.renderTeamTable();
+    this.renderTeamTab();
+
+  }
 
   }
 

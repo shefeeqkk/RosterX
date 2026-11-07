@@ -1363,35 +1363,35 @@
 
   <!-- ========================================================================= -->
 
-  <!-- MODAL 1: 👥 Team Management Modal (Module A: CRUD & Lifecycle)             -->
+  <!-- MODAL 1: 👥 Account Registration & Profile Edit Modal                         -->
 
   <!-- ========================================================================= -->
 
   <div id="teamModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
 
-    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl w-full max-w-6xl flex flex-col max-h-[92vh] overflow-hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] overflow-hidden">
 
-      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
 
         <div class="flex items-center gap-2.5">
 
           <div class="bg-blue-600 text-white p-2 rounded-xl">
 
-            <i class="ph ph-users-three text-2xl"></i>
+            <i class="ph ph-user-gear text-2xl"></i>
 
           </div>
 
           <div>
 
-            <h2 class="text-base font-bold text-slate-900">Engineer Directory & Lifecycle Management</h2>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white" id="engineerModalMainTitle">Edit Account Details</h2>
 
-            <p class="text-xs text-slate-500">Add, edit, retire engineers, configure weekly off anchors and lifecycle statuses</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400" id="engineerModalMainSubtitle">Configure profile, domain credentials, and operational role</p>
 
           </div>
 
         </div>
 
-        <button id="btnCloseTeamModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg">
+        <button id="btnCloseTeamModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl p-1 rounded-lg cursor-pointer">
 
           <i class="ph ph-x"></i>
 
@@ -1401,33 +1401,13 @@
 
 
 
-      <!-- Content -->
+      <!-- Content: Form Only (No Duplicate Directory Table) -->
 
       <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
 
-        <div class="flex items-center justify-between">
+        <!-- Inline Add/Edit Form -->
 
-          <div>
-
-            <h3 class="font-bold text-slate-800 text-sm">Active & Historical Engineers</h3>
-
-            <p class="text-[11px] text-slate-500">Configure team lifecycle, roles (Admin, Engineer, Apprentice) and shift off anchors</p>
-
-          </div>
-
-          <button id="btnAddNewEngineer" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 cursor-pointer">
-
-            <i class="ph ph-user-plus text-sm"></i> + Register Account
-
-          </button>
-
-        </div>
-
-
-
-        <!-- Inline Add/Edit Form (Positioned above table for instant visibility & convenience) -->
-
-        <div id="engineerFormContainer" class="hidden bg-gradient-to-b from-blue-50/90 to-slate-50 border-2 border-blue-400 rounded-xl p-4 space-y-3.5 shadow-md transition-all">
+        <div id="engineerFormContainer" class="bg-gradient-to-b from-blue-50/90 to-slate-50 dark:from-slate-800/90 dark:to-slate-900 border-2 border-blue-400 dark:border-blue-600 rounded-xl p-4 space-y-3.5 shadow-md transition-all">
 
           <div class="flex items-center justify-between pb-2 border-b border-blue-200">
 
@@ -1657,47 +1637,9 @@
 
         </div>
 
+        <!-- Hidden legacy anchors for backwards compatibility -->
 
-
-        <!-- Engineers Table -->
-
-        <div class="border border-slate-200 rounded-xl overflow-x-auto shadow-sm bg-white">
-
-          <table class="w-full min-w-[960px] text-left text-xs">
-
-            <thead class="bg-slate-100 border-b border-slate-200 font-bold text-slate-700">
-
-              <tr>
-
-                <th class="p-2.5">Name / Full Name</th>
-
-                <th class="p-2.5">Username</th>
-
-                <th class="p-2.5">Email / Phone</th>
-
-                <th class="p-2.5">Role</th>
-
-                <th class="p-2.5">Status</th>
-
-                <th class="p-2.5">Weekly Offs</th>
-
-                <th class="p-2.5">Lifecycle Dates</th>
-
-                <th class="p-2.5 text-right sticky right-0 bg-slate-100 z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] min-w-[140px]">Actions</th>
-
-              </tr>
-
-            </thead>
-
-            <tbody id="teamTableBody" class="divide-y divide-slate-200">
-
-              <!-- Dynamically populated -->
-
-            </tbody>
-
-          </table>
-
-        </div>
+        <div class="hidden"><button id="btnAddNewEngineer"></button><tbody id="teamTableBody"></tbody></div>
 
       </div>
 

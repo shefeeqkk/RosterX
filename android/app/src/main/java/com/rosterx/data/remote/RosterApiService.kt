@@ -163,10 +163,10 @@ interface RosterApiService {
     suspend fun getEngineers(): EngineersResponse
 
     @POST("api/engineers")
-    suspend fun syncEngineers(@Body payload: Map<String, List<EngineerDto>>): PingResponse
+    suspend fun syncEngineers(@Body payload: SyncEngineersRequest): PingResponse
 
     @POST("api/engineers/delete")
-    suspend fun deleteEngineer(@Body payload: Map<String, String>): PingResponse
+    suspend fun deleteEngineer(@Body payload: DeleteEngineerRequest): PingResponse
 
     @GET("api/roster/{monthKey}")
     suspend fun getRoster(@Path("monthKey") monthKey: String): RosterResponse
@@ -193,11 +193,27 @@ interface RosterApiService {
     suspend fun sendNotification(@Body request: SendNotificationRequest): SendNotificationResponse
 
     @POST("api/notifications/dismiss")
-    suspend fun dismissNotification(@Body body: Map<String, Any>): PingResponse
+    suspend fun dismissNotification(@Body body: DismissNotificationRequest): PingResponse
 
     @POST("api/chat/assistant")
     suspend fun queryAssistant(@Body request: AssistantChatRequest): AssistantChatResponse
 }
+
+data class SyncEngineersRequest(
+    @SerializedName("engineers") val engineers: List<EngineerDto>
+)
+
+data class DeleteEngineerRequest(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("engineer_id") val engineerId: String? = null
+)
+
+data class DismissNotificationRequest(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("all") val all: Boolean? = null
+)
 
 // --- Notifications DTOs ---
 data class SendNotificationRequest(
