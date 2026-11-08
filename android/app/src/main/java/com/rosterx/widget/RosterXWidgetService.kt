@@ -35,32 +35,53 @@ class RosterXWidgetService : RemoteViewsService() {
 
         override fun getCount(): Int = items.size
 
+        override fun getViewTypeCount(): Int = 3
+
         override fun getViewAt(position: Int): RemoteViews? {
             if (position < 0 || position >= items.size) return null
             val item = items[position]
 
-            val rv = RemoteViews(context.packageName, R.layout.item_widget_shift)
-            rv.setTextViewText(R.id.item_badge_code, item.shiftCode)
-            try {
-                rv.setInt(R.id.item_badge_bg, "setColorFilter", Color.parseColor(item.bgHex))
-                rv.setTextColor(R.id.item_badge_code, Color.parseColor(item.textHex))
-            } catch (_: Exception) {}
+            return when (item.itemType) {
+                WidgetDutyItem.TYPE_HEADER -> {
+                    val rv = RemoteViews(context.packageName, R.layout.item_widget_section_header)
+                    rv.setTextViewText(R.id.widget_section_title, item.sectionTitle)
+                    rv.setTextViewText(R.id.widget_section_count, item.sectionCount)
+                    rv
+                }
+                WidgetDutyItem.TYPE_REST -> {
+                    val rv = RemoteViews(context.packageName, R.layout.item_widget_rest)
+                    rv.setTextViewText(R.id.item_rest_badge_code, item.shiftCode)
+                    try {
+                        rv.setInt(R.id.item_rest_badge_bg, "setColorFilter", Color.parseColor(item.bgHex))
+                        rv.setTextColor(R.id.item_rest_badge_code, Color.parseColor(item.textHex))
+                    } catch (_: Exception) {}
 
-            rv.setTextViewText(R.id.item_engineer_name, item.engineerName)
-            rv.setTextViewText(R.id.item_shift_timing, item.timing)
+                    rv.setTextViewText(R.id.item_rest_engineer_name, item.engineerName)
+                    rv.setTextViewText(R.id.item_rest_desc, item.shiftName.ifBlank { "Scheduled Rest" })
+                    rv
+                }
+                else -> {
+                    val rv = RemoteViews(context.packageName, R.layout.item_widget_shift)
+                    rv.setTextViewText(R.id.item_badge_code, item.shiftCode)
+                    try {
+                        rv.setInt(R.id.item_badge_bg, "setColorFilter", Color.parseColor(item.bgHex))
+                        rv.setTextColor(R.id.item_badge_code, Color.parseColor(item.textHex))
+                    } catch (_: Exception) {}
 
-            if (item.isActiveNow) {
-                rv.setViewVisibility(R.id.item_active_pill, View.VISIBLE)
-            } else {
-                rv.setViewVisibility(R.id.item_active_pill, View.GONE)
+                    rv.setTextViewText(R.id.item_engineer_name, item.engineerName)
+                    rv.setTextViewText(R.id.item_shift_timing, item.timing)
+
+                    if (item.isActiveNow) {
+                        rv.setViewVisibility(R.id.item_active_pill, View.VISIBLE)
+                    } else {
+                        rv.setViewVisibility(R.id.item_active_pill, View.GONE)
+                    }
+                    rv
+                }
             }
-
-            return rv
         }
 
         override fun getLoadingView(): RemoteViews? = null
-
-        override fun getViewTypeCount(): Int = 1
 
         override fun getItemId(position: Int): Long = position.toLong()
 

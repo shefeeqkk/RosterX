@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-08 23:30 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 00:25 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.17.0`** (Android `versionCode: 61`, Server `SERVER_VERSION = "1.17.0"`)
-- **Previous Versions**: `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
+- **Semantic Version**: **`1.18.0`** (Android `versionCode: 62`, Server `SERVER_VERSION = "1.18.0"`)
+- **Previous Versions**: `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
@@ -18,6 +18,25 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.18.0
+
+### 1. Manager Widget 2-Card Redesign & Chronological Shift Sorting
+- **Clear Summary String**: Updated to `"Total on Duty: 4 Engineers | Rest: 5 Engineers"` (no confusing day/night breakdown).
+- **Two High-Density Cards**:
+  - **⚡ ON DUTY**: Engineers listed strictly sorted by shift start timing (`FS` 07:30, `FG` 08:30, `G` 09:30, `SG` 11:00, `SS` 13:00, `NS` 21:00).
+  - **☕ REST & LEAVE**: Rest day staff on `OFF`, `SW*`, and `L`.
+- **Ultra-Compact RemoteViews**: Reduced padding and badge sizes (`24dp`), enabling 6-8 engineers visible at a glance with minimal scroll.
+
+### 2. Theming & Drop Shadow Glow Unification
+- **Dynamic Accent Glow**: Replaced hardcoded salmon/pinkish drop shadow (`0x59FF5252`) with dynamic `LocalThemeAccent.current.copy(alpha = 0.35f)`, ensuring all neumorphic CTA glows and the floating bottom navigation bubble match Tory Blue `#174EAC` / `#7294CC` (or selected palette).
+- **Collapsible Theme Card**: The "Appearance & Theme" card in the Settings tab is now collapsible, **closed by default**, displaying an active summary pill (`Dark • Tory Blue`) when collapsed.
+
+### 3. Manager Dashboard Layout Polish & Health Liveliness
+- **Prevent Staff Counter Squeeze**: Replaced the right header row in `DutyGroupCard` with compact micro-tagging (`CURRENT`) and guaranteed single-line text for staff pills (`maxLines = 1, softWrap = false`), preventing wrap onto two lines.
+- **Liveliness Feedback on Health Check**: Tapping refresh on the System & DB Health card now provides immediate visual feedback: 360° continuous spinning icon, amber pulsing status banner with `"Pinging Atlas M0 Cluster..."`, and animated `"Pinging..."` sync state.
 
 ---
 

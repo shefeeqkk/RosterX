@@ -23,14 +23,23 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 data class WidgetDutyItem(
-    val engineerName: String,
-    val shiftCode: String,
-    val shiftName: String,
-    val timing: String,
-    val bgHex: String,
-    val textHex: String,
-    val isActiveNow: Boolean
-)
+    val engineerName: String = "",
+    val shiftCode: String = "",
+    val shiftName: String = "",
+    val timing: String = "",
+    val bgHex: String = "#334155",
+    val textHex: String = "#FFFFFF",
+    val isActiveNow: Boolean = false,
+    val itemType: Int = TYPE_DUTY,
+    val sectionTitle: String = "",
+    val sectionCount: String = ""
+) {
+    companion object {
+        const val TYPE_HEADER = 0
+        const val TYPE_DUTY = 1
+        const val TYPE_REST = 2
+    }
+}
 
 class RosterXAppWidgetProvider : AppWidgetProvider() {
 

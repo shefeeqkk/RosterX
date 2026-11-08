@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.rosterx.ui.theme.LocalThemeAccent
 
 /**
  * RosterX — Custom Neumorphic Compose Modifier Extensions
@@ -215,25 +216,28 @@ fun Modifier.neumorphicClickable(
  * Applies a glowing kinetic accent shadow for primary CTA elements.
  */
 fun Modifier.neumorphicAccentGlow(
-    glowColor: Color = NeumorphicTokens.AccentGlow,
+    glowColor: Color = Color.Unspecified,
     radius: Dp = 16.dp
-): Modifier = this.drawBehind {
-    val blurPx = radius.toPx()
-    drawIntoCanvas { canvas ->
-        val paint = android.graphics.Paint().apply {
-            isAntiAlias = true
-            color = glowColor.toArgb()
-            maskFilter = BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL)
+): Modifier = composed {
+    val resolvedGlow = if (glowColor != Color.Unspecified) glowColor else LocalThemeAccent.current.copy(alpha = 0.35f)
+    this.drawBehind {
+        val blurPx = radius.toPx()
+        drawIntoCanvas { canvas ->
+            val paint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                color = resolvedGlow.toArgb()
+                maskFilter = BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL)
+            }
+            canvas.nativeCanvas.drawRoundRect(
+                0f,
+                0f,
+                size.width,
+                size.height,
+                NeumorphicTokens.CornerMedium.toPx(),
+                NeumorphicTokens.CornerMedium.toPx(),
+                paint
+            )
         }
-        canvas.nativeCanvas.drawRoundRect(
-            0f,
-            0f,
-            size.width,
-            size.height,
-            NeumorphicTokens.CornerMedium.toPx(),
-            NeumorphicTokens.CornerMedium.toPx(),
-            paint
-        )
     }
 }
 

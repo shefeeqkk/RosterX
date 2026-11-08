@@ -105,12 +105,14 @@ object NeumorphicTokens {
     val AccentSalmon: Color
         @Composable get() = LocalThemeAccent.current
 
-    val AccentCoral: Color = Color(0xFFFF6B6B)
-    val AccentGlow: Color = Color(0x59FF5252)
+    val AccentCoral: Color
+        @Composable get() = LocalThemeAccent.current
+    val AccentGlow: Color
+        @Composable get() = LocalThemeAccent.current.copy(alpha = 0.35f)
 
     val AccentGradient: Brush
         @Composable get() = Brush.linearGradient(
-            colors = listOf(AccentCoral, LocalThemeAccent.current),
+            colors = listOf(LocalThemeAccent.current.copy(alpha = 0.75f), LocalThemeAccent.current),
             start = Offset(0f, 0f),
             end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
         )

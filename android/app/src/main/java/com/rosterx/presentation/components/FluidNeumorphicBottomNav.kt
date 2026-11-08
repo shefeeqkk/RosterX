@@ -173,7 +173,7 @@ fun FluidNeumorphicBottomNav(
                     .offset(x = bubbleLeftDp, y = 0.dp)
                     .size(bubbleSize)
                     .scale(scaleX = bubbleScaleX, scaleY = bubbleScaleY)
-                    .neumorphicAccentGlow(glowColor = NeumorphicTokens.AccentGlow, radius = 10.dp)
+                    .neumorphicAccentGlow(radius = 10.dp)
                     .neumorphicRaised(
                         shape = CircleShape,
                         elevation = NeumorphicTokens.ElevationRaised,

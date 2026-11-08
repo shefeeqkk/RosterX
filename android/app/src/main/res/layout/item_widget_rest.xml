@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_widget_rest_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/widget_inner_card"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingLeft="8dp"
+    android:paddingTop="3dp"
+    android:paddingRight="8dp"
+    android:paddingBottom="3dp">
+
+    <!-- Squircle Rest Badge -->
+    <FrameLayout
+        android:layout_width="24dp"
+        android:layout_height="24dp">
+
+        <ImageView
+            android:id="@+id/item_rest_badge_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_shift_squircle" />
+
+        <TextView
+            android:id="@+id/item_rest_badge_code"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fontFamily="sans-serif-black"
+            android:gravity="center"
+            android:text="OFF"
+            android:textColor="#92400E"
+            android:textSize="9.5sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <!-- Engineer Name & Rest Type -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/item_rest_engineer_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-bold"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:text="Engineer Name"
+            android:textColor="@color/widget_text_main"
+            android:textSize="10.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/item_rest_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:text="Scheduled Rest"
+            android:textColor="@color/widget_text_muted"
+            android:textSize="8.5sp" />
+    </LinearLayout>
+
+    <!-- Rest Pill -->
+    <TextView
+        android:id="@+id/item_rest_pill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_pill_timer"
+        android:fontFamily="sans-serif-bold"
+        android:paddingLeft="5dp"
+        android:paddingTop="1.5dp"
+        android:paddingRight="5dp"
+        android:paddingBottom="1.5dp"
+        android:text="REST"
+        android:textColor="@color/widget_rest_text"
+        android:textSize="7.5sp"
+        android:textStyle="bold" />
+
+</LinearLayout>
+

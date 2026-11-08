@@ -7,6 +7,8 @@ import android.graphics.Color.parseColor
 import android.widget.Toast
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.ui.graphics.graphicsLayer
 
 import androidx.compose.animation.core.Spring
 
@@ -910,6 +912,7 @@ fun DutyGroupCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f, fill = false),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -929,17 +932,21 @@ fun DutyGroupCard(
                             modifier = Modifier.size(18.dp)
                         )
                     }
-                    Column {
+                    Column(modifier = Modifier.padding(end = 4.dp)) {
                         Text(
                             text = title,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 14.sp,
-                            color = NeumorphicTokens.TextMain
+                            color = NeumorphicTokens.TextMain,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = timeRange,
                             fontSize = 11.sp,
-                            color = NeumorphicTokens.TextMuted
+                            color = NeumorphicTokens.TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -950,30 +957,43 @@ fun DutyGroupCard(
                 ) {
                     if (isCurrentWindow) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(6.dp),
                             color = Color(0xFF10B981).copy(alpha = 0.15f),
                             border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
                         ) {
-                            Text(
-                                text = "CURRENT WINDOW",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF047857),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF10B981))
+                                )
+                                Text(
+                                    text = "CURRENT",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF047857)
+                                )
+                            }
                         }
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = accentColor.copy(alpha = 0.15f)
                     ) {
                         Text(
                             text = "${staff.size} Staff",
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = accentColor,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
@@ -1103,6 +1123,17 @@ fun ManagerHealthCard(
     state: PortalState,
     onRefreshDiagnostics: () -> Unit
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "healthRefresh")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "healthSpin"
+    )
+
     NeumorphicCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -1132,7 +1163,7 @@ fun ManagerHealthCard(
                         Icon(
                             imageVector = Icons.Default.Dns,
                             contentDescription = "Cloud Database",
-                            tint = NeumorphicTokens.AccentSalmon,
+                            tint = NeumorphicTokens.Accent,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1161,23 +1192,34 @@ fun ManagerHealthCard(
                             elevation = NeumorphicTokens.ElevationInset,
                             surfaceColor = NeumorphicTokens.Surface
                         )
-                        .clickable { onRefreshDiagnostics() },
+                        .clickable(enabled = !state.isRefreshingHealth) { onRefreshDiagnostics() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Refresh Health",
-                        tint = NeumorphicTokens.AccentSalmon,
-                        modifier = Modifier.size(18.dp)
+                        tint = NeumorphicTokens.Accent,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .graphicsLayer {
+                                rotationZ = if (state.isRefreshingHealth) rotationAngle else 0f
+                            }
                     )
                 }
             }
 
             // Connection Status Banner
+            val isRefreshing = state.isRefreshingHealth
+            val statusColor = when {
+                isRefreshing -> Color(0xFFF59E0B)
+                state.isConnected -> Color(0xFF10B981)
+                else -> Color(0xFFEF4444)
+            }
+
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = if (state.isConnected) Color(0xFF10B981).copy(alpha = 0.12f) else Color(0xFFEF4444).copy(alpha = 0.12f),
-                border = BorderStroke(1.dp, if (state.isConnected) Color(0xFF10B981).copy(alpha = 0.4f) else Color(0xFFEF4444).copy(alpha = 0.4f)),
+                color = statusColor.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -1193,21 +1235,25 @@ fun ManagerHealthCard(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(if (state.isConnected) Color(0xFF10B981) else Color(0xFFEF4444))
+                                .background(statusColor)
                         )
                         Text(
-                            text = if (state.isConnected) "MongoDB Atlas Connected" else "Cluster Offline / Reconnecting",
+                            text = when {
+                                isRefreshing -> "Pinging Atlas M0 Cluster..."
+                                state.isConnected -> "MongoDB Atlas Connected"
+                                else -> "Cluster Offline / Reconnecting"
+                            },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (state.isConnected) Color(0xFF047857) else Color(0xFFB91C1C)
+                            color = statusColor
                         )
                     }
-                    if (state.latencyMs > 0) {
+                    if (!isRefreshing && state.latencyMs > 0) {
                         Text(
                             text = "${state.latencyMs} ms",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (state.isConnected) Color(0xFF047857) else Color(0xFFB91C1C)
+                            color = statusColor
                         )
                     }
                 }
@@ -1285,10 +1331,14 @@ fun ManagerHealthCard(
                         Text(text = "SYNC STATE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (state.isLoading) "Refreshing..." else "Synchronized",
+                            text = when {
+                                state.isRefreshingHealth -> "Pinging..."
+                                state.isLoading -> "Refreshing..."
+                                else -> "Synchronized"
+                            },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (state.isLoading) Color(0xFFF59E0B) else Color(0xFF10B981)
+                            color = if (state.isRefreshingHealth || state.isLoading) Color(0xFFF59E0B) else Color(0xFF10B981)
                         )
                     }
                 }
@@ -5081,6 +5131,8 @@ fun AppearanceThemeCard(
     val isDark = LocalIsDarkTheme.current
     val activeAccent = LocalThemeAccent.current
 
+    var isExpanded by remember { mutableStateOf(false) }
+
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -5089,151 +5141,189 @@ fun AppearanceThemeCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Palette,
-                    contentDescription = null,
-                    tint = activeAccent,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = "APPEARANCE & THEME",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = activeAccent
-                )
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-            // 1. Theme Mode: System, Light, Dark
-            Text(
-                text = "THEME MODE",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val modes = listOf(
-                    Triple(AppThemeMode.SYSTEM, "System", Icons.Default.BrightnessAuto),
-                    Triple(AppThemeMode.LIGHT, "Light", Icons.Default.LightMode),
-                    Triple(AppThemeMode.DARK, "Dark", Icons.Default.DarkMode)
-                )
-
-                modes.forEach { (mode, label, icon) ->
-                    val isSelected = currentMode == mode
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) activeAccent.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        border = if (isSelected) BorderStroke(1.5.dp, activeAccent) else BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { onSetThemeMode(mode) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = label,
-                                tint = if (isSelected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = label,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (isSelected) activeAccent else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // 2. Color Theme Palette Selection
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "ACCENT COLOR PALETTE",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = currentPalette.name,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = activeAccent
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = null,
+                        tint = activeAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "APPEARANCE & THEME",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = activeAccent
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (!isExpanded) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = activeAccent.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "${currentMode.name.lowercase().replaceFirstChar { it.uppercase() }} • ${currentPalette.name}",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = activeAccent,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = "Toggle",
+                        tint = activeAccent
+                    )
+                }
             }
 
-            // Grid of 6 palettes (2 rows x 3 columns)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                BrandPalettes.chunked(3).forEach { rowPalettes ->
+            AnimatedVisibility(visible = isExpanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                    // 1. Theme Mode: System, Light, Dark
+                    Text(
+                        text = "THEME MODE",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        rowPalettes.forEach { palette ->
-                            val isSelected = currentPalette.id == palette.id
-                            val paletteColor = palette.resolve(isDark)
+                        val modes = listOf(
+                            Triple(AppThemeMode.SYSTEM, "System", Icons.Default.BrightnessAuto),
+                            Triple(AppThemeMode.LIGHT, "Light", Icons.Default.LightMode),
+                            Triple(AppThemeMode.DARK, "Dark", Icons.Default.DarkMode)
+                        )
 
+                        modes.forEach { (mode, label, icon) ->
+                            val isSelected = currentMode == mode
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) paletteColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                border = if (isSelected) BorderStroke(1.5.dp, paletteColor) else BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                                color = if (isSelected) activeAccent.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                border = if (isSelected) BorderStroke(1.5.dp, activeAccent) else BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clickable { onSetThemePalette(palette.id) }
+                                    .clickable { onSetThemeMode(mode) }
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
+                                Row(
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Box(
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = label,
+                                        tint = if (isSelected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                        color = if (isSelected) activeAccent else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // 2. Color Theme Palette Selection
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "ACCENT COLOR PALETTE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = currentPalette.name,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = activeAccent
+                        )
+                    }
+
+                    // Grid of 6 palettes (2 rows x 3 columns)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BrandPalettes.chunked(3).forEach { rowPalettes ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowPalettes.forEach { palette ->
+                                    val isSelected = currentPalette.id == palette.id
+                                    val paletteColor = palette.resolve(isDark)
+
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isSelected) paletteColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                        border = if (isSelected) BorderStroke(1.5.dp, paletteColor) else BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
                                         modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(paletteColor),
-                                        contentAlignment = Alignment.Center
+                                            .weight(1f)
+                                            .clickable { onSetThemePalette(palette.id) }
                                     ) {
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = "Selected",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
+                                        Column(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(paletteColor),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = "Selected",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = palette.name,
+                                                fontSize = 10.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) paletteColor else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = palette.name,
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) paletteColor else MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
                                 }
                             }
                         }
