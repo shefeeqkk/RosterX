@@ -579,12 +579,20 @@ class AdminRosterViewModel @Inject constructor(
 
 
     fun logout() {
-        clearAssistantChat()
+        _state.value = _state.value.copy(assistantMessages = emptyList(), isAssistantOpen = false)
         sessionManager.clearSession()
     }
 
     fun clearAssistantChat() {
-        _state.value = _state.value.copy(assistantMessages = emptyList(), isAssistantOpen = false)
+        val welcomeMsg = listOf(
+            com.rosterx.presentation.components.AssistantChatMessage(
+                id = "init",
+                role = "assistant",
+                text = "### 🤖 RosterX Operations Assistant\n\nHello **Administrator**! I have real-time visibility into the NOC roster, shift schedules, and duty handovers.\n\nAsk me anything like:\n- *\"Who all are in shift now?\"*\n- *\"Who has duty tomorrow?\"*",
+                timestamp = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+            )
+        )
+        _state.value = _state.value.copy(assistantMessages = welcomeMsg)
     }
 
 

@@ -32,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -98,38 +99,45 @@ fun RosterXAssistantBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(14.dp))
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(
                                 Brush.radialGradient(
                                     listOf(Color(0xFF1E293B), Color(0xFF0F172A))
                                 )
                             )
-                            .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
+                            .border(1.dp, Color(0xFF06B6D4).copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = com.rosterx.R.drawable.ic_bot_3d_cutout),
                             contentDescription = "RosterX Operations Assistant",
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(32.dp)
                         )
                     }
 
-                    Column {
+                    Column(
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
                         Text(
-                            text = "RosterX Operations Assistant",
+                            text = "RosterX Assistant",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -138,10 +146,12 @@ fun RosterXAssistantBottomSheet(
                                     .background(Color(0xFF10B981))
                             )
                             Text(
-                                text = "Grounded Gemini AI • Live Atlas NOC",
+                                text = "Grounded Gemini • Live Atlas NOC",
                                 fontSize = 11.sp,
                                 color = Color(0xFF94A3B8),
-                                fontFamily = FontFamily.Monospace
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -152,34 +162,38 @@ fun RosterXAssistantBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (messages.size > 1) {
-                        IconButton(
-                            onClick = onClearChat,
+                        Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF1E293B))
+                                .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.35f), CircleShape)
+                                .clickable { onClearChat() },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
                                 contentDescription = "Clear Chat",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(16.dp)
+                                tint = Color(0xFFF87171),
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                     }
 
-                    IconButton(
-                        onClick = onDismiss,
+                    Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF1E293B))
+                            .border(1.dp, Color(0xFF334155), CircleShape)
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
                             tint = Color(0xFF94A3B8),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }
@@ -190,7 +204,6 @@ fun RosterXAssistantBottomSheet(
             val suggestionChips = remember {
                 listOf(
                     QuickChip("⚡ On duty now?", "Who all are in shift now?"),
-                    QuickChip("🌅 SG tomorrow?", "who is in SG for tomorrow"),
                     QuickChip("🌙 NS tomorrow?", "who is available for NS tomorrow"),
                     QuickChip("📅 My shift today?", "What is my shift today?"),
                     QuickChip("📋 Duties tomorrow?", "Who has duty tomorrow?"),
