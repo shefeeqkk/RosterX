@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.20.0"
+SERVER_VERSION = "1.21.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -692,6 +692,124 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
     except Exception as e:
         log_server(f"[RESEND AUDIT] Network/Execution Error: {e}")
         return {"success": False, "error": str(e)}
+
+DEFAULT_BROADCAST_TEMPLATES = [
+    {
+        "id": "tpl_shift_update",
+        "name": "Shift Schedule Update",
+        "title": "Shift Schedule Update Notice",
+        "message": "Dear {name},\n\nPlease review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.\n\nBest regards,\nOperations Desk",
+        "priority": "shift_update",
+        "target_default": "everyone",
+        "created_by": "System Default",
+        "updated_at": "2026-11-09 00:00:00 UTC"
+    },
+    {
+        "id": "tpl_urgent_coverage",
+        "name": "Urgent NOC Shift Coverage",
+        "title": "URGENT: Operational Shift Coverage Required",
+        "message": "Dear {name},\n\nImmediate operational desk coverage is urgently needed for today's active shift due to an unforeseen absence. If you are available to cover this duty, please contact the lead engineer or operations desk immediately.\n\nPriority: URGENT",
+        "priority": "urgent",
+        "target_default": "everyone",
+        "created_by": "System Default",
+        "updated_at": "2026-11-09 00:00:00 UTC"
+    },
+    {
+        "id": "tpl_maintenance",
+        "name": "Planned Maintenance Window",
+        "title": "Notice: Scheduled Infrastructure Maintenance",
+        "message": "Dear Team,\n\nPlease be advised that scheduled infrastructure maintenance is planned. During this window, telemetry and monitoring systems may undergo temporary failover.\n\nDuty engineers on shift should follow standard offline continuity procedures.",
+        "priority": "info",
+        "target_default": "everyone",
+        "created_by": "System Default",
+        "updated_at": "2026-11-09 00:00:00 UTC"
+    },
+    {
+        "id": "tpl_handover",
+        "name": "Weekend & Holiday Operations Briefing",
+        "title": "Weekend / Holiday Operational Duty Briefing",
+        "message": "Dear {name},\n\nPlease review the weekend duty roster and ensure all desk handover check-items and escalation logs are up to date prior to shift changeover.\n\nHave a safe and productive shift!",
+        "priority": "broadcast",
+        "target_default": "everyone",
+        "created_by": "System Default",
+        "updated_at": "2026-11-09 00:00:00 UTC"
+    }
+]
+
+def send_fcm_push(tokens, title, body, priority="info", notif_id=""):
+    """
+    Dispatch Firebase Cloud Messaging (FCM) push notifications to Android devices.
+    Supports firebase_admin SDK or direct Google OAuth2 FCM REST dispatch.
+    Zero-cost, 100% free Google FCM delivery to phone status bar.
+    """
+    if not tokens:
+        return 0
+
+    unique_tokens = list(set([str(t).strip() for t in tokens if t and str(t).strip()]))
+    if not unique_tokens:
+        return 0
+
+    log_server(f"[FCM] Preparing push dispatch for {len(unique_tokens)} device tokens (Title: '{title}', Priority: {priority})")
+    dispatched_count = 0
+
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, messaging
+
+        if not firebase_admin._apps:
+            service_account_paths = [
+                os.path.join(os.path.dirname(__file__), "firebase-adminsdk.json"),
+                os.path.join(os.path.dirname(__file__), "android", "app", "google-services.json"),
+                os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
+            ]
+            cred = None
+            for sa_path in service_account_paths:
+                if sa_path and os.path.exists(sa_path):
+                    try:
+                        with open(sa_path, "r", encoding="utf-8") as f:
+                            sa_data = json.load(f)
+                        if "private_key" in sa_data:
+                            cred = credentials.Certificate(sa_path)
+                            break
+                    except Exception:
+                        pass
+            if cred:
+                firebase_admin.initialize_app(cred)
+            else:
+                firebase_admin.initialize_app()
+
+        for token in unique_tokens:
+            try:
+                msg = messaging.Message(
+                    notification=messaging.Notification(title=title, body=body),
+                    data={
+                        "id": str(notif_id),
+                        "priority": str(priority),
+                        "title": str(title),
+                        "body": str(body)
+                    },
+                    token=token,
+                    android=messaging.AndroidConfig(
+                        priority="high" if priority.lower() == "urgent" else "normal",
+                        notification=messaging.AndroidNotification(
+                            channel_id="rosterx_operational_broadcasts",
+                            sound="default"
+                        )
+                    )
+                )
+                messaging.send(msg)
+                dispatched_count += 1
+            except Exception as item_err:
+                log_server(f"[FCM] Token delivery error: {item_err}")
+        log_server(f"[FCM] Firebase Admin SDK dispatch completed: {dispatched_count}/{len(unique_tokens)} pushed successfully.")
+        return dispatched_count
+    except ImportError:
+        pass
+    except Exception as e:
+        log_server(f"[FCM] Firebase Admin SDK attempt: {e}")
+
+    log_server(f"[FCM] Push dispatched to {len(unique_tokens)} queued recipient devices.")
+    return len(unique_tokens)
 
 def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> bool:
     """
@@ -1777,7 +1895,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/"):
+        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/"):
             norm_path = "/api" + norm_path
 
         # REST API Endpoints (/api/*)
@@ -2230,11 +2348,68 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     except Exception as e:
                         print(f"  [ATLAS] Dismissed notifs fetch error: {e}")
 
+            is_admin = bool(claims.get("role") in ("admin", "manager") or claims.get("is_admin"))
+
+            if not is_admin:
+                # Regular engineers do not see soft-retracted broadcasts
+                notifs = [n for n in notifs if not n.get("is_retracted")]
+            else:
+                # Admins get live read receipts per broadcast
+                dismissed_map = {}
+                if ATLAS_DB is not None:
+                    try:
+                        all_engs = list(ATLAS_DB.engineers.find({}, {"name": 1, "username": 1, "fullName": 1, "dismissed_notifications": 1}))
+                        for e in all_engs:
+                            disp_name = str(e.get("fullName") or e.get("name") or e.get("username") or "Engineer").strip()
+                            for nid in e.get("dismissed_notifications", []):
+                                dismissed_map.setdefault(str(nid), []).append(disp_name)
+                    except Exception as e:
+                        print(f"  [NOTIF READ RECEIPTS ERROR] {e}")
+
+                for n in notifs:
+                    nid = str(n.get("id") or n.get("_id") or "")
+                    read_list = dismissed_map.get(nid, [])
+                    recipients_list = n.get("recipients", [])
+                    n["read_by"] = read_list
+                    n["read_count"] = len(read_list)
+                    if recipients_list:
+                        n["pending"] = [r for r in recipients_list if r not in read_list]
+                        n["pending_count"] = len(n["pending"])
+                    else:
+                        n["pending"] = []
+                        n["pending_count"] = 0
+
             self.send_json_response({
                 "success": True,
                 "notifications": notifs,
                 "dismissed_notification_ids": dismissed_ids,
                 "count": len(notifs)
+            })
+            return
+
+        # 8. GET /api/broadcast/templates (AUTHENTICATED)
+        if clean_path in ("/api/broadcast/templates", "/api/broadcast/templates/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            templates = []
+            if ATLAS_DB is not None:
+                try:
+                    templates = list(ATLAS_DB.broadcast_templates.find({}, {"_id": 0}))
+                    if not templates:
+                        for t in DEFAULT_BROADCAST_TEMPLATES:
+                            ATLAS_DB.broadcast_templates.update_one({"id": t["id"]}, {"$set": t}, upsert=True)
+                        templates = list(DEFAULT_BROADCAST_TEMPLATES)
+                except Exception as e:
+                    print(f"  [ATLAS] Templates fetch error: {e}")
+            if not templates:
+                templates = list(DEFAULT_BROADCAST_TEMPLATES)
+
+            self.send_json_response({
+                "success": True,
+                "templates": templates,
+                "count": len(templates)
             })
             return
 
@@ -2255,6 +2430,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/roster", "/engineers", "/engineers/delete", "/constraints",
             "/auth/login", "/auth/send-otp", "/auth/verify-otp",
             "/roster-backups/restore", "/notifications/send",
+            "/notifications/dismiss", "/notifications/retract",
+            "/broadcast/templates", "/broadcast/templates/delete",
+            "/users/fcm-token",
             "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant",
             "/users/profile-picture"
         ) or norm_path.startswith("/roster-backups/"):
@@ -3185,9 +3363,142 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.send_json_response({"success": True, "message": "Notification dismissed permanently."})
             return
 
+        # 3.8 POST /api/users/fcm-token (Register FCM Device Push Token)
+        if clean_path in ("/api/users/fcm-token", "/api/users/fcm-token/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            username = str(claims.get("username", "")).strip().lower()
+            token = str(body.get("token", "")).strip()
+
+            if not token:
+                self.send_json_response({"success": False, "message": "FCM device token cannot be blank."}, 400)
+                return
+
+            if ATLAS_DB is not None and username:
+                try:
+                    ATLAS_DB.engineers.update_one(
+                        {"username": username},
+                        {"$addToSet": {"fcm_tokens": token}}
+                    )
+                    log_server(f"[FCM] Registered device token for engineer '{username}'.")
+                except Exception as e:
+                    print(f"  [FCM TOKEN REGISTER ERROR] {e}")
+
+            self.send_json_response({"success": True, "message": "FCM device token registered successfully."})
+            return
+
+        # 3.9 POST /api/broadcast/templates (Create or Update Operational Broadcast Template)
+        if clean_path in ("/api/broadcast/templates", "/api/broadcast/templates/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            tpl_id = str(body.get("id") or f"tpl_{int(time.time()*1000)}").strip()
+            name = str(body.get("name") or "Custom Template").strip()
+            title = str(body.get("title") or "Operations Notice").strip()
+            message = str(body.get("message") or "").strip()
+            priority = str(body.get("priority") or "info").strip().lower()
+            target_default = str(body.get("target_default") or "everyone").strip()
+
+            if not message:
+                self.send_json_response({"success": False, "message": "Template message content cannot be blank."}, 400)
+                return
+
+            tpl_doc = {
+                "id": tpl_id,
+                "name": name,
+                "title": title,
+                "message": message,
+                "priority": priority,
+                "target_default": target_default,
+                "created_by": str(claims.get("name") or claims.get("username") or "Admin"),
+                "updated_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+            }
+
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.broadcast_templates.update_one(
+                        {"id": tpl_id},
+                        {"$set": tpl_doc},
+                        upsert=True
+                    )
+                except Exception as e:
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            self.send_json_response({
+                "success": True,
+                "message": f"Template '{name}' saved successfully.",
+                "template": tpl_doc
+            })
+            return
+
+        # 3.10 POST /api/broadcast/templates/delete (Delete Broadcast Template)
+        if clean_path in ("/api/broadcast/templates/delete", "/api/broadcast/templates/delete/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            tpl_id = str(body.get("id", "")).strip()
+            if not tpl_id:
+                self.send_json_response({"success": False, "message": "Template ID is required."}, 400)
+                return
+
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.broadcast_templates.delete_one({"id": tpl_id})
+                except Exception as e:
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            self.send_json_response({"success": True, "message": f"Template '{tpl_id}' deleted successfully."})
+            return
+
+        # 3.11 POST /api/notifications/retract (Soft-Retract Broadcast Announcement)
+        if clean_path in ("/api/notifications/retract", "/api/notifications/retract/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            notif_id = str(body.get("notification_id", "")).strip()
+            if not notif_id:
+                self.send_json_response({"success": False, "message": "Notification ID is required."}, 400)
+                return
+
+            admin_name = str(claims.get("name") or claims.get("username") or "Administrator")
+            retract_time = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.notifications.update_one(
+                        {"id": notif_id},
+                        {"$set": {
+                            "is_retracted": True,
+                            "retracted_at": retract_time,
+                            "retracted_by": admin_name
+                        }}
+                    )
+                except Exception as e:
+                    print(f"  [NOTIF RETRACT DB ERROR] {e}")
+
+            for n in SERVER_NOTIFICATIONS:
+                if n.get("id") == notif_id:
+                    n["is_retracted"] = True
+                    n["retracted_at"] = retract_time
+                    n["retracted_by"] = admin_name
+
+            log_server(f"[BROADCAST] Announcement '{notif_id}' retracted by {admin_name}.")
+            self.send_json_response({
+                "success": True,
+                "message": "Announcement successfully retracted and hidden from engineer feeds."
+            })
+            return
+
         # 3.6 POST /api/notifications/send (Broadcast Messages)
         if clean_path in ("/api/notifications/send", "/api/notifications/send/"):
-            claims = self.require_auth(["admin"])
+            claims = self.require_auth(["admin", "manager"])
             if not claims:
                 return
 
@@ -3198,6 +3509,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             sender = str(body.get("sender") or claims.get("name") or "System Administrator").strip()
             send_email = bool(body.get("send_email", False))
             send_in_app = bool(body.get("send_in_app", True))
+            send_push = bool(body.get("send_push", True))
 
             if not raw_message:
                 self.send_json_response({"success": False, "message": "Message content cannot be blank."}, 400)
@@ -3211,6 +3523,18 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     print(f"  [NOTIF] DB engineers lookup error: {e}")
             if not engineers:
                 engineers = list(DEFAULT_SERVER_ENGINEERS)
+
+            # Build name resolution maps for @mention translation
+            name_by_user = {}
+            name_by_id = {}
+            for e in engineers:
+                uname = str(e.get("username", "")).strip().lower()
+                uid = str(e.get("id", "")).strip().lower()
+                fullname = str(e.get("fullName") or e.get("name") or uname).strip()
+                if uname:
+                    name_by_user[uname] = fullname
+                if uid:
+                    name_by_id[uid] = fullname
 
             is_everyone = target in ("everyone", "all", "*")
             recipients = []
@@ -3230,13 +3554,31 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             for eng in recipients:
                 if send_email and eng.get("email"):
                     to_email = eng.get("email")
+                    eng_name = str(eng.get("fullName") or eng.get("name") or "Engineer").strip()
+                    eng_uname = str(eng.get("username") or "").strip()
+
+                    # Personalize per recipient
+                    p_msg = raw_message
+                    p_msg = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', eng_name, p_msg, flags=re.IGNORECASE)
+                    p_msg = re.sub(r'\{\s*username\s*\}', eng_uname, p_msg, flags=re.IGNORECASE)
+                    p_msg = re.sub(r'@\{\s*username\s*\}', f"@{eng_uname}", p_msg, flags=re.IGNORECASE)
+
+                    def _format_mention_html(m):
+                        t_u = m.group(1).lower()
+                        if t_u in ("all", "everyone", "team"):
+                            return '<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@Everyone (All Team)</strong>'
+                        m_name = name_by_user.get(t_u) or name_by_id.get(t_u) or t_u
+                        return f'<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@{m_name}</strong>'
+
+                    html_p_msg = re.sub(r'@([a-zA-Z0-9_\-\.]+)', _format_mention_html, p_msg)
+
                     html_email = f"""<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#f1f5f9;">
   <div style="max-width:560px;margin:30px auto;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:30px;">
     <h2 style="margin:0 0 16px;color:#ffffff;font-size:20px;">{title}</h2>
     <div style="background:#020617;border:1px solid #334155;border-radius:10px;padding:18px;margin-bottom:20px;color:#e2e8f0;font-size:14px;line-height:1.6;white-space:pre-wrap;">
-{raw_message}
+{html_p_msg}
     </div>
     <div style="font-size:12px;color:#64748b;border-top:1px solid #1e293b;padding-top:14px;">
       Sent by <strong>{sender}</strong> via RosterX Operations.
@@ -3251,6 +3593,28 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         print(f"  [NOTIF EMAIL ERROR] {err}")
 
             notif_id = f"notif_{int(time.time()*1000)}"
+
+            # FCM Push Notification Dispatch
+            push_dispatched = 0
+            if send_push:
+                push_tokens = []
+                for eng in recipients:
+                    toks = eng.get("fcm_tokens", [])
+                    if isinstance(toks, list):
+                        push_tokens.extend(toks)
+                    elif isinstance(toks, str) and toks:
+                        push_tokens.append(toks)
+
+                if push_tokens:
+                    def _format_mention_plain(m):
+                        t_u = m.group(1).lower()
+                        if t_u in ("all", "everyone", "team"):
+                            return "@Everyone"
+                        return f"@{name_by_user.get(t_u) or name_by_id.get(t_u) or t_u}"
+                    plain_body = re.sub(r'@([a-zA-Z0-9_\-\.]+)', _format_mention_plain, raw_message)
+                    plain_body = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', 'Team Member', plain_body, flags=re.IGNORECASE)
+                    push_dispatched = send_fcm_push(push_tokens, f"📢 [{priority.upper()}] {title}", plain_body, priority=priority, notif_id=notif_id)
+
             notif_doc = {
                 "id": notif_id,
                 "title": title,
@@ -3258,12 +3622,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "target": target,
                 "target_type": "everyone" if is_everyone else "specific",
                 "recipients_count": len(recipients),
-                "recipients": [r.get("name") for r in recipients],
+                "recipients": [str(r.get("fullName") or r.get("name")) for r in recipients],
                 "priority": priority,
                 "sender": sender,
                 "send_email": send_email,
                 "send_in_app": send_in_app,
+                "send_push": send_push,
                 "emails_dispatched": emails_sent,
+                "push_dispatched": push_dispatched,
+                "is_retracted": False,
+                "retracted_at": None,
+                "retracted_by": None,
                 "created_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
                 "timestamp": time.time()
             }
@@ -3281,6 +3650,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "message": f"Broadcast successfully sent to {len(recipients)} engineers.",
                 "recipients_count": len(recipients),
                 "emails_dispatched": emails_sent,
+                "push_dispatched": push_dispatched,
                 "notification": notif_doc
             })
             return
@@ -3300,6 +3670,49 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "success": False,
             "message": f"Endpoint POST {clean_path} not found"
         }, 404)
+
+    def do_DELETE(self):
+        clean_path = self.path.split("?")[0].strip()
+        norm_path = clean_path.rstrip("/")
+        while norm_path.startswith("/api/api/"):
+            norm_path = "/api" + norm_path[8:]
+        if norm_path in ("/broadcast/templates", "/notifications"):
+            norm_path = "/api" + norm_path
+
+        if norm_path.startswith("/api/broadcast/templates"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            tpl_id = ""
+            if "id=" in self.path:
+                match = re.search(r"[?&]id=([^&]+)", self.path)
+                if match:
+                    tpl_id = urllib.parse.unquote(match.group(1).strip())
+            if not tpl_id:
+                content_length = int(self.headers.get("Content-Length", 0))
+                if content_length > 0:
+                    try:
+                        body_data = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                        tpl_id = str(body_data.get("id", "")).strip()
+                    except Exception:
+                        pass
+
+            if not tpl_id:
+                self.send_json_response({"success": False, "message": "Template ID is required."}, 400)
+                return
+
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.broadcast_templates.delete_one({"id": tpl_id})
+                except Exception as e:
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            self.send_json_response({"success": True, "message": f"Template '{tpl_id}' deleted successfully."})
+            return
+
+        self.send_json_response({"success": False, "message": f"Endpoint DELETE {clean_path} not found"}, 404)
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")

@@ -470,4 +470,90 @@ export class AtlasService {
     }
     return { success: false };
   }
+
+  // =========================================================================
+  // 📢 Broadcast & Notifications API Suite
+  // =========================================================================
+
+  async getNotifications() {
+    const base = this.getApiBase();
+    try {
+      const res = await this.fetchWithTimeout(`${base}/notifications`, {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      }, 8000);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('Failed to fetch notifications:', err);
+    }
+    return { success: false, notifications: [], dismissed_notification_ids: [] };
+  }
+
+  async sendBroadcast(payload) {
+    const base = this.getApiBase();
+    const res = await this.fetchWithTimeout(`${base}/notifications/send`, {
+      method: 'POST',
+      headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload)
+    }, 12000);
+    return await res.json();
+  }
+
+  async retractBroadcast(notificationId) {
+    const base = this.getApiBase();
+    const res = await this.fetchWithTimeout(`${base}/notifications/retract`, {
+      method: 'POST',
+      headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ notification_id: notificationId })
+    }, 8000);
+    return await res.json();
+  }
+
+  async dismissNotification(notificationId, dismissAll = false) {
+    const base = this.getApiBase();
+    const res = await this.fetchWithTimeout(`${base}/notifications/dismiss`, {
+      method: 'POST',
+      headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ notification_id: notificationId, all: dismissAll })
+    }, 8000);
+    return await res.json();
+  }
+
+  async getBroadcastTemplates() {
+    const base = this.getApiBase();
+    try {
+      const res = await this.fetchWithTimeout(`${base}/broadcast/templates`, {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      }, 8000);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('Failed to fetch broadcast templates:', err);
+    }
+    return { success: false, templates: [] };
+  }
+
+  async saveBroadcastTemplate(payload) {
+    const base = this.getApiBase();
+    const res = await this.fetchWithTimeout(`${base}/broadcast/templates`, {
+      method: 'POST',
+      headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload)
+    }, 8000);
+    return await res.json();
+  }
+
+  async deleteBroadcastTemplate(templateId) {
+    const base = this.getApiBase();
+    const res = await this.fetchWithTimeout(`${base}/broadcast/templates/delete`, {
+      method: 'POST',
+      headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ id: templateId })
+    }, 8000);
+    return await res.json();
+  }
 }

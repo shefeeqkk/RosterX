@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -14,8 +15,8 @@ android {
         applicationId = "com.rosterx"
         minSdk = 26
         targetSdk = 35
-        versionCode = 64
-        versionName = "1.20.0"
+        versionCode = 65
+        versionName = "1.21.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -80,6 +81,10 @@ dependencies {
 
     // Gemini GenAI SDK
     implementation(libs.generativeai)
+
+    // Firebase Cloud Messaging (FCM)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // Testing
     testImplementation(libs.junit)

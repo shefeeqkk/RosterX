@@ -54,17 +54,18 @@ The web presentation mirrors the Android Compose design system defined in:
 
 ---
 
-## 3. Five-Tab Architecture & Android Parity
+## 3. Architecture & Android Parity
 
-Both the Admin Operations Console and Native Android app adhere to the identical 5-tab schema:
+Both the Admin Operations Console and Native Android app adhere to the synchronized schema:
 
 | Tab Index | Tab ID | Label | Phosphor Icon | Compose Destination | Purpose |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | `dashboard` | Operations Dashboard | `ph-gauge` | `DashboardTab` | Live 24/7 NOC Coverage Radar, Rule Violations Alert Stream, Operational Audit Stream |
-| **2** | `matrix` | Roster Matrix | `ph-table` | `RosterMatrixTab` | 31-day shift grid with sticky engineer name column (`.nm-table-sticky-col`), shift filtering chips |
+| **1** | `dashboard` | Operations Dashboard | `ph-gauge` | `AdminDashboardTab` | Live 24/7 NOC Coverage Radar, Rule Violations Alert Stream, Operational Audit Stream |
+| **2** | `matrix` | Roster Matrix | `ph-table` | `MonthRostersTab` | 31-day shift grid with sticky engineer name column (`.nm-table-sticky-col`), shift filtering chips |
 | **3** | `team` | Team Directory | `ph-users-three` | `ManageTeamTab` | Engineer profiles, lifecycle statuses (Active/Resigned), weekly off day anchors, credentials |
 | **4** | `swaps` | Swaps & Leaves | `ph-arrows-left-right` | `RequestsTab` | Operational mutual swap requests, validation queue, approval actions |
-| **5** | `diagnostics` | Hub & Diagnostics | `ph-dots-three-circle` | `DiagnosticsTab` | Host uptime, Atlas roundtrip ping latency, RSS memory, live terminal logs, AI Studio launcher |
+| **5** | `broadcast` | Broadcast Console | `ph-megaphone` | `NotificationsTab` | Multi-channel broadcast dispatch (In-App, FCM Push to Status Bar, Resend Email), templates, read receipts |
+| **6** | `diagnostics` | Hub & Diagnostics | `ph-dots-three-circle` | `ServerManagementTab` | Host uptime, Atlas roundtrip ping latency, RSS memory, live terminal logs, AI Studio launcher |
 
 ---
 

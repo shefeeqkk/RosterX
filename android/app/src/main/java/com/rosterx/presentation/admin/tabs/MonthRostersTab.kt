@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
 
 import androidx.compose.ui.text.font.FontWeight
+import com.rosterx.ui.theme.LocalIsDarkTheme
 
 import androidx.compose.ui.unit.dp
 
@@ -1208,130 +1209,145 @@ fun MonthRostersTab(
 
                 Column(modifier = Modifier.fillMaxSize()) {
 
-                    Row(
+                    // Daily Coverage Counts (Day & Night) pre-computed for items inside LazyColumn
+                    val minDayStaff = state.constraints.daytimeOverlapMin.coerceAtLeast(1)
+                    val targetNight = state.constraints.nightHeadcount.coerceAtLeast(1)
 
-                        modifier = Modifier
-
-                            .fillMaxWidth()
-
-                            .height(if (isLandscape) 34.dp else 48.dp)
-
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-
-                    ) {
-
-                        Box(
-
-                            modifier = Modifier
-
-                                .width(120.dp)
-
-                                .fillMaxHeight()
-
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-
-                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-
-                                .padding(horizontal = 8.dp),
-
-                            contentAlignment = Alignment.CenterStart
-
-                        ) {
-
-                            Text("ENGINEER", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-
-                        }
-
-
-
-                        Row(
-
-                            modifier = Modifier
-
-                                .fillMaxHeight()
-
-                                .horizontalScroll(scrollState)
-
-                        ) {
-
-                            for (day in 1..daysInMonth) {
-
-                                val date = yearMonth.atDay(day)
-
-                                val dayOfWeekStr = date.dayOfWeek.name.take(2)
-
-                                val isWeekend = date.dayOfWeek.value >= 6
-
-
-
-                                Column(
-
-                                    modifier = Modifier
-
-                                        .width(42.dp)
-
-                                        .fillMaxHeight()
-
-                                        .background(if (isWeekend) WeekendLightOrange else MaterialTheme.colorScheme.surfaceVariant)
-
-                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-
-                                    verticalArrangement = Arrangement.Center
-
-                                ) {
-
-                                    Text(day.toString(), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (isWeekend) Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurface)
-
-                                    Text(dayOfWeekStr, fontSize = 9.sp, color = if (isWeekend) Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurfaceVariant)
-
+                    val dailyDayCounts = remember(mutableRoster, filteredEngineers, daysInMonth, state.constraints) {
+                        val dCounts = IntArray(daysInMonth + 1)
+                        for (day in 1..daysInMonth) {
+                            var d = 0
+                            for (eng in filteredEngineers) {
+                                if (eng.role == EngineerRole.APPRENTICE) continue
+                                val shift = getRosterForEngineer(mutableRoster, eng)[day.toString()]
+                                val code = shift?.code?.trim()?.uppercase() ?: ""
+                                if (code.isNotEmpty() && code != "NS" && code != "OFF" && !code.startsWith("SW") && code != "L" && code != "CO" && code != "AL" && code != "SL" && code != "ML") {
+                                    d++
                                 }
-
                             }
-
+                            dCounts[day] = d
                         }
-
+                        dCounts
                     }
 
+                    val dailyNightCounts = remember(mutableRoster, filteredEngineers, daysInMonth, state.constraints) {
+                        val nCounts = IntArray(daysInMonth + 1)
+                        for (day in 1..daysInMonth) {
+                            var n = 0
+                            for (eng in filteredEngineers) {
+                                if (eng.role == EngineerRole.APPRENTICE) continue
+                                val shift = getRosterForEngineer(mutableRoster, eng)[day.toString()]
+                                val code = shift?.code?.trim()?.uppercase() ?: ""
+                                if (code == "NS") {
+                                    n++
+                                }
+                            }
+                            nCounts[day] = n
+                        }
+                        nCounts
+                    }
 
+                    // 1. Header Row (Fixed at the top of the table)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (isLandscape) 34.dp else 48.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        // Left Pinned: "ENGINEER" Label
+                        Box(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Text("ENGINEER", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                        }
 
-                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        // Middle: Days 1..daysInMonth (Horizontal Scroll)
+                        Row(
+                            modifier = Modifier
+                                .then(if (isLandscape) Modifier.weight(1f) else Modifier)
+                                .fillMaxHeight()
+                                .horizontalScroll(scrollState)
+                        ) {
+                            for (day in 1..daysInMonth) {
+                                val date = yearMonth.atDay(day)
+                                val dayOfWeekStr = date.dayOfWeek.name.take(2)
+                                val isWeekend = date.dayOfWeek.value >= 6
 
-                        items(filteredEngineers) { engineer ->
+                                Column(
+                                    modifier = Modifier
+                                        .width(42.dp)
+                                        .fillMaxHeight()
+                                        .background(if (isWeekend) WeekendLightOrange else MaterialTheme.colorScheme.surfaceVariant)
+                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(day.toString(), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (isWeekend) Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurface)
+                                    Text(dayOfWeekStr, fontSize = 9.sp, color = if (isWeekend) Color(0xFF7C2D12) else MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
 
+                            // Portrait Mode: Scrollable at the end of the days!
+                            if (!isLandscape) {
+                                SummaryHeaderColumns(isLandscape = false)
+                            }
+                        }
+
+                        // Landscape Mode: Pinned on the right!
+                        if (isLandscape) {
+                            SummaryHeaderColumns(isLandscape = true)
+                        }
+                    }
+
+                    // 2. Compact Grid (Engineer Rows + Day Coverage + Night Coverage unified in LazyColumn)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = if (isLandscape) 72.dp else 160.dp)
+                    ) {
+                        // Engineer Rows
+                        items(filteredEngineers, key = { it.id }) { engineer ->
                             val engRoster = getRosterForEngineer(mutableRoster, engineer)
 
-
+                            val (wrkCount, nsCount, offCount) = remember(engRoster, daysInMonth) {
+                                var wrk = 0
+                                var ns = 0
+                                var off = 0
+                                for (d in 1..daysInMonth) {
+                                    val shift = engRoster[d.toString()]
+                                    val code = shift?.code?.trim()?.uppercase() ?: ""
+                                    if (code == "NS") {
+                                        ns++
+                                        wrk++
+                                    } else if (code.isNotEmpty() && code != "OFF" && !code.startsWith("SW") && code != "L" && code != "CO" && code != "AL" && code != "SL" && code != "ML") {
+                                        wrk++
+                                    } else {
+                                        off++
+                                    }
+                                }
+                                Triple(wrk, ns, off)
+                            }
 
                             Row(
-
                                 modifier = Modifier
-
                                     .fillMaxWidth()
-
                                     .height(if (isLandscape) 32.dp else 40.dp)
-
                                     .background(MaterialTheme.colorScheme.surface)
-
                             ) {
-
+                                // Left Pinned: Engineer Name + Avatar
                                 Box(
-
                                     modifier = Modifier
-
                                         .width(120.dp)
-
                                         .fillMaxHeight()
-
                                         .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-
                                         .padding(horizontal = 8.dp),
-
                                     contentAlignment = Alignment.CenterStart
-
                                 ) {
-
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1350,454 +1366,235 @@ fun MonthRostersTab(
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
-
                                 }
 
-
-
+                                // Middle: Days 1..daysInMonth (Horizontal Scroll)
                                 Row(
-
                                     modifier = Modifier
-
+                                        .then(if (isLandscape) Modifier.weight(1f) else Modifier)
                                         .fillMaxHeight()
-
                                         .horizontalScroll(scrollState)
-
-                                        ) {
-
+                                ) {
                                     for (day in 1..daysInMonth) {
-
                                         val shift = engRoster[day.toString()]
-
                                         val isLocked = lockedCells.contains(Pair(engineer.id, day.toString()))
 
-
-
                                         Box(
-
                                             modifier = Modifier
-
                                                 .width(42.dp)
-
                                                 .fillMaxHeight()
-
                                                 .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-
                                                 .background(if (shift != null) Color(parseColor(shift.bgColorHex)) else Color.Transparent)
-
                                                 .combinedClickable(
-
                                                     onClick = {
-
                                                         activeCell = Triple(engineer, day, shift)
-
                                                         showShiftSheet = true
-
                                                     },
-
                                                     onLongClick = {
-
                                                         val newSet = lockedCells.toMutableSet()
-
                                                         val cellKey = Pair(engineer.id, day.toString())
-
                                                         if (newSet.contains(cellKey)) newSet.remove(cellKey) else newSet.add(cellKey)
-
                                                         lockedCells = newSet
-
                                                     }
-
                                                 ),
-
                                             contentAlignment = Alignment.Center
-
                                         ) {
-
                                             if (shift != null) {
-
                                                 Text(shift.code, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(parseColor(shift.textColorHex)))
-
                                             }
-
                                             if (isLocked) {
-
                                                 Text("🔒", fontSize = 8.sp, modifier = Modifier.align(Alignment.TopEnd).padding(1.dp))
-
                                             }
-
                                         }
-
                                     }
 
+                                    // Portrait Mode: Scrollable at the end!
+                                    if (!isLandscape) {
+                                        SummaryRowColumns(wrkCount, nsCount, offCount, isLandscape = false)
+                                    }
                                 }
 
-                            }
-
-                        }
-
-                    }
-
-
-
-                    // --- Daily Coverage Footers (Day & Night) matching admin-web ---
-
-                    val minDayStaff = state.constraints.daytimeOverlapMin.coerceAtLeast(1)
-
-                    val targetNight = state.constraints.nightHeadcount.coerceAtLeast(1)
-
-
-
-                    val dailyDayCounts = remember(mutableRoster, filteredEngineers, daysInMonth, state.constraints) {
-
-                        val dCounts = IntArray(daysInMonth + 1)
-
-                        for (day in 1..daysInMonth) {
-
-                            var d = 0
-
-                            for (eng in filteredEngineers) {
-
-                                // APPRENTICE RULE: Apprentice engineers are strictly NOT counted towards Day or Night coverage!
-
-                                if (eng.role == EngineerRole.APPRENTICE) continue
-
-                                val shift = getRosterForEngineer(mutableRoster, eng)[day.toString()]
-
-                                val code = shift?.code?.trim()?.uppercase() ?: ""
-
-                                if (code.isNotEmpty() && code != "NS" && code != "OFF" && !code.startsWith("SW") && code != "L" && code != "CO" && code != "AL" && code != "SL" && code != "ML") {
-
-                                    d++
-
+                                // Landscape Mode: Pinned on the right!
+                                if (isLandscape) {
+                                    SummaryRowColumns(wrkCount, nsCount, offCount, isLandscape = true)
                                 }
-
                             }
-
-                            dCounts[day] = d
-
                         }
 
-                        dCounts
-
-                    }
-
-
-
-                    val dailyNightCounts = remember(mutableRoster, filteredEngineers, daysInMonth, state.constraints) {
-
-                        val nCounts = IntArray(daysInMonth + 1)
-
-                        for (day in 1..daysInMonth) {
-
-                            var n = 0
-
-                            for (eng in filteredEngineers) {
-
-                                // APPRENTICE RULE: Apprentice engineers are strictly NOT counted towards Day or Night coverage!
-
-                                if (eng.role == EngineerRole.APPRENTICE) continue
-
-                                val shift = getRosterForEngineer(mutableRoster, eng)[day.toString()]
-
-                                val code = shift?.code?.trim()?.uppercase() ?: ""
-
-                                if (code == "NS") {
-
-                                    n++
-
-                                }
-
-                            }
-
-                            nCounts[day] = n
-
-                        }
-
-                        nCounts
-
-                    }
-
-
-
-                    // Day Coverage Row
-
-                    Row(
-
-                        modifier = Modifier
-
-                            .fillMaxWidth()
-
-                            .height(if (isLandscape) 36.dp else 44.dp)
-
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
-
-                    ) {
-
-                        Box(
-
-                            modifier = Modifier
-
-                                .width(120.dp)
-
-                                .fillMaxHeight()
-
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-
-                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-
-                            contentAlignment = Alignment.CenterStart
-
-                        ) {
-
-                            Column(
-
-                                modifier = Modifier.fillMaxHeight(),
-
-                                verticalArrangement = Arrangement.Center
-
+                        // Day Coverage Row (Directly beneath the last engineer - No Gap!)
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(if (isLandscape) 36.dp else 44.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                             ) {
-
-                                Text(
-
-                                    text = "DAY COVERAGE",
-
-                                    fontWeight = FontWeight.ExtraBold,
-
-                                    fontSize = 9.sp,
-
-                                    lineHeight = 11.sp,
-
-                                    color = MaterialTheme.colorScheme.primary,
-
-                                    maxLines = 1,
-
-                                    overflow = TextOverflow.Ellipsis
-
-                                )
-
-                                Text(
-
-                                    text = "Target: ≥$minDayStaff (Excl. Appr)",
-
-                                    fontSize = 8.sp,
-
-                                    fontWeight = FontWeight.Bold,
-
-                                    lineHeight = 10.sp,
-
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-
-                                    maxLines = 1,
-
-                                    overflow = TextOverflow.Ellipsis
-
-                                )
-
-                            }
-
-                        }
-
-                        Row(
-
-                            modifier = Modifier
-
-                                .fillMaxHeight()
-
-                                .horizontalScroll(scrollState)
-
-                        ) {
-
-                            for (day in 1..daysInMonth) {
-
-                                val dVal = dailyDayCounts[day]
-
-                                val dayMet = dVal >= minDayStaff
-
-                                val dayTextColor = if (dayMet) Color(0xFF0369A1) else Color(0xFFB45309)
-
-                                val dayBgColor = if (dayMet) Color(0xFFE0F2FE) else Color(0xFFFEF3C7)
-
-
-
                                 Box(
-
                                     modifier = Modifier
-
-                                        .width(42.dp)
-
+                                        .width(120.dp)
                                         .fillMaxHeight()
-
-                                        .background(dayBgColor)
-
-                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-
-                                    contentAlignment = Alignment.Center
-
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
-
-                                    Text(
-
-                                        text = dVal.toString(),
-
-                                        fontSize = 12.sp,
-
-                                        fontWeight = FontWeight.ExtraBold,
-
-                                        color = dayTextColor
-
-                                    )
-
+                                    Column(
+                                        modifier = Modifier.fillMaxHeight(),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = "DAY COVERAGE",
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 9.sp,
+                                            lineHeight = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "Target: ≥$minDayStaff (Excl. Appr)",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
 
-                            }
+                                Row(
+                                    modifier = Modifier
+                                        .then(if (isLandscape) Modifier.weight(1f) else Modifier)
+                                        .fillMaxHeight()
+                                        .horizontalScroll(scrollState)
+                                ) {
+                                    for (day in 1..daysInMonth) {
+                                        val dVal = dailyDayCounts[day]
+                                        val dayMet = dVal >= minDayStaff
+                                        val dayTextColor = if (dayMet) Color(0xFF0369A1) else Color(0xFFB45309)
+                                        val dayBgColor = if (dayMet) Color(0xFFE0F2FE) else Color(0xFFFEF3C7)
 
+                                        Box(
+                                            modifier = Modifier
+                                                .width(42.dp)
+                                                .fillMaxHeight()
+                                                .background(dayBgColor)
+                                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = dVal.toString(),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = dayTextColor
+                                            )
+                                        }
+                                    }
+
+                                    // Portrait Mode: Scrollable at the end!
+                                    if (!isLandscape) {
+                                        val totalDayDuties = (1..daysInMonth).sumOf { dailyDayCounts[it] }
+                                        SummaryCoverageFooterColumns(wrkText = totalDayDuties.toString(), nsText = "-", offText = "-", isLandscape = false)
+                                    }
+                                }
+
+                                // Landscape Mode: Pinned on the right!
+                                if (isLandscape) {
+                                    val totalDayDuties = (1..daysInMonth).sumOf { dailyDayCounts[it] }
+                                    SummaryCoverageFooterColumns(wrkText = totalDayDuties.toString(), nsText = "-", offText = "-", isLandscape = true)
+                                }
+                            }
                         }
 
-                    }
-
-
-
-                    // Night Coverage Row
-
-                    Row(
-
-                        modifier = Modifier
-
-                            .fillMaxWidth()
-
-                            .height(if (isLandscape) 36.dp else 44.dp)
-
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
-
-                    ) {
-
-                        Box(
-
-                            modifier = Modifier
-
-                                .width(120.dp)
-
-                                .fillMaxHeight()
-
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-
-                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-
-                            contentAlignment = Alignment.CenterStart
-
-                        ) {
-
-                            Column(
-
-                                modifier = Modifier.fillMaxHeight(),
-
-                                verticalArrangement = Arrangement.Center
-
+                        // Night Coverage Row (Directly beneath Day Coverage - No Gap!)
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(if (isLandscape) 36.dp else 44.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
                             ) {
-
-                                Text(
-
-                                    text = "NIGHT COVERAGE",
-
-                                    fontWeight = FontWeight.ExtraBold,
-
-                                    fontSize = 9.sp,
-
-                                    lineHeight = 11.sp,
-
-                                    color = MaterialTheme.colorScheme.primary,
-
-                                    maxLines = 1,
-
-                                    overflow = TextOverflow.Ellipsis
-
-                                )
-
-                                Text(
-
-                                    text = "Target: $targetNight NS (Excl. Appr)",
-
-                                    fontSize = 8.sp,
-
-                                    fontWeight = FontWeight.Bold,
-
-                                    lineHeight = 10.sp,
-
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-
-                                    maxLines = 1,
-
-                                    overflow = TextOverflow.Ellipsis
-
-                                )
-
-                            }
-
-                        }
-
-                        Row(
-
-                            modifier = Modifier
-
-                                .fillMaxHeight()
-
-                                .horizontalScroll(scrollState)
-
-                        ) {
-
-                            for (day in 1..daysInMonth) {
-
-                                val nVal = dailyNightCounts[day]
-
-                                val (nightTextColor, nightBgColor) = when {
-
-                                    nVal == 0 -> Pair(Color(0xFFB91C1C), Color(0xFFFEE2E2))
-
-                                    nVal != targetNight -> Pair(Color(0xFFB45309), Color(0xFFFEF3C7))
-
-                                    else -> Pair(Color(0xFF4338CA), Color(0xFFEEF2FF)) // Target met (Soft Indigo)
-
+                                Box(
+                                    modifier = Modifier
+                                        .width(120.dp)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxHeight(),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = "NIGHT COVERAGE",
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 9.sp,
+                                            lineHeight = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "Target: $targetNight NS (Excl. Appr)",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
 
-
-
-                                Box(
-
+                                Row(
                                     modifier = Modifier
-
-                                        .width(42.dp)
-
+                                        .then(if (isLandscape) Modifier.weight(1f) else Modifier)
                                         .fillMaxHeight()
-
-                                        .background(nightBgColor)
-
-                                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-
-                                    contentAlignment = Alignment.Center
-
+                                        .horizontalScroll(scrollState)
                                 ) {
+                                    for (day in 1..daysInMonth) {
+                                        val nVal = dailyNightCounts[day]
+                                        val (nightTextColor, nightBgColor) = when {
+                                            nVal == 0 -> Pair(Color(0xFFB91C1C), Color(0xFFFEE2E2))
+                                            nVal != targetNight -> Pair(Color(0xFFB45309), Color(0xFFFEF3C7))
+                                            else -> Pair(Color(0xFF4338CA), Color(0xFFEEF2FF))
+                                        }
 
-                                    Text(
+                                        Box(
+                                            modifier = Modifier
+                                                .width(42.dp)
+                                                .fillMaxHeight()
+                                                .background(nightBgColor)
+                                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = nVal.toString(),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = nightTextColor
+                                            )
+                                        }
+                                    }
 
-                                        text = nVal.toString(),
+                                    // Portrait Mode: Scrollable at the end!
+                                    if (!isLandscape) {
+                                        val totalNightDuties = (1..daysInMonth).sumOf { dailyNightCounts[it] }
+                                        SummaryCoverageFooterColumns(wrkText = "-", nsText = totalNightDuties.toString(), offText = "-", isLandscape = false)
+                                    }
+                                }
 
-                                        fontSize = 12.sp,
-
-                                        fontWeight = FontWeight.ExtraBold,
-
-                                        color = nightTextColor
-
-                                    )
-
+                                // Landscape Mode: Pinned on the right!
+                                if (isLandscape) {
+                                    val totalNightDuties = (1..daysInMonth).sumOf { dailyNightCounts[it] }
+                                    SummaryCoverageFooterColumns(wrkText = "-", nsText = totalNightDuties.toString(), offText = "-", isLandscape = true)
                                 }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(72.dp))
                 }
             }
 
@@ -1805,7 +1602,7 @@ fun MonthRostersTab(
 
 
 
-        // Floating Action Button for Publishing (Prominent, un-wrapped, easily accessible)
+        // Floating Action Button for Publishing (Prominent, floating cleanly on bottom-start above the bottom dock)
 
         if (!isReadOnly) {
 
@@ -1825,9 +1622,9 @@ fun MonthRostersTab(
 
             modifier = Modifier
 
-                .align(Alignment.BottomEnd)
+                .align(Alignment.BottomStart)
 
-                .padding(16.dp)
+                .padding(start = 16.dp, bottom = if (isLandscape) 16.dp else 96.dp)
 
             )
 
@@ -2217,6 +2014,183 @@ fun MonthRostersTab(
 
     }
 
+}
+
+@Composable
+fun SummaryHeaderColumns(isLandscape: Boolean) {
+    val isDark = LocalIsDarkTheme.current
+    Row(
+        modifier = Modifier
+            .then(if (isLandscape) Modifier.width(108.dp) else Modifier)
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        // WRK Header
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .background(if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9))
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "WRK",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 10.sp,
+                color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
+            )
+        }
+        // NS Header
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .background(if (isDark) Color(0xFF1E1B4B) else Color(0xFFEEF2FF))
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "NS",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 10.sp,
+                color = if (isDark) Color(0xFFA5B4FC) else Color(0xFF4338CA)
+            )
+        }
+        // OFF Header
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .background(if (isDark) Color(0xFF451A03) else Color(0xFFFEF3C7))
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "OFF",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 10.sp,
+                color = if (isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+            )
+        }
+    }
+}
+
+@Composable
+fun SummaryRowColumns(wrkCount: Int, nsCount: Int, offCount: Int, isLandscape: Boolean) {
+    val isDark = LocalIsDarkTheme.current
+    Row(
+        modifier = Modifier
+            .then(if (isLandscape) Modifier.width(108.dp) else Modifier)
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        // WRK count
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                .background(if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = wrkCount.toString(),
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
+            )
+        }
+        // NS count
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                .background(if (isDark) Color(0xFF1E1B4B).copy(alpha = 0.5f) else Color(0xFFF5F3FF)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = nsCount.toString(),
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                color = if (isDark) Color(0xFFA5B4FC) else Color(0xFF4338CA)
+            )
+        }
+        // OFF count
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                .background(if (isDark) Color(0xFF451A03).copy(alpha = 0.4f) else Color(0xFFFFFBEB)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = offCount.toString(),
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                color = if (isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+            )
+        }
+    }
+}
+
+@Composable
+fun SummaryCoverageFooterColumns(wrkText: String, nsText: String, offText: String, isLandscape: Boolean) {
+    val isDark = LocalIsDarkTheme.current
+    Row(
+        modifier = Modifier
+            .then(if (isLandscape) Modifier.width(108.dp) else Modifier)
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = wrkText,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = nsText,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                color = if (isDark) Color(0xFFA5B4FC) else Color(0xFF4338CA)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = offText,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                color = if (isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+            )
+        }
+    }
 }
 
 

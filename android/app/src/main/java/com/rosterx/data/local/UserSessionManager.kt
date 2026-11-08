@@ -77,6 +77,10 @@ class UserSessionManager @Inject constructor(
         return prefs.getString("auth_token", null)
     }
 
+    fun getToken(): String? {
+        return getAuthToken()
+    }
+
     fun setAuthToken(token: String?) {
         if (!token.isNullOrBlank()) {
             prefs.edit().putString("auth_token", token).apply()

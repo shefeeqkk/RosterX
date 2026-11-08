@@ -203,6 +203,9 @@ interface RosterApiService {
 
     @POST("api/users/profile-picture")
     suspend fun updateProfilePicture(@Body request: UpdateProfilePictureRequest): UpdateProfilePictureResponse
+
+    @POST("api/users/fcm-token")
+    suspend fun registerFcmToken(@Body body: Map<String, String>): PingResponse
 }
 
 data class UpdateProfilePictureRequest(

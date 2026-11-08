@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "659325433016",
+    "project_id": "rosterx-tejas",
+    "storage_bucket": "rosterx-tejas.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659325433016:android:b8e1489286d7e9fb53704d",
+        "android_client_info": {
+          "package_name": "com.rosterx"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDecezoWYRXjIt3Q8N-n0WxH6GSRRarO2g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

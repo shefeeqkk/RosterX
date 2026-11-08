@@ -2,22 +2,21 @@
 
 > **Audience:** Kunjappan (Android Studio Mobile Agent) & Aunty (Antigravity Agent)  
 > **Source of Truth:** Android Jetpack Compose (`NeumorphicTokens.kt`, `Theme.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`) & Web Console (`design-tokens.json`, `tokens.css`, `dateUtils.js`)  
-> **Current Version:** `1.14.0` (Android `versionCode: 43`)
+> **Current Version:** `1.21.0` (Android `versionCode: 65`)
 
 ---
 
-## 1. Unified 5-Tab Architecture Alignment
-
-Both platforms strictly adhere to the identical 5-tab schema for Admin and 4-tab schema for Engineers:
+## 1. Unified Architecture Alignment
 
 ### A. Admin Operations Console:
 | Tab # | Web Tab ID | Android Destination | Icon (Phosphor / Material) | Label | Purpose |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | `dashboard` | `DashboardTab` | `ph-gauge` / `Icons.Default.Speed` | Operations Console | Today's 24/7 NOC Coverage Radar (#1), Live Rule Violations Alert Stream (#2), Operational Audit Stream (#3) |
-| **2** | `matrix` | `RosterMatrixTab` | `ph-table` / `Icons.Default.CalendarMonth` | Roster Matrix | 31-day shift grid, sticky pinned engineer names, dynamic month navigator, shift filter chips |
+| **1** | `dashboard` | `AdminDashboardTab` | `ph-gauge` / `Icons.Default.Speed` | Operations Console | Today's 24/7 NOC Coverage Radar, Live Rule Violations Alert Stream, Operational Audit Stream |
+| **2** | `matrix` | `MonthRostersTab` | `ph-table` / `Icons.Default.CalendarMonth` | Roster Matrix | 31-day shift grid, sticky pinned engineer names, dynamic month navigator, shift filter chips |
 | **3** | `team` | `ManageTeamTab` | `ph-users-three` / `Icons.Default.People` | Team Directory | Engineer profiles, lifecycle statuses (Active/Resigned), weekly off day anchors, credentials |
 | **4** | `swaps` | `RequestsTab` | `ph-arrows-left-right` / `Icons.Default.SwapHoriz` | Swaps & Leaves | Operational mutual swap requests, validation queue, approval actions |
-| **5** | `diagnostics` | `DiagnosticsTab` | `ph-dots-three-circle` / `Icons.Default.MoreHoriz` | Hub & Diagnostics | Host uptime, Atlas roundtrip ping latency, RSS memory, live terminal logs, AI Studio launcher |
+| **5** | `broadcast` | `NotificationsTab` | `ph-megaphone` / `Icons.Default.Campaign` | Broadcast Console | Multi-channel broadcast dispatch (In-App, FCM Phone Push, Resend Email), templates, read receipts |
+| **6** | `diagnostics` | `ServerManagementTab` | `ph-dots-three-circle` / `Icons.Default.MoreHoriz` | Hub & Diagnostics | Host uptime, Atlas roundtrip ping latency, RSS memory, live terminal logs, AI Studio launcher |
 
 ### B. Engineer User Portal:
 | Tab # | Web Tab ID | Android Destination | Icon | Label | Purpose |

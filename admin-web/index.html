@@ -518,6 +518,9 @@
       <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="swaps">
         <i class="ph ph-arrows-left-right text-base text-amber-600 dark:text-amber-400"></i> Swaps & Leaves
       </button>
+      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="broadcast">
+        <i class="ph ph-megaphone text-base text-purple-600 dark:text-purple-400"></i> Broadcast Console
+      </button>
       <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="diagnostics">
         <i class="ph ph-dots-three-circle text-base text-emerald-600 dark:text-emerald-400"></i> Hub & Diagnostics
       </button>
@@ -1357,6 +1360,317 @@
         <!-- Live Terminal Box -->
         <div class="bg-slate-950 rounded-xl p-4 font-mono text-[11px] text-emerald-400 border border-slate-800 max-h-[460px] overflow-y-auto space-y-1 shadow-inner" id="tabTerminalLogsBox">
           <div class="text-slate-500">[INITIALIZING DIAGNOSTIC LOG STREAM...]</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 6: 📢 TEAM BROADCAST CONSOLE                                          -->
+    <!-- ========================================================================= -->
+    <section id="tabContent_broadcast" class="tab-panel hidden space-y-4 sm:space-y-6">
+
+      <!-- Broadcast Header Banner -->
+      <div class="glass-panel bg-gradient-to-r from-white via-purple-50/50 to-indigo-50/50 dark:from-slate-900 dark:via-purple-950/40 dark:to-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-purple-200/70 dark:border-purple-800/50 shadow-sm relative overflow-hidden">
+        <div class="absolute -right-8 -bottom-8 w-60 h-60 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+          <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 border border-purple-300 dark:border-purple-700/60 text-[11px] font-bold text-purple-900 dark:text-purple-300 mb-1.5 shadow-2xs">
+              <i class="ph ph-megaphone text-xs text-purple-600 dark:text-purple-400"></i>
+              TEAM BROADCAST CONSOLE
+            </div>
+            <h2 class="text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white font-outfit">
+              Operations Notifications & Live Alerts
+            </h2>
+            <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl">
+              Dispatch multi-channel announcements to all engineers or specific teammates. Supports In-App alerts, Android status bar push (100% Free FCM), and Resend HTML email. Type <code class="px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/60 font-mono text-purple-700 dark:text-purple-300 font-bold">@</code> to mention engineers with live autocomplete.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button id="btnRefreshBroadcasts" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-xs cursor-pointer transition">
+              <i class="ph ph-arrows-clockwise text-sm text-purple-600 dark:text-purple-400"></i> Refresh History
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Two-Column Console Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
+
+        <!-- Left Column: Composer Form (7 Cols) -->
+        <div class="lg:col-span-7 space-y-4">
+
+          <!-- Card: Recipient Audience -->
+          <div class="glass-panel rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-purple-700 dark:text-purple-400 tracking-wider flex items-center gap-1.5">
+                <i class="ph ph-users-three text-sm"></i> TARGET AUDIENCE
+              </span>
+              <span id="broadcastAudienceSummaryBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50 font-mono">
+                All Active Engineers
+              </span>
+            </div>
+
+            <!-- Segmented Audience Toggle -->
+            <div class="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+              <button id="broadcastAudienceEveryoneBtn" type="button" class="py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 shadow-xs">
+                <i class="ph ph-globe text-sm"></i> Everyone (Team)
+              </button>
+              <button id="broadcastAudienceSpecificBtn" type="button" class="py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                <i class="ph ph-user-focus text-sm"></i> Specific Engineers
+              </button>
+            </div>
+
+            <!-- Specific Engineers Selection Panel (Hidden by Default) -->
+            <div id="broadcastSpecificEngineersContainer" class="hidden space-y-3 pt-1 border-t border-slate-200 dark:border-slate-800">
+              <div class="flex items-center justify-between gap-2">
+                <div class="relative flex-1">
+                  <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                  <input id="broadcastEngineerSearch" type="text" placeholder="Filter engineers by name or @username..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button id="btnSelectAllRecipients" type="button" class="px-2.5 py-1 text-[11px] font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/60 rounded-lg transition cursor-pointer">
+                    Select All
+                  </button>
+                  <span class="text-slate-300 dark:text-slate-700">|</span>
+                  <button id="btnClearAllRecipients" type="button" class="px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer">
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              <!-- Engineer Chips Cloud -->
+              <div id="broadcastRecipientChips" class="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
+                <!-- Dynamically populated engineer chips -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Message Composer & Priority -->
+          <div class="glass-panel rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+            
+            <!-- Operational Template Selector & Actions -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <i class="ph ph-bookmarks text-sm text-purple-600 dark:text-purple-400"></i> Operational Template
+              </label>
+              <div class="flex items-center gap-2">
+                <select id="broadcastTemplateSelect" class="text-xs font-medium px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer max-w-[200px] truncate">
+                  <option value="">-- Load Template --</option>
+                </select>
+                <button id="btnOpenSaveTemplateModal" type="button" class="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50 hover:bg-purple-100 dark:hover:bg-purple-900/60 transition cursor-pointer whitespace-nowrap" title="Save current message as custom template">
+                  <i class="ph ph-floppy-disk"></i> Save
+                </button>
+                <button id="btnDeleteSelectedTemplate" type="button" class="px-2 py-1.5 text-xs font-bold rounded-xl bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/50 hover:bg-red-100 transition cursor-pointer hidden" title="Delete custom template">
+                  <i class="ph ph-trash"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Priority Selector (Neumorphic Chips) -->
+            <div>
+              <label class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 block">
+                Announcement Priority
+              </label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="broadcastPriorityRadioGroup">
+                <label class="priority-chip flex items-center gap-2 px-3 py-2 rounded-xl border border-blue-300 dark:border-blue-700/60 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300 cursor-pointer transition select-none">
+                  <input type="radio" name="broadcastPriority" value="info" checked class="accent-blue-600">
+                  <span class="text-xs font-bold flex items-center gap-1"><i class="ph ph-info"></i> Info</span>
+                </label>
+                <label class="priority-chip flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer transition select-none">
+                  <input type="radio" name="broadcastPriority" value="shift_update" class="accent-amber-500">
+                  <span class="text-xs font-bold flex items-center gap-1"><i class="ph ph-calendar-check text-amber-500"></i> Shift Update</span>
+                </label>
+                <label class="priority-chip flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer transition select-none">
+                  <input type="radio" name="broadcastPriority" value="urgent" class="accent-red-600">
+                  <span class="text-xs font-bold flex items-center gap-1"><i class="ph ph-warning-circle text-red-500"></i> Urgent</span>
+                </label>
+                <label class="priority-chip flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer transition select-none">
+                  <input type="radio" name="broadcastPriority" value="broadcast" class="accent-purple-600">
+                  <span class="text-xs font-bold flex items-center gap-1"><i class="ph ph-megaphone text-purple-500"></i> Broadcast</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Subject / Title Input -->
+            <div>
+              <label for="broadcastTitleInput" class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
+                Announcement Subject / Title
+              </label>
+              <input id="broadcastTitleInput" type="text" value="Shift Operations Announcement" class="w-full px-3.5 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+            </div>
+
+            <!-- Quick Mention & Token Helpers Toolbar -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+              <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
+                <i class="ph ph-magic-wand text-purple-500"></i> Quick Tokens:
+              </span>
+              <button id="btnInsertTokenName" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+                {name}
+              </button>
+              <button id="btnInsertTokenUsername" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+                {username}
+              </button>
+              <button id="btnInsertMentionAll" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-800 transition cursor-pointer">
+                @all
+              </button>
+              <span class="text-[11px] text-slate-400 italic ml-auto">Tip: Type <strong>@</strong> anywhere to mention</span>
+            </div>
+
+            <!-- Message Textarea with Relative Container for Mention Autocomplete -->
+            <div class="relative">
+              <textarea id="broadcastMessageInput" rows="6" class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y" placeholder="Type your broadcast announcement here... Use {name} for personal greeting or @username to mention a teammate.">Dear {name},
+
+Please review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.
+
+Best regards,
+Operations Desk</textarea>
+
+              <!-- Live '@' Mention Autocomplete Popup Dropdown -->
+              <div id="broadcastMentionDropdown" class="hidden absolute z-50 left-2 top-12 w-64 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl shadow-xl p-1 space-y-1">
+                <!-- Dynamically populated mention suggestions -->
+              </div>
+
+              <!-- Character Count Indicator -->
+              <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono mt-1 px-1">
+                <span>Supports Markdown and dynamic tokens</span>
+                <span id="broadcastCharCount">0 characters</span>
+              </div>
+            </div>
+
+            <!-- Delivery Channels Toggles -->
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-2">
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                Delivery Channels
+              </span>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                  <input id="broadcastChannelInApp" type="checkbox" checked class="accent-purple-600 rounded">
+                  <span class="flex items-center gap-1"><i class="ph ph-browsers text-purple-600"></i> In-App Portal</span>
+                </label>
+                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none" title="Instant alert straight into the phone's Android notification panel via free FCM">
+                  <input id="broadcastChannelPush" type="checkbox" checked class="accent-purple-600 rounded">
+                  <span class="flex items-center gap-1 font-bold text-purple-900 dark:text-purple-300">
+                    <i class="ph ph-bell text-amber-500"></i> Phone Panel (FCM)
+                  </span>
+                </label>
+                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                  <input id="broadcastChannelEmail" type="checkbox" checked class="accent-purple-600 rounded">
+                  <span class="flex items-center gap-1"><i class="ph ph-envelope-simple text-blue-600"></i> Resend Email</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Dispatch Button -->
+            <div class="pt-2">
+              <button id="btnDispatchBroadcast" type="button" class="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <i class="ph ph-paper-plane-tilt text-base" id="dispatchBtnIcon"></i>
+                <span id="dispatchBtnText">Broadcast to 14 Engineers</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Live Recipient Preview Simulator (5 Cols) -->
+        <div class="lg:col-span-5 space-y-4">
+
+          <!-- Simulator Container -->
+          <div class="glass-panel rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-purple-200/80 dark:border-purple-800/60 shadow-xs space-y-3 sticky top-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <span class="text-xs font-bold text-purple-700 dark:text-purple-400 tracking-wider flex items-center gap-1.5">
+                <i class="ph ph-eye text-sm"></i> LIVE SIMULATOR
+              </span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-slate-500 font-medium">Viewing as:</span>
+                <select id="broadcastPreviewEngineerSelect" class="text-xs font-semibold px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[130px] truncate">
+                  <!-- Populated dynamically with active engineers -->
+                </select>
+              </div>
+            </div>
+
+            <!-- Rendered Broadcast Card Simulator -->
+            <div id="simulatedBroadcastCard" class="rounded-xl p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span id="previewPriorityPill" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800 uppercase tracking-wider flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> INFO
+                  </span>
+                  <span class="text-[10px] text-slate-400 font-mono" id="previewSender">Ops Admin</span>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Just Now</span>
+              </div>
+
+              <div>
+                <h4 id="previewTitle" class="text-sm font-bold text-slate-900 dark:text-white">
+                  Shift Operations Announcement
+                </h4>
+                <div id="previewMessageBody" class="text-xs text-slate-700 dark:text-slate-300 mt-2 leading-relaxed whitespace-pre-wrap font-sans bg-slate-50 dark:bg-slate-900/60 p-3 rounded-lg border border-slate-200/70 dark:border-slate-800/80">
+                  <!-- Dynamic preview content -->
+                </div>
+              </div>
+
+              <!-- Channel Icons Status in Simulator -->
+              <div class="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-500">
+                <div class="flex items-center gap-2" id="previewActiveChannelsBadges">
+                  <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                    <i class="ph ph-check-circle"></i> In-App
+                  </span>
+                  <span class="inline-flex items-center gap-1 text-[10px] font-medium text-purple-600 dark:text-purple-400">
+                    <i class="ph ph-check-circle"></i> FCM Push
+                  </span>
+                  <span class="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                    <i class="ph ph-check-circle"></i> Email
+                  </span>
+                </div>
+                <span class="text-[10px] text-slate-400 italic">Dismissible</span>
+              </div>
+            </div>
+
+            <!-- Pro-Tip Box -->
+            <div class="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/60 dark:border-purple-800/40 text-[11px] text-purple-800 dark:text-purple-300 space-y-1">
+              <div class="font-bold flex items-center gap-1">
+                <i class="ph ph-lightbulb"></i> Dynamic Mention Standard
+              </div>
+              <p class="text-slate-600 dark:text-slate-400 leading-normal">
+                All <code class="font-bold text-purple-700 dark:text-purple-300">@username</code> mentions are dynamically replaced in real-time with the engineer's <strong>Full Name</strong> across email, phone push notifications, and portal banners.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- BROADCAST HISTORY & AUDIT LOG SECTION                                     -->
+      <!-- ========================================================================= -->
+      <div class="glass-panel rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="ph ph-clock-counter-clockwise text-purple-600 dark:text-purple-400"></i>
+              Broadcast Dispatch History & Read Receipts
+            </h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+              Complete operational record with live read status, audit receipts, and soft-retraction capabilities.
+            </p>
+          </div>
+          <span id="broadcastHistoryCountBadge" class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800 self-start sm:self-auto">
+            0 Dispatched
+          </span>
+        </div>
+
+        <!-- History Items Feed -->
+        <div id="broadcastHistoryList" class="space-y-3">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Empty History State -->
+        <div id="broadcastHistoryEmpty" class="text-center py-12 space-y-2">
+          <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-950/80 flex items-center justify-center text-purple-600 dark:text-purple-400 mx-auto text-xl">
+            <i class="ph ph-megaphone-simple"></i>
+          </div>
+          <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">No Broadcasts Dispatched Yet</h4>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            Create your first announcement using the composer above to broadcast operational notices to the team.
+          </p>
         </div>
       </div>
     </section>
@@ -3471,6 +3785,110 @@
     </div>
   </div>
 
+  <!-- ===================================================================== -->
+  <!-- 💾 Save Operational Broadcast Template Modal                           -->
+  <!-- ===================================================================== -->
+  <div id="modalSaveBroadcastTemplate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+    <div class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg p-6 m-4 flex flex-col space-y-4 animate-scale-in">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center text-lg">
+            <i class="ph ph-floppy-disk font-bold"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base">Save Operational Template</h3>
+            <p class="text-xs text-slate-500">Persists custom announcement template in Atlas Database</p>
+          </div>
+        </div>
+        <button id="btnCloseSaveTemplateModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg p-1.5 cursor-pointer">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Template Display Name</label>
+          <input id="saveTemplateNameInput" type="text" placeholder="e.g., Night Shift Emergency Coverage" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Announcement Subject Line</label>
+          <input id="saveTemplateTitleInput" type="text" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Body Preview</label>
+          <div id="saveTemplateBodyPreview" class="text-xs font-mono p-3 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 max-h-32 overflow-y-auto whitespace-pre-wrap text-slate-700 dark:text-slate-300"></div>
+        </div>
+      </div>
+      <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+        <button id="btnCancelSaveTemplate" type="button" class="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+          Cancel
+        </button>
+        <button id="btnConfirmSaveTemplate" type="button" class="px-4 py-2 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm cursor-pointer">
+          Save to Cloud DB
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 🔍 Broadcast Details & Read Receipts Modal                             -->
+  <!-- ===================================================================== -->
+  <div id="modalBroadcastDetails" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+    <div class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl p-6 m-4 max-h-[85vh] flex flex-col space-y-4 animate-scale-in">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center text-lg">
+            <i class="ph ph-envelope-open font-bold"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base" id="detailModalTitle">Announcement Details</h3>
+            <p class="text-xs text-slate-500" id="detailModalMeta">Dispatched by Admin</p>
+          </div>
+        </div>
+        <button id="btnCloseBroadcastDetailsModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg p-1.5 cursor-pointer">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto space-y-4">
+        <!-- Message Body -->
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Message Content</label>
+          <div id="detailModalBody" class="text-xs p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 whitespace-pre-wrap font-sans text-slate-800 dark:text-slate-200 leading-relaxed"></div>
+        </div>
+        <!-- Delivery Stats Cards -->
+        <div class="grid grid-cols-3 gap-2.5 text-center">
+          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] text-slate-500 font-bold uppercase">Targeted</div>
+            <div id="detailModalTargetCount" class="text-base font-black text-slate-800 dark:text-slate-100 font-mono">0</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+            <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Read / Dismissed</div>
+            <div id="detailModalReadCount" class="text-base font-black text-emerald-700 dark:text-emerald-300 font-mono">0</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Pending Read</div>
+            <div id="detailModalPendingCount" class="text-base font-black text-amber-700 dark:text-amber-300 font-mono">0</div>
+          </div>
+        </div>
+        <!-- Read vs Pending breakdown lists -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/60 space-y-1.5">
+            <div class="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+              <i class="ph ph-check-circle"></i> Read / Dismissed (<span id="detailModalReadListCount">0</span>)
+            </div>
+            <div id="detailModalReadList" class="text-[11px] text-slate-700 dark:text-slate-300 max-h-36 overflow-y-auto space-y-1"></div>
+          </div>
+          <div class="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 space-y-1.5">
+            <div class="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1">
+              <i class="ph ph-clock"></i> Pending Acknowledgment (<span id="detailModalPendingListCount">0</span>)
+            </div>
+            <div id="detailModalPendingList" class="text-[11px] text-slate-700 dark:text-slate-300 max-h-36 overflow-y-auto space-y-1"></div>
+          </div>
+        </div>
+      </div>
+      <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+        <button id="btnCloseBroadcastDetailsModalFooter" type="button" class="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs cursor-pointer">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
 
 
   <script type="module">
@@ -3800,6 +4218,11 @@
       <span class="text-[10px] mt-0.5">Swaps</span>
       <span class="mobile-active-bubble hidden w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
     </button>
+    <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="broadcast">
+      <i class="ph ph-megaphone text-xl"></i>
+      <span class="text-[10px] mt-0.5">Broadcast</span>
+      <span class="mobile-active-bubble hidden w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
+    </button>
     <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="diagnostics">
       <i class="ph ph-dots-three-circle text-xl"></i>
       <span class="text-[10px] mt-0.5">More</span>
@@ -3809,7 +4232,7 @@
 
   <!-- Master Application Script (ES Module) -->
 
-  <script type="module" src="js/app.js?v=7.1"></script>
+  <script type="module" src="js/app.js?v=7.2"></script>
 
 </body>
 
