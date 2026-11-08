@@ -10,6 +10,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.rosterx.ui.theme.LocalIsDarkTheme
+import com.rosterx.ui.theme.LocalThemeAccent
+
+/**
+ * Dual-State Theme Palette Specification
+ * Light Mode: High-saturation bold anchor (e.g. #174EAC Tory Blue)
+ * Dark Mode: 20-30% desaturated, lightened to clear WCAG 4.5:1 text / 3:1 UI components against dark slate.
+ */
+data class ThemePalette(
+    val id: String,
+    val name: String,
+    val lightHex: String,
+    val darkHex: String
+) {
+    fun resolve(isDark: Boolean): Color =
+        Color(android.graphics.Color.parseColor(if (isDark) darkHex else lightHex))
+}
+
+val BrandPalettes = listOf(
+    ThemePalette("tory_blue", "Tory Blue", "#174EAC", "#7294CC"),
+    ThemePalette("crimson_coral", "Crimson Coral", "#FF5252", "#FB7185"),
+    ThemePalette("emerald_green", "Emerald Green", "#059669", "#34D399"),
+    ThemePalette("indigo_violet", "Indigo Violet", "#6366F1", "#818CF8"),
+    ThemePalette("sunset_amber", "Sunset Amber", "#D97706", "#FBBF24"),
+    ThemePalette("ocean_cyan", "Ocean Cyan", "#0284C7", "#38BDF8")
+)
+
+val DefaultPalette = BrandPalettes[0]
+
+fun getPaletteById(id: String): ThemePalette =
+    BrandPalettes.firstOrNull { it.id == id } ?: DefaultPalette
 
 /**
  * RosterX — Dynamic Cross-Platform Neumorphic (Soft UI) Design Tokens
@@ -45,38 +76,44 @@ object NeumorphicTokens {
     // 3. Dynamic Composable Color Getters
     // ==========================================
     val Canvas: Color
-        @Composable get() = if (isSystemInDarkTheme()) DarkCanvas else LightCanvas
+        @Composable get() = if (LocalIsDarkTheme.current) DarkCanvas else LightCanvas
 
     val Surface: Color
-        @Composable get() = if (isSystemInDarkTheme()) DarkSurface else LightSurface
+        @Composable get() = if (LocalIsDarkTheme.current) DarkSurface else LightSurface
 
     val SurfaceContrast: Color
-        @Composable get() = if (isSystemInDarkTheme()) DarkSurfaceContrast else LightSurfaceContrast
+        @Composable get() = if (LocalIsDarkTheme.current) DarkSurfaceContrast else LightSurfaceContrast
 
     val TextMain: Color
-        @Composable get() = if (isSystemInDarkTheme()) DarkTextMain else LightTextMain
+        @Composable get() = if (LocalIsDarkTheme.current) DarkTextMain else LightTextMain
 
     val TextMuted: Color
-        @Composable get() = if (isSystemInDarkTheme()) DarkTextMuted else LightTextMuted
+        @Composable get() = if (LocalIsDarkTheme.current) DarkTextMuted else LightTextMuted
 
     val ShadowDark: Color
-        @Composable get() = if (isSystemInDarkTheme()) DarkShadowDark else LightShadowDark
+        @Composable get() = if (LocalIsDarkTheme.current) DarkShadowDark else LightShadowDark
 
     val ShadowLight: Color
-        @Composable get() = if (isSystemInDarkTheme()) DarkShadowLight else LightShadowLight
+        @Composable get() = if (LocalIsDarkTheme.current) DarkShadowLight else LightShadowLight
 
     // ==========================================
     // 4. Kinetic Energy Accent & Status Accents
     // ==========================================
+    val Accent: Color
+        @Composable get() = LocalThemeAccent.current
+
+    val AccentSalmon: Color
+        @Composable get() = LocalThemeAccent.current
+
     val AccentCoral: Color = Color(0xFFFF6B6B)
-    val AccentSalmon: Color = Color(0xFFFF5252)
     val AccentGlow: Color = Color(0x59FF5252)
 
-    val AccentGradient: Brush = Brush.linearGradient(
-        colors = listOf(AccentCoral, AccentSalmon),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
+    val AccentGradient: Brush
+        @Composable get() = Brush.linearGradient(
+            colors = listOf(AccentCoral, LocalThemeAccent.current),
+            start = Offset(0f, 0f),
+            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+        )
 
     val StatusCyan: Color = Color(0xFF0284C7)
     val StatusEmerald: Color = Color(0xFF10B981)

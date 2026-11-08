@@ -50,3 +50,46 @@ val Engineer.isManagementAccount: Boolean
                fn.contains("administrator") ||
                (role == EngineerRole.ADMIN && (uname.contains("admin") || n.contains("admin") || n.contains("system")))
     }
+
+private val flexibleDateFormats = listOf(
+    java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,
+    java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+    java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+    java.time.format.DateTimeFormatter.ofPattern("d-M-yyyy"),
+    java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
+)
+
+fun parseResignationDate(dateStr: String?): java.time.LocalDate? {
+    if (dateStr.isNullOrBlank()) return null
+    val clean = dateStr.trim().split("T")[0].split(" ")[0].trim()
+    for (fmt in flexibleDateFormats) {
+        try {
+            return java.time.LocalDate.parse(clean, fmt)
+        } catch (_: Exception) {}
+    }
+    return null
+}
+
+fun Engineer.isEligibleForShiftRoster(date: java.time.LocalDate): Boolean {
+    if (isManagementAccount) return false
+    if (status == EngineerStatus.RESIGNED) {
+        val rDate = parseResignationDate(resignationDate) ?: return false
+        val rYearMonth = java.time.YearMonth.from(rDate)
+        val targetYearMonth = java.time.YearMonth.from(date)
+        if (targetYearMonth.isAfter(rYearMonth)) return false
+        if (targetYearMonth == rYearMonth && date.isAfter(rDate)) return false
+    }
+    return true
+}
+
+fun Engineer.isEligibleForMonthRoster(year: Int, month: Int): Boolean {
+    if (isManagementAccount) return false
+    if (status == EngineerStatus.RESIGNED) {
+        val rDate = parseResignationDate(resignationDate) ?: return false
+        val rYearMonth = java.time.YearMonth.from(rDate)
+        val targetYearMonth = java.time.YearMonth.of(year, month)
+        if (targetYearMonth.isAfter(rYearMonth)) return false
+    }
+    return true
+}

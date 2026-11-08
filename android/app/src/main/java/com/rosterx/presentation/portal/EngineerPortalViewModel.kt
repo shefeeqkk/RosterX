@@ -6,11 +6,14 @@ import androidx.lifecycle.ViewModel
 
 import androidx.lifecycle.viewModelScope
 
+import com.rosterx.data.local.AppThemeMode
 import com.rosterx.data.local.UserSessionManager
 
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.ShiftCode
 import com.rosterx.domain.model.isManagementAccount
+import com.rosterx.domain.model.isEligibleForShiftRoster
+import com.rosterx.domain.model.isEligibleForMonthRoster
 
 import com.rosterx.domain.repository.RosterRepository
 
@@ -291,18 +294,13 @@ class EngineerPortalViewModel @Inject constructor(
             if (currentEng != null) {
                 val effectiveLive = if (liveRosterResult.isSuccess) liveRosterMap else (rosterCache[liveMonthKey] ?: emptyMap())
                 if (currentEng.role == com.rosterx.domain.model.EngineerRole.MANAGER) {
-                    // Manager Widget: Real-time Shift Radar for Today
                     val today = LocalDate.now()
                     val todayDayStr = today.dayOfMonth.toString()
-                    val activeEngineers = engineers.filter { !it.isManagementAccount }
-                    val nowSec = java.time.LocalTime.now().toSecondOfDay().toLong()
+                    val activeEngineers = engineers.filter { it.isEligibleForShiftRoster(today) }
+                    val nowTime = java.time.LocalTime.now()
+                    val nowMin = nowTime.hour * 60 + nowTime.minute
 
-                    var activeCode = "SS"
-                    var activeTiming = "13:00 – 22:00"
-                    val activeStaffList = mutableListOf<String>()
-                    var nextCode = "NS"
-                    var nextTiming = "21:00 – 07:30 (+1)"
-                    val nextStaffList = mutableListOf<String>()
+                    val dutyItemList = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
                     var dayCount = 0
                     var nightCount = 0
                     var restCount = 0
@@ -315,63 +313,47 @@ class EngineerPortalViewModel @Inject constructor(
                             ?: effectiveLive[eng.name.lowercase()]?.get(todayDayStr)
                             ?: com.rosterx.domain.model.ShiftCode.OFF
                         val code = shift.code.uppercase()
-                        val shortName = eng.name.split(" ").firstOrNull() ?: eng.name
 
                         when {
-                            code == "NS" -> {
-                                nightCount++
-                                nextStaffList.add(shortName)
-                                if (nowSec >= 75600L || nowSec < 27000L) {
-                                    activeCode = "NS"
-                                    activeTiming = "21:00 – 07:30 (+1)"
-                                    activeStaffList.add(shortName)
-                                }
-                            }
-                            code in setOf("FS", "FG", "G", "SG", "SS") -> {
-                                dayCount++
-                                val meta = com.rosterx.widget.RosterXAppWidgetProvider.resolveMeta(code)
-                                if (meta.startSec > 0 && nowSec >= meta.startSec && nowSec < meta.endSec) {
-                                    activeCode = code
-                                    activeTiming = meta.timing
-                                    activeStaffList.add(shortName)
-                                }
-                            }
+                            code == "NS" -> nightCount++
+                            code in setOf("FS", "FG", "G", "SG", "SS") -> dayCount++
                             else -> restCount++
                         }
-                    }
 
-                    // Fallback if no specific shift is active right at this second
-                    if (activeStaffList.isEmpty()) {
-                        activeEngineers.firstOrNull { eng ->
-                            val s = effectiveLive[eng.username]?.get(todayDayStr)?.code?.uppercase() ?: "OFF"
-                            s in setOf("FS", "FG", "G", "SG", "SS")
-                        }?.let { eng ->
-                            val s = effectiveLive[eng.username]?.get(todayDayStr)?.code?.uppercase() ?: "SS"
-                            activeCode = s
-                            val meta = com.rosterx.widget.RosterXAppWidgetProvider.resolveMeta(s)
-                            activeTiming = meta.timing
-                            activeStaffList.add(eng.name.split(" ").firstOrNull() ?: eng.name)
+                        if (code !in setOf("OFF", "L") && !code.startsWith("SW")) {
+                            val meta = com.rosterx.widget.RosterXAppWidgetProvider.resolveMeta(code)
+                            val isActive = when (code) {
+                                "FS" -> nowMin in 450..990
+                                "FG" -> nowMin in 510..1050
+                                "G" -> nowMin in 570..1110
+                                "SG" -> nowMin in 660..1200
+                                "SS" -> nowMin in 780..1320
+                                "NS" -> nowMin >= 1260 || nowMin < 450
+                                else -> false
+                            }
+                            dutyItemList.add(
+                                com.rosterx.widget.WidgetDutyItem(
+                                    engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                    shiftCode = code,
+                                    shiftName = meta.name,
+                                    timing = meta.timing,
+                                    bgHex = shift.bgColorHex,
+                                    textHex = shift.textColorHex,
+                                    isActiveNow = isActive
+                                )
+                            )
                         }
                     }
 
-                    val activeStaffStr = if (activeStaffList.isNotEmpty()) activeStaffList.joinToString(", ") else "Standby NOC"
-                    val nextStaffStr = if (nextStaffList.isNotEmpty()) nextStaffList.joinToString(", ") else "Assigned Night Duty"
-                    val coverageStr = "👥 Today's NOC: $dayCount Day Shifts • $nightCount Night (NS)"
-                    val restStr = "🏖 Scheduled Rest: $restCount Engineers (OFF/Leave)"
+                    val dateFormatted = today.format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd"))
+                    val summaryStr = "On Duty: $dayCount Day, $nightCount Night • Rest: $restCount"
 
-                    com.rosterx.widget.RosterXAppWidgetProvider.saveManagerWidgetData(
+                    com.rosterx.widget.RosterXAppWidgetProvider.saveManagerDutyRoster(
                         context = context,
                         managerName = currentEng.name,
-                        activeCode = activeCode,
-                        activeName = "Active Desk",
-                        activeTiming = activeTiming,
-                        activeStaff = activeStaffStr,
-                        nextCode = nextCode,
-                        nextName = "Night Shift",
-                        nextTiming = nextTiming,
-                        nextStaff = nextStaffStr,
-                        coverageText = coverageStr,
-                        restText = restStr
+                        dateFormatted = dateFormatted,
+                        dutyList = dutyItemList,
+                        summaryText = summaryStr
                     )
                 } else {
                     val engShifts = effectiveLive[currentEng.username]
@@ -624,6 +606,14 @@ class EngineerPortalViewModel @Inject constructor(
                 isAssistantThinking = false
             )
         }
+    }
+
+    fun setThemeMode(mode: AppThemeMode) {
+        sessionManager.setThemeMode(mode)
+    }
+
+    fun setThemePaletteId(paletteId: String) {
+        sessionManager.setThemePaletteId(paletteId)
     }
 }
 

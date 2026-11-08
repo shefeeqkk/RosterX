@@ -113,12 +113,14 @@ class MainActivity : FragmentActivity() {
 
 
         setContent {
-
             val currentUser by sessionManager.currentUser.collectAsState()
+            val themeMode by sessionManager.themeMode.collectAsState()
+            val themePaletteId by sessionManager.themePaletteId.collectAsState()
 
-
-
-            RosterXTheme {
+            RosterXTheme(
+                themeMode = themeMode,
+                paletteId = themePaletteId
+            ) {
 
                 Surface(
 

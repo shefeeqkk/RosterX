@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+enum class AppThemeMode { SYSTEM, LIGHT, DARK }
+
 @Singleton
 class UserSessionManager @Inject constructor(
     @ApplicationContext private val context: Context
@@ -21,6 +23,35 @@ class UserSessionManager @Inject constructor(
 
     private val _currentUser = MutableStateFlow<Engineer?>(loadSavedUser())
     val currentUser: StateFlow<Engineer?> = _currentUser.asStateFlow()
+
+    private val _themeMode = MutableStateFlow(loadSavedThemeMode())
+    val themeMode: StateFlow<AppThemeMode> = _themeMode.asStateFlow()
+
+    private val _themePaletteId = MutableStateFlow(loadSavedThemePaletteId())
+    val themePaletteId: StateFlow<String> = _themePaletteId.asStateFlow()
+
+    private fun loadSavedThemeMode(): AppThemeMode {
+        val modeStr = prefs.getString("app_theme_mode", "SYSTEM") ?: "SYSTEM"
+        return try {
+            AppThemeMode.valueOf(modeStr)
+        } catch (_: Exception) {
+            AppThemeMode.SYSTEM
+        }
+    }
+
+    private fun loadSavedThemePaletteId(): String {
+        return prefs.getString("app_theme_palette_id", "tory_blue") ?: "tory_blue"
+    }
+
+    fun setThemeMode(mode: AppThemeMode) {
+        _themeMode.value = mode
+        prefs.edit().putString("app_theme_mode", mode.name).apply()
+    }
+
+    fun setThemePaletteId(paletteId: String) {
+        _themePaletteId.value = paletteId
+        prefs.edit().putString("app_theme_palette_id", paletteId).apply()
+    }
 
     private fun loadSavedUser(): Engineer? {
         val json = prefs.getString("saved_user", null) ?: return null

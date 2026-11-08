@@ -22,6 +22,16 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+data class WidgetDutyItem(
+    val engineerName: String,
+    val shiftCode: String,
+    val shiftName: String,
+    val timing: String,
+    val bgHex: String,
+    val textHex: String,
+    val isActiveNow: Boolean
+)
+
 class RosterXAppWidgetProvider : AppWidgetProvider() {
 
     companion object {
@@ -42,6 +52,9 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
         private const val KEY_MANAGER_NEXT_STAFF = "key_manager_next_staff"
         private const val KEY_MANAGER_COVERAGE_TEXT = "key_manager_coverage_text"
         private const val KEY_MANAGER_REST_TEXT = "key_manager_rest_text"
+        const val KEY_MANAGER_DUTY_LIST_JSON = "key_manager_duty_list_json"
+        const val KEY_MANAGER_DATE_STR = "key_manager_date_str"
+        const val KEY_MANAGER_SUMMARY_STR = "key_manager_summary_str"
 
         data class ShiftMeta(val name: String, val timing: String, val bg: String, val text: String, val startSec: Long, val endSec: Long)
         private val shiftRegistry = mapOf(
@@ -114,6 +127,29 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 updateAllWidgets(context)
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to saveManagerWidgetData", e)
+            }
+        }
+
+        fun saveManagerDutyRoster(
+            context: Context,
+            managerName: String,
+            dateFormatted: String,
+            dutyList: List<WidgetDutyItem>,
+            summaryText: String
+        ) {
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit()
+                    .putBoolean(KEY_IS_MANAGER, true)
+                    .putString(KEY_ENGINEER_NAME, managerName)
+                    .putString(KEY_MANAGER_DATE_STR, dateFormatted)
+                    .putString(KEY_MANAGER_DUTY_LIST_JSON, gson.toJson(dutyList))
+                    .putString(KEY_MANAGER_SUMMARY_STR, summaryText)
+                    .apply()
+
+                updateAllWidgets(context)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to saveManagerDutyRoster", e)
             }
         }
 
@@ -206,44 +242,28 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // MANAGER WIDGET VIEW: Display Live Active Duty & Shift Handoff
+            // MANAGER WIDGET VIEW: Display Compact Today's Duty List
             if (isManager) {
-                val managerName = engineerName ?: "Operations Manager"
-                val activeCode = prefs.getString(KEY_MANAGER_ACTIVE_CODE, "SS") ?: "SS"
-                val activeTiming = prefs.getString(KEY_MANAGER_ACTIVE_TIMING, "13:00 – 22:00") ?: "13:00 – 22:00"
-                val activeStaff = prefs.getString(KEY_MANAGER_ACTIVE_STAFF, "Staff On Duty") ?: "Staff On Duty"
-                val nextCode = prefs.getString(KEY_MANAGER_NEXT_CODE, "NS") ?: "NS"
-                val nextTiming = prefs.getString(KEY_MANAGER_NEXT_TIMING, "21:00 – 07:30 (+1)") ?: "21:00 – 07:30 (+1)"
-                val nextStaff = prefs.getString(KEY_MANAGER_NEXT_STAFF, "Upcoming Duty") ?: "Upcoming Duty"
-                val coverageText = prefs.getString(KEY_MANAGER_COVERAGE_TEXT, "Today's Coverage: Live NOC Radar") ?: "Today's Coverage: Live NOC Radar"
-                val restText = prefs.getString(KEY_MANAGER_REST_TEXT, "Scheduled Rest Days: Live") ?: "Scheduled Rest Days: Live"
+                val managerViews = RemoteViews(context.packageName, R.layout.widget_rosterx_manager)
 
-                views.setTextViewText(R.id.widget_engineer_name, "$managerName (Manager)")
+                // Launch MainActivity on widget tap
+                managerViews.setOnClickPendingIntent(R.id.widget_root, pendingLaunch)
 
-                val activeMeta = resolveMeta(activeCode)
-                val nextMeta = resolveMeta(nextCode)
+                val dateStr = prefs.getString(KEY_MANAGER_DATE_STR, LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, MMM dd"))) ?: "Today"
+                val summaryStr = prefs.getString(KEY_MANAGER_SUMMARY_STR, "Today's Coverage: Active Duty") ?: "Today's Coverage: Active Duty"
 
-                // Left card: ACTIVE DUTY NOW
-                views.setTextViewText(R.id.widget_today_title, if (isCompact) "ACTIVE NOW" else "ACTIVE DUTY NOW")
-                views.setTextViewText(R.id.widget_today_badge, activeCode)
-                views.setInt(R.id.widget_today_badge_bg, "setColorFilter", Color.parseColor(activeMeta.bg))
-                views.setTextColor(R.id.widget_today_badge, Color.parseColor(activeMeta.text))
-                views.setTextViewText(R.id.widget_today_name, activeStaff)
-                views.setTextViewText(R.id.widget_today_timing, activeTiming)
+                managerViews.setTextViewText(R.id.widget_manager_date, dateStr)
+                managerViews.setTextViewText(R.id.widget_manager_summary, summaryStr)
 
-                // Right card: UPCOMING SHIFT
-                views.setTextViewText(R.id.widget_tomorrow_title, if (isCompact) "UPCOMING" else "UPCOMING SHIFT")
-                views.setTextViewText(R.id.widget_tomorrow_badge, nextCode)
-                views.setInt(R.id.widget_tomorrow_badge_bg, "setColorFilter", Color.parseColor(nextMeta.bg))
-                views.setTextColor(R.id.widget_tomorrow_badge, Color.parseColor(nextMeta.text))
-                views.setTextViewText(R.id.widget_tomorrow_name, nextStaff)
-                views.setTextViewText(R.id.widget_tomorrow_timing, nextTiming)
+                val serviceIntent = Intent(context, RosterXWidgetService::class.java).apply {
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                    data = android.net.Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+                }
+                managerViews.setRemoteAdapter(R.id.widget_manager_list, serviceIntent)
+                managerViews.setEmptyView(R.id.widget_manager_list, R.id.widget_manager_empty)
 
-                // Bottom indicators
-                views.setTextViewText(R.id.widget_timer_text, coverageText)
-                views.setTextViewText(R.id.widget_rest_text, restText)
-
-                appWidgetManager.updateAppWidget(appWidgetId, views)
+                appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_manager_list)
+                appWidgetManager.updateAppWidget(appWidgetId, managerViews)
                 return
             }
 

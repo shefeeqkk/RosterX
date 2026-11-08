@@ -114,9 +114,19 @@ import com.rosterx.BuildConfig
 
 import com.rosterx.R
 
+import com.rosterx.data.local.AppThemeMode
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.domain.model.isManagementAccount
+import com.rosterx.domain.model.isEligibleForShiftRoster
+import com.rosterx.domain.model.isEligibleForMonthRoster
+import com.rosterx.domain.model.parseResignationDate
+import com.rosterx.ui.neumorphic.BrandPalettes
+import com.rosterx.ui.neumorphic.DefaultPalette
+import com.rosterx.ui.theme.LocalIsDarkTheme
+import com.rosterx.ui.theme.LocalThemeAccent
+import com.rosterx.ui.theme.LocalThemeMode
+import com.rosterx.ui.theme.LocalThemePalette
 
 import com.rosterx.util.NetworkUtils
 
@@ -273,87 +283,27 @@ fun parseFlexibleDate(dateStr: String?): LocalDate? {
 
 
 fun filterEngineersByResignation(
-
     engineers: List<Engineer>, 
-
     year: Int, 
-
     month: Int, 
-
     day: Int = 1,
-
     roster: Map<String, Map<String, ShiftCode>>? = null
-
 ): List<Engineer> {
-
     val checkDate = try { LocalDate.of(year, month, day) } catch (_: Exception) { LocalDate.now() }
-
-    val monthStart = try { LocalDate.of(year, month, 1) } catch (_: Exception) { LocalDate.now().withDayOfMonth(1) }
-
-
+    val targetYearMonth = try { java.time.YearMonth.of(year, month) } catch (_: Exception) { java.time.YearMonth.now() }
 
     return engineers.filter { eng ->
-
-        when (eng.status) {
-
-            EngineerStatus.ACTIVE -> true
-
-            EngineerStatus.RESIGNED -> {
-
-                // 1. If engineer has recorded shifts in this month's roster, keep them to preserve history
-
-                val hasRecordedShifts = if (roster != null) {
-
-                    val engShifts = getRosterForEngineer(roster, eng)
-
-                    engShifts.values.any { it != ShiftCode.OFF }
-
-                } else false
-
-
-
-                if (hasRecordedShifts) {
-
-                    true
-
-                } else {
-
-                    // 2. Evaluate against resignation date
-
-                    val resignDate = parseFlexibleDate(eng.resignationDate)
-
-                    if (resignDate != null) {
-
-                        if (day > 1) {
-
-                            !checkDate.isAfter(resignDate)
-
-                        } else {
-
-                            // In month roster grid, show if resignation was on or after month start
-
-                            !monthStart.isAfter(resignDate)
-
-                        }
-
-                    } else {
-
-                        // Resigned with no exit date specified -> exclude from active/coming month rosters
-
-                        false
-
-                    }
-
-                }
-
-            }
-
-            else -> true
-
+        if (eng.isManagementAccount) return@filter false
+        if (eng.status == EngineerStatus.RESIGNED) {
+            val resignDate = parseResignationDate(eng.resignationDate) ?: parseFlexibleDate(eng.resignationDate)
+            if (resignDate == null) return@filter false
+            val resignYearMonth = java.time.YearMonth.from(resignDate)
+            // Strict rule: after resignation month, exclude completely
+            if (targetYearMonth.isAfter(resignYearMonth)) return@filter false
+            if (day > 1 && checkDate.isAfter(resignDate)) return@filter false
         }
-
+        true
     }
-
 }
 
 
@@ -742,7 +692,9 @@ fun EngineerPortalScreen(
                                 onChangePassword = viewModel::changePassword,
                                 onLogout = viewModel::logout,
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
-                                onTestConnection = viewModel::checkConnection
+                                onTestConnection = viewModel::checkConnection,
+                                onSetThemeMode = viewModel::setThemeMode,
+                                onSetThemePalette = viewModel::setThemePaletteId
                             )
                             else -> DashboardView(
                                 state = state,
@@ -767,7 +719,9 @@ fun EngineerPortalScreen(
                                 onChangePassword = viewModel::changePassword,
                                 onLogout = viewModel::logout,
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
-                                onTestConnection = viewModel::checkConnection
+                                onTestConnection = viewModel::checkConnection,
+                                onSetThemeMode = viewModel::setThemeMode,
+                                onSetThemePalette = viewModel::setThemePaletteId
                             )
                             else -> DashboardView(
                                 state = state,
@@ -1348,13 +1302,19 @@ fun ManagerRadarSection(
     state: PortalState,
     today: LocalDate
 ) {
-    val activeEngineers = state.engineers.filter { !it.isManagementAccount }
+    val activeEngineers = state.engineers.filter { it.isEligibleForShiftRoster(today) }
     val dayKey = today.dayOfMonth.toString()
 
-    val currentHour = java.time.LocalTime.now().hour
-    val isMorningActive = currentHour in 6..14
-    val isAfternoonActive = currentHour in 14..21
-    val isNightActive = currentHour >= 22 || currentHour < 6
+    val nowTime = java.time.LocalTime.now()
+    val nowMin = nowTime.hour * 60 + nowTime.minute
+
+    // Operational shift windows per NOC specifications:
+    // Morning shifts: 07:30 AM to 08:00 PM (450..1200)
+    val isMorningActive = nowMin in 450..1200
+    // Afternoon shift: 01:00 PM to 10:00 PM (780..1320)
+    val isAfternoonActive = nowMin in 780..1320
+    // Night Shift: 09:00 PM to next day 07:30 AM (>= 1260 || < 450)
+    val isNightActive = nowMin >= 1260 || nowMin < 450
 
     val morningStaff = mutableListOf<ManagerStaffDutyInfo>()
     val afternoonStaff = mutableListOf<ManagerStaffDutyInfo>()
@@ -1366,15 +1326,25 @@ fun ManagerRadarSection(
         val shift = engRoster[dayKey] ?: ShiftCode.OFF
         val code = shift.code.trim().uppercase()
 
+        val isEngActive = when (code) {
+            "FS" -> nowMin in 450..990
+            "FG" -> nowMin in 510..1050
+            "G"  -> nowMin in 570..1110
+            "SG" -> nowMin in 660..1200
+            "SS" -> nowMin in 780..1320
+            "NS" -> nowMin >= 1260 || nowMin < 450
+            else -> false
+        }
+
         when {
             code in listOf("FS", "FG", "G", "SG") -> {
-                morningStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isMorningActive))
+                morningStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isEngActive))
             }
             code == "SS" -> {
-                afternoonStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isAfternoonActive))
+                afternoonStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isEngActive))
             }
             code == "NS" -> {
-                nightStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isNightActive))
+                nightStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isEngActive))
             }
             else -> {
                 offStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = false))
@@ -1401,13 +1371,13 @@ fun ManagerRadarSection(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f)),
+                        .background(NeumorphicTokens.Accent.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.Group,
                         contentDescription = null,
-                        tint = NeumorphicTokens.AccentSalmon,
+                        tint = NeumorphicTokens.Accent,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -1480,7 +1450,7 @@ fun ManagerRadarSection(
 
         DutyGroupCard(
             title = "Morning & General Shift",
-            timeRange = "06:00 - 15:30",
+            timeRange = "07:30 AM – 08:00 PM",
             icon = Icons.Default.WbSunny,
             accentColor = Color(0xFFF59E0B),
             staff = morningStaff,
@@ -1489,7 +1459,7 @@ fun ManagerRadarSection(
 
         DutyGroupCard(
             title = "Afternoon Shift",
-            timeRange = "13:30 - 22:00",
+            timeRange = "01:00 PM – 10:00 PM",
             icon = Icons.Default.Timer,
             accentColor = Color(0xFF06B6D4),
             staff = afternoonStaff,
@@ -1498,7 +1468,7 @@ fun ManagerRadarSection(
 
         DutyGroupCard(
             title = "Night Shift",
-            timeRange = "21:30 - 06:30",
+            timeRange = "09:00 PM – 07:30 AM (+1)",
             icon = Icons.Default.Star,
             accentColor = Color(0xFF8B5CF6),
             staff = nightStaff,
@@ -1533,80 +1503,73 @@ fun ManagerDashboardView(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 1. Sleek Compact Welcome Card (Operation Manager / Operation Hub stripped)
         item {
+            val engDisplayName = engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager"
             NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(20.dp),
                 style = NeumorphicElevationStyle.Raised,
                 surfaceColor = NeumorphicTokens.Surface,
-                contentPadding = 20.dp
+                contentPadding = 14.dp
             ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
-                            color = NeumorphicTokens.AccentSalmon,
-                            fontSize = 12.sp,
+                            text = today.format(DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy")),
+                            color = NeumorphicTokens.Accent,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.5f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(NeumorphicTokens.AccentSalmon)
-                                )
-                                Text(
-                                    text = "OPERATIONS MANAGER",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = NeumorphicTokens.AccentSalmon
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Welcome, $engDisplayName! \uD83D\uDC4B",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Text(
+                            text = "Live telemetry & team shift radar",
+                            fontSize = 11.sp,
+                            color = NeumorphicTokens.TextMuted
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Operations Hub \uD83D\uDEF0\uFE0F",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = NeumorphicTokens.TextMain
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Welcome, ${engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager"}! Live telemetry and team shift radar.",
-                        fontSize = 13.sp,
-                        color = NeumorphicTokens.TextMuted
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(NeumorphicTokens.Accent.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = engDisplayName.take(1).uppercase(),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeumorphicTokens.Accent
+                        )
+                    }
                 }
             }
         }
 
-        item {
-            ManagerHealthCard(
-                state = state,
-                onRefreshDiagnostics = onRefreshDiagnostics
-            )
-        }
-
+        // 2. Today's Shift Radar (FIRST!)
         item {
             ManagerRadarSection(
                 state = state,
                 today = today
+            )
+        }
+
+        // 3. System & Database Health Card (AFTER Shift Radar!)
+        item {
+            ManagerHealthCard(
+                state = state,
+                onRefreshDiagnostics = onRefreshDiagnostics
             )
         }
 
@@ -4248,7 +4211,11 @@ fun AccountView(
 
     onSaveBaseUrl: (String) -> Unit = {},
 
-    onTestConnection: () -> Unit = {}
+    onTestConnection: () -> Unit = {},
+
+    onSetThemeMode: (AppThemeMode) -> Unit = {},
+
+    onSetThemePalette: (String) -> Unit = {}
 
 ) {
 
@@ -4406,6 +4373,14 @@ fun AccountView(
 
             }
 
+        }
+
+        // Appearance & Brand Theme Selection Card
+        item {
+            AppearanceThemeCard(
+                onSetThemeMode = onSetThemeMode,
+                onSetThemePalette = onSetThemePalette
+            )
         }
 
 
@@ -5096,7 +5071,178 @@ fun AccountView(
 
 }
 
+@Composable
+fun AppearanceThemeCard(
+    onSetThemeMode: (AppThemeMode) -> Unit,
+    onSetThemePalette: (String) -> Unit
+) {
+    val currentMode = LocalThemeMode.current
+    val currentPalette = LocalThemePalette.current
+    val isDark = LocalIsDarkTheme.current
+    val activeAccent = LocalThemeAccent.current
 
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Palette,
+                    contentDescription = null,
+                    tint = activeAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "APPEARANCE & THEME",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = activeAccent
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+            // 1. Theme Mode: System, Light, Dark
+            Text(
+                text = "THEME MODE",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val modes = listOf(
+                    Triple(AppThemeMode.SYSTEM, "System", Icons.Default.BrightnessAuto),
+                    Triple(AppThemeMode.LIGHT, "Light", Icons.Default.LightMode),
+                    Triple(AppThemeMode.DARK, "Dark", Icons.Default.DarkMode)
+                )
+
+                modes.forEach { (mode, label, icon) ->
+                    val isSelected = currentMode == mode
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) activeAccent.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        border = if (isSelected) BorderStroke(1.5.dp, activeAccent) else BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onSetThemeMode(mode) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = if (isSelected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isSelected) activeAccent else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // 2. Color Theme Palette Selection
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "ACCENT COLOR PALETTE",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = currentPalette.name,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = activeAccent
+                )
+            }
+
+            // Grid of 6 palettes (2 rows x 3 columns)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                BrandPalettes.chunked(3).forEach { rowPalettes ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowPalettes.forEach { palette ->
+                            val isSelected = currentPalette.id == palette.id
+                            val paletteColor = palette.resolve(isDark)
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) paletteColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                border = if (isSelected) BorderStroke(1.5.dp, paletteColor) else BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { onSetThemePalette(palette.id) }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(paletteColor),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = palette.name,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) paletteColor else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 
