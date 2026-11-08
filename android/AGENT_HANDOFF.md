@@ -1,21 +1,37 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-07 15:18 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-08 14:18 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.14.15`** (Android `versionCode: 58`, Server `SERVER_VERSION = "1.14.15"`)
-- **Previous Versions**: `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
+- **Semantic Version**: **`1.15.0`** (Android `versionCode: 59`, Server `SERVER_VERSION = "1.15.0"`)
+- **Previous Versions**: `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
 - **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `password_resets`, `audit_logs`)
+- **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
+- **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.15.0
+
+### 1. Antigravity Cloud Remote Agent & Tailscale Wireless ADB
+- **Full Cloud Agent Migration**: Added complete headless automation for building and debugging the Android application directly from the Antigravity Cloud Remote Agent connected to GitHub [`shefeeqkk/RosterX`](https://github.com/shefeeqkk/RosterX).
+- **Automation Scripts**:
+  - `scripts/setup-remote-agent.sh`: Provisions OpenJDK 17, ADB, Python, and headlessly connects Tailscale via `TAILSCALE_AUTHKEY`.
+  - `scripts/remote-deploy.sh`: Builds debug APK via `./gradlew assembleDebug --no-daemon`, connects wirelessly via Tailscale to `100.71.241.36:5555`, installs the APK, launches MainActivity, and captures verification screencap.
+  - `scripts/tailscale-connect.sh`: Diagnostic helper checking Tailscale status, tailnet peers, and pinging target device.
+- **Dynamic Port & Multi-Wi-Fi Persistence**:
+  - By binding the ADB daemon to `0.0.0.0:5555` via `adb tcpip 5555`, the connection survives home Wi-Fi, office Wi-Fi, and 5G cellular switches without losing the static Tailscale IP (`100.71.241.36`).
+  - Fallback prompt handles dynamic Android 11+ wireless ports gracefully if the phone is rebooted.
 
 ---
 
