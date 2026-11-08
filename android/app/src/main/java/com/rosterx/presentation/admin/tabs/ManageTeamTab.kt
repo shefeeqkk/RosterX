@@ -32,6 +32,11 @@ import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.presentation.admin.AdminRosterState
+import com.rosterx.presentation.components.UserAvatar
+import com.rosterx.presentation.components.compressImageUriToBase64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import com.rosterx.ui.neumorphic.NeumorphicTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,9 +88,21 @@ fun ManageTeamTab(
         var passwordVisible by remember { mutableStateOf(false) }
         var roleInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.role ?: EngineerRole.ENGINEER) }
         var statusInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.status ?: EngineerStatus.ACTIVE) }
+        var profilePictureInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.profilePicture) }
         val allDays = listOf("SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")
         var selectedOffs by remember(editingEngineer) {
             mutableStateOf(editingEngineer?.defaultWeeklyOffs?.map { it.uppercase() }?.toSet() ?: setOf("SUNDAY", "MONDAY"))
+        }
+
+        val teamPhotoPickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickVisualMedia()
+        ) { uri ->
+            if (uri != null) {
+                val b64 = compressImageUriToBase64(context, uri, maxDimension = 256, quality = 85)
+                if (b64 != null) {
+                    profilePictureInput = b64
+                }
+            }
         }
 
         AlertDialog(
@@ -102,19 +119,27 @@ fun ManageTeamTab(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (editingEngineer == null) Icons.Default.PersonAdd else Icons.Default.Edit,
-                            contentDescription = null,
-                            tint = NeumorphicTokens.AccentSalmon,
-                            modifier = Modifier.size(22.dp)
+                    if (!profilePictureInput.isNullOrBlank()) {
+                        UserAvatar(
+                            name = nameInput.ifBlank { "User" },
+                            profilePicture = profilePictureInput,
+                            size = 42.dp
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (editingEngineer == null) Icons.Default.PersonAdd else Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = NeumorphicTokens.AccentSalmon,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                     Column {
                         Text(
@@ -138,6 +163,61 @@ fun ManageTeamTab(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Profile Picture Upload Row
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = NeumorphicTokens.Surface,
+                        border = BorderStroke(1.dp, NeumorphicTokens.SurfaceContrast),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                UserAvatar(
+                                    name = nameInput.ifBlank { "U" },
+                                    profilePicture = profilePictureInput,
+                                    size = 40.dp
+                                )
+                                Column {
+                                    Text("Profile Picture", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = NeumorphicTokens.TextMain)
+                                    Text(
+                                        if (profilePictureInput.isNullOrBlank()) "No custom picture" else "Custom picture attached",
+                                        fontSize = 10.sp,
+                                        color = NeumorphicTokens.TextMuted
+                                    )
+                                }
+                            }
+                            if (!isReadOnly) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    TextButton(
+                                        onClick = {
+                                            teamPhotoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(if (profilePictureInput.isNullOrBlank()) "Upload" else "Change", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon)
+                                    }
+                                    if (!profilePictureInput.isNullOrBlank()) {
+                                        IconButton(
+                                            onClick = { profilePictureInput = null },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(Icons.Default.Close, contentDescription = "Remove Picture", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Full Name
                     OutlinedTextField(
                         value = nameInput,
@@ -432,7 +512,8 @@ fun ManageTeamTab(
                                 defaultWeeklyOffs = if (roleInput == EngineerRole.ENGINEER || roleInput == EngineerRole.APPRENTICE) selectedOffs.toList() else emptyList(),
                                 joinDate = target?.joinDate?.ifBlank { null } ?: "2026-01-01",
                                 password = passwordInput.trim().ifBlank { null },
-                                originalUsername = origUsername
+                                originalUsername = origUsername,
+                                profilePicture = profilePictureInput
                             )
 
                             val newList = if (target == null) {
@@ -724,21 +805,15 @@ fun ManageTeamTab(
                                 .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Avatar Monogram
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = monogram,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 14.sp,
-                                    color = NeumorphicTokens.AccentSalmon
-                                )
-                            }
+                            // Avatar
+                            UserAvatar(
+                                name = engineer.name,
+                                profilePicture = engineer.profilePicture,
+                                size = 44.dp,
+                                backgroundColor = NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f),
+                                textColor = NeumorphicTokens.AccentSalmon,
+                                fontSize = 14.sp
+                            )
 
                             Spacer(modifier = Modifier.width(12.dp))
 

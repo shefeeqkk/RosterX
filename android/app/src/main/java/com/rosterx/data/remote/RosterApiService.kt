@@ -27,7 +27,8 @@ data class UserDto(
     val full_name: String?,
     val email: String?,
     val phone: String?,
-    val role: String?
+    val role: String?,
+    @SerializedName("profile_picture") val profilePicture: String? = null
 )
 
 data class SendOtpRequest(
@@ -92,7 +93,8 @@ data class EngineerDto(
     @SerializedName("join_date") val joinDate: String?,
     @SerializedName("resignation_date") val resignationDate: String?,
     @SerializedName("password") val password: String? = null,
-    @SerializedName("original_username") val originalUsername: String? = null
+    @SerializedName("original_username") val originalUsername: String? = null,
+    @SerializedName("profile_picture") val profilePicture: String? = null
 )
 
 data class RosterResponse(
@@ -198,7 +200,21 @@ interface RosterApiService {
 
     @POST("api/chat/assistant")
     suspend fun queryAssistant(@Body request: AssistantChatRequest): AssistantChatResponse
+
+    @POST("api/users/profile-picture")
+    suspend fun updateProfilePicture(@Body request: UpdateProfilePictureRequest): UpdateProfilePictureResponse
 }
+
+data class UpdateProfilePictureRequest(
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("profile_picture") val profilePicture: String?
+)
+
+data class UpdateProfilePictureResponse(
+    val success: Boolean,
+    val message: String?,
+    @SerializedName("profile_picture") val profilePicture: String? = null
+)
 
 data class SyncEngineersRequest(
     @SerializedName("engineers") val engineers: List<EngineerDto>

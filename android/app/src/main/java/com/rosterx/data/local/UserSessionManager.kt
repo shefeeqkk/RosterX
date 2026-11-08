@@ -67,6 +67,12 @@ class UserSessionManager @Inject constructor(
         prefs.edit().putString("saved_user", gson.toJson(user)).apply()
     }
 
+    fun updateCurrentUserProfilePicture(picture: String?) {
+        val current = _currentUser.value ?: return
+        val updated = current.copy(profilePicture = picture)
+        setCurrentUser(updated)
+    }
+
     fun getAuthToken(): String? {
         return prefs.getString("auth_token", null)
     }

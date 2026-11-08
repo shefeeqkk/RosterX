@@ -740,7 +740,22 @@ export class UserPortalController {
 
     const roleEl = document.getElementById('userRoleBadge');
 
+    const avatarImg = document.getElementById('userProfileAvatarImg');
+    const avatarText = document.getElementById('userProfileAvatarText');
 
+    if (avatarImg && avatarText) {
+      const pic = this.currentUser?.profile_picture;
+      if (pic) {
+        avatarImg.src = pic;
+        avatarImg.classList.remove('hidden');
+        avatarText.classList.add('hidden');
+      } else {
+        avatarImg.classList.add('hidden');
+        avatarText.classList.remove('hidden');
+        const initials = (this.currentUser?.name || this.currentUser?.username || 'U').substring(0, 2).toUpperCase();
+        avatarText.textContent = initials;
+      }
+    }
 
     if (nameEl) nameEl.textContent = this.currentUser.name || this.currentUser.username;
 
@@ -1824,7 +1839,20 @@ export class UserPortalController {
 
       document.getElementById('profileOffs').textContent = (engMeta.default_weekly_offs || eng.default_weekly_offs || ['Saturday', 'Sunday']).join(', ');
 
-
+      const modalImg = document.getElementById('modalAccountAvatarImg');
+      const modalText = document.getElementById('modalAccountAvatarText');
+      const btnRemove = document.getElementById('btnRemovePortalAvatar');
+      const pic = this.currentUser?.profile_picture || engMeta.profile_picture;
+      if (pic && modalImg && modalText) {
+        modalImg.src = pic;
+        modalImg.classList.remove('hidden');
+        modalText.classList.add('hidden');
+        if (btnRemove) btnRemove.classList.remove('hidden');
+      } else if (modalImg && modalText) {
+        modalImg.classList.add('hidden');
+        modalText.classList.remove('hidden');
+        if (btnRemove) btnRemove.classList.add('hidden');
+      }
 
       document.getElementById('currentPassInput').value = '';
 
@@ -1847,6 +1875,109 @@ export class UserPortalController {
     userBtn.addEventListener('click', openModal);
 
     btnClose?.addEventListener('click', () => modal.classList.add('hidden'));
+
+    const inputAvatar = document.getElementById('inputPortalAvatar');
+    const btnRemoveAvatar = document.getElementById('btnRemovePortalAvatar');
+    const statusEl = document.getElementById('avatarUploadStatus');
+
+    if (inputAvatar) {
+      inputAvatar.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (statusEl) statusEl.textContent = 'Processing...';
+
+        try {
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            const img = new Image();
+            img.onload = async () => {
+              const canvas = document.createElement('canvas');
+              const maxDim = 256;
+              const minDim = Math.min(img.width, img.height);
+              canvas.width = maxDim;
+              canvas.height = maxDim;
+              const ctx = canvas.getContext('2d');
+              const sx = (img.width - minDim) / 2;
+              const sy = (img.height - minDim) / 2;
+              ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, maxDim, maxDim);
+              const base64Uri = canvas.toDataURL('image/jpeg', 0.85);
+
+              if (statusEl) statusEl.textContent = 'Uploading...';
+              const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
+              const res = await fetch('/api/users/profile-picture', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ profile_picture: base64Uri })
+              });
+              const data = await res.json();
+              if (data.success) {
+                this.currentUser.profile_picture = data.profile_picture || base64Uri;
+                localStorage.setItem('rosterx_auth_user', JSON.stringify(this.currentUser));
+                this.renderHeaderUserInfo();
+                const modalImg = document.getElementById('modalAccountAvatarImg');
+                const modalText = document.getElementById('modalAccountAvatarText');
+                if (modalImg && modalText) {
+                  modalImg.src = this.currentUser.profile_picture;
+                  modalImg.classList.remove('hidden');
+                  modalText.classList.add('hidden');
+                }
+                if (btnRemoveAvatar) btnRemoveAvatar.classList.remove('hidden');
+                if (statusEl) {
+                  statusEl.textContent = 'Updated!';
+                  setTimeout(() => { statusEl.textContent = ''; }, 3000);
+                }
+              } else {
+                if (statusEl) statusEl.textContent = 'Failed: ' + (data.message || 'Error');
+              }
+            };
+            img.src = ev.target.result;
+          };
+          reader.readAsDataURL(file);
+        } catch (err) {
+          if (statusEl) statusEl.textContent = 'Error: ' + err.message;
+        }
+      });
+    }
+
+    if (btnRemoveAvatar) {
+      btnRemoveAvatar.addEventListener('click', async () => {
+        if (!confirm('Remove your profile picture?')) return;
+        if (statusEl) statusEl.textContent = 'Removing...';
+        try {
+          const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
+          const res = await fetch('/api/users/profile-picture', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ profile_picture: null })
+          });
+          const data = await res.json();
+          if (data.success) {
+            delete this.currentUser.profile_picture;
+            localStorage.setItem('rosterx_auth_user', JSON.stringify(this.currentUser));
+            this.renderHeaderUserInfo();
+            const modalImg = document.getElementById('modalAccountAvatarImg');
+            const modalText = document.getElementById('modalAccountAvatarText');
+            if (modalImg && modalText) {
+              modalImg.classList.add('hidden');
+              modalText.classList.remove('hidden');
+            }
+            btnRemoveAvatar.classList.add('hidden');
+            if (statusEl) {
+              statusEl.textContent = 'Removed';
+              setTimeout(() => { statusEl.textContent = ''; }, 3000);
+            }
+          }
+        } catch (err) {
+          if (statusEl) statusEl.textContent = 'Error: ' + err.message;
+        }
+      });
+    }
 
 
 

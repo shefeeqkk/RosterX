@@ -77,7 +77,9 @@ class RosterRepositoryImpl @Inject constructor(
 
                     defaultWeeklyOffs = emptyList(),
 
-                    joinDate = ""
+                    joinDate = "",
+
+                    profilePicture = response.user.profilePicture
 
                 )
 
@@ -839,7 +841,8 @@ class RosterRepositoryImpl @Inject constructor(
             defaultWeeklyOffs = defaultWeeklyOffs ?: emptyList(),
             joinDate = joinDate ?: "",
             resignationDate = resignationDate,
-            originalUsername = originalUsername
+            originalUsername = originalUsername,
+            profilePicture = profilePicture
         )
     }
 
@@ -858,8 +861,29 @@ class RosterRepositoryImpl @Inject constructor(
             joinDate = joinDate,
             resignationDate = resignationDate,
             password = password,
-            originalUsername = originalUsername
+            originalUsername = originalUsername,
+            profilePicture = profilePicture
         )
+    }
+
+    override suspend fun updateProfilePicture(username: String?, base64Image: String?): Result<String?> = withContext(Dispatchers.IO) {
+        try {
+            val req = UpdateProfilePictureRequest(username, base64Image)
+            val res = apiService.updateProfilePicture(req)
+            if (res.success) {
+                val current = sessionManager.currentUser.value
+                if (current != null && (username.isNullOrBlank() || username.equals(current.username, ignoreCase = true))) {
+                    sessionManager.updateCurrentUserProfilePicture(res.profilePicture)
+                }
+                Result.success(res.profilePicture)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to update profile picture"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>?): Result<AssistantChatResponse> = withContext(Dispatchers.IO) {

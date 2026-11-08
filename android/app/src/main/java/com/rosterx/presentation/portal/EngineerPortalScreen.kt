@@ -481,33 +481,14 @@ fun EngineerPortalScreen(
 
                             ) {
 
-                                Box(
-
-                                    modifier = Modifier
-
-                                        .size(24.dp)
-
-                                        .clip(CircleShape)
-
-                                        .background(NeumorphicTokens.AccentGradient),
-
-                                    contentAlignment = Alignment.Center
-
-                                ) {
-
-                                    Text(
-
-                                        text = state.loggedInEngineer!!.name.take(1).uppercase(),
-
-                                        fontWeight = FontWeight.Bold,
-
-                                        fontSize = 12.sp,
-
-                                        color = Color.White
-
-                                    )
-
-                                }
+                                UserAvatar(
+                                    name = state.loggedInEngineer!!.name,
+                                    profilePicture = state.loggedInEngineer!!.profilePicture,
+                                    size = 24.dp,
+                                    backgroundColor = NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f),
+                                    textColor = NeumorphicTokens.AccentSalmon,
+                                    fontSize = 11.sp
+                                )
 
                                 Spacer(modifier = Modifier.width(6.dp))
 
@@ -696,7 +677,9 @@ fun EngineerPortalScreen(
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
                                 onTestConnection = viewModel::checkConnection,
                                 onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId
+                                onSetThemePalette = viewModel::setThemePaletteId,
+                                onUploadProfilePicture = viewModel::uploadProfilePicture,
+                                onRemoveProfilePicture = viewModel::removeProfilePicture
                             )
                             else -> DashboardView(
                                 state = state,
@@ -723,7 +706,9 @@ fun EngineerPortalScreen(
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
                                 onTestConnection = viewModel::checkConnection,
                                 onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId
+                                onSetThemePalette = viewModel::setThemePaletteId,
+                                onUploadProfilePicture = viewModel::uploadProfilePicture,
+                                onRemoveProfilePicture = viewModel::removeProfilePicture
                             )
                             else -> DashboardView(
                                 state = state,
@@ -1033,20 +1018,14 @@ fun DutyGroupCard(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(accentColor.copy(alpha = 0.2f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = eng.name.take(1).uppercase(),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp,
-                                            color = accentColor
-                                        )
-                                    }
+                                    UserAvatar(
+                                        name = eng.name,
+                                        profilePicture = eng.profilePicture,
+                                        size = 28.dp,
+                                        backgroundColor = accentColor.copy(alpha = 0.2f),
+                                        textColor = accentColor,
+                                        fontSize = 11.sp
+                                    )
                                     Column {
                                         Text(
                                             text = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
@@ -3757,7 +3736,18 @@ fun MonthRosterView(
 
                                 ) {
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        UserAvatar(
+                                            name = engineer.name,
+                                            profilePicture = engineer.profilePicture,
+                                            size = 20.dp,
+                                            backgroundColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                            textColor = MaterialTheme.colorScheme.primary,
+                                            fontSize = 9.sp
+                                        )
 
                                         Text(
 
@@ -3769,13 +3759,17 @@ fun MonthRosterView(
 
                                             maxLines = 1,
 
-                                            color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                            overflow = TextOverflow.Ellipsis,
+
+                                            color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+
+                                            modifier = Modifier.weight(1f, fill = false)
 
                                         )
 
                                         if (isUser) {
 
-                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Spacer(modifier = Modifier.width(2.dp))
 
                                             Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(12.dp))
 
@@ -4296,7 +4290,11 @@ fun AccountView(
 
     onSetThemeMode: (AppThemeMode) -> Unit = {},
 
-    onSetThemePalette: (String) -> Unit = {}
+    onSetThemePalette: (String) -> Unit = {},
+
+    onUploadProfilePicture: (String, String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _, _ -> },
+
+    onRemoveProfilePicture: (String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _ -> }
 
 ) {
 
@@ -4306,7 +4304,24 @@ fun AccountView(
 
     val engineer = state.loggedInEngineer
 
-
+    val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            val b64 = compressImageUriToBase64(context, uri, maxDimension = 256, quality = 85)
+            if (b64 != null) {
+                onUploadProfilePicture(b64, null) { success, err ->
+                    android.widget.Toast.makeText(
+                        context,
+                        if (success) "Profile picture updated successfully!" else (err ?: "Upload failed"),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else {
+                android.widget.Toast.makeText(context, "Could not process selected image", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     var showPasswordChange by remember { mutableStateOf(false) }
 
@@ -4349,31 +4364,42 @@ fun AccountView(
                 ) {
 
                     Box(
-
                         modifier = Modifier
-
-                            .size(64.dp)
-
-                            .clip(CircleShape)
-
-                            .background(MaterialTheme.colorScheme.primary),
-
+                            .size(76.dp)
+                            .clickable {
+                                photoPickerLauncher.launch(
+                                    androidx.activity.result.PickVisualMediaRequest(
+                                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            },
                         contentAlignment = Alignment.Center
-
                     ) {
-
-                        Text(
-
-                            text = (engineer?.name ?: "U").take(2).uppercase(),
-
-                            fontWeight = FontWeight.ExtraBold,
-
-                            fontSize = 22.sp,
-
-                            color = MaterialTheme.colorScheme.onPrimary
-
+                        UserAvatar(
+                            name = engineer?.name ?: "U",
+                            profilePicture = engineer?.profilePicture,
+                            size = 76.dp,
+                            backgroundColor = MaterialTheme.colorScheme.primary,
+                            textColor = MaterialTheme.colorScheme.onPrimary,
+                            fontSize = 24.sp
                         )
 
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Change Profile Picture",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -4409,6 +4435,78 @@ fun AccountView(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
 
                     )
+
+                    Row(
+                        modifier = Modifier.padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            modifier = Modifier.clickable {
+                                photoPickerLauncher.launch(
+                                    androidx.activity.result.PickVisualMediaRequest(
+                                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoCamera,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = if (!engineer?.profilePicture.isNullOrBlank()) "Change Photo" else "Upload Photo",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        if (!engineer?.profilePicture.isNullOrBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                                modifier = Modifier.clickable {
+                                    onRemoveProfilePicture(null) { success, err ->
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (success) "Profile picture removed" else (err ?: "Removal failed"),
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Remove",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                 }
 

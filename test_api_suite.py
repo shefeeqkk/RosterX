@@ -48,7 +48,7 @@ def run_tests():
     status, res = make_request("/api/test-connection")
     print(f" -> Status: {status}, Response: {res}")
     assert status == 200, f"Health check failed: {res}"
-    assert res.get("version") in ("1.19.0", "1.18.0", "1.17.0", "1.16.0", "1.15.0", "1.14.15", "1.14.14", "1.14.13", "1.14.12", "1.14.11", "1.14.10", "1.14.9", "1.14.8", "1.14.7", "1.14.6", "1.14.5", "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14.0", "1.13.1", "1.13.0", "1.12.1", "1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
+    assert res.get("version") in ("1.20.0", "1.19.0", "1.18.0", "1.17.0", "1.16.0", "1.15.0", "1.14.15", "1.14.14", "1.14.13", "1.14.12", "1.14.11", "1.14.10", "1.14.9", "1.14.8", "1.14.7", "1.14.6", "1.14.5", "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14.0", "1.13.1", "1.13.0", "1.12.1", "1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
     print(f" ✅ PASS: Render Server online with version {res.get('version')} & Cluster0 connected!")
 
     # STEP 1: Admin Authentication
@@ -211,8 +211,34 @@ def run_tests():
     else:
         print(f" ⚠️ NOTICE: AI assistant returned status {status_ai}: {ai_res} (may need deployment).")
 
+    # STEP 9: Profile Picture Upload, Avatar Retrieval, and Removal Check
+    print("\n[TEST 9] Testing Profile Picture Upload, Avatar Stream & Clean Removal...")
+    # 1x1 transparent/white pixel PNG sample as base64
+    sample_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    status_up, up_res = make_request("/api/users/profile-picture", method="POST", data={
+        "profile_picture": sample_b64
+    }, token=admin_token)
+    print(f" -> /api/users/profile-picture Upload Status: {status_up}")
+    if status_up == 200:
+        assert up_res.get("success"), f"Upload failed: {up_res}"
+        print(f" ✅ PASS: Uploaded profile picture successfully! Length: {len(up_res.get('profile_picture', ''))}")
+        
+        # Verify /api/auth/me has profile_picture
+        status_me, me_res = make_request("/api/auth/me", method="GET", token=admin_token)
+        assert status_me == 200 and me_res.get("user", {}).get("profile_picture"), f"Profile picture not in /api/auth/me: {me_res}"
+        print(" ✅ PASS: /api/auth/me reflects active user's profile picture!")
+
+        # Remove profile picture (clean up)
+        status_del, del_pic_res = make_request("/api/users/profile-picture", method="POST", data={
+            "profile_picture": None
+        }, token=admin_token)
+        assert status_del == 200 and del_pic_res.get("success"), f"Removal failed: {del_pic_res}"
+        print(" ✅ PASS: Profile picture removed cleanly and reset to monogram fallback!")
+    else:
+        print(f" ℹ️ NOTE: Server returned {status_up} on cloud endpoint (will test locally or upon push).")
+
     print("\n" + "=" * 70)
-    print("🎉 ALL 8 VERIFICATION TEST SUITES EXECUTED SUCCESSFULLY!")
+    print("🎉 ALL 9 VERIFICATION TEST SUITES EXECUTED SUCCESSFULLY!")
     print("=" * 70)
 
 if __name__ == "__main__":

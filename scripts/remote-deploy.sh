@@ -105,7 +105,7 @@ echo "✅ App successfully installed wirelessly over Tailscale!"
 
 # 5. Launch App & Take Screencap Verification
 echo "🚀 [5/5] Launching RosterX and capturing verification screenshot..."
-adb -s "${DEVICE_TARGET}" shell am start -n com.rosterx.app/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+adb -s "${DEVICE_TARGET}" shell am start -n com.rosterx/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
 
 sleep 3
 adb -s "${DEVICE_TARGET}" shell screencap -p /sdcard/remote_deploy_verify.png

@@ -612,9 +612,11 @@
 
         <div id="userProfileBtn" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 shadow-xs cursor-pointer transition group" title="View Account Profile & Change Password">
 
-          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-black shadow-xs group-hover:scale-105 transition">
+          <div id="userProfileAvatarBox" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-black shadow-xs group-hover:scale-105 transition overflow-hidden">
 
-            <i class="ph ph-user"></i>
+            <img id="userProfileAvatarImg" class="w-full h-full object-cover hidden" alt="Avatar" />
+
+            <span id="userProfileAvatarText"><i class="ph ph-user"></i></span>
 
           </div>
 
@@ -1227,12 +1229,23 @@
 
       <!-- Modal Header -->
       <div class="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xl font-black shadow-md shrink-0">
-          <i class="ph ph-user-circle"></i>
+        <div id="modalAccountAvatarBox" class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xl font-black shadow-md shrink-0 overflow-hidden relative">
+          <img id="modalAccountAvatarImg" class="w-full h-full object-cover hidden" alt="Avatar" />
+          <span id="modalAccountAvatarText"><i class="ph ph-user-circle"></i></span>
         </div>
-        <div>
+        <div class="flex-1">
           <h3 class="text-base font-bold text-slate-900 dark:text-white font-outfit" id="modalAccountName">User Profile</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Account Credentials, Contact Data & Password Management</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Account Credentials, Contact Data & Profile Picture</p>
+          <div class="flex items-center gap-2 mt-1.5">
+            <label for="inputPortalAvatar" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white cursor-pointer transition shadow-xs flex items-center gap-1">
+              <i class="ph ph-camera"></i> <span id="lblUploadPhoto">Upload Photo</span>
+            </label>
+            <input type="file" id="inputPortalAvatar" accept="image/*" class="hidden" />
+            <button type="button" id="btnRemovePortalAvatar" class="px-2 py-1 text-[11px] font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 transition cursor-pointer hidden">
+              Remove
+            </button>
+            <span id="avatarUploadStatus" class="text-[10px] text-slate-500 font-medium"></span>
+          </div>
         </div>
       </div>
 

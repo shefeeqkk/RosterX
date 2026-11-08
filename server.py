@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.19.0"
+SERVER_VERSION = "1.20.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -293,6 +293,75 @@ def verify_password(password: str, stored_hash: str) -> bool:
     if hmac.compare_digest(stored_hash, password):
         return True
     return False
+
+def process_profile_picture_base64(raw_base64_str: str, max_dimension: int = 256, quality: int = 85) -> str:
+    """
+    Validates, crops to square, resizes to max_dimension x max_dimension, and compresses
+    a base64 data URI image. Returns a clean standard data URI: 'data:image/jpeg;base64,...'.
+    Falls back gracefully if PIL is not installed.
+    """
+    if not raw_base64_str or not isinstance(raw_base64_str, str):
+        return ""
+
+    clean_str = raw_base64_str.strip()
+    encoded_part = clean_str
+    if "base64," in clean_str:
+        encoded_part = clean_str.split("base64,", 1)[1]
+
+    try:
+        image_bytes = base64.b64decode(encoded_part)
+    except Exception as e:
+        raise ValueError(f"Invalid base64 encoding: {e}")
+
+    if len(image_bytes) > 5 * 1024 * 1024:
+        raise ValueError("Image file too large (max 5MB).")
+
+    try:
+        import io
+        from PIL import Image, ImageOps
+        img = Image.open(io.BytesIO(image_bytes))
+
+        # Handle EXIF orientation if present
+        try:
+            img = ImageOps.exif_transpose(img)
+        except Exception:
+            pass
+
+        # Convert RGBA / P / etc. to RGB with white background for JPEG
+        if img.mode in ("RGBA", "LA", "P"):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[-1] if "A" in img.mode else None)
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        # Center crop to square
+        w, h = img.size
+        min_dim = min(w, h)
+        left = (w - min_dim) // 2
+        top = (h - min_dim) // 2
+        right = left + min_dim
+        bottom = top + min_dim
+        img = img.crop((left, top, right, bottom))
+
+        # Resize to max_dimension
+        if min_dim > max_dimension:
+            img = img.resize((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+
+        out_buf = io.BytesIO()
+        img.save(out_buf, format="JPEG", quality=quality, optimize=True)
+        compressed_bytes = out_buf.getvalue()
+        b64_out = base64.b64encode(compressed_bytes).decode("ascii")
+        return f"data:image/jpeg;base64,{b64_out}"
+    except ImportError:
+        # Fallback if Pillow is not available
+        if not clean_str.startswith("data:image/"):
+            return f"data:image/jpeg;base64,{encoded_part}"
+        return clean_str
+    except Exception as e:
+        raise ValueError(f"Failed to process image: {e}")
 
 def find_user_by_identifier(identifier: str):
     """
@@ -1608,7 +1677,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/"):
+        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/"):
             norm_path = "/api" + norm_path
 
         # REST API Endpoints (/api/*)
@@ -1821,16 +1890,62 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 }, 503)
                 return
 
-        # 1.5 GET /api/auth/me (Returns active user profile from JWT token)
+        # 1.5 GET /api/auth/me (Returns active user profile from JWT token refreshed with latest DB fields)
         if clean_path in ("/api/auth/me", "/api/auth/me/"):
             claims = self.require_auth()
             if not claims:
                 return
+            response_user = dict(claims)
+            if ATLAS_DB is not None and claims.get("username"):
+                try:
+                    user_doc = ATLAS_DB.engineers.find_one({"username": str(claims["username"]).strip().lower()}, {"_id": 0, "password": 0})
+                    if user_doc:
+                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status"):
+                            if k in user_doc:
+                                response_user[k] = user_doc[k]
+                except Exception:
+                    pass
             self.send_json_response({
                 "success": True,
-                "user": claims
+                "user": response_user
             })
             return
+
+        # 1.6 GET /api/users/<username>/avatar (Binary image streaming with caching headers)
+        if clean_path.startswith("/api/users/") and clean_path.endswith("/avatar"):
+            parts = clean_path.strip("/").split("/")
+            if len(parts) == 4 and parts[0] == "api" and parts[1] == "users" and parts[3] == "avatar":
+                target_user = parts[2].strip().lower()
+                user_doc = None
+                if ATLAS_DB is not None:
+                    try:
+                        user_doc = ATLAS_DB.engineers.find_one({"username": target_user}, {"profile_picture": 1})
+                    except Exception:
+                        pass
+                
+                pic = user_doc.get("profile_picture") if user_doc else None
+                if pic and "base64," in pic:
+                    try:
+                        header_part, b64_data = pic.split("base64,", 1)
+                        mime_type = "image/jpeg"
+                        if "image/png" in header_part:
+                            mime_type = "image/png"
+                        elif "image/webp" in header_part:
+                            mime_type = "image/webp"
+                        img_bytes = base64.b64decode(b64_data)
+                        self.send_response(200)
+                        self.send_header("Content-Type", mime_type)
+                        self.send_header("Content-Length", str(len(img_bytes)))
+                        self.send_header("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800")
+                        self.send_cors_headers()
+                        self.end_headers()
+                        self.wfile.write(img_bytes)
+                        return
+                    except Exception:
+                        pass
+
+                self.send_json_response({"success": False, "message": "Avatar not found"}, 404)
+                return
 
         # 2. GET /api/logs or /api/server-logs (ADMIN ONLY)
         if clean_path in ("/api/logs", "/api/logs/", "/api/server-logs", "/api/server-logs/"):
@@ -2040,7 +2155,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/roster", "/engineers", "/engineers/delete", "/constraints",
             "/auth/login", "/auth/send-otp", "/auth/verify-otp",
             "/roster-backups/restore", "/notifications/send",
-            "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant"
+            "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant",
+            "/users/profile-picture"
         ) or norm_path.startswith("/roster-backups/"):
             norm_path = "/api" + norm_path
 
@@ -2110,7 +2226,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             "full_name": user.get("full_name") or user.get("name") or "System Administrator",
                             "email": user.get("email") or env.get("ALERT_EMAIL", "admin@rosterx.dev"),
                             "phone": user.get("phone", ""),
-                            "role": user.get("role", "admin")
+                            "role": user.get("role", "admin"),
+                            "profile_picture": user.get("profile_picture")
                         }
                         token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                         platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
@@ -2151,7 +2268,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "full_name": user.get("full_name") or user.get("name"),
                         "email": user.get("email", ""),
                         "phone": user.get("phone", ""),
-                        "role": role
+                        "role": role,
+                        "profile_picture": user.get("profile_picture")
                     }
                     token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                     platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
@@ -2207,7 +2325,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "full_name": admin_doc["full_name"],
                     "email": admin_doc["email"],
                     "phone": "",
-                    "role": "admin"
+                    "role": "admin",
+                    "profile_picture": admin_doc.get("profile_picture")
                 }
                 token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                 self.send_json_response({
@@ -2763,6 +2882,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         else:
                             del eng["password"]
 
+                    # Handle profile picture if provided
+                    if "profile_picture" in eng:
+                        raw_pic = eng.get("profile_picture")
+                        if raw_pic and isinstance(raw_pic, str) and raw_pic.strip():
+                            try:
+                                eng["profile_picture"] = process_profile_picture_base64(raw_pic, max_dimension=256, quality=85)
+                            except Exception:
+                                pass
+                        elif raw_pic is None or raw_pic == "":
+                            del eng["profile_picture"]
+
                     # Primary key is username
                     ATLAS_DB.engineers.update_one(
                         {"username": eng_user},
@@ -2833,6 +2963,93 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 self.send_json_response({"success": False, "message": f"Failed to delete engineer: {e}"}, 500)
             return
+
+        # 3.6 POST /api/users/profile-picture (Upload/Update/Delete Profile Picture)
+        if clean_path in ("/api/users/profile-picture", "/api/users/profile-picture/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            if ATLAS_DB is None:
+                self.send_json_response({"success": False, "message": "Database is not connected"}, 503)
+                return
+
+            caller_user = str(claims.get("username", "")).strip().lower()
+            caller_role = str(claims.get("role", "")).strip().lower()
+            target_user = str(body.get("username") or caller_user).strip().lower()
+
+            if caller_role not in ("admin", "manager") and target_user != caller_user:
+                self.send_json_response({"success": False, "message": "Permission denied. You can only update your own profile picture."}, 403)
+                return
+
+            raw_picture = body.get("profile_picture")
+
+            # Remove picture if null or empty
+            if raw_picture is None or raw_picture == "":
+                try:
+                    ATLAS_DB.engineers.update_one(
+                        {"username": target_user},
+                        {"$unset": {"profile_picture": ""}, "$set": {"updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}}
+                    )
+                    platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                    record_audit_event(
+                        claims.get("name") or caller_user,
+                        caller_user,
+                        caller_role,
+                        platform_client,
+                        "Remove Profile Picture",
+                        {"target_user": target_user}
+                    )
+                    self.send_json_response({"success": True, "message": "Profile picture removed successfully.", "profile_picture": None})
+                    return
+                except Exception as e:
+                    self.send_json_response({"success": False, "message": f"Failed to remove profile picture: {e}"}, 500)
+                    return
+
+            if not isinstance(raw_picture, str):
+                self.send_json_response({"success": False, "message": "Invalid profile picture format. Base64 string expected."}, 400)
+                return
+
+            try:
+                processed_uri = process_profile_picture_base64(raw_picture, max_dimension=256, quality=85)
+            except ValueError as ve:
+                self.send_json_response({"success": False, "message": str(ve)}, 400)
+                return
+            except Exception as e:
+                self.send_json_response({"success": False, "message": f"Image processing failed: {e}"}, 500)
+                return
+
+            try:
+                res = ATLAS_DB.engineers.update_one(
+                    {"username": target_user},
+                    {"$set": {
+                        "profile_picture": processed_uri,
+                        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    }},
+                    upsert=False
+                )
+                if res.matched_count == 0:
+                    self.send_json_response({"success": False, "message": f"User '{target_user}' not found in database."}, 404)
+                    return
+
+                platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                record_audit_event(
+                    claims.get("name") or caller_user,
+                    caller_user,
+                    caller_role,
+                    platform_client,
+                    "Update Profile Picture",
+                    {"target_user": target_user}
+                )
+                self.send_json_response({
+                    "success": True,
+                    "message": "Profile picture updated successfully.",
+                    "profile_picture": processed_uri
+                })
+                return
+            except Exception as e:
+                self.send_json_response({"success": False, "message": f"Failed to save profile picture: {e}"}, 500)
+                return
 
                 # 3.7 POST /api/notifications/dismiss (Persistent Notification Dismissal in Atlas DB)
         if clean_path in ("/api/notifications/dismiss", "/api/notifications/dismiss/"):

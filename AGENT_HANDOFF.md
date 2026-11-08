@@ -1,21 +1,53 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-06 17:15 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 02:25 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.14.0`** (Android `versionCode: 43`, Server `SERVER_VERSION = "1.14.0"`)
-- **Previous Versions**: `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
+- **Semantic Version**: **`1.20.0`** (Android `versionCode: 64`, Server `SERVER_VERSION = "1.20.0"`)
+- **Previous Versions**: `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
 - **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `password_resets`, `audit_logs`)
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
+
+---
+
+## 🎨 Major UI & Architecture Upgrades in v1.20.0
+
+### 1. Ubiquitous User Profile Picture Architecture & Database Standardization
+- **Standardized Database Storage**:
+  - Profile pictures are stored directly in MongoDB Atlas (`rosterx.engineers` collection) as Base64 data URIs (`data:image/jpeg;base64,...`) in the `profile_picture` field.
+  - Sizing & Optimization: Strict backend processing via Pillow (`process_profile_picture_base64()`) center-crops to 1:1 square, handles EXIF orientation, and downscales to 256×256 px at JPEG quality 85. Output size is ~20–35 KB per avatar.
+  - Sizing verification: For a 20–50 member team, total DB footprint is ~1 MB, keeping Atlas M0 free tier (512 MB) completely unencumbered without third-party object storage.
+- **RESTful Endpoints**:
+  - `POST /api/users/profile-picture`: Authenticated upload, update, and deletion (`null`/`""`) with automatic session claim refresh and `audit_logs` entry.
+  - `GET /api/users/<username>/avatar`: Streaming binary JPEG endpoint with HTTP cache headers (`Cache-Control: public, max-age=86400, stale-while-revalidate=604800`) for standard web/external image consumers.
+  - Claims refresh: `POST /api/auth/login`, `GET /api/auth/me`, and `POST /api/engineers` all include `profile_picture`.
+
+### 2. Native Android Ubiquitous Avatar Display & Fast In-Memory LRU
+- **`UserAvatar` Composable**:
+  - High-performance avatar component with built-in LRU cache (`avatarBitmapCache`), preventing repetitive Base64 decoding during list scrolls.
+  - Graceful fallback: If no avatar is uploaded, extracts engineer initials and displays a neumorphic monogram with deterministic role/name-tinted background.
+- **Ubiquitous Placement Across Android**:
+  - **TopAppBar Profile Pill**: Replaced text-only initial circle with `UserAvatar(size = 24.dp)`.
+  - **Account Settings Tab**: Interactive 76dp avatar with camera badge, modern Android Photo Picker (`ActivityResultContracts.PickVisualMedia`), and "Change Photo" / "Remove" actions.
+  - **Today's Shift Radar (`DutyGroupCard`)**: Replaced 26dp initials with `UserAvatar(size = 28.dp)` next to each active/upcoming engineer.
+  - **Team Shifts Tab**: Integrated `UserAvatar(size = 20.dp)` into the fixed engineer name column.
+  - **Admin Team Directory Tab (`ManageTeamTab`)**: Replaced monogram badge with `UserAvatar(size = 44.dp)` in directory list items, and added avatar upload/remove controls to the Create/Edit Engineer dialog.
+  - **Admin Month Rosters Tab (`MonthRostersTab`)**: Integrated `UserAvatar(size = 20.dp)` into row headers of the Master Grid, and `UserAvatar(size = 36.dp)` in the Shift Assignment / Swap bottom sheet.
+- **Device-Side Compression**: Added `compressImageUriToBase64()` to scale images to 512×512 prior to network upload.
+
+### 3. Web Admin & User Portal Ubiquitous Avatar Integration
+- **Top Navigation User Pills**: Profile pills in both `admin-web/user-portal.html` and `admin-web/index.html` render user avatar thumbnails.
+- **Interactive Upload Modal**: Profile modals allow instant image selection, client-side canvas square cropping and resizing, preview, and upload/removal.
+- **Team Directory Cards**: Engineer directory cards render avatar thumbnails alongside badges and contact info.
 
 ---
 

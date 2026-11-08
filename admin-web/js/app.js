@@ -581,6 +581,17 @@ class RosterXApp {
 
     // Read-only enforcement for Manager role
     const activeAuthUser = (window.authService && window.authService.getCurrentUser()) || null;
+    if (activeAuthUser) {
+      const topBarName = document.getElementById('adminUserName');
+      if (topBarName) topBarName.textContent = activeAuthUser.name || activeAuthUser.username || 'Admin';
+      const pillImg = document.getElementById('adminAvatarImg');
+      const pillIcon = document.getElementById('adminAvatarIcon');
+      if (activeAuthUser.profile_picture && pillImg && pillIcon) {
+        pillImg.src = activeAuthUser.profile_picture;
+        pillImg.classList.remove('hidden');
+        pillIcon.classList.add('hidden');
+      }
+    }
     if (activeAuthUser && activeAuthUser.role === 'manager') {
       document.body.classList.add('manager-readonly');
       const writeButtonIds = [
@@ -1153,8 +1164,8 @@ class RosterXApp {
       const offs = Array.isArray(eng.default_weekly_offs) ? eng.default_weekly_offs.join(', ') : 'Sat, Sun';
       card.innerHTML = `
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-black flex items-center justify-center text-xs">
-            ${this.escapeHtml((eng.name || 'E').substring(0, 2).toUpperCase())}
+          <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-black flex items-center justify-center text-xs overflow-hidden shrink-0">
+            ${eng.profile_picture ? `<img src="${this.escapeHtml(eng.profile_picture)}" class="w-full h-full object-cover" alt="Avatar"/>` : this.escapeHtml((eng.name || 'E').substring(0, 2).toUpperCase())}
           </div>
           <div>
             <div class="flex items-center gap-2">

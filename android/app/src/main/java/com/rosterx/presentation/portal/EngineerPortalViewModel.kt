@@ -758,5 +758,38 @@ class EngineerPortalViewModel @Inject constructor(
     fun setThemePaletteId(paletteId: String) {
         sessionManager.setThemePaletteId(paletteId)
     }
+
+    fun uploadProfilePicture(base64Image: String, targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
+            val res = repository.updateProfilePicture(targetUsername, base64Image)
+            if (res.isSuccess) {
+                val newPic = res.getOrNull()
+                val loggedIn = _state.value.loggedInEngineer
+                if (loggedIn != null && (targetUsername.isNullOrBlank() || targetUsername.equals(loggedIn.username, ignoreCase = true))) {
+                    val updated = loggedIn.copy(profilePicture = newPic)
+                    _state.value = _state.value.copy(loggedInEngineer = updated)
+                }
+                val updatedEngineers = _state.value.engineers.map { eng ->
+                    if (targetUsername.isNullOrBlank() && eng.username.equals(loggedIn?.username, ignoreCase = true)) {
+                        eng.copy(profilePicture = newPic)
+                    } else if (eng.username.equals(targetUsername, ignoreCase = true)) {
+                        eng.copy(profilePicture = newPic)
+                    } else {
+                        eng
+                    }
+                }
+                _state.value = _state.value.copy(engineers = updatedEngineers, isLoading = false)
+                onResult?.invoke(true, null)
+            } else {
+                _state.value = _state.value.copy(isLoading = false)
+                onResult?.invoke(false, res.exceptionOrNull()?.message ?: "Upload failed")
+            }
+        }
+    }
+
+    fun removeProfilePicture(targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {
+        uploadProfilePicture("", targetUsername, onResult)
+    }
 }
 

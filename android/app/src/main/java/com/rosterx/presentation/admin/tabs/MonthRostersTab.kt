@@ -73,6 +73,7 @@ import com.rosterx.domain.model.ShiftCode
 import com.rosterx.domain.model.isManagementAccount
 
 import com.rosterx.presentation.admin.AdminRosterState
+import com.rosterx.presentation.components.UserAvatar
 
 import com.rosterx.presentation.portal.*
 
@@ -417,32 +418,44 @@ fun MonthRostersTab(
 
                 ) {
 
-                    Column {
-
-                        Text(
-
-                            text = "${yearMonth.month.name.take(3)} $day · ${eng.name.uppercase()}",
-
-                            fontSize = 11.sp,
-
-                            fontWeight = FontWeight.Bold,
-
-                            color = MaterialTheme.colorScheme.primary
-
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        UserAvatar(
+                            name = eng.name,
+                            profilePicture = eng.profilePicture,
+                            size = 36.dp,
+                            fontSize = 13.sp
                         )
 
-                        Text(
+                        Column {
 
-                            text = "Select Shift Code",
+                            Text(
 
-                            fontWeight = FontWeight.ExtraBold,
+                                text = "${yearMonth.month.name.take(3)} $day · ${eng.name.uppercase()}",
 
-                            fontSize = 16.sp,
+                                fontSize = 11.sp,
 
-                            color = MaterialTheme.colorScheme.onSurface
+                                fontWeight = FontWeight.Bold,
 
-                        )
+                                color = MaterialTheme.colorScheme.primary
 
+                            )
+
+                            Text(
+
+                                text = "Select Shift Code",
+
+                                fontWeight = FontWeight.ExtraBold,
+
+                                fontSize = 16.sp,
+
+                                color = MaterialTheme.colorScheme.onSurface
+
+                            )
+
+                        }
                     }
 
                     IconButton(
@@ -1319,7 +1332,24 @@ fun MonthRostersTab(
 
                                 ) {
 
-                                    Text(engineer.name, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 1)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        UserAvatar(
+                                            name = engineer.name,
+                                            profilePicture = engineer.profilePicture,
+                                            size = 20.dp,
+                                            fontSize = 9.sp
+                                        )
+                                        Text(
+                                            engineer.name,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
 
                                 }
 
