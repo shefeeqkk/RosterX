@@ -38,6 +38,10 @@ val Engineer.isManagementAccount: Boolean
         if (uname in setOf("shefeeqkk", "shefeeq", "athulka")) {
             return false
         }
+        // Managers are strictly management accounts - never on desk shift duty or roster grids
+        if (role == EngineerRole.MANAGER) {
+            return true
+        }
         return uname in setOf("admin", "manager", "sysadmin", "system_admin", "administrator") ||
                n in setOf("admin", "system administrator", "system admin") ||
                n.contains("system admin") ||

@@ -9,8 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.rosterx.data.local.UserSessionManager
 
 import com.rosterx.domain.model.Engineer
-
 import com.rosterx.domain.model.ShiftCode
+import com.rosterx.domain.model.isManagementAccount
 
 import com.rosterx.domain.repository.RosterRepository
 
@@ -74,6 +74,10 @@ data class PortalState(
 
     val latencyMs: Long = 0L,
 
+    val clusterName: String = "Cluster0",
+
+    val databaseName: String = "rosterx",
+
     val currentBaseUrl: String = "",
 
     val constraints: com.rosterx.domain.model.OperationalConstraints = com.rosterx.domain.model.OperationalConstraints(),
@@ -127,23 +131,20 @@ class EngineerPortalViewModel @Inject constructor(
 
 
     fun checkConnection() {
+        refreshDiagnostics()
+    }
 
+    fun refreshDiagnostics() {
         viewModelScope.launch {
-
             val diag = repository.getServerDiagnostics()
-
             _state.value = _state.value.copy(
-
                 isConnected = diag.isConnected,
-
                 latencyMs = diag.latencyMs,
-
+                clusterName = diag.cluster.ifBlank { "Cluster0" },
+                databaseName = diag.database.ifBlank { "rosterx" },
                 currentBaseUrl = sessionManager.getBaseUrl()
-
             )
-
         }
-
     }
 
 
@@ -268,6 +269,9 @@ class EngineerPortalViewModel @Inject constructor(
             val savedDismissed = sessionManager.getDismissedNotifications()
             val loadedConstraints = repository.getConstraints().getOrDefault(com.rosterx.domain.model.OperationalConstraints())
 
+            // Also fetch server diagnostics to keep cluster, database, and latency current
+            val diag = repository.getServerDiagnostics()
+
             _state.value = _state.value.copy(
                 isLoading = false,
                 engineers = engineers,
@@ -276,27 +280,115 @@ class EngineerPortalViewModel @Inject constructor(
                 constraints = loadedConstraints,
                 notifications = notifs,
                 dismissedNotificationIds = savedDismissed,
-                isConnected = engineersResult.isSuccess
+                isConnected = engineersResult.isSuccess && diag.isConnected,
+                clusterName = diag.cluster.ifBlank { "Cluster0" },
+                databaseName = diag.database.ifBlank { "rosterx" },
+                latencyMs = diag.latencyMs
             )
 
             // Auto-sync Home Screen App Widget with latest duty assignments
             val currentEng = _state.value.loggedInEngineer
             if (currentEng != null) {
                 val effectiveLive = if (liveRosterResult.isSuccess) liveRosterMap else (rosterCache[liveMonthKey] ?: emptyMap())
-                val engShifts = effectiveLive[currentEng.username]
-                    ?: effectiveLive[currentEng.id]
-                    ?: effectiveLive[currentEng.name]
-                    ?: effectiveLive[currentEng.name.uppercase()]
-                    ?: effectiveLive[currentEng.name.lowercase()]
-                    ?: emptyMap()
-                if (engShifts.isNotEmpty()) {
-                    val stringMap = engShifts.mapValues { it.value.code }
-                    com.rosterx.widget.RosterXAppWidgetProvider.saveWidgetData(
-                        context,
-                        currentEng.name,
-                        stringMap,
-                        liveMonthKey
+                if (currentEng.role == com.rosterx.domain.model.EngineerRole.MANAGER) {
+                    // Manager Widget: Real-time Shift Radar for Today
+                    val today = LocalDate.now()
+                    val todayDayStr = today.dayOfMonth.toString()
+                    val activeEngineers = engineers.filter { !it.isManagementAccount }
+                    val nowSec = java.time.LocalTime.now().toSecondOfDay().toLong()
+
+                    var activeCode = "SS"
+                    var activeTiming = "13:00 – 22:00"
+                    val activeStaffList = mutableListOf<String>()
+                    var nextCode = "NS"
+                    var nextTiming = "21:00 – 07:30 (+1)"
+                    val nextStaffList = mutableListOf<String>()
+                    var dayCount = 0
+                    var nightCount = 0
+                    var restCount = 0
+
+                    activeEngineers.forEach { eng ->
+                        val shift = effectiveLive[eng.username]?.get(todayDayStr)
+                            ?: effectiveLive[eng.id]?.get(todayDayStr)
+                            ?: effectiveLive[eng.name]?.get(todayDayStr)
+                            ?: effectiveLive[eng.name.uppercase()]?.get(todayDayStr)
+                            ?: effectiveLive[eng.name.lowercase()]?.get(todayDayStr)
+                            ?: com.rosterx.domain.model.ShiftCode.OFF
+                        val code = shift.code.uppercase()
+                        val shortName = eng.name.split(" ").firstOrNull() ?: eng.name
+
+                        when {
+                            code == "NS" -> {
+                                nightCount++
+                                nextStaffList.add(shortName)
+                                if (nowSec >= 75600L || nowSec < 27000L) {
+                                    activeCode = "NS"
+                                    activeTiming = "21:00 – 07:30 (+1)"
+                                    activeStaffList.add(shortName)
+                                }
+                            }
+                            code in setOf("FS", "FG", "G", "SG", "SS") -> {
+                                dayCount++
+                                val meta = com.rosterx.widget.RosterXAppWidgetProvider.resolveMeta(code)
+                                if (meta.startSec > 0 && nowSec >= meta.startSec && nowSec < meta.endSec) {
+                                    activeCode = code
+                                    activeTiming = meta.timing
+                                    activeStaffList.add(shortName)
+                                }
+                            }
+                            else -> restCount++
+                        }
+                    }
+
+                    // Fallback if no specific shift is active right at this second
+                    if (activeStaffList.isEmpty()) {
+                        activeEngineers.firstOrNull { eng ->
+                            val s = effectiveLive[eng.username]?.get(todayDayStr)?.code?.uppercase() ?: "OFF"
+                            s in setOf("FS", "FG", "G", "SG", "SS")
+                        }?.let { eng ->
+                            val s = effectiveLive[eng.username]?.get(todayDayStr)?.code?.uppercase() ?: "SS"
+                            activeCode = s
+                            val meta = com.rosterx.widget.RosterXAppWidgetProvider.resolveMeta(s)
+                            activeTiming = meta.timing
+                            activeStaffList.add(eng.name.split(" ").firstOrNull() ?: eng.name)
+                        }
+                    }
+
+                    val activeStaffStr = if (activeStaffList.isNotEmpty()) activeStaffList.joinToString(", ") else "Standby NOC"
+                    val nextStaffStr = if (nextStaffList.isNotEmpty()) nextStaffList.joinToString(", ") else "Assigned Night Duty"
+                    val coverageStr = "👥 Today's NOC: $dayCount Day Shifts • $nightCount Night (NS)"
+                    val restStr = "🏖 Scheduled Rest: $restCount Engineers (OFF/Leave)"
+
+                    com.rosterx.widget.RosterXAppWidgetProvider.saveManagerWidgetData(
+                        context = context,
+                        managerName = currentEng.name,
+                        activeCode = activeCode,
+                        activeName = "Active Desk",
+                        activeTiming = activeTiming,
+                        activeStaff = activeStaffStr,
+                        nextCode = nextCode,
+                        nextName = "Night Shift",
+                        nextTiming = nextTiming,
+                        nextStaff = nextStaffStr,
+                        coverageText = coverageStr,
+                        restText = restStr
                     )
+                } else {
+                    val engShifts = effectiveLive[currentEng.username]
+                        ?: effectiveLive[currentEng.id]
+                        ?: effectiveLive[currentEng.name]
+                        ?: effectiveLive[currentEng.name.uppercase()]
+                        ?: effectiveLive[currentEng.name.lowercase()]
+                        ?: emptyMap()
+                    if (engShifts.isNotEmpty()) {
+                        val stringMap = engShifts.mapValues { it.value.code }
+                        com.rosterx.widget.RosterXAppWidgetProvider.saveWidgetData(
+                            context,
+                            currentEng.name,
+                            stringMap,
+                            liveMonthKey
+                        )
+                    }
                 }
             }
 

@@ -450,7 +450,8 @@ fun EngineerPortalScreen(
 
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    val isFullScreenRoster = isLandscape && selectedTab == 3
+    val isManager = state.loggedInEngineer?.role == EngineerRole.MANAGER
+    val isFullScreenRoster = isLandscape && ((isManager && selectedTab == 2) || (!isManager && selectedTab == 3))
 
 
 
@@ -640,48 +641,36 @@ fun EngineerPortalScreen(
 
         bottomBar = {
 
-            val portalNavItems = remember {
-
-                listOf(
-
-                    NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
-
-                    NavTabItem(1, "Team Shifts", Icons.Default.Group),
-
-                    NavTabItem(2, "My Calendar", Icons.Default.CalendarMonth),
-
-                    NavTabItem(3, "Month Roster", Icons.Default.GridView),
-
-                    NavTabItem(4, "Settings", Icons.Default.Settings)
-
-                )
-
+            val portalNavItems = remember(isManager) {
+                if (isManager) {
+                    listOf(
+                        NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
+                        NavTabItem(1, "Team Shifts", Icons.Default.Group),
+                        NavTabItem(2, "Month Roster", Icons.Default.GridView),
+                        NavTabItem(3, "Settings", Icons.Default.Settings)
+                    )
+                } else {
+                    listOf(
+                        NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
+                        NavTabItem(1, "Team Shifts", Icons.Default.Group),
+                        NavTabItem(2, "My Calendar", Icons.Default.CalendarMonth),
+                        NavTabItem(3, "Month Roster", Icons.Default.GridView),
+                        NavTabItem(4, "Settings", Icons.Default.Settings)
+                    )
+                }
             }
 
-
-
             if (!isFullScreenRoster) {
-
                 FluidNeumorphicBottomNav(
-
                     items = portalNavItems,
-
                     selectedIndex = selectedTab,
-
                     onTabSelected = { tab ->
-
-                        if (tab == 1 || tab == 2) {
-
+                        if ((isManager && (tab == 1 || tab == 2)) || (!isManager && (tab == 1 || tab == 2))) {
                             viewModel.resetToCurrentDateAndMonth()
-
                         }
-
                         selectedTab = tab
-
                     }
-
                 )
-
             }
 
         }
@@ -726,65 +715,68 @@ fun EngineerPortalScreen(
             } else {
 
                 AnimatedContent(
-
                     targetState = selectedTab,
-
                     transitionSpec = {
-
                         if (targetState > initialState) {
-
                             slideInHorizontally(animationSpec = tween(250)) { it } + fadeIn() togetherWith
-
                                     slideOutHorizontally(animationSpec = tween(250)) { -it } + fadeOut()
-
                         } else {
-
                             slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn() togetherWith
-
                                     slideOutHorizontally(animationSpec = tween(250)) { it } + fadeOut()
-
                         }
-
                     },
-
                     label = "TabTransition"
-
                 ) { tab ->
-
-                    when (tab) {
-
-                        0 -> DashboardView(
-
-                            state = state,
-
-                            onDismissNotification = viewModel::dismissNotification,
-
-                            onClearAllNotifications = viewModel::clearAllNotifications
-
-                        )
-
-                        1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
-
-                        2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
-
-                        3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
-
-                        4 -> AccountView(
-
-                            state = state, 
-
-                            onChangePassword = viewModel::changePassword, 
-
-                            onLogout = viewModel::logout,
-
-                            onSaveBaseUrl = viewModel::saveBaseUrl,
-
-                            onTestConnection = viewModel::checkConnection
-
-                        )
-
+                    if (isManager) {
+                        when (tab) {
+                            0 -> DashboardView(
+                                state = state,
+                                onDismissNotification = viewModel::dismissNotification,
+                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                            )
+                            1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
+                            2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
+                            3 -> AccountView(
+                                state = state,
+                                onChangePassword = viewModel::changePassword,
+                                onLogout = viewModel::logout,
+                                onSaveBaseUrl = viewModel::saveBaseUrl,
+                                onTestConnection = viewModel::checkConnection
+                            )
+                            else -> DashboardView(
+                                state = state,
+                                onDismissNotification = viewModel::dismissNotification,
+                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                            )
+                        }
+                    } else {
+                        when (tab) {
+                            0 -> DashboardView(
+                                state = state,
+                                onDismissNotification = viewModel::dismissNotification,
+                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                            )
+                            1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
+                            2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
+                            3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
+                            4 -> AccountView(
+                                state = state,
+                                onChangePassword = viewModel::changePassword,
+                                onLogout = viewModel::logout,
+                                onSaveBaseUrl = viewModel::saveBaseUrl,
+                                onTestConnection = viewModel::checkConnection
+                            )
+                            else -> DashboardView(
+                                state = state,
+                                onDismissNotification = viewModel::dismissNotification,
+                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                            )
+                        }
                     }
-
                 }
 
             }
@@ -935,12 +927,884 @@ private fun computePortalTimers(
     )
 }
 
+data class ManagerStaffDutyInfo(
+    val engineer: Engineer,
+    val shift: ShiftCode,
+    val isActiveNow: Boolean
+)
+
+@Composable
+fun DutyGroupCard(
+    title: String,
+    timeRange: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accentColor: Color,
+    staff: List<ManagerStaffDutyInfo>,
+    isCurrentWindow: Boolean
+) {
+    NeumorphicCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 16.dp
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .neumorphicInset(
+                                shape = RoundedCornerShape(10.dp),
+                                surfaceColor = NeumorphicTokens.Surface
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 14.sp,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Text(
+                            text = timeRange,
+                            fontSize = 11.sp,
+                            color = NeumorphicTokens.TextMuted
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (isCurrentWindow) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF10B981).copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                text = "CURRENT WINDOW",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF047857),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "${staff.size} Staff",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = accentColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                color = NeumorphicTokens.SurfaceContrast,
+                thickness = 1.dp
+            )
+
+            if (staff.isEmpty()) {
+                Text(
+                    text = "No staff assigned to this window",
+                    fontSize = 12.sp,
+                    color = NeumorphicTokens.TextMuted,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    staff.forEach { info ->
+                        val eng = info.engineer
+                        val shift = info.shift
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (info.isActiveNow) Color(0xFF10B981).copy(alpha = 0.08f) else NeumorphicTokens.SurfaceContrast.copy(alpha = 0.4f),
+                            border = if (info.isActiveNow) BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)) else null,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .clip(CircleShape)
+                                            .background(accentColor.copy(alpha = 0.2f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = eng.name.take(1).uppercase(),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            color = accentColor
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = NeumorphicTokens.TextMain
+                                        )
+                                        Text(
+                                            text = eng.role.name.lowercase().replaceFirstChar { it.uppercase() },
+                                            fontSize = 10.sp,
+                                            color = NeumorphicTokens.TextMuted
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (info.isActiveNow) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFF10B981),
+                                            modifier = Modifier.padding(end = 2.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(5.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color.White)
+                                                )
+                                                Text(
+                                                    text = "ACTIVE NOW",
+                                                    fontSize = 8.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = Color.White
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .neumorphicInset(
+                                                shape = RoundedCornerShape(8.dp),
+                                                surfaceColor = Color(parseColor(shift.bgColorHex))
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = shift.code,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 10.sp,
+                                            color = Color(parseColor(shift.textColorHex))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ManagerHealthCard(
+    state: PortalState,
+    onRefreshDiagnostics: () -> Unit
+) {
+    NeumorphicCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 18.dp
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .neumorphicInset(
+                                shape = RoundedCornerShape(10.dp),
+                                surfaceColor = NeumorphicTokens.Surface
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Dns,
+                            contentDescription = "Cloud Database",
+                            tint = NeumorphicTokens.AccentSalmon,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "SYSTEM & DATABASE HEALTH",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMuted,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "MongoDB Atlas & Render Service",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .neumorphicInset(
+                            shape = CircleShape,
+                            elevation = NeumorphicTokens.ElevationInset,
+                            surfaceColor = NeumorphicTokens.Surface
+                        )
+                        .clickable { onRefreshDiagnostics() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh Health",
+                        tint = NeumorphicTokens.AccentSalmon,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Connection Status Banner
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (state.isConnected) Color(0xFF10B981).copy(alpha = 0.12f) else Color(0xFFEF4444).copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, if (state.isConnected) Color(0xFF10B981).copy(alpha = 0.4f) else Color(0xFFEF4444).copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (state.isConnected) Color(0xFF10B981) else Color(0xFFEF4444))
+                        )
+                        Text(
+                            text = if (state.isConnected) "MongoDB Atlas Connected" else "Cluster Offline / Reconnecting",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.isConnected) Color(0xFF047857) else Color(0xFFB91C1C)
+                        )
+                    }
+                    if (state.latencyMs > 0) {
+                        Text(
+                            text = "${state.latencyMs} ms",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.isConnected) Color(0xFF047857) else Color(0xFFB91C1C)
+                        )
+                    }
+                }
+            }
+
+            // Health Details 2x2 Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = NeumorphicTokens.SurfaceContrast.copy(alpha = 0.4f),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(text = "CLUSTER", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = state.clusterName.ifEmpty { "Cluster0" },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMain,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = NeumorphicTokens.SurfaceContrast.copy(alpha = 0.4f),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(text = "DATABASE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = state.databaseName.ifEmpty { "rosterx" },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMain,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = NeumorphicTokens.SurfaceContrast.copy(alpha = 0.4f),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(text = "INFRASTRUCTURE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Render / Atlas M0",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = NeumorphicTokens.SurfaceContrast.copy(alpha = 0.4f),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(text = "SYNC STATE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (state.isLoading) "Refreshing..." else "Synchronized",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (state.isLoading) Color(0xFFF59E0B) else Color(0xFF10B981)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ManagerRadarSection(
+    state: PortalState,
+    today: LocalDate
+) {
+    val activeEngineers = state.engineers.filter { !it.isManagementAccount }
+    val dayKey = today.dayOfMonth.toString()
+
+    val currentHour = java.time.LocalTime.now().hour
+    val isMorningActive = currentHour in 6..14
+    val isAfternoonActive = currentHour in 14..21
+    val isNightActive = currentHour >= 22 || currentHour < 6
+
+    val morningStaff = mutableListOf<ManagerStaffDutyInfo>()
+    val afternoonStaff = mutableListOf<ManagerStaffDutyInfo>()
+    val nightStaff = mutableListOf<ManagerStaffDutyInfo>()
+    val offStaff = mutableListOf<ManagerStaffDutyInfo>()
+
+    activeEngineers.forEach { eng ->
+        val engRoster = getRosterForEngineer(state.liveRoster, eng)
+        val shift = engRoster[dayKey] ?: ShiftCode.OFF
+        val code = shift.code.trim().uppercase()
+
+        when {
+            code in listOf("FS", "FG", "G", "SG") -> {
+                morningStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isMorningActive))
+            }
+            code == "SS" -> {
+                afternoonStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isAfternoonActive))
+            }
+            code == "NS" -> {
+                nightStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isNightActive))
+            }
+            else -> {
+                offStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = false))
+            }
+        }
+    }
+
+    val totalActiveNow = morningStaff.count { it.isActiveNow } +
+            afternoonStaff.count { it.isActiveNow } +
+            nightStaff.count { it.isActiveNow }
+    val totalScheduledDuty = morningStaff.size + afternoonStaff.size + nightStaff.size
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Group,
+                        contentDescription = null,
+                        tint = NeumorphicTokens.AccentSalmon,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Text(
+                    text = "TODAY'S SHIFT RADAR",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = NeumorphicTokens.TextMuted,
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = Color(0xFF10B981).copy(alpha = 0.15f),
+                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
+            ) {
+                Text(
+                    text = "$totalActiveNow ACTIVE NOW",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF047857),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = NeumorphicTokens.SurfaceContrast.copy(alpha = 0.5f),
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "ON DUTY TODAY", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+                    Text(
+                        text = "$totalScheduledDuty Engineers",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeumorphicTokens.TextMain
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = NeumorphicTokens.SurfaceContrast.copy(alpha = 0.5f),
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "OFF / LEAVE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMuted)
+                    Text(
+                        text = "${offStaff.size} Engineers",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeumorphicTokens.TextMain
+                    )
+                }
+            }
+        }
+
+        DutyGroupCard(
+            title = "Morning & General Shift",
+            timeRange = "06:00 - 15:30",
+            icon = Icons.Default.WbSunny,
+            accentColor = Color(0xFFF59E0B),
+            staff = morningStaff,
+            isCurrentWindow = isMorningActive
+        )
+
+        DutyGroupCard(
+            title = "Afternoon Shift",
+            timeRange = "13:30 - 22:00",
+            icon = Icons.Default.Timer,
+            accentColor = Color(0xFF06B6D4),
+            staff = afternoonStaff,
+            isCurrentWindow = isAfternoonActive
+        )
+
+        DutyGroupCard(
+            title = "Night Shift",
+            timeRange = "21:30 - 06:30",
+            icon = Icons.Default.Star,
+            accentColor = Color(0xFF8B5CF6),
+            staff = nightStaff,
+            isCurrentWindow = isNightActive
+        )
+
+        if (offStaff.isNotEmpty()) {
+            DutyGroupCard(
+                title = "Scheduled Off & Leave",
+                timeRange = "Rest Period",
+                icon = Icons.Default.Today,
+                accentColor = Color(0xFF64748B),
+                staff = offStaff,
+                isCurrentWindow = false
+            )
+        }
+    }
+}
+
+@Composable
+fun ManagerDashboardView(
+    state: PortalState,
+    onDismissNotification: (String) -> Unit = {},
+    onClearAllNotifications: () -> Unit = {},
+    onRefreshDiagnostics: () -> Unit = {}
+) {
+    val engineer = state.loggedInEngineer
+    val today = LocalDate.now()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 20.dp
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
+                            color = NeumorphicTokens.AccentSalmon,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(NeumorphicTokens.AccentSalmon)
+                                )
+                                Text(
+                                    text = "OPERATIONS MANAGER",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = NeumorphicTokens.AccentSalmon
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Operations Hub \uD83D\uDEF0\uFE0F",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeumorphicTokens.TextMain
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Welcome, ${engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager"}! Live telemetry and team shift radar.",
+                        fontSize = 13.sp,
+                        color = NeumorphicTokens.TextMuted
+                    )
+                }
+            }
+        }
+
+        item {
+            ManagerHealthCard(
+                state = state,
+                onRefreshDiagnostics = onRefreshDiagnostics
+            )
+        }
+
+        item {
+            ManagerRadarSection(
+                state = state,
+                today = today
+            )
+        }
+
+        val activeNotifs = state.notifications.mapIndexed { idx, n ->
+            val id = n.id ?: "notif_$idx"
+            id to n
+        }.filter { (id, _) -> id !in state.dismissedNotificationIds }
+
+        if (activeNotifs.isNotEmpty()) {
+            val engName = engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager"
+            val engUsername = engineer?.username ?: engName.lowercase().replace(" ", "")
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF8B5CF6).copy(alpha = 0.20f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Campaign,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            text = "OPERATIONAL NOTIFICATIONS (${activeNotifs.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+
+                    TextButton(
+                        onClick = onClearAllNotifications,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ClearAll,
+                            contentDescription = "Clear All",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Clear All",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            items(activeNotifs, key = { it.first }) { (notifId, notif) ->
+                val pColor = when (notif.priority?.lowercase()) {
+                    "urgent" -> Color(0xFFEF4444)
+                    "shift_update" -> Color(0xFFF59E0B)
+                    "broadcast" -> Color(0xFF8B5CF6)
+                    else -> Color(0xFF3B82F6)
+                }
+
+                val resolvedMsg = (notif.rawMessage ?: "")
+                    .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
+                    .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
+                    .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+
+                AnimatedVisibility(
+                    visible = notifId !in state.dismissedNotificationIds,
+                    enter = fadeIn() + expandVertically(),
+                    exit = slideOutHorizontally(animationSpec = tween(300)) { -it } + fadeOut(animationSpec = tween(200)) + shrinkVertically()
+                ) {
+                    NeumorphicCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        style = NeumorphicElevationStyle.Raised,
+                        surfaceColor = NeumorphicTokens.Surface,
+                        contentPadding = 16.dp
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(pColor.copy(alpha = 0.16f))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = (notif.priority ?: "INFO").uppercase(),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = pColor
+                                        )
+                                    }
+                                    Text(
+                                        text = notif.title ?: "Broadcast Announcement",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = NeumorphicTokens.TextMain,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .neumorphicInset(
+                                            shape = CircleShape,
+                                            elevation = NeumorphicTokens.ElevationInset,
+                                            surfaceColor = NeumorphicTokens.Surface
+                                        )
+                                        .clickable { onDismissNotification(notifId) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear Notification",
+                                        tint = NeumorphicTokens.TextMuted,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = resolvedMsg,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp,
+                                color = NeumorphicTokens.TextMain.copy(alpha = 0.85f)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "By ${notif.sender ?: "Operations Desk"}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NeumorphicTokens.TextMuted
+                                )
+                                if (!notif.createdAt.isNullOrBlank()) {
+                                    Text(
+                                        text = notif.createdAt,
+                                        fontSize = 10.sp,
+                                        color = NeumorphicTokens.TextMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun DashboardView(
     state: PortalState,
     onDismissNotification: (String) -> Unit = {},
-    onClearAllNotifications: () -> Unit = {}
+    onClearAllNotifications: () -> Unit = {},
+    onRefreshDiagnostics: () -> Unit = {}
 ) {
+    if (state.loggedInEngineer?.role == EngineerRole.MANAGER) {
+        ManagerDashboardView(
+            state = state,
+            onDismissNotification = onDismissNotification,
+            onClearAllNotifications = onClearAllNotifications,
+            onRefreshDiagnostics = onRefreshDiagnostics
+        )
+        return
+    }
+
     val engineer = state.loggedInEngineer
     val roster = getRosterForEngineer(state.liveRoster, engineer)
     val today = LocalDate.now()
