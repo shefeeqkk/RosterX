@@ -202,6 +202,10 @@ export class UserPortalController {
         this.renderMySwapsHistory();
         this.updateCountdownTimer();
 
+        // 5b. Operational Broadcast Notifications & Live Alerts (Android Parity)
+        this.bindBroadcastEvents();
+        await this.loadBroadcastNotifications();
+
         const badge = document.getElementById('userPortalStatusBadge');
         if (badge) badge.textContent = 'Atlas Connected';
       } catch (err) {
@@ -216,6 +220,208 @@ export class UserPortalController {
       this.renderTeamDutyBoard();
       this.updateCountdownTimer();
     }, 60000);
+  }
+
+  // =========================================================================
+  // 📢 Operational Broadcast Notifications & Alerts (Android Parity)
+  // =========================================================================
+
+  bindBroadcastEvents() {
+    const clearBtn = document.getElementById('btnUserClearAllBroadcasts');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => this.clearAllNotifications());
+    }
+  }
+
+  async loadBroadcastNotifications() {
+    try {
+      const res = await this.atlasService.getNotifications();
+      if (!res || !res.success || !res.notifications) return;
+
+      const dismissedSet = new Set(res.dismissed_notification_ids || []);
+      const myUsername = (this.currentUser?.username || '').toLowerCase();
+      const myId = (this.currentUser?.id || '').toLowerCase();
+      const myName = (this.currentUser?.name || '').toLowerCase();
+
+      this.activeBroadcasts = (res.notifications || []).filter(n => {
+        if (n.is_retracted) return false;
+        const nid = n.id || n._id;
+        if (dismissedSet.has(nid)) return false;
+
+        const target = n.target;
+        if (target === 'everyone' || target === 'all' || target === '*') return true;
+        if (Array.isArray(target)) {
+          return target.some(t => {
+            const norm = String(t).trim().toLowerCase();
+            return norm === myUsername || norm === myId || norm === myName;
+          });
+        }
+        if (typeof target === 'string') {
+          const norm = target.trim().toLowerCase();
+          return norm === myUsername || norm === myId || norm === myName;
+        }
+        return false;
+      });
+
+      this.renderBroadcastNotifications();
+
+      // Show toast if urgent notification exists
+      const hasUrgent = this.activeBroadcasts.some(n => (n.priority || '').toLowerCase() === 'urgent');
+      if (hasUrgent && typeof this.showToast === 'function') {
+        this.showToast('⚠️ Urgent operational announcement broadcasted. Please review.', 'error');
+      }
+    } catch (err) {
+      console.warn('Failed to load broadcast notifications:', err);
+    }
+  }
+
+  renderBroadcastNotifications() {
+    const container = document.getElementById('userBroadcastSection');
+    const feed = document.getElementById('userBroadcastFeed');
+    const countBadge = document.getElementById('userBroadcastCount');
+    if (!container || !feed) return;
+
+    if (!this.activeBroadcasts || this.activeBroadcasts.length === 0) {
+      container.classList.add('hidden');
+      feed.innerHTML = '';
+      return;
+    }
+
+    container.classList.remove('hidden');
+    if (countBadge) countBadge.textContent = this.activeBroadcasts.length;
+    feed.innerHTML = '';
+
+    const priorityThemes = {
+      urgent: {
+        border: 'border-l-4 border-l-red-500 border-red-200 dark:border-red-900/60',
+        bg: 'bg-red-50/70 dark:bg-red-950/30',
+        pill: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-200 dark:border-red-800 animate-pulse',
+        icon: 'ph-warning-circle text-red-500'
+      },
+      shift_update: {
+        border: 'border-l-4 border-l-amber-500 border-amber-200 dark:border-amber-900/60',
+        bg: 'bg-amber-50/70 dark:bg-amber-950/30',
+        pill: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        icon: 'ph-calendar-check text-amber-500'
+      },
+      broadcast: {
+        border: 'border-l-4 border-l-purple-500 border-purple-200 dark:border-purple-900/60',
+        bg: 'bg-purple-50/70 dark:bg-purple-950/30',
+        pill: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+        icon: 'ph-megaphone text-purple-500'
+      },
+      info: {
+        border: 'border-l-4 border-l-blue-500 border-blue-200 dark:border-blue-900/60',
+        bg: 'bg-blue-50/70 dark:bg-blue-950/30',
+        pill: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+        icon: 'ph-info text-blue-500'
+      }
+    };
+
+    const myName = this.currentUser?.name || this.currentUser?.fullName || 'Engineer';
+    const myUsername = this.currentUser?.username || 'engineer';
+
+    const nameMap = {};
+    (this.engineersList || []).forEach(e => {
+      const u = (e.username || '').toLowerCase();
+      const id = (e.id || '').toLowerCase();
+      const fn = e.fullName || e.name || u;
+      if (u) nameMap[u] = fn;
+      if (id) nameMap[id] = fn;
+    });
+
+    this.activeBroadcasts.forEach(notif => {
+      const nid = notif.id || notif._id;
+      const prio = (notif.priority || 'info').toLowerCase();
+      const theme = priorityThemes[prio] || priorityThemes.info;
+
+      let formattedMsg = (notif.raw_message || '')
+        .replace(/\{\s*(?:Their\s+name|their\s+name|name)\s*\}/gi, myName)
+        .replace(/\{\s*username\s*\}/gi, myUsername)
+        .replace(/@\{\s*username\s*\}/gi, `@${myUsername}`);
+
+      formattedMsg = formattedMsg.replace(/@([a-zA-Z0-9_\-\.]+)/g, (match, username) => {
+        const u = username.toLowerCase();
+        if (u === 'all' || u === 'everyone' || u === 'team') {
+          return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold text-purple-700 bg-purple-100 dark:bg-purple-900/60 dark:text-purple-300">@Everyone (All Team)</span>`;
+        }
+        const fn = nameMap[u] || u;
+        return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold text-purple-700 bg-purple-100 dark:bg-purple-900/60 dark:text-purple-300">@${fn}</span>`;
+      });
+
+      const card = document.createElement('div');
+      card.id = `userNotifCard_${nid}`;
+      card.className = `glass-panel rounded-xl p-4 border transition-all duration-300 ${theme.border} ${theme.bg} shadow-xs space-y-2.5`;
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${theme.pill} flex items-center gap-1">
+              <i class="ph ${theme.icon}"></i> ${notif.priority || 'INFO'}
+            </span>
+            <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">${notif.title || 'Operational Notice'}</h4>
+          </div>
+          <button type="button" class="btn-dismiss-single text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition cursor-pointer shrink-0" title="Dismiss this notice">
+            ✕
+          </button>
+        </div>
+        <div class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
+          ${formattedMsg}
+        </div>
+        <div class="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-200/50 dark:border-slate-800/50 pt-2 font-mono">
+          <span>From: <strong>${notif.sender || 'Operations Admin'}</strong></span>
+          <span>${notif.created_at || 'Recently'}</span>
+        </div>
+      `;
+
+      card.querySelector('.btn-dismiss-single')?.addEventListener('click', () => {
+        this.dismissNotification(nid);
+      });
+
+      feed.appendChild(card);
+    });
+  }
+
+  async dismissNotification(id) {
+    const card = document.getElementById(`userNotifCard_${id}`);
+    if (card) {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(-8px)';
+      setTimeout(() => {
+        this.activeBroadcasts = (this.activeBroadcasts || []).filter(n => (n.id || n._id) !== id);
+        this.renderBroadcastNotifications();
+      }, 250);
+    } else {
+      this.activeBroadcasts = (this.activeBroadcasts || []).filter(n => (n.id || n._id) !== id);
+      this.renderBroadcastNotifications();
+    }
+
+    try {
+      await this.atlasService.dismissNotification(id);
+    } catch (e) {
+      console.warn('Failed to dismiss notification on server:', e);
+    }
+  }
+
+  async clearAllNotifications() {
+    const container = document.getElementById('userBroadcastSection');
+    if (container) {
+      container.style.opacity = '0';
+      setTimeout(() => {
+        container.style.opacity = '1';
+        this.activeBroadcasts = [];
+        this.renderBroadcastNotifications();
+      }, 250);
+    } else {
+      this.activeBroadcasts = [];
+      this.renderBroadcastNotifications();
+    }
+
+    try {
+      await this.atlasService.dismissNotification('', true);
+    } catch (e) {
+      console.warn('Failed to clear all notifications on server:', e);
+    }
   }
 
 

@@ -1,23 +1,73 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 02:25 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 04:40 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.20.0`** (Android `versionCode: 64`, Server `SERVER_VERSION = "1.20.0"`)
-- **Previous Versions**: `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
+- **Semantic Version**: **`1.21.0`** (Android `versionCode: 65`, Server `SERVER_VERSION = "1.21.0"`)
+- **Previous Versions**: `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
 - **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
-- **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `password_resets`, `audit_logs`)
+- **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `broadcast_templates`, `password_resets`, `audit_logs`)
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.21.0
+
+### 1. 🔔 Free Firebase Cloud Messaging (FCM) & Phone Notification Panel Integration
+- **100% Free at Scale**: Integrated Google Firebase Cloud Messaging with zero subscription or message quota charges.
+- **`google-services.json` Installed**: Configured for package `com.rosterx` under Firebase Project `rosterx-tejas`.
+- **`RosterXFirebaseMessagingService`**:
+  - Implemented service extending `FirebaseMessagingService` to capture `onNewToken` and `onMessageReceived`.
+  - Creates Android notification channel `"rosterx_operational_broadcasts"` ("Operations & Broadcasts") with `IMPORTANCE_HIGH`, sound, and vibration.
+  - Posts native `NotificationCompat.Builder` notifications to the Android status bar and drop-down notification drawer.
+  - Tapping notification launches `MainActivity` with deep link extras.
+- **Device Token Registration**:
+  - `MainActivity` and `RosterApiService` automatically fetch `FirebaseMessaging.getInstance().token` and send to `POST /api/users/fcm-token`.
+  - Backend stores tokens in MongoDB Atlas `engineers.fcm_tokens` via `$addToSet`.
+- **Multi-Channel Push Dispatch**:
+  - When admin broadcasts via `/api/notifications/send` with `send_push: true`, the backend dispatches instant FCM push notifications to all recipients.
+
+### 2. 💬 Live `@` Mention Autocomplete & Dynamic Full Name Translation
+- **Live `@` Mention Autocomplete**:
+  - Typing `@` in the broadcast composer textarea opens an inline popup dropdown showing active team engineers with avatars, names, and `@username`.
+  - Supports keyboard navigation (`ArrowUp`, `ArrowDown`, `Enter`, `Tab`, `Escape`) and click selection.
+  - Selecting a user inserts `@username` and automatically includes them in the recipient audience.
+- **Dynamic Name Translation**:
+  - In all final rendered messages (Android app, Web Engineer Portal, Resend HTML Email, and Phone push notifications), every `@username` is dynamically translated to the engineer's **Full Name** styled as a high-visibility badge (e.g. `@Alice Johnson`).
+  - Supports team shortcuts like `@all` and `@everyone` rendering as `@Everyone (All Team)`.
+
+### 3. 💾 Database-Persisted Operational Templates
+- **MongoDB Atlas Collection (`broadcast_templates`)**:
+  - Backed by REST endpoints:
+    - `GET /api/broadcast/templates`: Authenticated retrieval; auto-seeds 4 standard operational templates (Shift Update, Urgent Coverage, Maintenance, Handover).
+    - `POST /api/broadcast/templates`: Saves or updates custom operational templates.
+    - `DELETE /api/broadcast/templates`: Deletes custom templates.
+  - Admins can save their custom operational notices straight to the cloud DB from the web or Android console.
+
+### 4. 📊 Live Read Receipts & Audit-Preserving Soft Retraction
+- **Real-Time Read Receipts**:
+  - Backend computes `read_by` (engineers who have dismissed the notification) and `pending` (engineers who have not yet read/dismissed).
+  - Admin history displays live status badge (`X Read / Y Pending`) with modal breakdown.
+- **Soft Retraction (`is_retracted: true`)**:
+  - `POST /api/notifications/retract` marks announcement as retracted with timestamp and admin name.
+  - Immediately hides the announcement from all engineer in-app portal views while preserving the complete immutable audit trail in Admin History.
+
+### 5. 🌐 Web Admin Broadcast Console & Web Engineer Portal Parity
+- **Web Admin Console (`data-tab="broadcast"`)**:
+  - Dedicated 6th navigation tab with Neumorphic banner, Audience selector, Priority chips, Template manager, Live Preview simulator, and History feed.
+- **Web Engineer Portal Notification Cards**:
+  - Dismissible notification cards placed below dashboard metrics in `user-portal.html`, with individual dismiss and "Clear All" calling `/api/notifications/dismiss`.
+  - Visual pulse badge and top toast for Urgent announcements.
 
 ---
 

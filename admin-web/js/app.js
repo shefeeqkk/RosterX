@@ -67,6 +67,7 @@ import {
   getIstNow
 } from './dateUtils.js';
 import { themeController } from './themeController.js';
+import { broadcastController } from './broadcastController.js';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -664,6 +665,13 @@ class RosterXApp {
     if (this.aiAssistant) {
       this.aiAssistant.init();
     }
+
+    // Initialize Broadcast Console Controller
+    broadcastController.init({
+      atlasService: this.atlasService,
+      getEngineers: () => this.state.engineersList || [],
+      showToast: (msg, type) => this.showToast(msg, type)
+    });
   }
 
   // --- Dynamic Tab Architecture & Telemetry Controller ---
@@ -771,6 +779,11 @@ class RosterXApp {
       this.renderSwapsTabQueue();
     } else if (tabId === 'diagnostics') {
       this.loadDiagnosticsTerminal();
+    } else if (tabId === 'broadcast') {
+      broadcastController.renderRecipientChips();
+      broadcastController.populatePreviewEngineers();
+      broadcastController.updatePreview();
+      broadcastController.loadHistory();
     }
   }
 

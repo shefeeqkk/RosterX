@@ -758,6 +758,26 @@
         </div>
       </div>
 
+      <!-- OPERATIONAL BROADCAST NOTIFICATIONS BANNER (Android Parity) -->
+      <div id="userBroadcastSection" class="hidden space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm font-bold shadow-2xs">
+              <i class="ph ph-megaphone text-sm"></i>
+            </span>
+            <span class="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300">
+              OPERATIONAL NOTIFICATIONS (<span id="userBroadcastCount">0</span>)
+            </span>
+          </div>
+          <button id="btnUserClearAllBroadcasts" type="button" class="text-xs font-bold text-purple-700 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300 flex items-center gap-1 cursor-pointer transition">
+            <i class="ph ph-checks text-sm"></i> Clear All
+          </button>
+        </div>
+        <div id="userBroadcastFeed" class="space-y-2.5">
+          <!-- Dynamically populated broadcast notification cards -->
+        </div>
+      </div>
+
       <!-- PERSONAL SHIFT SPOTLIGHT (FEATURED & NEXT DAY) -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -1527,7 +1547,7 @@
 
   <!-- Main User Portal Controller Module -->
 
-  <script type="module" src="js/userPortal.js?v=7.1"></script>
+  <script type="module" src="js/userPortal.js?v=7.2"></script>
 
 
 

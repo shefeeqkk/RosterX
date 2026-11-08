@@ -41,6 +41,10 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
 import com.rosterx.data.local.UserSessionManager
+import com.rosterx.data.remote.RosterApiService
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 import com.rosterx.domain.model.EngineerRole
 
@@ -67,27 +71,38 @@ class MainActivity : FragmentActivity() {
 
 
     @Inject
-
     lateinit var sessionManager: UserSessionManager
 
-
+    @Inject
+    lateinit var apiService: RosterApiService
 
     private val loginViewModel: LoginViewModel by viewModels()
 
-
-
     private val notificationPermissionLauncher = registerForActivityResult(
-
         ActivityResultContracts.RequestPermission()
-
     ) { isGranted ->
-
         if (isGranted) {
-
             // Notifications permitted by user
-
+            registerFcmDeviceToken()
         }
+    }
 
+    private fun registerFcmDeviceToken() {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful && !task.result.isNullOrBlank()) {
+                        val token = task.result
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            try {
+                                if (!sessionManager.getToken().isNullOrBlank()) {
+                                    apiService.registerFcmToken(mapOf("token" to token))
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+        } catch (_: Exception) {}
     }
 
 
@@ -101,13 +116,13 @@ class MainActivity : FragmentActivity() {
         // Request runtime notification permission on Android 13+ (API 33+)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-
+            } else {
+                registerFcmDeviceToken()
             }
-
+        } else {
+            registerFcmDeviceToken()
         }
 
 
