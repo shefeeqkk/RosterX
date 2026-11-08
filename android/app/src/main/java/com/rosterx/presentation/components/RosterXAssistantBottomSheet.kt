@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +50,8 @@ fun RosterXAssistantBottomSheet(
     onDismiss: () -> Unit,
     messages: List<AssistantChatMessage>,
     isThinking: Boolean,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String) -> Unit,
+    onClearChat: () -> Unit = {}
 ) {
     if (!isOpen) return
 
@@ -145,19 +147,41 @@ fun RosterXAssistantBottomSheet(
                     }
                 }
 
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1E293B))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier.size(16.dp)
-                    )
+                    if (messages.size > 1) {
+                        IconButton(
+                            onClick = onClearChat,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF1E293B))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "Clear Chat",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E293B))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 

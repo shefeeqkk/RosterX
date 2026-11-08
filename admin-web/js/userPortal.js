@@ -851,7 +851,7 @@ export class UserPortalController {
 
           label: 'On Duty (NS)',
 
-          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-indigo-300 font-bold bg-indigo-950/80 px-2.5 py-1 rounded-full border border-indigo-500/60 shadow-sm"><span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙</span>`
+          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-indigo-900 dark:text-indigo-200 font-bold bg-indigo-100 dark:bg-indigo-950/80 px-2.5 py-1 rounded-full border border-indigo-300 dark:border-indigo-500/60 shadow-xs"><span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙</span>`
 
         };
 
@@ -873,7 +873,7 @@ export class UserPortalController {
 
           label: 'On Duty (NS)',
 
-          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-indigo-300 font-bold bg-indigo-950/80 px-2.5 py-1 rounded-full border border-indigo-500/60 shadow-sm"><span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙</span>`
+          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-indigo-900 dark:text-indigo-200 font-bold bg-indigo-100 dark:bg-indigo-950/80 px-2.5 py-1 rounded-full border border-indigo-300 dark:border-indigo-500/60 shadow-xs"><span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙</span>`
 
         };
 
@@ -1038,15 +1038,15 @@ export class UserPortalController {
 
         if (dutyStatus.activeCode === 'NS') {
 
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-500/20 text-indigo-200 border border-indigo-500/40 flex items-center gap-2 shadow-sm';
+          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-100 dark:bg-indigo-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-500/40 flex items-center gap-2 shadow-xs';
 
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙`;
+          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙`;
 
         } else {
 
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-2 shadow-sm';
+          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-500/40 flex items-center gap-2 shadow-xs';
 
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> On Duty (${dutyStatus.activeCode}) 🟢`;
+          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> On Duty (${dutyStatus.activeCode}) 🟢`;
 
         }
 
@@ -1146,9 +1146,7 @@ export class UserPortalController {
 
       if (dutyStatus.isOnDuty) {
 
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1 shadow-sm';
-
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1';
+        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1 shadow-xs';
 
         todayCardStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> Active Now';
 

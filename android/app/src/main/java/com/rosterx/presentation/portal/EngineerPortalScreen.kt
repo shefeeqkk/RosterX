@@ -408,7 +408,7 @@ fun EngineerPortalScreen(
 
 
     Scaffold(
-
+        containerColor = NeumorphicTokens.Canvas,
         topBar = {
 
             if (!isFullScreenRoster) {
@@ -611,7 +611,9 @@ fun EngineerPortalScreen(
     ) { paddingValues ->
         Box(modifier = Modifier
             .fillMaxSize()
-            .padding(if (!isFullScreenRoster) paddingValues else WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).asPaddingValues())
+            .padding(
+                top = if (!isFullScreenRoster) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
+            )
             .background(NeumorphicTokens.Canvas)
         ) {
 
@@ -727,7 +729,7 @@ fun EngineerPortalScreen(
                     onClick = { viewModel.openAssistant() },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 16.dp)
+                        .padding(end = 16.dp, bottom = 96.dp)
                 )
             }
 
@@ -740,7 +742,8 @@ fun EngineerPortalScreen(
         onDismiss = { viewModel.closeAssistant() },
         messages = state.assistantMessages,
         isThinking = state.isAssistantThinking,
-        onSendMessage = { prompt -> viewModel.sendAssistantMessage(prompt) }
+        onSendMessage = { prompt -> viewModel.sendAssistantMessage(prompt) },
+        onClearChat = { viewModel.clearAssistantChat() }
     )
 
 }
@@ -1938,10 +1941,11 @@ fun DashboardView(
                         }
 
                         // Upcoming Rest Day Badge
+                        val isDark = LocalIsDarkTheme.current
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFFEF3C7).copy(alpha = 0.35f),
-                            border = BorderStroke(1.dp, Color(0xFFFCD34D).copy(alpha = 0.8f))
+                            color = if (isDark) Color(0xFF78350F).copy(alpha = 0.45f) else Color(0xFFFEF3C7).copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFFF59E0B).copy(alpha = 0.6f) else Color(0xFFFCD34D).copy(alpha = 0.9f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -1951,20 +1955,20 @@ fun DashboardView(
                                 Icon(
                                     imageVector = Icons.Default.WbSunny,
                                     contentDescription = null,
-                                    tint = Color(0xFFD97706),
+                                    tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = timers.restLabel,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFB45309)
+                                    color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
                                 )
                                 Text(
                                     text = timers.restValue,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF92400E)
+                                    color = if (isDark) Color(0xFFFEF08A) else Color(0xFF78350F)
                                 )
                             }
                         }
@@ -2474,20 +2478,16 @@ fun VibrantMetricsCard(title: String, metrics: List<Pair<String, Int>>, bottomTe
 
             }
 
+            val isDark = LocalIsDarkTheme.current
             Text(
-
                 text = bottomText,
-
                 fontSize = 10.sp,
-
-                fontWeight = FontWeight.Medium,
-
-                color = NeumorphicTokens.TextMuted,
-
+                fontWeight = FontWeight.SemiBold,
+                color = if (title == "SCHEDULED REST DAYS") {
+                    if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
+                } else NeumorphicTokens.TextMuted,
                 maxLines = 1,
-
                 overflow = TextOverflow.Ellipsis
-
             )
 
         }
@@ -2810,33 +2810,11 @@ fun TeamShiftsView(
 
                                     ) {
 
-                                        Box(
-
-                                            modifier = Modifier
-
-                                                .size(24.dp)
-
-                                                .clip(CircleShape)
-
-                                                .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f)),
-
-                                            contentAlignment = Alignment.Center
-
-                                        ) {
-
-                                            Text(
-
-                                                text = engineer.name.take(1).uppercase(),
-
-                                                fontWeight = FontWeight.Bold,
-
-                                                fontSize = 11.sp,
-
-                                                color = NeumorphicTokens.AccentSalmon
-
-                                            )
-
-                                        }
+                                        UserAvatar(
+                                            profilePicture = engineer.profilePicture,
+                                            name = engineer.name,
+                                            size = 26.dp
+                                        )
 
                                         Spacer(modifier = Modifier.width(8.dp))
 

@@ -107,6 +107,13 @@ class AdminRosterViewModel @Inject constructor(
         checkConnection()
         loadData()
         loadNotifications()
+        viewModelScope.launch {
+            sessionManager.currentUser.collect { user ->
+                if (user == null) {
+                    clearAssistantChat()
+                }
+            }
+        }
     }
 
 
@@ -572,9 +579,12 @@ class AdminRosterViewModel @Inject constructor(
 
 
     fun logout() {
-
+        clearAssistantChat()
         sessionManager.clearSession()
+    }
 
+    fun clearAssistantChat() {
+        _state.value = _state.value.copy(assistantMessages = emptyList(), isAssistantOpen = false)
     }
 
 

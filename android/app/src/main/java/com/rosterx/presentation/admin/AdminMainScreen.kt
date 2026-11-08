@@ -167,7 +167,7 @@ fun AdminMainScreen(
     } else {
 
         Scaffold(
-
+            containerColor = NeumorphicTokens.Canvas,
             topBar = {
 
                 if (!isFullScreenRoster) {
@@ -328,7 +328,9 @@ fun AdminMainScreen(
         ) { paddingValues ->
             Box(modifier = Modifier
                 .fillMaxSize()
-                .padding(if (!isFullScreenRoster) paddingValues else WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).asPaddingValues())
+                .padding(
+                    top = if (!isFullScreenRoster) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
+                )
                 .background(NeumorphicTokens.Canvas)
             ) {
 
@@ -459,7 +461,7 @@ fun AdminMainScreen(
                         onClick = { viewModel.openAssistant() },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 16.dp)
+                            .padding(end = 16.dp, bottom = 96.dp)
                     )
                 }
 
@@ -474,7 +476,8 @@ fun AdminMainScreen(
         onDismiss = { viewModel.closeAssistant() },
         messages = state.assistantMessages,
         isThinking = state.isAssistantThinking,
-        onSendMessage = { prompt -> viewModel.sendAssistantMessage(prompt) }
+        onSendMessage = { prompt -> viewModel.sendAssistantMessage(prompt) },
+        onClearChat = { viewModel.clearAssistantChat() }
     )
 
 }

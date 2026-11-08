@@ -384,7 +384,7 @@ class RosterXApp {
         const validDocs = docs.filter(d => !mockUn.has(String(d.username || '').toLowerCase()) && !isMgmt(d));
         this.state.engineersList = this.sortEngineersByWeekOffs(validDocs);
         this.saveEngineersList();
-        if (typeof window !== 'undefined' && window.authService) {
+        if (typeof window !== 'undefined' && window.authService && typeof window.authService.syncEngineersList === 'function') {
           window.authService.syncEngineersList(this.state.engineersList);
         }
       }
@@ -4169,23 +4169,13 @@ class RosterXApp {
 
 
   closeEngineerForm() {
-
     this.state.editingEngineerId = null;
-
     if (this.dom.teamModal) this.dom.teamModal.classList.add('hidden');
-
     this.dom.engineerFormContainer.classList.add('hidden');
-
     if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.add('hidden');
-
     this.renderTeamTable();
     this.renderTeamTab();
-
   }
-
-  }
-
-
 
   async handleDeleteEngineer() {
 

@@ -182,17 +182,19 @@ class EngineerPortalViewModel @Inject constructor(
 
 
     private fun observeSession() {
-
         viewModelScope.launch {
-
             sessionManager.currentUser.collect { user ->
-
-                _state.value = _state.value.copy(loggedInEngineer = user)
-
+                if (_state.value.loggedInEngineer?.id != user?.id) {
+                    _state.value = _state.value.copy(
+                        loggedInEngineer = user,
+                        assistantMessages = emptyList(),
+                        isAssistantOpen = false
+                    )
+                } else {
+                    _state.value = _state.value.copy(loggedInEngineer = user)
+                }
             }
-
         }
-
     }
 
 
@@ -687,7 +689,12 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     fun logout() {
+        clearAssistantChat()
         sessionManager.clearSession()
+    }
+
+    fun clearAssistantChat() {
+        _state.value = _state.value.copy(assistantMessages = emptyList(), isAssistantOpen = false)
     }
 
     fun openAssistant() {
