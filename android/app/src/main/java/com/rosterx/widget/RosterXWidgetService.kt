@@ -81,7 +81,9 @@ class RosterXWidgetService : RemoteViewsService() {
             }
         }
 
-        override fun getLoadingView(): RemoteViews? = null
+        override fun getLoadingView(): RemoteViews {
+            return RemoteViews(context.packageName, R.layout.widget_empty_loading)
+        }
 
         override fun getItemId(position: Int): Long = position.toLong()
 

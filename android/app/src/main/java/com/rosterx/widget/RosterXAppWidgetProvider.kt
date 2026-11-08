@@ -67,12 +67,12 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
 
         data class ShiftMeta(val name: String, val timing: String, val bg: String, val text: String, val startSec: Long, val endSec: Long)
         private val shiftRegistry = mapOf(
-            "FS"  to ShiftMeta("First Shift", "07:30 – 16:30", "#BBF7D0", "#064E3B", 27000L, 59400L),
-            "FG"  to ShiftMeta("First General", "08:30 – 17:30", "#166534", "#FFFFFF", 30600L, 63000L),
-            "G"   to ShiftMeta("General Shift", "09:30 – 18:30", "#BAE6FD", "#0C4A6E", 34200L, 66600L),
-            "SG"  to ShiftMeta("Second General", "11:00 – 20:00", "#EA580C", "#FFFFFF", 39600L, 72000L),
-            "SS"  to ShiftMeta("Second Shift", "13:00 – 22:00", "#FED7AA", "#7C2D12", 46800L, 79200L),
-            "NS"  to ShiftMeta("Night Shift", "21:00 – 07:30 (+1)", "#020617", "#FFFFFF", 75600L, 113400L),
+            "FS"  to ShiftMeta("First Shift", "07:30 AM – 04:30 PM", "#BBF7D0", "#064E3B", 27000L, 59400L),
+            "FG"  to ShiftMeta("First General", "08:30 AM – 05:30 PM", "#166534", "#FFFFFF", 30600L, 63000L),
+            "G"   to ShiftMeta("General Shift", "09:30 AM – 06:30 PM", "#BAE6FD", "#0C4A6E", 34200L, 66600L),
+            "SG"  to ShiftMeta("Second General", "11:00 AM – 08:00 PM", "#EA580C", "#FFFFFF", 39600L, 72000L),
+            "SS"  to ShiftMeta("Second Shift", "01:00 PM – 10:00 PM", "#FED7AA", "#7C2D12", 46800L, 79200L),
+            "NS"  to ShiftMeta("Night Shift", "09:00 PM – 07:30 AM (+1)", "#020617", "#FFFFFF", 75600L, 113400L),
             "OFF" to ShiftMeta("Weekly Off", "Full 24h Rest", "#FEF08A", "#854D0E", 0L, 0L),
             "L"   to ShiftMeta("Approved Leave", "Leave Day", "#DC2626", "#FFFFFF", 0L, 0L)
         )

@@ -51,6 +51,8 @@ data class PortalState(
 
     val liveRoster: Map<String, Map<String, ShiftCode>> = emptyMap(),
 
+    val yesterdayRoster: Map<String, Map<String, ShiftCode>> = emptyMap(),
+
     
 
     // Grid Roster (Independently navigated in Month Roster tab)
@@ -281,13 +283,44 @@ class EngineerPortalViewModel @Inject constructor(
             val savedDismissed = sessionManager.getDismissedNotifications()
             val loadedConstraints = repository.getConstraints().getOrDefault(com.rosterx.domain.model.OperationalConstraints())
 
+            // Resolve yesterday's roster to handle overnight Night Shift (NS) rollovers (00:00 - 07:30 AM)
+            val todayDate = LocalDate.now()
+            val yesterdayDate = todayDate.minusDays(1)
+            val yesterdayMonthKey = String.format(Locale.US, "%d-%02d", yesterdayDate.year, yesterdayDate.monthValue)
+            val effectiveLive = if (liveRosterResult.isSuccess) liveRosterMap else (rosterCache[liveMonthKey] ?: emptyMap())
+            val yesterdayRosterMap = if (yesterdayMonthKey == liveMonthKey) {
+                effectiveLive
+            } else {
+                if (rosterCache.containsKey(yesterdayMonthKey)) {
+                    rosterCache[yesterdayMonthKey] ?: emptyMap()
+                } else {
+                    val prevResult = repository.getRoster(yesterdayMonthKey)
+                    if (prevResult.isSuccess) {
+                        val raw = prevResult.getOrNull() ?: emptyMap()
+                        val prevMap = mutableMapOf<String, Map<String, ShiftCode>>()
+                        raw.forEach { (engId, daysMap) ->
+                            val shiftMap = mutableMapOf<String, ShiftCode>()
+                            daysMap.forEach { (day, shiftStr) ->
+                                shiftMap[day] = ShiftCode.fromString(shiftStr)
+                            }
+                            prevMap[engId] = shiftMap
+                        }
+                        rosterCache[yesterdayMonthKey] = prevMap
+                        prevMap
+                    } else {
+                        emptyMap()
+                    }
+                }
+            }
+
             // Also fetch server diagnostics to keep cluster, database, and latency current
             val diag = repository.getServerDiagnostics()
 
             _state.value = _state.value.copy(
                 isLoading = false,
                 engineers = engineers,
-                liveRoster = if (liveRosterResult.isSuccess) liveRosterMap else (rosterCache[liveMonthKey] ?: emptyMap()),
+                liveRoster = effectiveLive,
+                yesterdayRoster = yesterdayRosterMap,
                 gridRoster = if (gridRosterResult.isSuccess) gridRosterMap else (rosterCache[gridMonthKey] ?: emptyMap()),
                 constraints = loadedConstraints,
                 notifications = notifs,
@@ -301,18 +334,58 @@ class EngineerPortalViewModel @Inject constructor(
             // Auto-sync Home Screen App Widget with latest duty assignments
             val currentEng = _state.value.loggedInEngineer
             if (currentEng != null) {
-                val effectiveLive = if (liveRosterResult.isSuccess) liveRosterMap else (rosterCache[liveMonthKey] ?: emptyMap())
                 if (currentEng.role == com.rosterx.domain.model.EngineerRole.MANAGER) {
                     val today = LocalDate.now()
                     val todayDayStr = today.dayOfMonth.toString()
+                    val yesterday = today.minusDays(1)
+                    val yesterdayDayStr = yesterday.dayOfMonth.toString()
                     val activeEngineers = engineers.filter { it.isEligibleForShiftRoster(today) }
                     val nowTime = java.time.LocalTime.now()
                     val nowMin = nowTime.hour * 60 + nowTime.minute
+                    val isPostMidnightMorning = nowMin < 450 // 00:00 to 07:30 AM
 
                     val onDutyItems = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
                     val restItems = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
+                    val overnightActiveEngNames = mutableSetOf<String>()
 
+                    // 1. Overnight Shift Rollover: If between 00:00 and 07:30 AM, yesterday's NS engineer is actively on duty!
+                    if (isPostMidnightMorning) {
+                        activeEngineers.forEach { eng ->
+                            val yShift = yesterdayRosterMap[eng.username]?.get(yesterdayDayStr)
+                                ?: yesterdayRosterMap[eng.id]?.get(yesterdayDayStr)
+                                ?: yesterdayRosterMap[eng.name]?.get(yesterdayDayStr)
+                                ?: yesterdayRosterMap[eng.name.uppercase()]?.get(yesterdayDayStr)
+                                ?: yesterdayRosterMap[eng.name.lowercase()]?.get(yesterdayDayStr)
+                                ?: effectiveLive[eng.username]?.get(yesterdayDayStr)
+                                ?: effectiveLive[eng.name]?.get(yesterdayDayStr)
+                                ?: com.rosterx.domain.model.ShiftCode.OFF
+                            val yCode = yShift.code.uppercase()
+                            if (yCode == "NS") {
+                                overnightActiveEngNames.add(eng.name.lowercase())
+                                overnightActiveEngNames.add(eng.id.lowercase())
+                                overnightActiveEngNames.add(eng.username.lowercase())
+                                onDutyItems.add(
+                                    com.rosterx.widget.WidgetDutyItem(
+                                        engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                        shiftCode = "NS",
+                                        shiftName = "Night Shift",
+                                        timing = "09:00 PM – 07:30 AM (+1)",
+                                        bgHex = yShift.bgColorHex.ifBlank { "#020617" },
+                                        textHex = yShift.textColorHex.ifBlank { "#FFFFFF" },
+                                        isActiveNow = true,
+                                        itemType = com.rosterx.widget.WidgetDutyItem.TYPE_DUTY
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // 2. Add today's scheduled engineers
                     activeEngineers.forEach { eng ->
+                        val isOvernightActive = eng.name.lowercase() in overnightActiveEngNames ||
+                                eng.id.lowercase() in overnightActiveEngNames ||
+                                eng.username.lowercase() in overnightActiveEngNames
+
                         val shift = effectiveLive[eng.username]?.get(todayDayStr)
                             ?: effectiveLive[eng.id]?.get(todayDayStr)
                             ?: effectiveLive[eng.name]?.get(todayDayStr)
@@ -330,53 +403,67 @@ class EngineerPortalViewModel @Inject constructor(
                                 "G"  -> nowMin in 570..1110
                                 "SG" -> nowMin in 660..1200
                                 "SS" -> nowMin in 780..1320
-                                "NS" -> nowMin >= 1260 || nowMin < 450
+                                "NS" -> nowMin >= 1260 // Today's NS is only active after 21:00 PM tonight!
                                 else -> false
                             }
-                            onDutyItems.add(
-                                com.rosterx.widget.WidgetDutyItem(
-                                    engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
-                                    shiftCode = code,
-                                    shiftName = meta.name,
-                                    timing = meta.timing,
-                                    bgHex = shift.bgColorHex,
-                                    textHex = shift.textColorHex,
-                                    isActiveNow = isActive,
-                                    itemType = com.rosterx.widget.WidgetDutyItem.TYPE_DUTY
-                                )
-                            )
-                        } else {
-                            val restDesc = when {
-                                code.startsWith("SW") -> "Shift Swap Off"
-                                code == "L" -> "Approved Leave"
-                                else -> "Scheduled Rest"
+
+                            // Avoid duplicate if already added as active overnight NS engineer
+                            val alreadyAdded = onDutyItems.any {
+                                it.engineerName.equals(eng.name, ignoreCase = true) ||
+                                (eng.fullName.isNotBlank() && it.engineerName.equals(eng.fullName, ignoreCase = true))
                             }
-                            restItems.add(
-                                com.rosterx.widget.WidgetDutyItem(
-                                    engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
-                                    shiftCode = code,
-                                    shiftName = restDesc,
-                                    timing = "Rest Day",
-                                    bgHex = shift.bgColorHex.ifBlank { "#FEF3C7" },
-                                    textHex = shift.textColorHex.ifBlank { "#92400E" },
-                                    isActiveNow = false,
-                                    itemType = com.rosterx.widget.WidgetDutyItem.TYPE_REST
+                            if (!alreadyAdded) {
+                                onDutyItems.add(
+                                    com.rosterx.widget.WidgetDutyItem(
+                                        engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                        shiftCode = code,
+                                        shiftName = meta.name,
+                                        timing = meta.timing,
+                                        bgHex = shift.bgColorHex,
+                                        textHex = shift.textColorHex,
+                                        isActiveNow = isActive,
+                                        itemType = com.rosterx.widget.WidgetDutyItem.TYPE_DUTY
+                                    )
                                 )
-                            )
+                            }
+                        } else {
+                            // If they are actively on duty overnight, do not add to restItems!
+                            if (!isOvernightActive) {
+                                val restDesc = when {
+                                    code.startsWith("SW") -> "Shift Swap Off"
+                                    code == "L" -> "Approved Leave"
+                                    else -> "Scheduled Rest"
+                                }
+                                restItems.add(
+                                    com.rosterx.widget.WidgetDutyItem(
+                                        engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                        shiftCode = code,
+                                        shiftName = restDesc,
+                                        timing = "Rest Day",
+                                        bgHex = shift.bgColorHex.ifBlank { "#FEF3C7" },
+                                        textHex = shift.textColorHex.ifBlank { "#92400E" },
+                                        isActiveNow = false,
+                                        itemType = com.rosterx.widget.WidgetDutyItem.TYPE_REST
+                                    )
+                                )
+                            }
                         }
                     }
 
-                    // Sort On Duty by Shift Start Time
-                    fun shiftStartMin(code: String): Int = when (code) {
-                        "FS" -> 450
-                        "FG" -> 510
-                        "G"  -> 570
-                        "SG" -> 660
-                        "SS" -> 780
-                        "NS" -> 1260
-                        else -> 9999
+                    // Sort On Duty: Active overnight NS engineer first (-180 min), then by shift start time
+                    fun shiftStartMin(item: com.rosterx.widget.WidgetDutyItem): Int {
+                        if (item.isActiveNow && item.shiftCode == "NS" && isPostMidnightMorning) return -180
+                        return when (item.shiftCode) {
+                            "FS" -> 450
+                            "FG" -> 510
+                            "G"  -> 570
+                            "SG" -> 660
+                            "SS" -> 780
+                            "NS" -> 1260
+                            else -> 9999
+                        }
                     }
-                    onDutyItems.sortBy { shiftStartMin(it.shiftCode) }
+                    onDutyItems.sortBy { shiftStartMin(it) }
 
                     val finalWidgetList = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
                     if (onDutyItems.isNotEmpty()) {
@@ -384,7 +471,7 @@ class EngineerPortalViewModel @Inject constructor(
                             com.rosterx.widget.WidgetDutyItem(
                                 itemType = com.rosterx.widget.WidgetDutyItem.TYPE_HEADER,
                                 sectionTitle = "⚡ ON DUTY",
-                                sectionCount = "${onDutyItems.size} Staff"
+                                sectionCount = if (onDutyItems.size == 1) "1 Engineer" else "${onDutyItems.size} Engineers"
                             )
                         )
                         finalWidgetList.addAll(onDutyItems)
@@ -395,7 +482,7 @@ class EngineerPortalViewModel @Inject constructor(
                             com.rosterx.widget.WidgetDutyItem(
                                 itemType = com.rosterx.widget.WidgetDutyItem.TYPE_HEADER,
                                 sectionTitle = "☕ REST & LEAVE",
-                                sectionCount = "${restItems.size} Staff"
+                                sectionCount = if (restItems.size == 1) "1 Engineer" else "${restItems.size} Engineers"
                             )
                         )
                         finalWidgetList.addAll(restItems)

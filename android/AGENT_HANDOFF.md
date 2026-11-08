@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 00:25 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 01:15 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.18.0`** (Android `versionCode: 62`, Server `SERVER_VERSION = "1.18.0"`)
-- **Previous Versions**: `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
+- **Semantic Version**: **`1.19.0`** (Android `versionCode: 63`, Server `SERVER_VERSION = "1.19.0"`)
+- **Previous Versions**: `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
@@ -18,6 +18,23 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.19.0
+
+### 1. Widget Loading View & 12-Hour AM/PM Time Format
+- **Zero-Height Loading View**: Implemented `widget_empty_loading.xml` inside `RosterXWidgetService.getLoadingView()`, completely removing the default system `"Loading..."` text above widget items.
+- **12-Hour AM/PM Shifts**: Updated `shiftRegistry` in `RosterXAppWidgetProvider` from 24h format to standard 12-hour AM/PM format (`07:30 AM – 04:30 PM`, `09:00 PM – 07:30 AM (+1)`).
+
+### 2. Terminology Update (Staff $\rightarrow$ Engineer)
+- Replaced all user-facing instances of `"Staff"` with `"Engineer"` / `"Engineers"` across the Manager Dashboard cards (`DutyGroupCard`) and Widget section headers (`⚡ ON DUTY`, `☕ REST & LEAVE`), with pluralization checks.
+
+### 3. Overnight Night Shift (NS) Rollover & Active Duty Accuracy
+- **Midnight Transition Fix (00:00 - 07:30 AM)**: 
+  - Yesterday's Night Shift engineer (whose shift runs from 21:00 yesterday to 07:30 today) is now correctly displayed under the **Night Shift** card in the app and pinned to the top of `⚡ ON DUTY` in the widget with `[• ACTIVE NOW]`.
+  - Excluded from "Scheduled Off & Leave" / rest while on active duty overnight.
+  - Today's upcoming NS engineer is displayed without the active tag until their shift starts at 09:00 PM tonight.
 
 ---
 

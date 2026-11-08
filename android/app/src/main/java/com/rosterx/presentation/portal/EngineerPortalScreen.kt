@@ -986,8 +986,9 @@ fun DutyGroupCard(
                         shape = RoundedCornerShape(8.dp),
                         color = accentColor.copy(alpha = 0.15f)
                     ) {
+                        val countText = if (staff.size == 1) "1 Engineer" else "${staff.size} Engineers"
                         Text(
-                            text = "${staff.size} Staff",
+                            text = countText,
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = accentColor,
@@ -1006,7 +1007,7 @@ fun DutyGroupCard(
 
             if (staff.isEmpty()) {
                 Text(
-                    text = "No staff assigned to this window",
+                    text = "No engineers assigned to this window",
                     fontSize = 12.sp,
                     color = NeumorphicTokens.TextMuted,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -1354,9 +1355,12 @@ fun ManagerRadarSection(
 ) {
     val activeEngineers = state.engineers.filter { it.isEligibleForShiftRoster(today) }
     val dayKey = today.dayOfMonth.toString()
+    val yesterday = today.minusDays(1)
+    val yesterdayDayKey = yesterday.dayOfMonth.toString()
 
     val nowTime = java.time.LocalTime.now()
     val nowMin = nowTime.hour * 60 + nowTime.minute
+    val isPostMidnightMorning = nowMin < 450 // 00:00 to 07:30 AM
 
     // Operational shift windows per NOC specifications:
     // Morning shifts: 07:30 AM to 08:00 PM (450..1200)
@@ -1370,8 +1374,28 @@ fun ManagerRadarSection(
     val afternoonStaff = mutableListOf<ManagerStaffDutyInfo>()
     val nightStaff = mutableListOf<ManagerStaffDutyInfo>()
     val offStaff = mutableListOf<ManagerStaffDutyInfo>()
+    val overnightActiveEngIds = mutableSetOf<String>()
 
+    val effectiveYesterdayRoster = if (state.yesterdayRoster.isNotEmpty()) state.yesterdayRoster else state.liveRoster
+
+    // 1. Overnight Shift Rollover: If between 00:00 and 07:30 AM, yesterday's NS engineer is actively on duty!
+    if (isPostMidnightMorning) {
+        activeEngineers.forEach { eng ->
+            val yRoster = getRosterForEngineer(effectiveYesterdayRoster, eng)
+            val yShift = yRoster[yesterdayDayKey] ?: ShiftCode.OFF
+            val yCode = yShift.code.trim().uppercase()
+            if (yCode == "NS") {
+                overnightActiveEngIds.add(eng.id)
+                overnightActiveEngIds.add(eng.name.lowercase())
+                nightStaff.add(ManagerStaffDutyInfo(eng, yShift, isActiveNow = true))
+            }
+        }
+    }
+
+    // 2. Add today's scheduled engineers
     activeEngineers.forEach { eng ->
+        val isOvernightActive = eng.id in overnightActiveEngIds || eng.name.lowercase() in overnightActiveEngIds
+
         val engRoster = getRosterForEngineer(state.liveRoster, eng)
         val shift = engRoster[dayKey] ?: ShiftCode.OFF
         val code = shift.code.trim().uppercase()
@@ -1382,7 +1406,7 @@ fun ManagerRadarSection(
             "G"  -> nowMin in 570..1110
             "SG" -> nowMin in 660..1200
             "SS" -> nowMin in 780..1320
-            "NS" -> nowMin >= 1260 || nowMin < 450
+            "NS" -> nowMin >= 1260 // Today's NS is only active after 21:00 PM tonight!
             else -> false
         }
 
@@ -1394,10 +1418,17 @@ fun ManagerRadarSection(
                 afternoonStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isEngActive))
             }
             code == "NS" -> {
-                nightStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isEngActive))
+                val alreadyInNight = nightStaff.any {
+                    it.engineer.id == eng.id || it.engineer.name.equals(eng.name, ignoreCase = true)
+                }
+                if (!alreadyInNight) {
+                    nightStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = isEngActive))
+                }
             }
             else -> {
-                offStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = false))
+                if (!isOvernightActive) {
+                    offStaff.add(ManagerStaffDutyInfo(eng, shift, isActiveNow = false))
+                }
             }
         }
     }
