@@ -1124,6 +1124,40 @@ def build_roster_grounding_context(current_user=None):
             "shifts": shifts_arr
         })
 
+    # Resolve yesterday's shifts for accurate overnight Night Shift (NS) rollover (00:00 - 07:30 AM)
+    yesterday_ist = now_ist - timedelta(days=1)
+    yesterday_day = yesterday_ist.day
+    yesterday_month_key = f"{yesterday_ist.year}-{str(yesterday_ist.month).zfill(2)}"
+
+    yesterday_roster_map = {}
+    if cur_day > 1:
+        for r in normalized_roster:
+            s_y = r["shifts"][yesterday_day - 1] if len(r["shifts"]) >= yesterday_day else ""
+            yesterday_roster_map[r["name"]] = s_y.strip().upper() if s_y else "OFF"
+    else:
+        # Day 1 of month: load previous month's roster
+        prev_roster_doc = None
+        if ATLAS_DB is not None:
+            try:
+                prev_roster_doc = ATLAS_DB["rosters"].find_one({"_id": yesterday_month_key})
+            except Exception as e:
+                print(f"[RAG] DB prev month query error: {e}")
+        if prev_roster_doc:
+            p_engs = prev_roster_doc.get("engineers") or prev_roster_doc.get("roster") or []
+            for pe in p_engs:
+                p_name = pe.get("name", "Unknown")
+                p_raw = pe.get("shifts")
+                p_shift = ""
+                if isinstance(p_raw, dict):
+                    p_shift = p_raw.get(str(yesterday_day), "")
+                elif isinstance(p_raw, list) and len(p_raw) >= yesterday_day:
+                    p_shift = p_raw[yesterday_day - 1]
+                yesterday_roster_map[p_name] = p_shift.strip().upper() if p_shift else "OFF"
+
+    cur_mins = now_ist.hour * 60 + now_ist.minute
+    is_early_morning_ns = cur_mins < 7 * 60 + 30
+    is_evening_ns = cur_mins >= 21 * 60
+
     # Today & Tomorrow NOC coverage breakdown
     on_duty_now = []
     today_all = []
@@ -1134,15 +1168,44 @@ def build_roster_grounding_context(current_user=None):
         s_tom = r["shifts"][tomorrow_day - 1] if len(r["shifts"]) >= tomorrow_day else ""
         s_today = s_today.strip().upper() if s_today else "OFF"
         s_tom = s_tom.strip().upper() if s_tom else "OFF"
+        s_yesterday = yesterday_roster_map.get(r["name"], "OFF")
         
         today_all.append({"name": r["name"], "shift": s_today})
         tomorrow_all.append({"name": r["name"], "shift": s_tom})
         
-        if s_today in active_shift_codes:
+        # Check if engineer is currently active on duty
+        is_on_duty = False
+        duty_shift = None
+        duty_note = ""
+
+        # 1. Day Shifts (FS, FG, G, SG, SS): all occur within today's calendar window
+        for code in ("FS", "FG", "G", "SG", "SS"):
+            if code in active_shift_codes and s_today == code:
+                is_on_duty = True
+                duty_shift = code
+                break
+
+        # 2. Night Shift (NS): Spans overnight from 21:00 to 07:30 (+1)
+        if not is_on_duty and "NS" in active_shift_codes:
+            if is_early_morning_ns:
+                # 00:00 to 07:30 AM: Active NS is yesterday's engineer ending at 07:30 AM today
+                if s_yesterday == "NS":
+                    is_on_duty = True
+                    duty_shift = "NS"
+                    duty_note = "ends at 07:30 AM IST today"
+            elif is_evening_ns:
+                # 21:00 to 23:59: Active NS is today's engineer ending at 07:30 AM tomorrow
+                if s_today == "NS":
+                    is_on_duty = True
+                    duty_shift = "NS"
+                    duty_note = "started 21:00, ends at 07:30 AM IST tomorrow"
+
+        if is_on_duty and duty_shift:
             on_duty_now.append({
                 "name": r["name"],
-                "shift": s_today,
-                "timings": SHIFT_DEFINITIONS.get(s_today, {}).get("timings", "")
+                "shift": duty_shift,
+                "timings": SHIFT_DEFINITIONS.get(duty_shift, {}).get("timings", ""),
+                "note": duty_note
             })
 
     # User-specific duty details
@@ -1424,14 +1487,32 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
             slots = context.get("active_shift_slots", [])
             return f"Currently no engineers are scheduled in active shift windows ({', '.join(slots) if slots else 'Desk transition'})."
         
-        staff_str = ", ".join([f"**{e['name']}** (`{e['shift']}`)" for e in on_duty])
+        staff_items = []
+        for e in on_duty:
+            if e.get('note'):
+                staff_items.append(f"**{e['name']}** (`{e['shift']}`, {e['note']})")
+            else:
+                staff_items.append(f"**{e['name']}** (`{e['shift']}`)")
+        staff_str = ", ".join(staff_items)
         return f"Currently on duty ({time_display} IST): {staff_str}."
 
     # INTENT C: Who is on night shift / night duty tonight
     if any(k in p for k in ["who is on night", "night duty tonight", "tonight's night", "night shift tonight", "covering night", "who has night", "who covers night"]):
         ns_today = [e['name'] for e in context.get('today_desk_coverage', []) if e['shift'] == 'NS']
         ns_tom = [e['name'] for e in context.get('tomorrow_schedule', []) if e['shift'] == 'NS']
-        reply = f"Tonight's Night Shift (**NS**): **{', '.join(ns_today) if ns_today else 'None assigned'}** (21:00 – 07:30 IST)."
+        tonight_str = ', '.join(ns_today) if ns_today else 'None assigned'
+
+        t_parts = ist_time.split()[1].split(':') if ' ' in ist_time and ':' in ist_time else []
+        cur_h = int(t_parts[0]) if len(t_parts) >= 2 else 12
+        cur_m = int(t_parts[1]) if len(t_parts) >= 2 else 0
+        cur_mins = cur_h * 60 + cur_m
+
+        if cur_mins < 7 * 60 + 30:
+            ns_overnight = [e['name'] for e in context.get('on_duty_engineers', []) if e['shift'] == 'NS']
+            overnight_str = ', '.join(ns_overnight) if ns_overnight else 'None'
+            return f"Currently on Night Shift (ends at 07:30 AM today): **{overnight_str}**.\nTonight's Night Shift (21:00 – 07:30 IST): **{tonight_str}**."
+
+        reply = f"Tonight's Night Shift (**NS**): **{tonight_str}** (21:00 – 07:30 IST)."
         if ns_tom:
             reply += f" Tomorrow: **{', '.join(ns_tom)}**."
         return reply
@@ -1445,6 +1526,22 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
             s_tom = (shifts[cur_day] or "OFF").strip().upper() if len(shifts) > cur_day else "OFF"
             t_today = SHIFT_DEFINITIONS.get(s_today, {})
             t_tom = SHIFT_DEFINITIONS.get(s_tom, {})
+
+            t_parts = ist_time.split()[1].split(':') if ' ' in ist_time and ':' in ist_time else []
+            cur_h = int(t_parts[0]) if len(t_parts) >= 2 else 12
+            cur_m = int(t_parts[1]) if len(t_parts) >= 2 else 0
+            cur_mins = cur_h * 60 + cur_m
+
+            # Check if target engineer is currently active on overnight NS
+            is_active_overnight_ns = False
+            if cur_mins < 7 * 60 + 30:
+                for od in context.get("on_duty_engineers", []):
+                    if od.get("shift") == "NS" and od.get("name", "").strip().lower() == target_eng_name.strip().lower():
+                        is_active_overnight_ns = True
+                        break
+
+            if is_active_overnight_ns and "tomorrow" not in p:
+                return f"{subject} current active shift is **Night Shift (NS)** (ends at 07:30 AM IST today). Scheduled calendar status for today (after 07:30): **`{s_today}`** ({t_today.get('name', s_today)}). Tomorrow: **`{s_tom}`**."
 
             if "tomorrow" in p and "today" not in p:
                 return f"{subject} shift tomorrow (**{fmt_day_short(cur_day + 1)}**) is **`{s_tom}`** ({t_today.get('name', s_tom)}, {t_tom.get('timings', '')})."
@@ -1512,8 +1609,11 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         "   - OFF = Weekly Off / Scheduled Rest Day\n"
         "   - L = Approved Leave\n"
         "   - SW* = Swapped Off\n"
-        "4. Format your responses with clean, professional Markdown (bullet points, bold highlights, code formatting for shift codes).\n"
-        "5. Keep all responses very brief, concise, and direct (1 to 2 sentences maximum). Do not output headers, telemetry dumps, or system status unless specifically requested."
+        "4. Overnight Night Shift (NS) Rollover Rule:\n"
+        "   - Night Shift (NS) runs overnight (21:00 to 07:30 IST next morning).\n"
+        "   - Between 00:00 and 07:30 AM IST, the active on-duty NS engineer is the one whose shift started yesterday at 21:00 and ends at 07:30 AM today. Today's scheduled calendar NS engineer does NOT start until 21:00 tonight. Always check 'Engineers On Duty Right Now'.\n"
+        "5. Format your responses with clean, professional Markdown (bullet points, bold highlights, code formatting for shift codes).\n"
+        "6. Keep all responses very brief, concise, and direct (1 to 2 sentences maximum). Do not output headers, telemetry dumps, or system status unless specifically requested."
     )
 
     grounding_payload_text = (
