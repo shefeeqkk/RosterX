@@ -23,6 +23,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+fun String.toProperCase(): String {
+    val clean = this.trim()
+    if (clean.isBlank()) return clean
+    return clean.split(" ")
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { word ->
+            if (word.length == 1) word.uppercase()
+            else word.lowercase().replaceFirstChar { it.uppercase() }
+        }
+}
+
 @Composable
 fun StandardProfileHeaderCard(
     name: String,
@@ -41,16 +52,15 @@ fun StandardProfileHeaderCard(
             modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Centered 80dp Avatar with Camera Action Badge
+            // 1. Centered 80dp Avatar with Unclipped Camera Action Badge
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
+                    .size(86.dp)
                     .clickable { onAvatarClick() },
                 contentAlignment = Alignment.Center
             ) {
                 UserAvatar(
-                    name = name,
+                    name = name.toProperCase(),
                     profilePicture = profilePicture,
                     size = 80.dp,
                     backgroundColor = MaterialTheme.colorScheme.primary,
@@ -61,17 +71,17 @@ fun StandardProfileHeaderCard(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .size(26.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                        .background(MaterialTheme.colorScheme.primary)
+                        .border(2.dp, MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
                         contentDescription = "Change Profile Picture",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(14.dp)
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
@@ -85,7 +95,7 @@ fun StandardProfileHeaderCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = name,
+                    text = name.toProperCase(),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -266,7 +276,7 @@ fun EditNameDialog(
 ) {
     if (!show) return
 
-    var nameInput by remember(currentName) { mutableStateOf(currentName) }
+    var nameInput by remember(currentName) { mutableStateOf(currentName.toProperCase()) }
     val isValid = nameInput.trim().length in 2..60 && nameInput.trim() != currentName.trim()
 
     AlertDialog(
@@ -302,7 +312,7 @@ fun EditNameDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val trimmed = nameInput.trim()
+                    val trimmed = nameInput.trim().toProperCase()
                     if (trimmed.length in 2..60) {
                         onDismiss()
                         onSave(trimmed)

@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 06:10 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 06:55 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.2`** (Android `versionCode: 67`, Server `SERVER_VERSION = "1.21.2"`)
-- **Previous Versions**: `1.21.1` (Build 66), `1.21.0` (Build 65), `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59)
+- **Semantic Version**: **`1.21.3`** (Android `versionCode: 68`, Server `SERVER_VERSION = "1.21.3"`)
+- **Previous Versions**: `1.21.2` (Build 67), `1.21.1` (Build 66), `1.21.0` (Build 65), `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
@@ -18,6 +18,16 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.21.3
+
+### 1. 👤 Dynamic Per-Recipient FCM Personalization
+- **Fixed Generic "Team Member" in FCM Push**:
+  - *Root Cause*: `server.py` was batch-sending FCM push payloads with `{name}` collapsed to a fallback `"Team Member"` placeholder.
+  - *Fix*: Refactored `server.py` to iterate through each recipient engineer individually and dynamically substitute `{name}` with their actual `fullName` or `name` (e.g. `Dear SHEFEEQ,` or `Dear Nandu Anthikat,`) and `{username}` with their username.
+- **Synchronized with Web Admin Simulator**: Now the live simulator in the Web Admin Console and the physical phone notification panel show the exact same personalized engineer greeting!
 
 ---
 
