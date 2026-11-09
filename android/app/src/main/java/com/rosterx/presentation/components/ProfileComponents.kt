@@ -2,10 +2,13 @@ package com.rosterx.presentation.components
 
 import android.app.DatePickerDialog
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,17 +16,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -33,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import java.time.LocalDate
+import java.time.Period
+import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import java.util.Locale
 
@@ -47,11 +59,52 @@ fun String.toProperCase(): String {
         }
 }
 
+data class TenureData(val years: Int, val months: Int, val days: Int)
+
+fun calculateTenure(joinDateStr: String?): TenureData? {
+    if (joinDateStr.isNullOrBlank()) return null
+    return try {
+        val clean = joinDateStr.trim().replace("/", "-")
+        val parts = clean.split("-")
+        if (parts.size != 3) return null
+        val y = parts[0].toInt()
+        val m = parts[1].toInt()
+        val d = parts[2].toInt()
+        val joinDate = LocalDate.of(y, m, d)
+        val today = LocalDate.now()
+        if (joinDate.isAfter(today)) return null
+        val period = Period.between(joinDate, today)
+        TenureData(period.years, period.months, period.days)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+fun calculateDaysUntilBirthday(birthdayStr: String?): Int? {
+    if (birthdayStr.isNullOrBlank()) return null
+    return try {
+        val clean = birthdayStr.trim().replace("/", "-")
+        val parts = clean.split("-")
+        if (parts.size != 3) return null
+        val bMonth = parts[1].toInt()
+        val bDay = parts[2].toInt()
+        val today = LocalDate.now()
+        var nextBday = LocalDate.of(today.year, bMonth, bDay)
+        if (nextBday.isBefore(today)) {
+            nextBday = nextBday.plusYears(1)
+        }
+        ChronoUnit.DAYS.between(today, nextBday).toInt()
+    } catch (_: Exception) {
+        null
+    }
+}
+
 @Composable
 fun StandardProfileHeaderCard(
     name: String,
     roleTitle: String,
     profilePicture: String?,
+    username: String = "",
     onEditClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onAvatarClick: (() -> Unit)? = null,
@@ -63,82 +116,664 @@ fun StandardProfileHeaderCard(
     val hasEditAction = onEditClick != null || onEditNameClick != null || onAvatarClick != null
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFF0F3E99),
+        shadowElevation = 3.dp,
         modifier = modifier.fillMaxWidth()
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            if (hasEditAction) {
-                // Unified Top-Right Edit Pencil Action Button
-                IconButton(
-                    onClick = handleEdit,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Profile & Security",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .padding(vertical = 20.dp, horizontal = 16.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFF0F3E99),
+                            Color(0xFF1D4ED8),
+                            Color(0xFF2563EB)
+                        )
+                    )
+                )
+                .padding(18.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Centered Avatar (Non-clickable: editing only allowed via the top-right pencil button)
+                // Left: Circular Avatar with Vibrant Cyan Ring
                 Box(
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier.size(76.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     UserAvatar(
                         name = name.toProperCase(),
                         profilePicture = profilePicture,
-                        size = 80.dp,
-                        backgroundColor = MaterialTheme.colorScheme.primary,
-                        textColor = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 26.sp
+                        size = 72.dp,
+                        border = BorderStroke(3.dp, Color(0xFF00E5FF)),
+                        backgroundColor = Color(0xFF0A2563),
+                        textColor = Color.White,
+                        fontSize = 24.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                // Name Row
-                Text(
-                    text = name.toProperCase(),
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                // Middle: Name and Badges
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = name.toProperCase(),
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                // Verified Role Badge
-                Text(
-                    text = roleTitle.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 10.dp, vertical = 3.dp)
-                )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Role Pill
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White
+                        ) {
+                            Text(
+                                text = roleTitle.uppercase(),
+                                color = Color(0xFF0F3E99),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        // Username Pill
+                        if (username.isNotBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.White.copy(alpha = 0.2f)
+                            ) {
+                                Text(
+                                    text = "@${username.lowercase()}",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Right: Edit Pencil Button
+                if (hasEditAction) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.White.copy(alpha = 0.18f),
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clickable { handleEdit() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Profile",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun TenureAndBirthdayRow(
+    joinDate: String?,
+    birthday: String?,
+    modifier: Modifier = Modifier
+) {
+    val tenure = remember(joinDate) { calculateTenure(joinDate) }
+    val daysUntilBday = remember(birthday) { calculateDaysUntilBirthday(birthday) }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // 1. Tenure Card
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+            shadowElevation = 1.dp,
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = "Tenure",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                if (tenure != null) {
+                    Row(
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        if (tenure.years > 0) {
+                            Text(
+                                text = "${tenure.years}",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0F3E99)
+                            )
+                            Text(
+                                text = " yr ",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${tenure.months}",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0F3E99)
+                            )
+                            Text(
+                                text = " mo",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "${tenure.months}",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0F3E99)
+                            )
+                            Text(
+                                text = " mo ",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${tenure.days}",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0F3E99)
+                            )
+                            Text(
+                                text = " d",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "--",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // 2. Birthday Countdown Card
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+            shadowElevation = 1.dp,
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = "BIRTHDAY IN",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                if (daysUntilBday != null) {
+                    if (daysUntilBday == 0) {
+                        Text(
+                            text = "TODAY! 🎉",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFF59E0B)
+                        )
+                    } else {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$daysUntilBday",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0F3E99)
+                            )
+                            Text(
+                                text = if (daysUntilBday == 1) " day" else " days",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "--",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyOffsCard(
+    weeklyOffs: List<String>,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+        shadowElevation = 1.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "WEEKLY OFFS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF0F3E99),
+                letterSpacing = 0.5.sp
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            val days = listOf(
+                "Monday" to "M",
+                "Tuesday" to "T",
+                "Wednesday" to "W",
+                "Thursday" to "T",
+                "Friday" to "F",
+                "Saturday" to "S",
+                "Sunday" to "S"
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                days.forEach { (fullName, letter) ->
+                    val isOff = weeklyOffs.any { it.equals(fullName, ignoreCase = true) }
+                    if (isOff) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF0F3E99),
+                            modifier = Modifier
+                                .width(42.dp)
+                                .height(58.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = letter,
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "OFF",
+                                    color = Color.White,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            modifier = Modifier
+                                .width(42.dp)
+                                .height(58.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = letter,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AccountDetailsCard(
+    username: String,
+    email: String,
+    phone: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+        shadowElevation = 1.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "ACCOUNT DETAILS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF0F3E99),
+                letterSpacing = 0.5.sp
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 1. Domain Username
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Person,
+                        contentDescription = null,
+                        tint = Color(0xFF0F3E99),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Domain username",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = username.ifBlank { "--" },
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            )
+
+            // 2. Registered Email
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Mail,
+                        contentDescription = null,
+                        tint = Color(0xFF0F3E99),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Registered email",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = email.ifBlank { "--" },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (email.isNotBlank()) {
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(email))
+                            Toast.makeText(context, "Email copied to clipboard", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentCopy,
+                            contentDescription = "Copy Email",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            )
+
+            // 3. Contact Phone
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Phone,
+                        contentDescription = null,
+                        tint = Color(0xFF0F3E99),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Contact phone",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = phone.ifBlank { "--" },
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                if (phone.isNotBlank()) {
+                    IconButton(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.NorthEast,
+                            contentDescription = "Call",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditProfileInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    leadingIcon: ImageVector,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    isPassword: Boolean = false,
+    isPasswordVisible: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false,
+    errorMessage: String? = null,
+    singleLine: Boolean = true,
+    readOnly: Boolean = false,
+    onClick: (() -> Unit)? = null
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(
+                1.dp,
+                if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Leading Icon in Tinted Box
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = Color(0xFF0F3E99),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Text Content
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        readOnly = readOnly,
+                        enabled = onClick == null,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = singleLine,
+                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                        visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        decorationBox = { innerTextField ->
+                            if (value.isEmpty() && !placeholder.isNullOrBlank()) {
+                                Text(
+                                    text = placeholder,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    fontWeight = FontWeight.Normal
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+
+                if (trailingIcon != null) {
+                    trailingIcon()
+                }
+            }
+        }
+
+        if (isError && !errorMessage.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
     }
 }
@@ -191,8 +826,9 @@ fun UnifiedEditProfileDialog(
     var currentPassword by remember(show) { mutableStateOf("") }
     var currentPasswordVisible by remember { mutableStateOf(false) }
     var newPassword by remember(show) { mutableStateOf("") }
+    var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPassword by remember(show) { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -244,304 +880,50 @@ fun UnifiedEditProfileDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.background,
             tonalElevation = 6.dp,
             modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .wrapContentHeight()
-                .padding(vertical = 20.dp)
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.92f)
+                .padding(vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                // Header Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.ManageAccounts,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "Edit Profile & Security",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(20.dp))
-                    }
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-                // 1. Photo Avatar & Actions
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    UserAvatar(
-                        name = nameInput.ifBlank { "User" }.toProperCase(),
-                        profilePicture = effectivePhoto,
-                        size = 72.dp,
-                        backgroundColor = MaterialTheme.colorScheme.primary,
-                        textColor = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 24.sp
-                    )
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FilledTonalButton(
-                            onClick = {
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(15.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Change Photo", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-
-                        if (!effectivePhoto.isNullOrBlank()) {
-                            OutlinedButton(
-                                onClick = { showConfirmRemovePhotoDialog = true },
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
-                            ) {
-                                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(15.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Remove", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-
-                if (showConfirmRemovePhotoDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showConfirmRemovePhotoDialog = false },
-                        icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                        title = { Text("Remove Profile Photo?", fontWeight = FontWeight.Bold) },
-                        text = {
-                            Text("Are you sure you want to remove your profile photo? Your initials monogram will be displayed across the app and rosters instead.")
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = {
-                                    pendingPhotoBase64 = ""
-                                    showConfirmRemovePhotoDialog = false
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                Text("Remove")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showConfirmRemovePhotoDialog = false }) {
-                                Text("Cancel")
-                            }
-                        }
-                    )
-                }
-
-                // 2. Personal Information Fields
-                Text(
-                    text = "PERSONAL INFORMATION",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 0.8.sp
-                )
-
-                // Name
-                OutlinedTextField(
-                    value = nameInput,
-                    onValueChange = { if (it.length <= 60) nameInput = it },
-                    label = { Text("Full Name *", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    singleLine = true,
-                    isError = !isNameValid,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-
-                // Contact Phone
-                OutlinedTextField(
-                    value = phoneInput,
-                    onValueChange = { if (it.length <= 20) phoneInput = it },
-                    label = { Text("Contact Phone", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-
-                // Email
-                OutlinedTextField(
-                    value = emailInput,
-                    onValueChange = { emailInput = it },
-                    label = { Text("Email Address", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true,
-                    isError = !isEmailValid,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-
-                // Joining Date
-                OutlinedTextField(
-                    value = joinDateInput,
-                    onValueChange = { joinDateInput = it },
-                    label = { Text("Joining Date (YYYY-MM-DD)", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    trailingIcon = {
-                        IconButton(onClick = { openDatePicker(joinDateInput) { joinDateInput = it } }) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = "Pick Joining Date", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-
-                // Birthday (🎂)
-                OutlinedTextField(
-                    value = birthdayInput,
-                    onValueChange = { birthdayInput = it },
-                    label = { Text("Birthday 🎂 (YYYY-MM-DD)", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Cake, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(18.dp)) },
-                    trailingIcon = {
-                        IconButton(onClick = { openDatePicker(birthdayInput) { birthdayInput = it } }) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = "Pick Birthday", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-
-                // 3. Security & Password Change
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "SECURITY & PASSWORD (OPTIONAL)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 0.8.sp
-                    )
-                    Text(
-                        text = "Leave password fields blank to retain your current password.",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Current Password
-                OutlinedTextField(
-                    value = currentPassword,
-                    onValueChange = { currentPassword = it },
-                    label = { Text("Current Password", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    trailingIcon = {
-                        IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
-                            Icon(
-                                if (currentPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = "Toggle current password visibility"
-                            )
-                        }
-                    },
-                    visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    singleLine = true,
-                    isError = isPasswordChangeAttempted && currentPassword.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-                if (isPasswordChangeAttempted && currentPassword.isBlank()) {
-                    Text("Current password is required to change your password.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
-                }
-
-                // New Password
-                OutlinedTextField(
-                    value = newPassword,
-                    onValueChange = { newPassword = it },
-                    label = { Text("New Password", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = "Toggle password visibility"
-                            )
-                        }
-                    },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    singleLine = true,
-                    isError = isPasswordChangeAttempted && !isPasswordLengthOk,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-                if (isPasswordChangeAttempted && !isPasswordLengthOk) {
-                    Text("Password must be at least 6 characters.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
-                }
-
-                // Confirm New Password
-                OutlinedTextField(
-                    value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
-                    label = { Text("Confirm New Password", fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    singleLine = true,
-                    isError = isPasswordChangeAttempted && !isPasswordMatch,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                )
-                if (isPasswordChangeAttempted && !isPasswordMatch) {
-                    Text("Passwords do not match.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
-                }
-
-                // Bottom Action Buttons
+                // Top Header Row with [X], Title, and [Save]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(bottom = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clickable { onDismiss() }
                     ) {
-                        Text("Cancel")
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
+
+                    Text(
+                        text = "Edit profile",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF0F3E99)
+                    )
 
                     Button(
                         onClick = {
@@ -566,10 +948,508 @@ fun UnifiedEditProfileDialog(
                             onDismiss()
                         },
                         enabled = canSave,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0F3E99),
+                            disabledContainerColor = Color(0xFF0F3E99).copy(alpha = 0.35f)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                     ) {
-                        Text("Save Changes", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Save",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                // Scrollable Form Body
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 1. Sleek Hero Card with Avatar & Actions
+                    Surface(
+                        shape = RoundedCornerShape(22.dp),
+                        color = Color(0xFF0F3E99),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color(0xFF0A2B70),
+                                            Color(0xFF0F3E99),
+                                            Color(0xFF1E5BBF)
+                                        )
+                                    )
+                                )
+                                .padding(vertical = 20.dp, horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                // Avatar with cyan border and camera badge
+                                Box(contentAlignment = Alignment.BottomEnd) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(92.dp)
+                                            .border(3.dp, Color(0xFF06B6D4), CircleShape)
+                                            .padding(3.dp)
+                                            .clip(CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        UserAvatar(
+                                            name = nameInput.ifBlank { "User" }.toProperCase(),
+                                            profilePicture = effectivePhoto,
+                                            size = 86.dp,
+                                            backgroundColor = Color(0xFF0B2D6E),
+                                            textColor = Color.White,
+                                            fontSize = 28.sp
+                                        )
+                                    }
+
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color.White,
+                                        shadowElevation = 3.dp,
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .offset(x = 2.dp, y = 2.dp)
+                                            .clickable {
+                                                photoPickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                                )
+                                            }
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.PhotoCamera,
+                                                contentDescription = "Pick Photo",
+                                                tint = Color(0xFF0F3E99),
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Photo action pills
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            photoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.White,
+                                            contentColor = Color(0xFF0F3E99)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Change photo",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F3E99)
+                                        )
+                                    }
+
+                                    if (!effectivePhoto.isNullOrBlank()) {
+                                        OutlinedButton(
+                                            onClick = { showConfirmRemovePhotoDialog = true },
+                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = Color.White
+                                            ),
+                                            shape = RoundedCornerShape(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Remove",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showConfirmRemovePhotoDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showConfirmRemovePhotoDialog = false },
+                            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                            title = { Text("Remove Profile Photo?", fontWeight = FontWeight.Bold) },
+                            text = {
+                                Text("Are you sure you want to remove your profile photo? Your initials monogram will be displayed across the app and rosters instead.")
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        pendingPhotoBase64 = ""
+                                        showConfirmRemovePhotoDialog = false
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Remove")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showConfirmRemovePhotoDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
+
+                    // 2. Personal Information Section
+                    Text(
+                        text = "PERSONAL INFORMATION",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF0F3E99),
+                        letterSpacing = 0.8.sp
+                    )
+
+                    EditProfileInputField(
+                        value = nameInput,
+                        onValueChange = { if (it.length <= 60) nameInput = it },
+                        label = "Full name *",
+                        leadingIcon = Icons.Outlined.Person,
+                        isError = !isNameValid,
+                        errorMessage = if (!isNameValid) "Full name must be between 2 and 60 characters" else null
+                    )
+
+                    EditProfileInputField(
+                        value = phoneInput,
+                        onValueChange = { if (it.length <= 20) phoneInput = it },
+                        label = "Contact phone",
+                        leadingIcon = Icons.Outlined.Call,
+                        keyboardType = KeyboardType.Phone
+                    )
+
+                    EditProfileInputField(
+                        value = emailInput,
+                        onValueChange = { emailInput = it },
+                        label = "Email address",
+                        leadingIcon = Icons.Outlined.Mail,
+                        keyboardType = KeyboardType.Email,
+                        isError = !isEmailValid,
+                        errorMessage = if (!isEmailValid) "Please enter a valid email address" else null
+                    )
+
+                    EditProfileInputField(
+                        value = joinDateInput,
+                        onValueChange = { joinDateInput = it },
+                        label = "Joining date",
+                        placeholder = "YYYY-MM-DD",
+                        leadingIcon = Icons.Outlined.CalendarToday,
+                        readOnly = true,
+                        onClick = { openDatePicker(joinDateInput) { joinDateInput = it } },
+                        trailingIcon = {
+                            IconButton(onClick = { openDatePicker(joinDateInput) { joinDateInput = it } }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CalendarMonth,
+                                    contentDescription = "Pick Joining Date",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
+
+                    EditProfileInputField(
+                        value = birthdayInput,
+                        onValueChange = { birthdayInput = it },
+                        label = "Birthday",
+                        placeholder = "YYYY-MM-DD",
+                        leadingIcon = Icons.Outlined.Cake,
+                        readOnly = true,
+                        onClick = { openDatePicker(birthdayInput) { birthdayInput = it } },
+                        trailingIcon = {
+                            IconButton(onClick = { openDatePicker(birthdayInput) { birthdayInput = it } }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CalendarMonth,
+                                    contentDescription = "Pick Birthday",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
+
+                    // 3. Security & Password Section
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "SECURITY & PASSWORD",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0F3E99),
+                            letterSpacing = 0.8.sp
+                        )
+                        Text(
+                            text = "· OPTIONAL",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 0.8.sp
+                        )
+                    }
+
+                    Text(
+                        text = "Leave the password fields blank to keep your current password.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Current password
+                    EditProfileInputField(
+                        value = currentPassword,
+                        onValueChange = { currentPassword = it },
+                        label = "Current password",
+                        placeholder = "••••••••",
+                        leadingIcon = Icons.Outlined.Lock,
+                        isPassword = true,
+                        isPasswordVisible = currentPasswordVisible,
+                        isError = isPasswordChangeAttempted && currentPassword.isBlank(),
+                        errorMessage = if (isPasswordChangeAttempted && currentPassword.isBlank()) "Current password is required to change password" else null,
+                        trailingIcon = {
+                            IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (currentPasswordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                                    contentDescription = "Toggle password visibility",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
+
+                    // New password
+                    EditProfileInputField(
+                        value = newPassword,
+                        onValueChange = { newPassword = it },
+                        label = "New password",
+                        placeholder = "Leave blank to keep current",
+                        leadingIcon = Icons.Outlined.Key,
+                        isPassword = true,
+                        isPasswordVisible = newPasswordVisible,
+                        isError = isPasswordChangeAttempted && !isPasswordLengthOk,
+                        errorMessage = if (isPasswordChangeAttempted && !isPasswordLengthOk) "Password must be at least 6 characters" else null,
+                        trailingIcon = {
+                            IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (newPasswordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                                    contentDescription = "Toggle password visibility",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
+
+                    // Confirm new password
+                    EditProfileInputField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = "Confirm new password",
+                        placeholder = "Repeat new password",
+                        leadingIcon = Icons.Outlined.Key,
+                        isPassword = true,
+                        isPasswordVisible = confirmPasswordVisible,
+                        isError = isPasswordChangeAttempted && !isPasswordMatch,
+                        errorMessage = if (isPasswordChangeAttempted && !isPasswordMatch) "Passwords do not match" else null,
+                        trailingIcon = {
+                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (confirmPasswordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                                    contentDescription = "Toggle password visibility",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QuickNotificationsBottomSheet(
+    show: Boolean,
+    notifications: List<com.rosterx.data.remote.NotificationDto>,
+    dismissedNotificationIds: Set<String>,
+    onDismiss: () -> Unit,
+    onDismissNotification: (String) -> Unit,
+    onClearAllNotifications: () -> Unit
+) {
+    if (!show) return
+
+    val activeNotifs = notifications.mapIndexed { idx, n ->
+        val id = n.id ?: "idx_$idx"
+        val title = n.title?.takeIf { it.isNotBlank() } ?: "Operational Update"
+        val body = n.samplePersonalized?.takeIf { it.isNotBlank() } ?: n.rawMessage ?: ""
+        Triple(id, title, body)
+    }.filter { (id, _, _) -> id !in dismissedNotificationIds }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(Color(0xFF0F3E99).copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Notifications,
+                            contentDescription = null,
+                            tint = Color(0xFF0F3E99),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Notifications (${activeNotifs.size})",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                if (activeNotifs.isNotEmpty()) {
+                    TextButton(onClick = onClearAllNotifications) {
+                        Text(
+                            text = "Clear All",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+            if (activeNotifs.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("🎉", fontSize = 36.sp)
+                        Text(
+                            text = "No active notifications",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "You're all caught up with your roster and duties!",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    activeNotifs.forEach { (notifId, title, body) ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = title,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (body.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = body,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = { onDismissNotification(notifId) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Dismiss",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
