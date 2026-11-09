@@ -59,6 +59,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.material3.*
 
@@ -397,6 +398,7 @@ fun EngineerPortalScreen(
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
+    var showQuickNotificationsSheet by rememberSaveable { mutableStateOf(false) }
     var showCelebrationDialog by rememberSaveable { mutableStateOf(false) }
     var activeCelebrationType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
     var activeCelebrationYears by rememberSaveable { mutableIntStateOf(1) }
@@ -526,34 +528,55 @@ fun EngineerPortalScreen(
                 },
 
                 actions = {
-                    if (state.loggedInEngineer != null) {
+                    val settingsTabIndex = if (state.loggedInEngineer?.role == EngineerRole.MANAGER) 3 else 4
+                    val hasUnreadNotifs = state.notifications.any { (it.id ?: "") !in state.dismissedNotificationIds }
 
-                        NeumorphicCard(
-
-                            modifier = Modifier
-
-                                .padding(end = 12.dp)
-
-                                .clickable { selectedTab = if (state.loggedInEngineer?.role == EngineerRole.MANAGER) 3 else 4 },
-
+                    // Notification Bell Button
+                    Box(modifier = Modifier.padding(end = 8.dp)) {
+                        Surface(
                             shape = CircleShape,
-
-                            style = NeumorphicElevationStyle.RaisedSubtle,
-
-                            surfaceColor = NeumorphicTokens.Surface,
-
-                            contentPadding = 0.dp
-
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                            shadowElevation = 1.dp,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clickable { showQuickNotificationsSheet = true }
                         ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        if (hasUnreadNotifs) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = (-2).dp, y = 2.dp)
+                                    .background(Color(0xFFEF4444), CircleShape)
+                                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                            )
+                        }
+                    }
 
+                    if (state.loggedInEngineer != null && selectedTab != settingsTabIndex) {
+                        NeumorphicCard(
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .clickable { selectedTab = settingsTabIndex },
+                            shape = CircleShape,
+                            style = NeumorphicElevationStyle.RaisedSubtle,
+                            surfaceColor = NeumorphicTokens.Surface,
+                            contentPadding = 0.dp
+                        ) {
                             Row(
-
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-
                                 verticalAlignment = Alignment.CenterVertically
-
                             ) {
-
                                 UserAvatar(
                                     name = state.loggedInEngineer!!.name,
                                     profilePicture = state.loggedInEngineer!!.profilePicture,
@@ -566,23 +589,14 @@ fun EngineerPortalScreen(
                                 Spacer(modifier = Modifier.width(6.dp))
 
                                 Text(
-
                                     text = state.loggedInEngineer!!.name.toProperCase().split(" ")[0],
-
                                     fontWeight = FontWeight.Bold,
-
                                     fontSize = 12.sp,
-
                                     color = NeumorphicTokens.TextMain
-
                                 )
-
                             }
-
                         }
-
                     }
-
                 },
 
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -851,6 +865,17 @@ fun EngineerPortalScreen(
                     ).show()
                 }
             }
+        )
+    }
+
+    if (showQuickNotificationsSheet) {
+        com.rosterx.presentation.components.QuickNotificationsBottomSheet(
+            show = showQuickNotificationsSheet,
+            notifications = state.notifications,
+            dismissedNotificationIds = state.dismissedNotificationIds,
+            onDismiss = { showQuickNotificationsSheet = false },
+            onDismissNotification = viewModel::dismissNotification,
+            onClearAllNotifications = viewModel::clearAllNotifications
         )
     }
 
@@ -4651,6 +4676,7 @@ fun AccountView(
                 name = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Unknown User"),
                 roleTitle = engineer?.role?.name ?: "ENGINEER",
                 profilePicture = engineer?.profilePicture,
+                username = engineer?.username ?: "",
                 onEditClick = onOpenEditProfile
             )
         }
@@ -4659,7 +4685,7 @@ fun AccountView(
         if (isBirthdayToday || isAnniversaryToday) {
             item {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     color = Color(0xFFF59E0B).copy(alpha = 0.12f),
                     border = BorderStroke(1.2.dp, Color(0xFFF59E0B).copy(alpha = 0.5f)),
                     modifier = Modifier
@@ -4706,37 +4732,28 @@ fun AccountView(
             }
         }
 
-        // Account Details (Clean, single edit entrypoint via avatar card pencil)
+        // Dynamic Tenure & Birthday in Days Row
         item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("ACCOUNT DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            com.rosterx.presentation.components.TenureAndBirthdayRow(
+                joinDate = engineer?.joinDate,
+                birthday = engineer?.birthday
+            )
+        }
 
-                    ProfileDetailRow("Domain Username", engineer?.username ?: "--")
-                    ProfileDetailRow("Full Name", engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "--")
-                    ProfileDetailRow("Registered Email", if (!engineer?.email.isNullOrBlank()) engineer!!.email else "--")
-                    ProfileDetailRow("Contact Phone", if (!engineer?.phone.isNullOrBlank()) engineer!!.phone else "--")
-                    ProfileDetailRow(
-                        "Joining Date",
-                        if (!engineer?.joinDate.isNullOrBlank()) {
-                            if (isAnniversaryToday) "${engineer!!.joinDate}  🏆 TODAY! (${anniversaryYears}y)" else engineer!!.joinDate
-                        } else "--"
-                    )
-                    ProfileDetailRow(
-                        "Birthday 🎂",
-                        if (!engineer?.birthday.isNullOrBlank()) {
-                            if (isBirthdayToday) "${engineer!!.birthday}  🎉 TODAY!" else engineer!!.birthday
-                        } else "--"
-                    )
-                    ProfileDetailRow("Weekly Offs", if (!engineer?.defaultWeeklyOffs.isNullOrEmpty()) engineer!!.defaultWeeklyOffs.joinToString(", ") else "None")
-                }
-            }
+        // Weekly Offs Pill Card (Mon - Sun)
+        item {
+            com.rosterx.presentation.components.WeeklyOffsCard(
+                weeklyOffs = engineer?.defaultWeeklyOffs ?: emptyList()
+            )
+        }
+
+        // Account Details Card (Domain, Email with Copy, Phone with Dialer)
+        item {
+            com.rosterx.presentation.components.AccountDetailsCard(
+                username = engineer?.username ?: "--",
+                email = engineer?.email ?: "--",
+                phone = engineer?.phone ?: "--"
+            )
         }
 
         // Appearance & Brand Theme Selection Card
@@ -4760,11 +4777,13 @@ fun AccountView(
 
             Surface(
 
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
 
                 color = MaterialTheme.colorScheme.surface,
 
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+
+                shadowElevation = 1.dp,
 
                 modifier = Modifier.fillMaxWidth()
 
@@ -4971,11 +4990,13 @@ fun AccountView(
 
             Surface(
 
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
 
                 color = MaterialTheme.colorScheme.surface,
 
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+
+                shadowElevation = 1.dp,
 
                 modifier = Modifier.fillMaxWidth()
 
@@ -5132,9 +5153,10 @@ fun AppearanceThemeCard(
     var isExpanded by remember { mutableStateOf(false) }
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+        shadowElevation = 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -5172,15 +5194,15 @@ fun AppearanceThemeCard(
                 ) {
                     if (!isExpanded) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = activeAccent.copy(alpha = 0.12f)
                         ) {
                             Text(
                                 text = "${currentMode.name.lowercase().replaceFirstChar { it.uppercase() }} • ${currentPalette.name}",
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = activeAccent,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }

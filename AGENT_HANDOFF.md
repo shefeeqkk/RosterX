@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 22:45 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-10 00:20 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.22.3`** (Android `versionCode: 78`, Server `SERVER_VERSION = "1.22.3"`)
-- **Previous Versions**: `1.22.2` (Build 77), `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71)
+- **Semantic Version**: **`1.23.0`** (Android `versionCode: 79`, Server `SERVER_VERSION = "1.23.0"`)
+- **Previous Versions**: `1.22.3` (Build 78), `1.22.2` (Build 77), `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -19,6 +19,43 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.23.0
+
+### 1. 🎨 Settings & Profile Tab Design Overhaul (Mockup Parity)
+- **Hero Profile Card (`StandardProfileHeaderCard`)**:
+  - Deep blue horizontal linear gradient banner with rounded 24.dp geometry.
+  - Avatar encircled in a vibrant `#06B6D4` cyan accent border.
+  - Full engineer name, `@username` domain badge, and role pill.
+  - Solitary edit pencil button situated in the top right.
+- **Dynamic Tenure & Birthday In Days (`TenureAndBirthdayRow`)**:
+  - Dynamically calculates tenure duration (`X mo Y d` or `X yr Y mo`) from joining date using `java.time.Period`.
+  - Calculates days remaining until the next birthday (`Z days` or `TODAY! 🎉`) using `ChronoUnit.DAYS`.
+- **Weekly Offs Visual Pill Card (`WeeklyOffsCard`)**:
+  - 7 day pills (Mon–Sun). Active scheduled offs are styled with dark navy highlight containers showing day initial + `OFF` (`M\nOFF`, `T\nOFF`).
+  - Active working days are rendered with subtle muted grey background pills.
+- **Account Details Card (`AccountDetailsCard`)**:
+  - Domain username, registered email with instant clipboard copy button, contact phone with dialer intent button (`tel:`).
+- **Card Styling Parity**:
+  - Unified 20.dp corner radius and subtle 1.dp elevation applied to Appearance & Theme, Server Infrastructure, and Specs cards.
+
+### 2. 🪟 Sleek Unified "Edit Profile" Modal Dialog
+- **Top Action Bar**:
+  - Rounded close button `[X]`, bold navy title "Edit profile", and solid deep blue "Save" button.
+- **Hero Image Section**:
+  - Deep blue gradient background with cyan-ringed avatar and floating camera button.
+  - Action pills: "Change photo" (white pill) and "Remove" (with confirmation dialog).
+- **Modern Input Field Component (`EditProfileInputField`)**:
+  - Rounded 16.dp input card with square tinted icon container, small floating label, and border highlighting.
+  - Personal information fields: Full name, unmasked contact phone, email, and clickable date fields for joining date & birthday opening `DatePickerDialog`.
+  - Security fields: Current password (required when changing password), new password, and repeat new password with visibility toggle icons.
+
+### 3. 🔔 Top App Bar Notification Bell & Quick Sheet
+- Added top bar bell button with red unread notification indicator badge dot.
+- Tapping the bell opens `QuickNotificationsBottomSheet` displaying operational announcements with individual dismissal and "Clear All" actions.
+- Automatically hides the top-bar profile avatar chip when viewing the Settings tab to avoid duplicate profile imagery.
 
 ---
 
