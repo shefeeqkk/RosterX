@@ -105,15 +105,11 @@ data class PortalState(
 
 
 @HiltViewModel
-
 class EngineerPortalViewModel @Inject constructor(
-
     private val repository: RosterRepository,
-
     private val sessionManager: UserSessionManager,
-
+    val analyticsManager: com.rosterx.analytics.AnalyticsManager,
     @ApplicationContext private val context: Context
-
 ) : ViewModel() {
 
 
@@ -546,6 +542,7 @@ class EngineerPortalViewModel @Inject constructor(
         val oldKey = String.format(Locale.US, "%d-%02d", _state.value.selectedDate.year, _state.value.selectedDate.monthValue)
         val newKey = String.format(Locale.US, "%d-%02d", date.year, date.monthValue)
         _state.value = _state.value.copy(selectedDate = date)
+        analyticsManager.logEvent("team_shifts_date_selected", mapOf("date" to date.toString()))
         if (oldKey != newKey || _state.value.liveRoster.isEmpty()) {
             loadLiveRosterOnly()
         }
@@ -598,6 +595,7 @@ class EngineerPortalViewModel @Inject constructor(
             gridMonth = newMonth,
             gridRoster = rosterCache[gridMonthKey] ?: emptyMap()
         )
+        analyticsManager.logEvent("month_roster_changed", mapOf("month_key" to gridMonthKey, "direction" to "prev"))
         loadGridRosterOnly()
     }
 
@@ -614,6 +612,7 @@ class EngineerPortalViewModel @Inject constructor(
             gridMonth = newMonth,
             gridRoster = rosterCache[gridMonthKey] ?: emptyMap()
         )
+        analyticsManager.logEvent("month_roster_changed", mapOf("month_key" to gridMonthKey, "direction" to "next"))
         loadGridRosterOnly()
     }
 
@@ -669,6 +668,7 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     fun dismissNotification(id: String) {
+        analyticsManager.logEvent("notification_dismissed", mapOf("notification_id" to id))
         sessionManager.dismissNotification(id)
         _state.value = _state.value.copy(
             dismissedNotificationIds = _state.value.dismissedNotificationIds + id
@@ -679,6 +679,7 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     fun clearAllNotifications() {
+        analyticsManager.logEvent("notifications_cleared_all")
         val ids = _state.value.notifications.mapIndexed { idx, n -> n.id ?: "notif_$idx" }
         sessionManager.clearAllNotifications(ids)
         _state.value = _state.value.copy(
@@ -769,11 +770,64 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     fun setThemeMode(mode: AppThemeMode) {
+        analyticsManager.logEvent("theme_mode_changed", mapOf("mode" to mode.name))
         sessionManager.setThemeMode(mode)
     }
 
     fun setThemePaletteId(paletteId: String) {
+        analyticsManager.logEvent("theme_palette_changed", mapOf("palette" to paletteId))
         sessionManager.setThemePaletteId(paletteId)
+    }
+
+    fun updateUserProfile(
+        name: String,
+        phone: String,
+        email: String,
+        joinDate: String,
+        birthday: String,
+        profilePicture: String?,
+        newPassword: String?,
+        targetUsername: String? = null,
+        onResult: ((Boolean, String?) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
+            val res = repository.updateUserProfile(
+                name = name.takeIf { it.isNotBlank() },
+                phone = phone,
+                email = email,
+                joinDate = joinDate,
+                birthday = birthday,
+                profilePicture = profilePicture,
+                newPassword = newPassword?.takeIf { it.isNotBlank() },
+                username = targetUsername
+            )
+            if (res.isSuccess) {
+                val updatedEng = res.getOrNull()
+                val loggedIn = _state.value.loggedInEngineer
+                if (updatedEng != null && loggedIn != null && (targetUsername.isNullOrBlank() || targetUsername.equals(loggedIn.username, ignoreCase = true))) {
+                    _state.value = _state.value.copy(loggedInEngineer = updatedEng)
+                }
+                if (updatedEng != null) {
+                    val updatedEngineers = _state.value.engineers.map { eng ->
+                        if (eng.username.equals(updatedEng.username, ignoreCase = true)) updatedEng else eng
+                    }
+                    _state.value = _state.value.copy(engineers = updatedEngineers, isLoading = false, successMessage = "Profile updated successfully")
+                } else {
+                    _state.value = _state.value.copy(isLoading = false, successMessage = "Profile updated successfully")
+                }
+                analyticsManager.logEvent("profile_updated", mapOf(
+                    "has_photo_change" to (profilePicture != null),
+                    "has_password_change" to (!newPassword.isNullOrBlank()),
+                    "target_user" to (targetUsername ?: loggedIn?.username ?: "")
+                ))
+                onResult?.invoke(true, null)
+            } else {
+                val err = res.exceptionOrNull()?.message ?: "Failed to update profile"
+                _state.value = _state.value.copy(isLoading = false, errorMessage = err)
+                onResult?.invoke(false, err)
+            }
+        }
     }
 
     fun uploadProfilePicture(base64Image: String, targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {

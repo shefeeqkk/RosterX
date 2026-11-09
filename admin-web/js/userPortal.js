@@ -2044,6 +2044,10 @@ export class UserPortalController {
       document.getElementById('profileRole').textContent = (engMeta.role || u.role || 'NOC Engineer').toUpperCase();
 
       document.getElementById('profileOffs').textContent = (engMeta.default_weekly_offs || eng.default_weekly_offs || ['Saturday', 'Sunday']).join(', ');
+      const joinEl = document.getElementById('profileJoinDate');
+      if (joinEl) joinEl.textContent = engMeta.join_date || u.join_date || '—';
+      const bdayEl = document.getElementById('profileBirthday');
+      if (bdayEl) bdayEl.textContent = engMeta.birthday || u.birthday || '—';
 
       const modalImg = document.getElementById('modalAccountAvatarImg');
       const modalText = document.getElementById('modalAccountAvatarText');

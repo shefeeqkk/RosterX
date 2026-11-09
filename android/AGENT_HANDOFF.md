@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 20:15 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 21:00 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.9`** (Android `versionCode: 74`, Server `SERVER_VERSION = "1.21.9"`)
-- **Previous Versions**: `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70)
+- **Semantic Version**: **`1.22.0`** (Android `versionCode: 75`, Server `SERVER_VERSION = "1.22.0"`)
+- **Previous Versions**: `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -19,6 +19,44 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.22.0
+
+### 1. ⚙️ Unified Account Settings Popup & Single Edit Pencil Standard
+- **Eliminated Fragmented Edit Dialogs**:
+  - Removed separate single-field name dialog, separate photo action dialog, and separate expandable password accordion.
+  - Placed **ONE unified edit pencil icon (✏️)** on the top right of the Settings screen (both in the TopAppBar actions and on `StandardProfileHeaderCard`).
+  - Clicking this pencil opens the comprehensive **`UnifiedEditProfileDialog`** modal popup.
+- **Unified Profile & Security Editing**:
+  - **Profile Picture**: In-dialog photo preview with "Change Photo" (via Android PhotoPicker) and "Remove" action.
+  - **Personal Details**: Full Name, Contact Phone, Registered Email.
+  - **Date Pickers**: Joining Date and Birthday (🎂) with native `DatePickerDialog`.
+  - **Security & Password**: Optional password reset (New Password + Confirm Password with eye toggle and validation).
+
+### 2. 🎂 Birthday Field Full-Stack Integration
+- **Database, Backend, Web & Mobile Parity**:
+  - **MongoDB Atlas**: Persists `birthday` attribute in `engineers` collection.
+  - **Python Backend (`server.py`)**: `GET /api/auth/me` returns `join_date` and `birthday`; `POST /api/users/profile` handles unified updates.
+  - **Admin Web Console (`admin-web/`)**: Added birthday date picker input in engineer modal and displays `🎂 YYYY-MM-DD` in engineer tables.
+  - **Web User Portal (`user-portal.html` & `userPortal.js`)**: Displays birthday card in engineer account overview.
+  - **Android Data & Domain Models**: Added `birthday` to `Engineer` and `EngineerDto`.
+
+### 3. 🖼️ Manager Dashboard Hero Welcome Card Profile Picture
+- **Replaced Initial Monogram with Real Photo**:
+  - `ManagerDashboardView` now uses `UserAvatar` displaying the manager's real `profilePicture` (with fallback to initials monogram if not set) in the top hero welcome card.
+
+### 4. 📊 Firebase Screen & Behaviour Analytics Telemetry
+- **Complete Screen View Tracking**:
+  - Automatically logs `FirebaseAnalytics.Event.SCREEN_VIEW` for every tab in `EngineerPortalScreen` ("Dashboard", "Team Shifts", "My Calendar", "Month Roster", "Settings") and `AdminMainScreen` ("Admin Dashboard", "Admin Manage Team", "Admin Month Rosters", "Admin Notifications", "Admin Server Management").
+- **Behaviour Analytics Events**:
+  - `tab_switched` / `admin_tab_switched`: Tracks tab navigation with user role.
+  - `team_shifts_date_selected`: Tracks date navigation in team shifts radar.
+  - `month_roster_changed`: Tracks previous/next month browsing.
+  - `notification_dismissed` / `notifications_cleared_all`: Tracks notification interactions.
+  - `theme_palette_changed` / `theme_mode_changed`: Tracks customization preferences.
+  - `profile_updated`: Tracks profile modifications with parameter flags.
 
 ---
 

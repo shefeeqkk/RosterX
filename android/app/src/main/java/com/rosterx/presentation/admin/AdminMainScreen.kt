@@ -93,10 +93,23 @@ fun AdminMainScreen(
     val isManagerReadOnly = currentUser?.role == com.rosterx.domain.model.EngineerRole.MANAGER
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-
     var targetEngineerSearch by rememberSaveable { mutableStateOf("") }
-
     var previewAsEngineer by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(selectedTab, previewAsEngineer) {
+        if (!previewAsEngineer) {
+            val adminScreenName = when (selectedTab) {
+                0 -> "Admin Dashboard"
+                1 -> "Admin Manage Team"
+                2 -> "Admin Month Rosters"
+                3 -> "Admin Notifications"
+                4 -> "Admin Server Management"
+                else -> "Admin Dashboard"
+            }
+            viewModel.analyticsManager.logScreenView(adminScreenName)
+            viewModel.analyticsManager.logEvent("admin_tab_switched", mapOf("tab_name" to adminScreenName))
+        }
+    }
 
 
 

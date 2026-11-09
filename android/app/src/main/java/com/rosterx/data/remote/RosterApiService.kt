@@ -94,7 +94,8 @@ data class EngineerDto(
     @SerializedName("resignation_date") val resignationDate: String?,
     @SerializedName("password") val password: String? = null,
     @SerializedName("original_username") val originalUsername: String? = null,
-    @SerializedName("profile_picture") val profilePicture: String? = null
+    @SerializedName("profile_picture") val profilePicture: String? = null,
+    @SerializedName("birthday") val birthday: String? = null
 )
 
 data class RosterResponse(
@@ -205,6 +206,9 @@ interface RosterApiService {
     suspend fun updateProfilePicture(@Body request: UpdateProfilePictureRequest): UpdateProfilePictureResponse
 
     @POST("api/users/profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequest): UpdateProfileResponse
+
+    @POST("api/users/profile")
     suspend fun updateProfileName(@Body request: UpdateProfileNameRequest): UpdateProfileNameResponse
 
     @POST("api/users/fcm-token")
@@ -226,6 +230,25 @@ data class UpdateProfilePictureResponse(
     val success: Boolean,
     val message: String?,
     @SerializedName("profile_picture") val profilePicture: String? = null
+)
+
+data class UpdateProfileRequest(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("full_name") val fullName: String? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("phone") val phone: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("join_date") val joinDate: String? = null,
+    @SerializedName("birthday") val birthday: String? = null,
+    @SerializedName("profile_picture") val profilePicture: String? = null,
+    @SerializedName("password") val password: String? = null
+)
+
+data class UpdateProfileResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val name: String? = null,
+    val user: EngineerDto? = null
 )
 
 data class UpdateProfileNameRequest(

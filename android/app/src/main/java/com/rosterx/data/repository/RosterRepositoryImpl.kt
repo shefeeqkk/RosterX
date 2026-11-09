@@ -846,7 +846,8 @@ class RosterRepositoryImpl @Inject constructor(
             joinDate = joinDate ?: "",
             resignationDate = resignationDate,
             originalUsername = originalUsername,
-            profilePicture = profilePicture
+            profilePicture = profilePicture,
+            birthday = birthday
         )
     }
 
@@ -866,7 +867,8 @@ class RosterRepositoryImpl @Inject constructor(
             resignationDate = resignationDate,
             password = password,
             originalUsername = originalUsername,
-            profilePicture = profilePicture
+            profilePicture = profilePicture,
+            birthday = birthday
         )
     }
 
@@ -903,6 +905,46 @@ class RosterRepositoryImpl @Inject constructor(
                 Result.success(updatedName)
             } else {
                 Result.failure(Exception(res.message ?: "Failed to update profile name"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateUserProfile(
+        name: String?,
+        phone: String?,
+        email: String?,
+        joinDate: String?,
+        birthday: String?,
+        profilePicture: String?,
+        newPassword: String?,
+        username: String?
+    ): Result<Engineer> = withContext(Dispatchers.IO) {
+        try {
+            val req = com.rosterx.data.remote.UpdateProfileRequest(
+                name = name,
+                fullName = name,
+                username = username,
+                phone = phone,
+                email = email,
+                joinDate = joinDate,
+                birthday = birthday,
+                profilePicture = profilePicture,
+                password = newPassword
+            )
+            val res = apiService.updateProfile(req)
+            if (res.success && res.user != null) {
+                val domainUser = res.user.toDomain()
+                val current = sessionManager.currentUser.value
+                if (current != null && (username.isNullOrBlank() || username.equals(current.username, ignoreCase = true))) {
+                    sessionManager.setCurrentUser(domainUser)
+                }
+                Result.success(domainUser)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to update profile"))
             }
         } catch (e: HttpException) {
             Result.failure(Exception(parseErrorMessage(e)))

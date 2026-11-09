@@ -396,15 +396,38 @@ fun EngineerPortalScreen(
     val state by viewModel.state.collectAsState()
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-
-
+    var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
-
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
     val isManager = state.loggedInEngineer?.role == EngineerRole.MANAGER
     val isFullScreenRoster = isLandscape && ((isManager && selectedTab == 2) || (!isManager && selectedTab == 3))
+
+    LaunchedEffect(selectedTab, isManager) {
+        val screenName = if (isManager) {
+            when (selectedTab) {
+                0 -> "Manager Dashboard"
+                1 -> "Team Shifts"
+                2 -> "Month Roster"
+                3 -> "Settings"
+                else -> "Manager Dashboard"
+            }
+        } else {
+            when (selectedTab) {
+                0 -> "Dashboard"
+                1 -> "Team Shifts"
+                2 -> "My Calendar"
+                3 -> "Month Roster"
+                4 -> "Settings"
+                else -> "Dashboard"
+            }
+        }
+        viewModel.analyticsManager.logScreenView(screenName)
+        viewModel.analyticsManager.logEvent("tab_switched", mapOf(
+            "tab_name" to screenName,
+            "role" to (state.loggedInEngineer?.role?.name ?: "UNKNOWN")
+        ))
+    }
 
 
 
@@ -453,6 +476,27 @@ fun EngineerPortalScreen(
                 },
 
                 actions = {
+                    if ((isManager && selectedTab == 3) || (!isManager && selectedTab == 4)) {
+                        IconButton(
+                            onClick = { showUnifiedEditProfileDialog = true },
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit Profile & Security",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     if (state.loggedInEngineer != null) {
 
@@ -675,15 +719,12 @@ fun EngineerPortalScreen(
                             2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
                             3 -> AccountView(
                                 state = state,
-                                onChangePassword = viewModel::changePassword,
+                                onOpenEditProfile = { showUnifiedEditProfileDialog = true },
                                 onLogout = viewModel::logout,
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
                                 onTestConnection = viewModel::checkConnection,
                                 onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId,
-                                onUploadProfilePicture = viewModel::uploadProfilePicture,
-                                onRemoveProfilePicture = viewModel::removeProfilePicture,
-                                onUpdateProfileName = viewModel::updateProfileName
+                                onSetThemePalette = viewModel::setThemePaletteId
                             )
                             else -> DashboardView(
                                 state = state,
@@ -705,15 +746,12 @@ fun EngineerPortalScreen(
                             3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
                             4 -> AccountView(
                                 state = state,
-                                onChangePassword = viewModel::changePassword,
+                                onOpenEditProfile = { showUnifiedEditProfileDialog = true },
                                 onLogout = viewModel::logout,
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
                                 onTestConnection = viewModel::checkConnection,
                                 onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId,
-                                onUploadProfilePicture = viewModel::uploadProfilePicture,
-                                onRemoveProfilePicture = viewModel::removeProfilePicture,
-                                onUpdateProfileName = viewModel::updateProfileName
+                                onSetThemePalette = viewModel::setThemePaletteId
                             )
                             else -> DashboardView(
                                 state = state,
@@ -748,6 +786,38 @@ fun EngineerPortalScreen(
         onSendMessage = { prompt -> viewModel.sendAssistantMessage(prompt) },
         onClearChat = { viewModel.clearAssistantChat() }
     )
+
+    if (showUnifiedEditProfileDialog && state.loggedInEngineer != null) {
+        val eng = state.loggedInEngineer!!
+        val screenContext = androidx.compose.ui.platform.LocalContext.current
+        com.rosterx.presentation.components.UnifiedEditProfileDialog(
+            show = showUnifiedEditProfileDialog,
+            currentName = eng.name,
+            currentPhone = eng.phone,
+            currentEmail = eng.email,
+            currentJoinDate = eng.joinDate,
+            currentBirthday = eng.birthday ?: "",
+            currentProfilePicture = eng.profilePicture,
+            onDismiss = { showUnifiedEditProfileDialog = false },
+            onSave = { name, phone, email, joinDate, birthday, photoB64, newPass ->
+                viewModel.updateUserProfile(
+                    name = name,
+                    phone = phone,
+                    email = email,
+                    joinDate = joinDate,
+                    birthday = birthday,
+                    profilePicture = photoB64,
+                    newPassword = newPass
+                ) { success, err ->
+                    android.widget.Toast.makeText(
+                        screenContext,
+                        if (success) "Profile updated successfully!" else (err ?: "Update failed"),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
+    }
 
 }
 
@@ -1607,20 +1677,14 @@ fun ManagerDashboardView(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(NeumorphicTokens.Accent.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = engDisplayName.take(1).uppercase(),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = NeumorphicTokens.Accent
-                        )
-                    }
+                    UserAvatar(
+                        name = engDisplayName,
+                        profilePicture = engineer?.profilePicture,
+                        size = 46.dp,
+                        backgroundColor = NeumorphicTokens.Accent.copy(alpha = 0.18f),
+                        textColor = NeumorphicTokens.Accent,
+                        fontSize = 18.sp
+                    )
                 }
             }
         }
@@ -4304,137 +4368,68 @@ fun MonthRosterView(
 
 
 @Composable
-
 fun AccountView(
-
     state: PortalState,
-
-    onChangePassword: (String) -> Unit,
-
+    onOpenEditProfile: () -> Unit,
     onLogout: () -> Unit,
-
     onSaveBaseUrl: (String) -> Unit = {},
-
     onTestConnection: () -> Unit = {},
-
     onSetThemeMode: (AppThemeMode) -> Unit = {},
-
     onSetThemePalette: (String) -> Unit = {},
-
-    onUploadProfilePicture: (String, String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _, _ -> },
-
-    onRemoveProfilePicture: (String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _ -> },
-
-    onUpdateProfileName: (String, String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _, _ -> }
-
+    onChangePassword: ((String) -> Unit)? = null,
+    onUploadProfilePicture: ((String, String?, ((Boolean, String?) -> Unit)?) -> Unit)? = null,
+    onRemoveProfilePicture: ((String?, ((Boolean, String?) -> Unit)?) -> Unit)? = null,
+    onUpdateProfileName: ((String, String?, ((Boolean, String?) -> Unit)?) -> Unit)? = null
 ) {
-
     val context = LocalContext.current
-
     val clipboardManager = LocalClipboardManager.current
-
     val engineer = state.loggedInEngineer
-
-    var showPhotoActionDialog by remember { mutableStateOf(false) }
-    var showConfirmRemovePhotoDialog by remember { mutableStateOf(false) }
-    var showEditNameDialog by remember { mutableStateOf(false) }
-
-    val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
-    ) { uri: android.net.Uri? ->
-        if (uri != null) {
-            val b64 = compressImageUriToBase64(context, uri, maxDimension = 256, quality = 85)
-            if (b64 != null) {
-                onUploadProfilePicture(b64, null) { success, err ->
-                    android.widget.Toast.makeText(
-                        context,
-                        if (success) "Profile picture updated successfully!" else (err ?: "Upload failed"),
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } else {
-                android.widget.Toast.makeText(context, "Could not process selected image", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    var showPasswordChange by remember { mutableStateOf(false) }
-
-    var currentPass by remember { mutableStateOf("") }
-
-    var newPass by remember { mutableStateOf("") }
-
-    var confirmPass by remember { mutableStateOf("") }
-
-    var passVisible by remember { mutableStateOf(false) }
-
-
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
         // User Profile Header
         item {
             com.rosterx.presentation.components.StandardProfileHeaderCard(
-                name = engineer?.name ?: "Unknown User",
+                name = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Unknown User"),
                 roleTitle = engineer?.role?.name ?: "ENGINEER",
                 profilePicture = engineer?.profilePicture,
-                onAvatarClick = {
-                    if (engineer?.profilePicture.isNullOrBlank()) {
-                        photoPickerLauncher.launch(
-                            androidx.activity.result.PickVisualMediaRequest(
-                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
-                            )
-                        )
-                    } else {
-                        showPhotoActionDialog = true
-                    }
-                },
-                onEditNameClick = { showEditNameDialog = true }
+                onEditClick = onOpenEditProfile
             )
         }
 
-
-
-        // Account Details (with Phone Number per Engineer!)
-
+        // Account Details (with Phone, Email, Joining Date & Birthday!)
         item {
-
             Surface(
-
                 shape = RoundedCornerShape(16.dp),
-
                 color = MaterialTheme.colorScheme.surface,
-
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-
                 modifier = Modifier.fillMaxWidth()
-
             ) {
-
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
-                    Text("ACCOUNT DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("ACCOUNT DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        IconButton(onClick = onOpenEditProfile, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Details", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                        }
+                    }
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-                    
-
                     ProfileDetailRow("Domain Username", engineer?.username ?: "--")
-
+                    ProfileDetailRow("Full Name", engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "--")
                     ProfileDetailRow("Registered Email", if (!engineer?.email.isNullOrBlank()) engineer!!.email else "--")
-
                     ProfileDetailRow("Contact Phone", if (!engineer?.phone.isNullOrBlank()) engineer!!.phone else "--")
-
+                    ProfileDetailRow("Joining Date", if (!engineer?.joinDate.isNullOrBlank()) engineer!!.joinDate else "--")
+                    ProfileDetailRow("Birthday 🎂", if (!engineer?.birthday.isNullOrBlank()) engineer!!.birthday else "--")
                     ProfileDetailRow("Weekly Offs", if (!engineer?.defaultWeeklyOffs.isNullOrEmpty()) engineer!!.defaultWeeklyOffs.joinToString(", ") else "None")
-
                 }
-
             }
-
         }
 
         // Appearance & Brand Theme Selection Card
@@ -4663,182 +4658,6 @@ fun AccountView(
 
 
 
-        // Change Password Section
-
-        item {
-
-            Surface(
-
-                shape = RoundedCornerShape(16.dp),
-
-                color = MaterialTheme.colorScheme.surface,
-
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-
-                modifier = Modifier.fillMaxWidth()
-
-            ) {
-
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
-                    Row(
-
-                        modifier = Modifier
-
-                            .fillMaxWidth()
-
-                            .clickable { showPasswordChange = !showPasswordChange },
-
-                        horizontalArrangement = Arrangement.SpaceBetween,
-
-                        verticalAlignment = Alignment.CenterVertically
-
-                    ) {
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-
-                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Text("SECURITY & PASSWORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
-                        }
-
-                        Icon(
-
-                            imageVector = if (showPasswordChange) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-
-                            contentDescription = "Toggle",
-
-                            tint = MaterialTheme.colorScheme.primary
-
-                        )
-
-                    }
-
-
-
-                    AnimatedVisibility(visible = showPasswordChange) {
-
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-
-
-                            if (state.successMessage != null) {
-
-                                Text(state.successMessage!!, color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-
-                            }
-
-
-
-                            OutlinedTextField(
-
-                                value = currentPass,
-
-                                onValueChange = { currentPass = it },
-
-                                label = { Text("Current Password", fontSize = 12.sp) },
-
-                                visualTransformation = if (passVisible) VisualTransformation.None else PasswordVisualTransformation(),
-
-                                modifier = Modifier.fillMaxWidth(),
-
-                                shape = RoundedCornerShape(8.dp)
-
-                            )
-
-
-
-                            OutlinedTextField(
-
-                                value = newPass,
-
-                                onValueChange = { newPass = it },
-
-                                label = { Text("New Password", fontSize = 12.sp) },
-
-                                visualTransformation = if (passVisible) VisualTransformation.None else PasswordVisualTransformation(),
-
-                                modifier = Modifier.fillMaxWidth(),
-
-                                shape = RoundedCornerShape(8.dp)
-
-                            )
-
-
-
-                            OutlinedTextField(
-
-                                value = confirmPass,
-
-                                onValueChange = { confirmPass = it },
-
-                                label = { Text("Confirm New Password", fontSize = 12.sp) },
-
-                                trailingIcon = {
-
-                                    IconButton(onClick = { passVisible = !passVisible }) {
-
-                                        Icon(if (passVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null)
-
-                                    }
-
-                                },
-
-                                visualTransformation = if (passVisible) VisualTransformation.None else PasswordVisualTransformation(),
-
-                                modifier = Modifier.fillMaxWidth(),
-
-                                shape = RoundedCornerShape(8.dp)
-
-                            )
-
-
-
-                            Button(
-
-                                onClick = { 
-
-                                    if (newPass == confirmPass) {
-
-                                        onChangePassword(newPass)
-
-                                    }
-
-                                },
-
-                                enabled = newPass.isNotBlank() && newPass == confirmPass,
-
-                                modifier = Modifier.fillMaxWidth(),
-
-                                shape = RoundedCornerShape(8.dp)
-
-                            ) {
-
-                                Text("Update Password", fontWeight = FontWeight.Bold)
-
-                            }
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        }
-
-
-
-
-
-
-
         // Application Specs & Build Version Card
 
         item {
@@ -4990,49 +4809,6 @@ fun AccountView(
         }
 
     }
-
-    com.rosterx.presentation.components.ProfilePhotoActionDialog(
-        show = showPhotoActionDialog,
-        hasExistingPhoto = !engineer?.profilePicture.isNullOrBlank(),
-        onDismiss = { showPhotoActionDialog = false },
-        onChooseNewPhoto = {
-            photoPickerLauncher.launch(
-                androidx.activity.result.PickVisualMediaRequest(
-                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
-                )
-            )
-        },
-        onRemovePhotoClick = { showConfirmRemovePhotoDialog = true }
-    )
-
-    com.rosterx.presentation.components.ConfirmRemovePhotoDialog(
-        show = showConfirmRemovePhotoDialog,
-        onDismiss = { showConfirmRemovePhotoDialog = false },
-        onConfirm = {
-            onRemoveProfilePicture(null) { success, err ->
-                android.widget.Toast.makeText(
-                    context,
-                    if (success) "Profile picture removed" else (err ?: "Removal failed"),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    )
-
-    com.rosterx.presentation.components.EditNameDialog(
-        show = showEditNameDialog,
-        currentName = engineer?.name ?: "",
-        onDismiss = { showEditNameDialog = false },
-        onSave = { newName ->
-            onUpdateProfileName(newName, null) { success, err ->
-                android.widget.Toast.makeText(
-                    context,
-                    if (success) "Profile name updated" else (err ?: "Update failed"),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    )
 
 }
 
