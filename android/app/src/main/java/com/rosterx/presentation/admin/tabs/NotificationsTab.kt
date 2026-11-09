@@ -1264,11 +1264,13 @@ fun NotificationHistoryCard(
     var showRetractConfirm by remember { mutableStateOf(false) }
 
     val isRetracted = notif.isRetracted == true
+    val isCelebration = notif.celebrationType != null || notif.sender?.contains("Celebration", ignoreCase = true) == true || notif.title?.contains("🎂") == true || notif.title?.contains("🏆") == true
 
-    val pColor = when (notif.priority?.lowercase()) {
-        "urgent" -> Color(0xFFEF4444)
-        "shift_update" -> Color(0xFFF59E0B)
-        "broadcast" -> Color(0xFF8B5CF6)
+    val pColor = when {
+        isCelebration -> Color(0xFFF59E0B)
+        notif.priority?.lowercase() == "urgent" -> Color(0xFFEF4444)
+        notif.priority?.lowercase() == "shift_update" -> Color(0xFFF59E0B)
+        notif.priority?.lowercase() == "broadcast" -> Color(0xFF8B5CF6)
         else -> Color(0xFF3B82F6)
     }
 
@@ -1302,7 +1304,7 @@ fun NotificationHistoryCard(
                         color = pColor.copy(alpha = 0.15f)
                     ) {
                         Text(
-                            text = (notif.priority ?: "INFO").uppercase(),
+                            text = if (isCelebration) "CELEBRATION 🎉" else (notif.priority ?: "INFO").uppercase(),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = pColor,

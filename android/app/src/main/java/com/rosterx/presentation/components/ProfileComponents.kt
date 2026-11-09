@@ -99,11 +99,9 @@ fun StandardProfileHeaderCard(
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Centered Avatar (Clickable to open edit profile if edit action present)
+                // Centered Avatar (Non-clickable: editing only allowed via the top-right pencil button)
                 Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .then(if (hasEditAction) Modifier.clickable { handleEdit() } else Modifier),
+                    modifier = Modifier.size(80.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     UserAvatar(
@@ -167,6 +165,7 @@ fun UnifiedEditProfileDialog(
         joinDate: String,
         birthday: String,
         newProfilePicture: String?, // null = keep unchanged, "" = remove, "data:..." = update
+        currentPassword: String?,
         newPassword: String?
     ) -> Unit
 ) {
@@ -182,12 +181,15 @@ fun UnifiedEditProfileDialog(
 
     // Photo state: null = unchanged, "" = remove, "data:..." = new image
     var pendingPhotoBase64 by remember(show) { mutableStateOf<String?>(null) }
+    var showConfirmRemovePhotoDialog by remember { mutableStateOf(false) }
     val effectivePhoto = when {
         pendingPhotoBase64 != null -> pendingPhotoBase64!!.takeIf { it.isNotBlank() }
         else -> currentProfilePicture
     }
 
     // Password fields
+    var currentPassword by remember(show) { mutableStateOf("") }
+    var currentPasswordVisible by remember { mutableStateOf(false) }
     var newPassword by remember(show) { mutableStateOf("") }
     var confirmPassword by remember(show) { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -231,9 +233,11 @@ fun UnifiedEditProfileDialog(
 
     val isNameValid = nameInput.trim().length in 2..60
     val isEmailValid = emailInput.isBlank() || (emailInput.contains("@") && emailInput.contains("."))
-    val isPasswordMatch = newPassword.isEmpty() || newPassword == confirmPassword
-    val isPasswordLengthOk = newPassword.isEmpty() || newPassword.length >= 6
-    val canSave = isNameValid && isEmailValid && isPasswordMatch && isPasswordLengthOk
+    val isPasswordChangeAttempted = currentPassword.isNotEmpty() || newPassword.isNotEmpty() || confirmPassword.isNotEmpty()
+    val isCurrentPasswordOk = !isPasswordChangeAttempted || currentPassword.isNotBlank()
+    val isPasswordLengthOk = !isPasswordChangeAttempted || newPassword.length >= 6
+    val isPasswordMatch = !isPasswordChangeAttempted || (newPassword == confirmPassword && newPassword.isNotEmpty())
+    val canSave = isNameValid && isEmailValid && isCurrentPasswordOk && isPasswordLengthOk && isPasswordMatch
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -323,7 +327,7 @@ fun UnifiedEditProfileDialog(
 
                         if (!effectivePhoto.isNullOrBlank()) {
                             OutlinedButton(
-                                onClick = { pendingPhotoBase64 = "" },
+                                onClick = { showConfirmRemovePhotoDialog = true },
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -335,6 +339,33 @@ fun UnifiedEditProfileDialog(
                             }
                         }
                     }
+                }
+
+                if (showConfirmRemovePhotoDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showConfirmRemovePhotoDialog = false },
+                        icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                        title = { Text("Remove Profile Photo?", fontWeight = FontWeight.Bold) },
+                        text = {
+                            Text("Are you sure you want to remove your profile photo? Your initials monogram will be displayed across the app and rosters instead.")
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    pendingPhotoBase64 = ""
+                                    showConfirmRemovePhotoDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Remove")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showConfirmRemovePhotoDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
                 }
 
                 // 2. Personal Information Fields
@@ -433,6 +464,30 @@ fun UnifiedEditProfileDialog(
                     )
                 }
 
+                // Current Password
+                OutlinedTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it },
+                    label = { Text("Current Password", fontSize = 12.sp) },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    trailingIcon = {
+                        IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                            Icon(
+                                if (currentPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = "Toggle current password visibility"
+                            )
+                        }
+                    },
+                    visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    singleLine = true,
+                    isError = isPasswordChangeAttempted && currentPassword.isBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                if (isPasswordChangeAttempted && currentPassword.isBlank()) {
+                    Text("Current password is required to change your password.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+                }
+
                 // New Password
                 OutlinedTextField(
                     value = newPassword,
@@ -449,11 +504,11 @@ fun UnifiedEditProfileDialog(
                     },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
-                    isError = !isPasswordLengthOk,
+                    isError = isPasswordChangeAttempted && !isPasswordLengthOk,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 )
-                if (!isPasswordLengthOk) {
+                if (isPasswordChangeAttempted && !isPasswordLengthOk) {
                     Text("Password must be at least 6 characters.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
                 }
 
@@ -465,11 +520,11 @@ fun UnifiedEditProfileDialog(
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp)) },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
-                    isError = !isPasswordMatch,
+                    isError = isPasswordChangeAttempted && !isPasswordMatch,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 )
-                if (!isPasswordMatch) {
+                if (isPasswordChangeAttempted && !isPasswordMatch) {
                     Text("Passwords do not match.", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
                 }
 
@@ -495,6 +550,7 @@ fun UnifiedEditProfileDialog(
                             val trimmedEmail = emailInput.trim().lowercase()
                             val trimmedJoinDate = joinDateInput.trim()
                             val trimmedBirthday = birthdayInput.trim()
+                            val currPassToVerify = currentPassword.trim().takeIf { it.isNotBlank() }
                             val passToUpdate = newPassword.trim().takeIf { it.isNotBlank() }
 
                             onSave(
@@ -504,6 +560,7 @@ fun UnifiedEditProfileDialog(
                                 trimmedJoinDate,
                                 trimmedBirthday,
                                 pendingPhotoBase64,
+                                currPassToVerify,
                                 passToUpdate
                             )
                             onDismiss()
