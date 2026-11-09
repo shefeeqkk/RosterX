@@ -397,6 +397,56 @@ fun EngineerPortalScreen(
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
+    var showCelebrationDialog by rememberSaveable { mutableStateOf(false) }
+    var activeCelebrationType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
+    var activeCelebrationYears by rememberSaveable { mutableIntStateOf(1) }
+
+    val portalContext = LocalContext.current
+    LaunchedEffect(state.loggedInEngineer) {
+        val eng = state.loggedInEngineer ?: return@LaunchedEffect
+        val today = LocalDate.now()
+        val todayMd = String.format("%02d-%02d", today.monthValue, today.dayOfMonth)
+        val todayStr = today.toString()
+        val uname = eng.username.ifBlank { eng.email.substringBefore("@") }
+
+        val bday = (eng.birthday ?: "").trim().replace("/", "-")
+        val jDate = (eng.joinDate ?: "").trim().replace("/", "-")
+
+        val isBirthday = bday.endsWith(todayMd) || (bday.length >= 5 && bday.takeLast(5) == todayMd)
+        var isAnniversary = false
+        var years = 1
+        if (jDate.endsWith(todayMd) || (jDate.length >= 5 && jDate.takeLast(5) == todayMd)) {
+            try {
+                if (jDate.length >= 4 && jDate.take(4).all { it.isDigit() }) {
+                    val jYear = jDate.take(4).toInt()
+                    val diff = today.year - jYear
+                    if (diff >= 1) {
+                        isAnniversary = true
+                        years = diff
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (isBirthday || isAnniversary) {
+            val prefs = portalContext.getSharedPreferences("rosterx_celebrations", android.content.Context.MODE_PRIVATE)
+            val prefKey = "seen_${uname}_${todayStr}"
+            val alreadySeen = prefs.getBoolean(prefKey, false)
+            if (isBirthday && isAnniversary) {
+                activeCelebrationType = CelebrationType.BOTH
+                activeCelebrationYears = years
+            } else if (isBirthday) {
+                activeCelebrationType = CelebrationType.BIRTHDAY
+                activeCelebrationYears = 0
+            } else {
+                activeCelebrationType = CelebrationType.ANNIVERSARY
+                activeCelebrationYears = years
+            }
+            if (!alreadySeen) {
+                showCelebrationDialog = true
+            }
+        }
+    }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -713,7 +763,8 @@ fun EngineerPortalScreen(
                                 state = state,
                                 onDismissNotification = viewModel::dismissNotification,
                                 onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                onOpenCelebrationWishes = { showCelebrationDialog = true }
                             )
                             1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                             2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
@@ -724,13 +775,15 @@ fun EngineerPortalScreen(
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
                                 onTestConnection = viewModel::checkConnection,
                                 onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId
+                                onSetThemePalette = viewModel::setThemePaletteId,
+                                onOpenCelebrationWishes = { showCelebrationDialog = true }
                             )
                             else -> DashboardView(
                                 state = state,
                                 onDismissNotification = viewModel::dismissNotification,
                                 onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                onOpenCelebrationWishes = { showCelebrationDialog = true }
                             )
                         }
                     } else {
@@ -739,7 +792,8 @@ fun EngineerPortalScreen(
                                 state = state,
                                 onDismissNotification = viewModel::dismissNotification,
                                 onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                onOpenCelebrationWishes = { showCelebrationDialog = true }
                             )
                             1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                             2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
@@ -751,13 +805,15 @@ fun EngineerPortalScreen(
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
                                 onTestConnection = viewModel::checkConnection,
                                 onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId
+                                onSetThemePalette = viewModel::setThemePaletteId,
+                                onOpenCelebrationWishes = { showCelebrationDialog = true }
                             )
                             else -> DashboardView(
                                 state = state,
                                 onDismissNotification = viewModel::dismissNotification,
                                 onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics
+                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                onOpenCelebrationWishes = { showCelebrationDialog = true }
                             )
                         }
                     }
@@ -799,7 +855,7 @@ fun EngineerPortalScreen(
             currentBirthday = eng.birthday ?: "",
             currentProfilePicture = eng.profilePicture,
             onDismiss = { showUnifiedEditProfileDialog = false },
-            onSave = { name, phone, email, joinDate, birthday, photoB64, newPass ->
+            onSave = { name, phone, email, joinDate, birthday, photoB64, currPass, newPass ->
                 viewModel.updateUserProfile(
                     name = name,
                     phone = phone,
@@ -807,6 +863,7 @@ fun EngineerPortalScreen(
                     joinDate = joinDate,
                     birthday = birthday,
                     profilePicture = photoB64,
+                    currentPassword = currPass,
                     newPassword = newPass
                 ) { success, err ->
                     android.widget.Toast.makeText(
@@ -815,6 +872,24 @@ fun EngineerPortalScreen(
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
+            }
+        )
+    }
+
+    if (showCelebrationDialog && state.loggedInEngineer != null) {
+        val eng = state.loggedInEngineer!!
+        val properName = (eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name).toProperCase()
+        CelebrationWishesDialog(
+            show = showCelebrationDialog,
+            celebrationType = activeCelebrationType,
+            userName = properName,
+            anniversaryYears = activeCelebrationYears,
+            onDismiss = {
+                val todayStr = LocalDate.now().toString()
+                val uname = eng.username.ifBlank { eng.email.substringBefore("@") }
+                val prefs = portalContext.getSharedPreferences("rosterx_celebrations", android.content.Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("seen_${uname}_${todayStr}", true).apply()
+                showCelebrationDialog = false
             }
         )
     }
@@ -1629,10 +1704,30 @@ fun ManagerDashboardView(
     state: PortalState,
     onDismissNotification: (String) -> Unit = {},
     onClearAllNotifications: () -> Unit = {},
-    onRefreshDiagnostics: () -> Unit = {}
+    onRefreshDiagnostics: () -> Unit = {},
+    onOpenCelebrationWishes: () -> Unit = {}
 ) {
     val engineer = state.loggedInEngineer
     val today = LocalDate.now()
+    val todayMd = String.format("%02d-%02d", today.monthValue, today.dayOfMonth)
+    val bday = (engineer?.birthday ?: "").trim().replace("/", "-")
+    val jDate = (engineer?.joinDate ?: "").trim().replace("/", "-")
+    val isBirthdayToday = bday.endsWith(todayMd) || (bday.length >= 5 && bday.takeLast(5) == todayMd)
+    var isAnniversaryToday = false
+    var anniversaryYears = 0
+    if (jDate.endsWith(todayMd) || (jDate.length >= 5 && jDate.takeLast(5) == todayMd)) {
+        try {
+            if (jDate.length >= 4 && jDate.take(4).all { it.isDigit() }) {
+                val jYear = jDate.take(4).toInt()
+                val diff = today.year - jYear
+                if (diff >= 1) {
+                    isAnniversaryToday = true
+                    anniversaryYears = diff
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     var dismissingIds by remember { mutableStateOf(setOf<String>()) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -1685,6 +1780,57 @@ fun ManagerDashboardView(
                         textColor = NeumorphicTokens.Accent,
                         fontSize = 18.sp
                     )
+                }
+            }
+        }
+
+        // Special Celebration Banner (Birthday / Work Anniversary)
+        if (isBirthdayToday || isAnniversaryToday) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                    border = BorderStroke(1.2.dp, Color(0xFFF59E0B).copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenCelebrationWishes() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(if (isBirthdayToday) "🎂" else "🏆", fontSize = 22.sp)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isBirthdayToday && isAnniversaryToday) "Happy Birthday & Anniversary! 🎉"
+                                       else if (isBirthdayToday) "Happy Birthday! 🎂"
+                                       else "Happy ${anniversaryYears}y Work Anniversary! 🏆",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tap to view your animated celebration wishes",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.Celebration,
+                            contentDescription = null,
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1779,10 +1925,15 @@ fun ManagerDashboardView(
             }
 
             items(activeNotifs, key = { it.first }) { (notifId, notif) ->
-                val pColor = when (notif.priority?.lowercase()) {
-                    "urgent" -> Color(0xFFEF4444)
-                    "shift_update" -> Color(0xFFF59E0B)
-                    "broadcast" -> Color(0xFF8B5CF6)
+                val isCelebrationNotif = notif.celebrationType != null ||
+                    notif.sender?.contains("Celebration", ignoreCase = true) == true ||
+                    notif.title?.contains("🎂") == true || notif.title?.contains("🏆") == true
+
+                val pColor = when {
+                    isCelebrationNotif -> Color(0xFFF59E0B)
+                    notif.priority?.lowercase() == "urgent" -> Color(0xFFEF4444)
+                    notif.priority?.lowercase() == "shift_update" -> Color(0xFFF59E0B)
+                    notif.priority?.lowercase() == "broadcast" -> Color(0xFF8B5CF6)
                     else -> Color(0xFF3B82F6)
                 }
 
@@ -1804,7 +1955,13 @@ fun ManagerDashboardView(
                     )
                 ) {
                     NeumorphicCard(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (isCelebrationNotif && (notif.celebrationUser == engUsername || isBirthdayToday || isAnniversaryToday)) {
+                                    Modifier.clickable { onOpenCelebrationWishes() }
+                                } else Modifier
+                            ),
                         shape = RoundedCornerShape(20.dp),
                         style = NeumorphicElevationStyle.Raised,
                         surfaceColor = NeumorphicTokens.Surface,
@@ -1828,7 +1985,7 @@ fun ManagerDashboardView(
                                             .padding(horizontal = 8.dp, vertical = 3.dp)
                                     ) {
                                         Text(
-                                            text = (notif.priority ?: "INFO").uppercase(),
+                                            text = if (isCelebrationNotif) "CELEBRATION 🎉" else (notif.priority ?: "INFO").uppercase(),
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = pColor
@@ -1910,14 +2067,16 @@ fun DashboardView(
     state: PortalState,
     onDismissNotification: (String) -> Unit = {},
     onClearAllNotifications: () -> Unit = {},
-    onRefreshDiagnostics: () -> Unit = {}
+    onRefreshDiagnostics: () -> Unit = {},
+    onOpenCelebrationWishes: () -> Unit = {}
 ) {
     if (state.loggedInEngineer?.role == EngineerRole.MANAGER) {
         ManagerDashboardView(
             state = state,
             onDismissNotification = onDismissNotification,
             onClearAllNotifications = onClearAllNotifications,
-            onRefreshDiagnostics = onRefreshDiagnostics
+            onRefreshDiagnostics = onRefreshDiagnostics,
+            onOpenCelebrationWishes = onOpenCelebrationWishes
         )
         return
     }
@@ -1926,6 +2085,25 @@ fun DashboardView(
     val roster = getRosterForEngineer(state.liveRoster, engineer)
     val today = LocalDate.now()
     val tomorrow = today.plusDays(1)
+    val todayMd = String.format("%02d-%02d", today.monthValue, today.dayOfMonth)
+    val bday = (engineer?.birthday ?: "").trim().replace("/", "-")
+    val jDate = (engineer?.joinDate ?: "").trim().replace("/", "-")
+    val isBirthdayToday = bday.endsWith(todayMd) || (bday.length >= 5 && bday.takeLast(5) == todayMd)
+    var isAnniversaryToday = false
+    var anniversaryYears = 0
+    if (jDate.endsWith(todayMd) || (jDate.length >= 5 && jDate.takeLast(5) == todayMd)) {
+        try {
+            if (jDate.length >= 4 && jDate.take(4).all { it.isDigit() }) {
+                val jYear = jDate.take(4).toInt()
+                val diff = today.year - jYear
+                if (diff >= 1) {
+                    isAnniversaryToday = true
+                    anniversaryYears = diff
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     var dismissingIds by remember { mutableStateOf(setOf<String>()) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -1967,6 +2145,7 @@ fun DashboardView(
     ) {
         // Hero Welcome Banner
         item {
+            val engDisplayName = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Engineer").toProperCase()
             NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -1975,27 +2154,44 @@ fun DashboardView(
                 contentPadding = 20.dp
             ) {
                 Column {
-                    Text(
-                        text = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
-                        color = NeumorphicTokens.AccentSalmon,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Welcome, ${(engineer?.name ?: "Engineer").toProperCase()}! \uD83D\uDC4B",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = NeumorphicTokens.TextMain
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Operational shift overview and live verified team duty briefing.",
-                        fontSize = 13.sp,
-                        color = NeumorphicTokens.TextMuted
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = today.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
+                                color = NeumorphicTokens.AccentSalmon,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Welcome, $engDisplayName! \uD83D\uDC4B",
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = NeumorphicTokens.TextMain
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Operational shift overview and live verified team duty briefing.",
+                                fontSize = 12.5.sp,
+                                color = NeumorphicTokens.TextMuted
+                            )
+                        }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                        UserAvatar(
+                            name = engDisplayName,
+                            profilePicture = engineer?.profilePicture,
+                            size = 52.dp,
+                            backgroundColor = MaterialTheme.colorScheme.primary,
+                            textColor = MaterialTheme.colorScheme.onPrimary,
+                            fontSize = 19.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -2070,7 +2266,56 @@ fun DashboardView(
             }
         }
 
-
+        // Special Celebration Banner (Birthday / Work Anniversary)
+        if (isBirthdayToday || isAnniversaryToday) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                    border = BorderStroke(1.2.dp, Color(0xFFF59E0B).copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenCelebrationWishes() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(if (isBirthdayToday) "🎂" else "🏆", fontSize = 22.sp)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isBirthdayToday && isAnniversaryToday) "Happy Birthday & Anniversary! 🎉"
+                                       else if (isBirthdayToday) "Happy Birthday! 🎂"
+                                       else "Happy ${anniversaryYears}y Work Anniversary! 🏆",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tap to view your animated celebration greeting",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.Celebration,
+                            contentDescription = null,
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+        }
 
         // Today & Tomorrow Shift Cards
 
@@ -2301,10 +2546,15 @@ fun DashboardView(
 
 
             items(activeNotifs, key = { it.first }) { (notifId, notif) ->
-                val pColor = when (notif.priority?.lowercase()) {
-                    "urgent" -> Color(0xFFEF4444)
-                    "shift_update" -> Color(0xFFF59E0B)
-                    "broadcast" -> Color(0xFF8B5CF6)
+                val isCelebrationNotif = notif.celebrationType != null ||
+                    notif.sender?.contains("Celebration", ignoreCase = true) == true ||
+                    notif.title?.contains("🎂") == true || notif.title?.contains("🏆") == true
+
+                val pColor = when {
+                    isCelebrationNotif -> Color(0xFFF59E0B)
+                    notif.priority?.lowercase() == "urgent" -> Color(0xFFEF4444)
+                    notif.priority?.lowercase() == "shift_update" -> Color(0xFFF59E0B)
+                    notif.priority?.lowercase() == "broadcast" -> Color(0xFF8B5CF6)
                     else -> Color(0xFF3B82F6)
                 }
 
@@ -2326,7 +2576,13 @@ fun DashboardView(
                     )
                 ) {
                     NeumorphicCard(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (isCelebrationNotif && (notif.celebrationUser == engUsername || isBirthdayToday || isAnniversaryToday)) {
+                                    Modifier.clickable { onOpenCelebrationWishes() }
+                                } else Modifier
+                            ),
                         shape = RoundedCornerShape(20.dp),
                         style = NeumorphicElevationStyle.Raised,
                         surfaceColor = NeumorphicTokens.Surface,
@@ -2350,7 +2606,7 @@ fun DashboardView(
                                             .padding(horizontal = 8.dp, vertical = 3.dp)
                                     ) {
                                         Text(
-                                            text = (notif.priority ?: "INFO").uppercase(),
+                                            text = if (isCelebrationNotif) "CELEBRATION 🎉" else (notif.priority ?: "INFO").uppercase(),
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = pColor
@@ -4379,18 +4635,39 @@ fun AccountView(
     onChangePassword: ((String) -> Unit)? = null,
     onUploadProfilePicture: ((String, String?, ((Boolean, String?) -> Unit)?) -> Unit)? = null,
     onRemoveProfilePicture: ((String?, ((Boolean, String?) -> Unit)?) -> Unit)? = null,
-    onUpdateProfileName: ((String, String?, ((Boolean, String?) -> Unit)?) -> Unit)? = null
+    onUpdateProfileName: ((String, String?, ((Boolean, String?) -> Unit)?) -> Unit)? = null,
+    onOpenCelebrationWishes: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val engineer = state.loggedInEngineer
+
+    val today = LocalDate.now()
+    val todayMd = String.format("%02d-%02d", today.monthValue, today.dayOfMonth)
+    val bday = (engineer?.birthday ?: "").trim().replace("/", "-")
+    val jDate = (engineer?.joinDate ?: "").trim().replace("/", "-")
+    val isBirthdayToday = bday.endsWith(todayMd) || (bday.length >= 5 && bday.takeLast(5) == todayMd)
+    var isAnniversaryToday = false
+    var anniversaryYears = 0
+    if (jDate.endsWith(todayMd) || (jDate.length >= 5 && jDate.takeLast(5) == todayMd)) {
+        try {
+            if (jDate.length >= 4 && jDate.take(4).all { it.isDigit() }) {
+                val jYear = jDate.take(4).toInt()
+                val diff = today.year - jYear
+                if (diff >= 1) {
+                    isAnniversaryToday = true
+                    anniversaryYears = diff
+                }
+            }
+        } catch (_: Exception) {}
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // User Profile Header
+        // User Profile Header (Single top-right pencil icon standard)
         item {
             com.rosterx.presentation.components.StandardProfileHeaderCard(
                 name = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Unknown User"),
@@ -4400,7 +4677,58 @@ fun AccountView(
             )
         }
 
-        // Account Details (with Phone, Email, Joining Date & Birthday!)
+        // Special Celebration Banner (Birthday / Work Anniversary)
+        if (isBirthdayToday || isAnniversaryToday) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                    border = BorderStroke(1.2.dp, Color(0xFFF59E0B).copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenCelebrationWishes() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(if (isBirthdayToday) "🎂" else "🏆", fontSize = 22.sp)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isBirthdayToday && isAnniversaryToday) "Happy Birthday & Anniversary! 🎉"
+                                       else if (isBirthdayToday) "Happy Birthday! 🎂"
+                                       else "Happy ${anniversaryYears}y Work Anniversary! 🏆",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tap to open your animated celebration wishes",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.Celebration,
+                            contentDescription = null,
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Account Details (Clean, single edit entrypoint via avatar card pencil)
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
@@ -4409,24 +4737,25 @@ fun AccountView(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("ACCOUNT DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        IconButton(onClick = onOpenEditProfile, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit Details", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
-                        }
-                    }
+                    Text("ACCOUNT DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                     ProfileDetailRow("Domain Username", engineer?.username ?: "--")
                     ProfileDetailRow("Full Name", engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "--")
                     ProfileDetailRow("Registered Email", if (!engineer?.email.isNullOrBlank()) engineer!!.email else "--")
                     ProfileDetailRow("Contact Phone", if (!engineer?.phone.isNullOrBlank()) engineer!!.phone else "--")
-                    ProfileDetailRow("Joining Date", if (!engineer?.joinDate.isNullOrBlank()) engineer!!.joinDate else "--")
-                    ProfileDetailRow("Birthday 🎂", if (!engineer?.birthday.isNullOrBlank()) engineer!!.birthday else "--")
+                    ProfileDetailRow(
+                        "Joining Date",
+                        if (!engineer?.joinDate.isNullOrBlank()) {
+                            if (isAnniversaryToday) "${engineer!!.joinDate}  🏆 TODAY! (${anniversaryYears}y)" else engineer!!.joinDate
+                        } else "--"
+                    )
+                    ProfileDetailRow(
+                        "Birthday 🎂",
+                        if (!engineer?.birthday.isNullOrBlank()) {
+                            if (isBirthdayToday) "${engineer!!.birthday}  🎉 TODAY!" else engineer!!.birthday
+                        } else "--"
+                    )
                     ProfileDetailRow("Weekly Offs", if (!engineer?.defaultWeeklyOffs.isNullOrEmpty()) engineer!!.defaultWeeklyOffs.joinToString(", ") else "None")
                 }
             }

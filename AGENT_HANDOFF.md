@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 21:00 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 22:05 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.22.1`** (Android `versionCode: 76`, Server `SERVER_VERSION = "1.22.1"`)
-- **Previous Versions**: `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70)
+- **Semantic Version**: **`1.22.2`** (Android `versionCode: 77`, Server `SERVER_VERSION = "1.22.2"`)
+- **Previous Versions**: `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -22,17 +22,49 @@
 
 ---
 
-## 🚀 Major Upgrades in v1.22.1
+## 🚀 Major Upgrades in v1.22.2
 
-### 1. 🐛 Fix Manager Widget "Loading..." Row Inflation Crash
-- **Root Cause**:
-  - `item_widget_shift_pair.xml` contained an `<Space android:layout_width="4dp".../>` element between the two engineer columns.
-  - In Android's widget framework, only a strict whitelist of view classes (`LinearLayout`, `FrameLayout`, `RelativeLayout`, `GridLayout`, `TextView`, `ImageView`, `Button`, etc.) is permitted inside `RemoteViews`.
-  - When the launcher's widget host encountered `<Space>`, it threw `InflateException: Class not allowed to be inflated in RemoteViews: android.widget.Space`. The launcher caught this exception and fell back to displaying Android's default adapter loading view (`"Loading..."`).
-- **Fix**:
-  - Replaced `<Space>` with balanced `android:layout_marginEnd="2.5dp"` on Column 1 and `android:layout_marginStart="2.5dp"` on Column 2.
-  - Made color parsing and RemoteViews method execution in `RosterXWidgetService.kt` completely null-safe.
-  - The 2-column manager duty items now inflate cleanly and instantly on all device launchers.
+### 1. 🎂 & 🏆 Birthday & Work Anniversary Personal Celebrations (`CelebrationWishesDialog`)
+- **Animated Celebratory Modal**:
+  - Custom full-screen modal with infinite pulsing and wobble animations (`scaleAnim`, `rotateAnim`), festive multi-stop radial gradient badge, and emoji accents.
+  - Dynamically customizes title, subtitle, and warm heartfelt greetings based on `CelebrationType.BIRTHDAY`, `CelebrationType.ANNIVERSARY` (with ordinal years e.g., 1st, 2nd, 3rd), or `CelebrationType.BOTH`.
+- **Automatic Welcoming On Special Day**:
+  - `LaunchedEffect(state.loggedInEngineer)` in `EngineerPortalScreen` checks if today's date matches the engineer's birthday or work anniversary.
+  - Checks SharedPreferences `seen_{username}_{todayStr}` so the user is greeted once per day upon opening the app without repeated interruptions.
+- **Interactive Celebration Banners**:
+  - Rendered at the top of `DashboardView`, `ManagerDashboardView`, and `AccountView`.
+  - Displays `"TODAY! 🎉"` and `"TODAY! 🏆 (${years}y)"` in Account Details rows.
+  - Tapping any celebration banner re-opens the animated dialog anytime.
+
+### 2. 📢 Automated Daily Event Broadcasts & FCM Push to Team
+- **Automated Server Engine (`check_and_trigger_celebrations`)**:
+  - Periodically detects birthdays and work anniversaries for all team members in Indian Standard Time (IST, UTC+05:30).
+  - Automatically posts an official high-priority celebration announcement in `ATLAS_DB.notifications` and `SERVER_NOTIFICATIONS` from `"RosterX Celebrations Desk"`.
+  - Dispatches Google FCM push notifications to all registered devices across the team so everyone is alerted.
+  - Idempotent: indexed by unique `celebration_id` (`celeb_YYYY-MM-DD_username_type`) to guarantee exactly once delivery per day.
+  - Supported endpoints: `POST /api/celebrations/check` and automatic check on `GET /api/notifications` and `GET /api/engineers`.
+
+### 3. ✏️ Strict Single Pencil Icon Standard
+- **Eliminated Duplicate Edit Entrypoints**:
+  - Removed duplicate pencil icons from `TopAppBar` actions and the `ACCOUNT DETAILS` card header.
+  - Kept **ONLY ONE unified edit pencil button** on the top-right of the avatar profile card (`StandardProfileHeaderCard`).
+  - Removed clickability from the entire card and avatar box — edit dialog opens **only** when tapping the dedicated top-right pencil button.
+
+### 4. 🔒 Current Password Verification for Password Changes
+- **Enhanced Account Security**:
+  - `UnifiedEditProfileDialog` now requires entering **Current Password** whenever changing password.
+  - Full eye icon toggle for show/hide password across all three password fields.
+  - `server.py` verifies `current_password` against the PBKDF2 hash using constant-time verification (`verify_password`).
+
+### 5. 🗑️ Photo Removal Confirmation Alert
+- **Prevent Accidental Photo Deletion**:
+  - Clicking "Remove" in `UnifiedEditProfileDialog` shows an `AlertDialog` confirming whether the user truly wants to remove their profile photo before wiping it.
+
+### 6. 📱 Own Contact Phone Unmasked & Asterisk Overwrite Protection
+- **Phone Visibility**:
+  - In `server.py` (`GET /api/engineers`), `can_view_phone = is_admin or (caller_role == "manager") or is_own_profile` ensures logged-in engineers view their own phone unmasked.
+  - In `POST /api/users/profile`, strings containing `*` are rejected from phone updates, preventing masked strings from corrupting the database.
+  - Restored clean phone number `+91 9809226169` for `shefeeqkk` in Atlas DB.
 
 ---
 

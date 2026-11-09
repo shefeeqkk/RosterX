@@ -786,6 +786,7 @@ class EngineerPortalViewModel @Inject constructor(
         joinDate: String,
         birthday: String,
         profilePicture: String?,
+        currentPassword: String?,
         newPassword: String?,
         targetUsername: String? = null,
         onResult: ((Boolean, String?) -> Unit)? = null
@@ -799,6 +800,7 @@ class EngineerPortalViewModel @Inject constructor(
                 joinDate = joinDate,
                 birthday = birthday,
                 profilePicture = profilePicture,
+                currentPassword = currentPassword?.takeIf { it.isNotBlank() },
                 newPassword = newPassword?.takeIf { it.isNotBlank() },
                 username = targetUsername
             )

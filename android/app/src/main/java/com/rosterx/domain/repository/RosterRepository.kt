@@ -70,6 +70,7 @@ interface RosterRepository {
         joinDate: String? = null,
         birthday: String? = null,
         profilePicture: String? = null,
+        currentPassword: String? = null,
         newPassword: String? = null,
         username: String? = null
     ): Result<Engineer>

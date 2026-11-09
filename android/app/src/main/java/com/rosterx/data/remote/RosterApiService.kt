@@ -241,6 +241,7 @@ data class UpdateProfileRequest(
     @SerializedName("join_date") val joinDate: String? = null,
     @SerializedName("birthday") val birthday: String? = null,
     @SerializedName("profile_picture") val profilePicture: String? = null,
+    @SerializedName("current_password") val currentPassword: String? = null,
     @SerializedName("password") val password: String? = null
 )
 
@@ -307,7 +308,12 @@ data class NotificationDto(
     @SerializedName("read_count") val readCount: Int? = 0,
     @SerializedName("pending_count") val pendingCount: Int? = 0,
     @SerializedName("read_by") val readBy: List<String>? = null,
-    @SerializedName("pending") val pending: List<String>? = null
+    @SerializedName("pending") val pending: List<String>? = null,
+    @SerializedName("celebration_type") val celebrationType: String? = null,
+    @SerializedName("celebration_user") val celebrationUser: String? = null,
+    @SerializedName("celebration_name") val celebrationName: String? = null,
+    @SerializedName("celebration_years") val celebrationYears: Int? = null,
+    @SerializedName("celebration_photo") val celebrationPhoto: String? = null
 )
 
 data class BroadcastTemplateDto(

@@ -920,6 +920,7 @@ class RosterRepositoryImpl @Inject constructor(
         joinDate: String?,
         birthday: String?,
         profilePicture: String?,
+        currentPassword: String?,
         newPassword: String?,
         username: String?
     ): Result<Engineer> = withContext(Dispatchers.IO) {
@@ -933,6 +934,7 @@ class RosterRepositoryImpl @Inject constructor(
                 joinDate = joinDate,
                 birthday = birthday,
                 profilePicture = profilePicture,
+                currentPassword = currentPassword,
                 password = newPassword
             )
             val res = apiService.updateProfile(req)
