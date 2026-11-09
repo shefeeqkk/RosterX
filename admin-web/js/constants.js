@@ -279,7 +279,7 @@ export function sortEngineersByWeekOffs(engineers, getOffsFn = null) {
 export const DEFAULT_ENGINEERS = [
   // Rank 1: Sun, Mon
   {
-    name: "NANDU ANTHIKAT",
+    name: "Nandu Anthikat",
     username: "nandua",
     full_name: "Nandu Anthikat",
     email: "nandua@tejasnetworks.com",
@@ -293,7 +293,7 @@ export const DEFAULT_ENGINEERS = [
   },
   // Rank 2: Mon, Tue
   {
-    name: "SHEFEEQ",
+    name: "Shefeeq",
     username: "shefeeqkk",
     full_name: "Shefeeq K K",
     email: "shefeeqkk@tejasnetworks.com",
@@ -307,7 +307,7 @@ export const DEFAULT_ENGINEERS = [
   },
   // Rank 3: Tue, Wed
   {
-    name: "DYANI DESOZA",
+    name: "Dyani Desoza",
     username: "dyanid",
     full_name: "Dyani DeSoza",
     email: "dyanid@tejasnetworks.com",
@@ -321,7 +321,7 @@ export const DEFAULT_ENGINEERS = [
   },
   // Rank 4: Wed, Thu
   {
-    name: "ATUL KANGRALKAR",
+    name: "Atul Kangralkar",
     username: "athulka",
     full_name: "Atul Kangralkar",
     email: "athulka@tejasnetworks.com",
@@ -335,7 +335,7 @@ export const DEFAULT_ENGINEERS = [
   },
   // Rank 5: Thu, Fri
   {
-    name: "SILAMBARASAN",
+    name: "Silambarasan",
     username: "silambarasan",
     full_name: "Silambarasan V",
     email: "silambarasan@tejasnetworks.com",
@@ -349,7 +349,7 @@ export const DEFAULT_ENGINEERS = [
   },
   // Rank 6: Fri, Sat
   {
-    name: "HEMANTH",
+    name: "Hemanth",
     username: "hemanthti",
     full_name: "Hemanth K",
     email: "hemanthti@tejasnetworks.com",
@@ -363,7 +363,7 @@ export const DEFAULT_ENGINEERS = [
   },
   // Rank 7: Sat, Sun
   {
-    name: "MANOJ",
+    name: "Manoj",
     username: "manoj",
     full_name: "Manoj N",
     email: "manoj@tejasnetworks.com",
@@ -376,7 +376,7 @@ export const DEFAULT_ENGINEERS = [
     preferred_shifts: ["FS", "FG", "SS"]
   },
   {
-    name: "DHANUSH",
+    name: "Dhanush B",
     username: "dhanush",
     full_name: "Dhanush P",
     email: "dhanush@tejasnetworks.com",
@@ -389,7 +389,7 @@ export const DEFAULT_ENGINEERS = [
     preferred_shifts: ["SS", "G"]
   },
   {
-    name: "ROHIT",
+    name: "Rohit N",
     username: "rohit",
     full_name: "Rohit M",
     email: "rohit@tejasnetworks.com",
@@ -402,7 +402,7 @@ export const DEFAULT_ENGINEERS = [
     preferred_shifts: ["G"]
   },
   {
-    name: "RAJ KUMAR",
+    name: "Raj Kumar",
     username: "rajkumar",
     full_name: "Raj Kumar S",
     email: "rajkumar@tejasnetworks.com",
@@ -433,3 +433,11 @@ export function shiftsMapToArray(map, totalDays = 31) {
 }
 
 export const ENGINEERS = DEFAULT_ENGINEERS;
+
+export function toProperCase(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str.trim().split(/\s+/).map(word => {
+    if (word.length === 1) return word.toUpperCase();
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}

@@ -75,6 +75,7 @@ import com.rosterx.domain.model.isManagementAccount
 
 import com.rosterx.presentation.admin.AdminRosterState
 import com.rosterx.presentation.components.UserAvatar
+import com.rosterx.presentation.components.toProperCase
 
 import com.rosterx.presentation.portal.*
 
@@ -434,7 +435,7 @@ fun MonthRostersTab(
 
                             Text(
 
-                                text = "${yearMonth.month.name.take(3)} $day · ${eng.name.uppercase()}",
+                                text = "${yearMonth.month.name.take(3)} $day · ${eng.name.toProperCase()}",
 
                                 fontSize = 11.sp,
 

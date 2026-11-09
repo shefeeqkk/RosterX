@@ -53,18 +53,37 @@ class UserSessionManager @Inject constructor(
         prefs.edit().putString("app_theme_palette_id", paletteId).apply()
     }
 
+    private fun toProperCase(str: String): String {
+        val clean = str.trim()
+        if (clean.isBlank()) return clean
+        return clean.split(" ")
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { word ->
+                if (word.length == 1) word.uppercase()
+                else word.lowercase().replaceFirstChar { it.uppercase() }
+            }
+    }
+
     private fun loadSavedUser(): Engineer? {
         val json = prefs.getString("saved_user", null) ?: return null
         return try {
-            gson.fromJson(json, Engineer::class.java)
+            val user = gson.fromJson(json, Engineer::class.java)
+            if (user != null && user.name.isNotBlank()) {
+                val proper = toProperCase(user.name)
+                user.copy(name = proper, fullName = proper)
+            } else {
+                user
+            }
         } catch (e: Exception) {
             null
         }
     }
 
     fun setCurrentUser(user: Engineer) {
-        _currentUser.value = user
-        prefs.edit().putString("saved_user", gson.toJson(user)).apply()
+        val proper = toProperCase(user.name)
+        val normalized = user.copy(name = proper, fullName = proper)
+        _currentUser.value = normalized
+        prefs.edit().putString("saved_user", gson.toJson(normalized)).apply()
     }
 
     fun updateCurrentUserProfilePicture(picture: String?) {

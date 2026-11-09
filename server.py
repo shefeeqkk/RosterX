@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.3"
+SERVER_VERSION = "1.21.4"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -197,16 +197,16 @@ def get_smtp_credentials():
 
 # Official Team Directory
 DEFAULT_SERVER_ENGINEERS = [
-    {"name": "NANDU ANTHIKAT", "username": "nandua", "full_name": "Nandu Anthikat", "email": "nandua@tejasnetworks.com", "phone": "+919811001103", "role": "engineer", "status": "Active", "default_weekly_offs": ["Sunday", "Monday"], "preferred_shifts": ["FS", "FG"]},
-    {"name": "SHEFEEQ", "username": "shefeeqkk", "full_name": "Shefeeq K K", "email": "shefeeqkk@tejasnetworks.com", "phone": "+91 9809226169", "role": "engineer", "status": "Active", "default_weekly_offs": ["Monday", "Tuesday"], "preferred_shifts": ["G", "FG"]},
-    {"name": "DYANI DESOZA", "username": "dyanid", "full_name": "Dyani DeSoza", "email": "dyanid@tejasnetworks.com", "phone": "+919811001105", "role": "engineer", "status": "Active", "default_weekly_offs": ["Tuesday", "Wednesday"], "preferred_shifts": ["SS", "SG"]},
-    {"name": "ATUL KANGRALKAR", "username": "athulka", "full_name": "Atul Kangralkar", "email": "athulka@tejasnetworks.com", "phone": "+919811001106", "role": "admin", "status": "Active", "default_weekly_offs": ["Wednesday", "Thursday"], "preferred_shifts": ["FG", "G"]},
-    {"name": "SILAMBARASAN", "username": "silambarasan", "full_name": "Silambarasan V", "email": "silambarasan@tejasnetworks.com", "phone": "+919811001107", "role": "engineer", "status": "Active", "default_weekly_offs": ["Thursday", "Friday"], "preferred_shifts": ["FS", "SS"]},
-    {"name": "HEMANTH", "username": "hemanthti", "full_name": "Hemanth K", "email": "hemanthti@tejasnetworks.com", "phone": "+919811001108", "role": "engineer", "status": "Active", "default_weekly_offs": ["Friday", "Saturday"], "preferred_shifts": ["SG", "G"]},
-    {"name": "MANOJ", "username": "manoj", "full_name": "Manoj N", "email": "manoj@tejasnetworks.com", "phone": "+919811001101", "role": "engineer", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["FS", "FG", "SS"]},
-    {"name": "DHANUSH", "username": "dhanush", "full_name": "Dhanush P", "email": "dhanush@tejasnetworks.com", "phone": "+919811001110", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
-    {"name": "ROHIT", "username": "rohit", "full_name": "Rohit M", "email": "rohit@tejasnetworks.com", "phone": "+919811001109", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["G"]},
-    {"name": "RAJ KUMAR", "username": "rajkumar", "full_name": "Raj Kumar S", "email": "rajkumar@tejasnetworks.com", "phone": "+919811001102", "role": "engineer", "status": "Resigned", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
+    {"name": "Nandu Anthikat", "username": "nandua", "full_name": "Nandu Anthikat", "email": "nandua@tejasnetworks.com", "phone": "+919811001103", "role": "engineer", "status": "Active", "default_weekly_offs": ["Sunday", "Monday"], "preferred_shifts": ["FS", "FG"]},
+    {"name": "Shefeeq", "username": "shefeeqkk", "full_name": "Shefeeq K K", "email": "shefeeqkk@tejasnetworks.com", "phone": "+91 9809226169", "role": "engineer", "status": "Active", "default_weekly_offs": ["Monday", "Tuesday"], "preferred_shifts": ["G", "FG"]},
+    {"name": "Dyani Desoza", "username": "dyanid", "full_name": "Dyani DeSoza", "email": "dyanid@tejasnetworks.com", "phone": "+919811001105", "role": "engineer", "status": "Active", "default_weekly_offs": ["Tuesday", "Wednesday"], "preferred_shifts": ["SS", "SG"]},
+    {"name": "Atul Kangralkar", "username": "athulka", "full_name": "Atul Kangralkar", "email": "athulka@tejasnetworks.com", "phone": "+919811001106", "role": "admin", "status": "Active", "default_weekly_offs": ["Wednesday", "Thursday"], "preferred_shifts": ["FG", "G"]},
+    {"name": "Silambarasan", "username": "silambarasan", "full_name": "Silambarasan V", "email": "silambarasan@tejasnetworks.com", "phone": "+919811001107", "role": "engineer", "status": "Active", "default_weekly_offs": ["Thursday", "Friday"], "preferred_shifts": ["FS", "SS"]},
+    {"name": "Hemanth", "username": "hemanthti", "full_name": "Hemanth K", "email": "hemanthti@tejasnetworks.com", "phone": "+919811001108", "role": "engineer", "status": "Active", "default_weekly_offs": ["Friday", "Saturday"], "preferred_shifts": ["SG", "G"]},
+    {"name": "Manoj", "username": "manoj", "full_name": "Manoj N", "email": "manoj@tejasnetworks.com", "phone": "+919811001101", "role": "engineer", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["FS", "FG", "SS"]},
+    {"name": "Dhanush B", "username": "dhanush", "full_name": "Dhanush P", "email": "dhanush@tejasnetworks.com", "phone": "+919811001110", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
+    {"name": "Rohit N", "username": "rohit", "full_name": "Rohit M", "email": "rohit@tejasnetworks.com", "phone": "+919811001109", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["G"]},
+    {"name": "Raj Kumar", "username": "rajkumar", "full_name": "Raj Kumar S", "email": "rajkumar@tejasnetworks.com", "phone": "+919811001102", "role": "engineer", "status": "Resigned", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
 ]
 
 
@@ -1269,7 +1269,7 @@ def build_roster_grounding_context(current_user=None):
 
     normalized_roster = []
     for eng in engineers_roster:
-        name = eng.get("name", "Unknown")
+        name = to_proper_name(eng.get("name", "Unknown"))
         shifts_raw = eng.get("shifts")
         shifts_arr = []
         if isinstance(shifts_raw, dict):
@@ -1304,7 +1304,7 @@ def build_roster_grounding_context(current_user=None):
         if prev_roster_doc:
             p_engs = prev_roster_doc.get("engineers") or prev_roster_doc.get("roster") or []
             for pe in p_engs:
-                p_name = pe.get("name", "Unknown")
+                p_name = to_proper_name(pe.get("name", "Unknown"))
                 p_raw = pe.get("shifts")
                 p_shift = ""
                 if isinstance(p_raw, dict):
@@ -2162,6 +2162,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status"):
                             if k in user_doc:
                                 response_user[k] = user_doc[k]
+                    if response_user.get("name"):
+                        response_user["name"] = to_proper_name(response_user["name"])
+                    if response_user.get("full_name"):
+                        response_user["full_name"] = to_proper_name(response_user["full_name"])
                 except Exception:
                     pass
             self.send_json_response({
@@ -2247,8 +2251,14 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     # Exclude pure management accounts and manager/admin from duty shifts
                     if "engineers" in doc and isinstance(doc["engineers"], list):
                         doc["engineers"] = [e for e in doc["engineers"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
+                        for e in doc["engineers"]:
+                            if isinstance(e, dict) and e.get("name"):
+                                e["name"] = to_proper_name(e["name"])
                     if "roster" in doc and isinstance(doc["roster"], list):
                         doc["roster"] = [e for e in doc["roster"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
+                        for e in doc["roster"]:
+                            if isinstance(e, dict) and e.get("name"):
+                                e["name"] = to_proper_name(e["name"])
                     self.send_json_response({
                         "success": True,
                         "document": doc,
@@ -2319,6 +2329,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 # Purge any legacy artificial IDs - username is the sole identifier
                 item.pop("id", None)
                 item.pop("engineer_id", None)
+                if item.get("name"):
+                    item["name"] = to_proper_name(item["name"])
+                if item.get("full_name"):
+                    item["full_name"] = to_proper_name(item["full_name"])
                 if not item.get("username") and item.get("email") and "@" in item["email"]:
                     item["username"] = item["email"].split("@")[0].strip().lower()
                 if not is_admin and item.get("phone"):
@@ -2583,8 +2597,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     user_payload = {
                         "id": user.get("id", f"eng_{u_name}"),
                         "username": u_name,
-                        "name": user.get("name", u_name.upper()),
-                        "full_name": user.get("full_name") or user.get("name"),
+                        "name": to_proper_name(user.get("name") or u_name),
+                        "full_name": to_proper_name(user.get("full_name") or user.get("name") or u_name),
                         "email": user.get("email", ""),
                         "phone": user.get("phone", ""),
                         "role": role,
