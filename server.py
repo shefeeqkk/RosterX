@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.5"
+SERVER_VERSION = "1.21.6"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -616,24 +616,26 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY
     if not RESEND_API_KEY:
         env = load_env_variables()
-        RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "")
+        RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "").strip() or DEFAULT_RESEND_API_KEY
     api_key = RESEND_API_KEY or DEFAULT_RESEND_API_KEY
     if not api_key:
         print("[RESEND AUDIT] ERROR: RESEND_API_KEY is not configured in .env or environment.")
         return {"success": False, "error": "RESEND_API_KEY is not configured in .env"}
 
+    from_sender = (RESEND_FROM or "").strip() or "RosterX Operations <notify@rosterx.online>"
+
     env = load_env_variables()
     primary_sandbox_email = env.get("ALERT_EMAIL", "").strip() or os.environ.get("ALERT_EMAIL", "kkshefeeq005@gmail.com")
 
     payload = {
-        "from": RESEND_FROM,
+        "from": from_sender,
         "to": [to_email],
         "subject": subject,
         "html": html_content
     }
 
     log_server(f"[RESEND AUDIT] Outgoing Request: POST https://api.resend.com/emails")
-    log_server(f"[RESEND AUDIT] Sender ('from'): {RESEND_FROM}")
+    log_server(f"[RESEND AUDIT] Sender ('from'): {from_sender}")
     log_server(f"[RESEND AUDIT] Recipient ('to'): {payload['to']}")
     log_server(f"[RESEND AUDIT] Subject: {subject}")
     log_server(f"[RESEND AUDIT] Outgoing JSON Payload: {json.dumps(payload)}")
@@ -3920,8 +3922,8 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [ATLAS DB] Status: {ATLAS_STATUS} ({ATLAS_CLUSTER}/{ATLAS_DB_NAME})")
 
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY, DEFAULT_ALERT_EMAIL
-    RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or DEFAULT_RESEND_API_KEY
-    RESEND_FROM = env.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>").strip()
+    RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "").strip() or DEFAULT_RESEND_API_KEY
+    RESEND_FROM = env.get("RESEND_FROM", "").strip() or os.environ.get("RESEND_FROM", "").strip() or "RosterX Operations <notify@rosterx.online>"
 
     mongo_uri = env.get("MONGODB_URI", "")
     cluster_name = env.get("ATLAS_CLUSTER", "Cluster0")
