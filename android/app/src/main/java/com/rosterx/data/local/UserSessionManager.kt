@@ -126,9 +126,13 @@ class UserSessionManager @Inject constructor(
         return loadSavedUser() != null
     }
 
+    companion object {
+        const val DEFAULT_PRODUCTION_URL = "https://api.rosterx.online/"
+    }
+
     fun sanitizeBaseUrl(url: String): String {
-        var clean = url.trim()
-        if (clean.isBlank()) return "https://rosterx-vc30.onrender.com/"
+        var clean = url.trim().replace(",", "")
+        if (clean.isBlank()) return DEFAULT_PRODUCTION_URL
         if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
             clean = "https://" + clean
         }
@@ -143,7 +147,15 @@ class UserSessionManager @Inject constructor(
 
     fun getBaseUrl(): String {
         val saved = prefs.getString("custom_base_url", null)
-        if (!saved.isNullOrBlank()) return sanitizeBaseUrl(saved)
+        if (!saved.isNullOrBlank()) {
+            val clean = sanitizeBaseUrl(saved)
+            // Auto-migrate legacy onrender or trycloudflare URLs to official custom domain
+            if (clean.contains("onrender.com") || clean.contains("trycloudflare.com")) {
+                prefs.edit().putString("custom_base_url", DEFAULT_PRODUCTION_URL).apply()
+                return DEFAULT_PRODUCTION_URL
+            }
+            return clean
+        }
 
         // Automatically resolve synced internet tunnel URL from assets if present
         try {
@@ -152,10 +164,10 @@ class UserSessionManager @Inject constructor(
                 return sanitizeBaseUrl(assetUrl)
             }
         } catch (e: Exception) {
-            // Assets file not present or not accessible; fall back to Render URL
+            // Assets file not present or not accessible; fall back to official domain
         }
 
-        return "https://rosterx-vc30.onrender.com/"
+        return DEFAULT_PRODUCTION_URL
     }
 
     fun setBaseUrl(url: String) {

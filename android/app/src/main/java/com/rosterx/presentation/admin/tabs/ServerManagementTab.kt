@@ -370,7 +370,7 @@ fun ServerManagementTab(
                         value = baseUrlInput,
                         onValueChange = { baseUrlInput = it },
                         label = { Text("Server Base URL", fontSize = 12.sp) },
-                        placeholder = { Text("e.g. https://rosterx-vc30.onrender.com/api/", fontSize = 12.sp) },
+                        placeholder = { Text("e.g. https://api.rosterx.online/api/", fontSize = 12.sp) },
                         trailingIcon = {
                             if (baseUrlInput.isNotBlank()) {
                                 IconButton(onClick = { baseUrlInput = "" }) {
@@ -389,17 +389,17 @@ fun ServerManagementTab(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                val renderUrl = "https://rosterx-vc30.onrender.com/api/"
-                                baseUrlInput = renderUrl
-                                onSaveBaseUrl(renderUrl)
-                                Toast.makeText(context, "Reset to Production Render URL", Toast.LENGTH_SHORT).show()
+                                val prodUrl = "https://api.rosterx.online/api/"
+                                baseUrlInput = prodUrl
+                                onSaveBaseUrl(prodUrl)
+                                Toast.makeText(context, "Reset to Production Domain (api.rosterx.online)", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Render URL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Production Domain", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Button(
