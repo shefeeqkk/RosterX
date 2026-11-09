@@ -24,6 +24,7 @@ data class RosterBackup(
 
 interface RosterRepository {
     suspend fun login(identifier: String, password: String): Result<Engineer>
+    suspend fun getCurrentUser(): Result<Engineer>
     suspend fun sendOtp(identifier: String): Result<String>
     suspend fun verifyOtp(identifier: String, otp: String, newPassword: String): Result<String>
     suspend fun pingServer(): Boolean

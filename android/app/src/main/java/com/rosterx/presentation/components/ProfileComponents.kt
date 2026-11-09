@@ -174,7 +174,7 @@ fun UnifiedEditProfileDialog(
     val context = LocalContext.current
 
     var nameInput by remember(currentName, show) { mutableStateOf(currentName.toProperCase()) }
-    var phoneInput by remember(currentPhone, show) { mutableStateOf(currentPhone) }
+    var phoneInput by remember(currentPhone, show) { mutableStateOf(if (currentPhone.contains("*")) "" else currentPhone) }
     var emailInput by remember(currentEmail, show) { mutableStateOf(currentEmail) }
     var joinDateInput by remember(currentJoinDate, show) { mutableStateOf(currentJoinDate) }
     var birthdayInput by remember(currentBirthday, show) { mutableStateOf(currentBirthday) }

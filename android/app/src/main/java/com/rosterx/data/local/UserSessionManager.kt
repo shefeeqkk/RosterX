@@ -81,7 +81,13 @@ class UserSessionManager @Inject constructor(
 
     fun setCurrentUser(user: Engineer) {
         val proper = toProperCase(user.name)
-        val normalized = user.copy(name = proper, fullName = proper)
+        val existing = _currentUser.value
+        val safePhone = if (user.phone.contains("*") && existing != null && !existing.phone.contains("*") && existing.phone.isNotBlank()) {
+            existing.phone
+        } else {
+            user.phone
+        }
+        val normalized = user.copy(name = proper, fullName = proper, phone = safePhone)
         _currentUser.value = normalized
         prefs.edit().putString("saved_user", gson.toJson(normalized)).apply()
     }
