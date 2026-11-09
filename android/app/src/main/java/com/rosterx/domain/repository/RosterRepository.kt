@@ -62,6 +62,7 @@ interface RosterRepository {
     suspend fun dismissNotification(notificationId: String, dismissAll: Boolean = false): Result<Unit>
     suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>? = null): Result<com.rosterx.data.remote.AssistantChatResponse>
     suspend fun updateProfilePicture(username: String?, base64Image: String?): Result<String?>
+    suspend fun updateProfileName(name: String, username: String? = null): Result<String>
 }
 
 

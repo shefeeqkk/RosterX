@@ -73,6 +73,12 @@ class UserSessionManager @Inject constructor(
         setCurrentUser(updated)
     }
 
+    fun updateCurrentUserName(newName: String) {
+        val current = _currentUser.value ?: return
+        val updated = current.copy(name = newName)
+        setCurrentUser(updated)
+    }
+
     fun getAuthToken(): String? {
         return prefs.getString("auth_token", null)
     }

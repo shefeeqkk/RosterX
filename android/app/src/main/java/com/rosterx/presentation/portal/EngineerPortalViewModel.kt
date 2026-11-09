@@ -807,5 +807,35 @@ class EngineerPortalViewModel @Inject constructor(
     fun removeProfilePicture(targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {
         uploadProfilePicture("", targetUsername, onResult)
     }
+
+    fun updateProfileName(newName: String, targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
+            val res = repository.updateProfileName(newName, targetUsername)
+            if (res.isSuccess) {
+                val updatedName = res.getOrNull() ?: newName
+                val loggedIn = _state.value.loggedInEngineer
+                if (loggedIn != null && (targetUsername.isNullOrBlank() || targetUsername.equals(loggedIn.username, ignoreCase = true))) {
+                    val updated = loggedIn.copy(name = updatedName)
+                    _state.value = _state.value.copy(loggedInEngineer = updated)
+                }
+                val updatedEngineers = _state.value.engineers.map { eng ->
+                    if (targetUsername.isNullOrBlank() && eng.username.equals(loggedIn?.username, ignoreCase = true)) {
+                        eng.copy(name = updatedName)
+                    } else if (eng.username.equals(targetUsername, ignoreCase = true)) {
+                        eng.copy(name = updatedName)
+                    } else {
+                        eng
+                    }
+                }
+                _state.value = _state.value.copy(engineers = updatedEngineers, isLoading = false)
+                onResult?.invoke(true, null)
+            } else {
+                _state.value = _state.value.copy(isLoading = false)
+                val err = res.exceptionOrNull()?.message ?: "Failed to update profile name"
+                onResult?.invoke(false, err)
+            }
+        }
+    }
 }
 

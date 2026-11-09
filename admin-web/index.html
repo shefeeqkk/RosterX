@@ -3413,15 +3413,20 @@ Operations Desk</textarea>
           <span id="adminModalAvatarIcon"><i class="ph ph-shield-check"></i></span>
         </div>
         <div class="flex-1">
-          <h3 class="text-base font-bold text-slate-900" id="adminModalName">Administrator Profile</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-bold text-slate-900" id="adminModalName">Administrator Profile</h3>
+            <button type="button" id="btnEditAdminName" class="text-xs text-purple-600 hover:text-purple-700 p-1 rounded-md hover:bg-purple-50 transition cursor-pointer" title="Edit Admin Name">
+              <i class="ph ph-pencil-simple text-sm"></i>
+            </button>
+          </div>
           <p class="text-xs text-slate-500">Security Credentials & Profile Picture</p>
           <div class="flex items-center gap-2 mt-1.5">
             <label for="inputAdminAvatar" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-purple-600 hover:bg-purple-700 text-white cursor-pointer transition shadow-xs flex items-center gap-1">
-              <i class="ph ph-camera"></i> <span>Upload Photo</span>
+              <i class="ph ph-camera"></i> <span id="lblAdminUploadPhoto">Change Photo</span>
             </label>
             <input type="file" id="inputAdminAvatar" accept="image/*" class="hidden" />
             <button type="button" id="btnRemoveAdminAvatar" class="px-2 py-1 text-[11px] font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition cursor-pointer hidden">
-              Remove
+              <i class="ph ph-trash"></i> Remove Photo
             </button>
             <span id="adminAvatarUploadStatus" class="text-[10px] text-slate-500 font-medium"></span>
           </div>
@@ -3456,7 +3461,10 @@ Operations Desk</textarea>
 
             <span class="text-[10px] text-slate-400 uppercase font-semibold block">Full Name</span>
 
-            <span id="adminProfileFullName" class="font-bold text-slate-800 text-xs">System Administrator</span>
+            <div class="flex items-center justify-between">
+              <span id="adminProfileFullName" class="font-bold text-slate-800 text-xs">System Administrator</span>
+              <button type="button" id="btnEditAdminFullName" class="text-purple-600 text-xs hover:underline cursor-pointer"><i class="ph ph-pencil-simple"></i> Edit</button>
+            </div>
 
           </div>
 
@@ -4040,7 +4048,7 @@ Operations Desk</textarea>
 
         if (btnRemoveAdminAvatar) {
           btnRemoveAdminAvatar.addEventListener('click', async () => {
-            if (!confirm('Remove your profile picture?')) return;
+            if (!confirm('Are you sure you want to remove your profile picture? Your default avatar icon will be displayed instead.')) return;
             if (adminStatusEl) adminStatusEl.textContent = 'Removing...';
             try {
               const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
@@ -4081,6 +4089,52 @@ Operations Desk</textarea>
             }
           });
         }
+
+        const handleEditAdminName = async () => {
+          const u = authService.getCurrentUser() || {};
+          const currentName = document.getElementById('adminProfileFullName')?.textContent || u.name || 'System Administrator';
+          const newName = prompt('Enter updated Administrator Full Name:', currentName);
+          if (newName === null) return;
+          const trimmed = newName.trim();
+          if (!trimmed || trimmed.length < 2 || trimmed.length > 60) {
+            alert('Name must be between 2 and 60 characters.');
+            return;
+          }
+          if (trimmed === currentName) return;
+
+          try {
+            const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
+            const res = await fetch('/api/users/profile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ name: trimmed })
+            });
+            const data = await res.json();
+            if (data.success) {
+              u.name = data.name || trimmed;
+              u.full_name = data.name || trimmed;
+              localStorage.setItem('rosterx_auth_user', JSON.stringify(u));
+              const titleEl = document.getElementById('adminModalName');
+              if (titleEl) titleEl.textContent = u.name;
+              const fullEl = document.getElementById('adminProfileFullName');
+              if (fullEl) fullEl.textContent = u.name;
+              const pillName = document.getElementById('adminUserPillName');
+              if (pillName) pillName.textContent = u.name;
+            } else {
+              alert('Failed to update name: ' + (data.message || 'Error'));
+            }
+          } catch (err) {
+            alert('Error updating name: ' + err.message);
+          }
+        };
+
+        const btnEditAdminName = document.getElementById('btnEditAdminName');
+        const btnEditAdminFullName = document.getElementById('btnEditAdminFullName');
+        btnEditAdminName?.addEventListener('click', handleEditAdminName);
+        btnEditAdminFullName?.addEventListener('click', handleEditAdminName);
 
         btnClose?.addEventListener('click', () => modal.classList.add('hidden'));
 

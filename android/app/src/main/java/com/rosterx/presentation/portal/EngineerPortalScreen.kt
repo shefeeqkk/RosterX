@@ -681,7 +681,8 @@ fun EngineerPortalScreen(
                                 onSetThemeMode = viewModel::setThemeMode,
                                 onSetThemePalette = viewModel::setThemePaletteId,
                                 onUploadProfilePicture = viewModel::uploadProfilePicture,
-                                onRemoveProfilePicture = viewModel::removeProfilePicture
+                                onRemoveProfilePicture = viewModel::removeProfilePicture,
+                                onUpdateProfileName = viewModel::updateProfileName
                             )
                             else -> DashboardView(
                                 state = state,
@@ -710,7 +711,8 @@ fun EngineerPortalScreen(
                                 onSetThemeMode = viewModel::setThemeMode,
                                 onSetThemePalette = viewModel::setThemePaletteId,
                                 onUploadProfilePicture = viewModel::uploadProfilePicture,
-                                onRemoveProfilePicture = viewModel::removeProfilePicture
+                                onRemoveProfilePicture = viewModel::removeProfilePicture,
+                                onUpdateProfileName = viewModel::updateProfileName
                             )
                             else -> DashboardView(
                                 state = state,
@@ -4272,7 +4274,9 @@ fun AccountView(
 
     onUploadProfilePicture: (String, String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _, _ -> },
 
-    onRemoveProfilePicture: (String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _ -> }
+    onRemoveProfilePicture: (String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _ -> },
+
+    onUpdateProfileName: (String, String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _, _ -> }
 
 ) {
 
@@ -4281,6 +4285,10 @@ fun AccountView(
     val clipboardManager = LocalClipboardManager.current
 
     val engineer = state.loggedInEngineer
+
+    var showPhotoActionDialog by remember { mutableStateOf(false) }
+    var showConfirmRemovePhotoDialog by remember { mutableStateOf(false) }
+    var showEditNameDialog by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
@@ -4320,176 +4328,24 @@ fun AccountView(
     ) {
 
         // User Profile Header
-
         item {
-
-            Surface(
-
-                shape = RoundedCornerShape(16.dp),
-
-                color = MaterialTheme.colorScheme.surfaceVariant,
-
-                modifier = Modifier.fillMaxWidth()
-
-            ) {
-
-                Column(
-
-                    modifier = Modifier.padding(20.dp),
-
-                    horizontalAlignment = Alignment.CenterHorizontally
-
-                ) {
-
-                    Box(
-                        modifier = Modifier
-                            .size(76.dp)
-                            .clickable {
-                                photoPickerLauncher.launch(
-                                    androidx.activity.result.PickVisualMediaRequest(
-                                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
-                                    )
-                                )
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        UserAvatar(
-                            name = engineer?.name ?: "U",
-                            profilePicture = engineer?.profilePicture,
-                            size = 76.dp,
-                            backgroundColor = MaterialTheme.colorScheme.primary,
-                            textColor = MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 24.sp
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Change Profile Picture",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(13.dp)
+            com.rosterx.presentation.components.StandardProfileHeaderCard(
+                name = engineer?.name ?: "Unknown User",
+                roleTitle = engineer?.role?.name ?: "ENGINEER",
+                profilePicture = engineer?.profilePicture,
+                onAvatarClick = {
+                    if (engineer?.profilePicture.isNullOrBlank()) {
+                        photoPickerLauncher.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
                             )
-                        }
+                        )
+                    } else {
+                        showPhotoActionDialog = true
                     }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-
-                        text = engineer?.name ?: "Unknown User",
-
-                        fontSize = 18.sp,
-
-                        fontWeight = FontWeight.Bold,
-
-                        color = MaterialTheme.colorScheme.onSurface
-
-                    )
-
-                    Text(
-
-                        text = (engineer?.role?.name ?: "ENGINEER").uppercase(),
-
-                        fontSize = 11.sp,
-
-                        fontWeight = FontWeight.Bold,
-
-                        color = MaterialTheme.colorScheme.primary,
-
-                        modifier = Modifier
-
-                            .padding(top = 4.dp)
-
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-
-                    )
-
-                    Row(
-                        modifier = Modifier.padding(top = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            modifier = Modifier.clickable {
-                                photoPickerLauncher.launch(
-                                    androidx.activity.result.PickVisualMediaRequest(
-                                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
-                                    )
-                                )
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PhotoCamera,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = if (!engineer?.profilePicture.isNullOrBlank()) "Change Photo" else "Upload Photo",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
-                        if (!engineer?.profilePicture.isNullOrBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                                modifier = Modifier.clickable {
-                                    onRemoveProfilePicture(null) { success, err ->
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            if (success) "Profile picture removed" else (err ?: "Removal failed"),
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.DeleteOutline,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "Remove",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                }
-
-            }
-
+                },
+                onEditNameClick = { showEditNameDialog = true }
+            )
         }
 
 
@@ -5225,6 +5081,49 @@ fun AccountView(
         }
 
     }
+
+    com.rosterx.presentation.components.ProfilePhotoActionDialog(
+        show = showPhotoActionDialog,
+        hasExistingPhoto = !engineer?.profilePicture.isNullOrBlank(),
+        onDismiss = { showPhotoActionDialog = false },
+        onChooseNewPhoto = {
+            photoPickerLauncher.launch(
+                androidx.activity.result.PickVisualMediaRequest(
+                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                )
+            )
+        },
+        onRemovePhotoClick = { showConfirmRemovePhotoDialog = true }
+    )
+
+    com.rosterx.presentation.components.ConfirmRemovePhotoDialog(
+        show = showConfirmRemovePhotoDialog,
+        onDismiss = { showConfirmRemovePhotoDialog = false },
+        onConfirm = {
+            onRemoveProfilePicture(null) { success, err ->
+                android.widget.Toast.makeText(
+                    context,
+                    if (success) "Profile picture removed" else (err ?: "Removal failed"),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    )
+
+    com.rosterx.presentation.components.EditNameDialog(
+        show = showEditNameDialog,
+        currentName = engineer?.name ?: "",
+        onDismiss = { showEditNameDialog = false },
+        onSave = { newName ->
+            onUpdateProfileName(newName, null) { success, err ->
+                android.widget.Toast.makeText(
+                    context,
+                    if (success) "Profile name updated" else (err ?: "Update failed"),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    )
 
 }
 

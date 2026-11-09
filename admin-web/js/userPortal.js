@@ -2148,7 +2148,7 @@ export class UserPortalController {
 
     if (btnRemoveAvatar) {
       btnRemoveAvatar.addEventListener('click', async () => {
-        if (!confirm('Remove your profile picture?')) return;
+        if (!confirm('Are you sure you want to remove your profile picture? Your initials monogram will be displayed instead.')) return;
         if (statusEl) statusEl.textContent = 'Removing...';
         try {
           const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
@@ -2182,6 +2182,50 @@ export class UserPortalController {
         }
       });
     }
+
+    const handleEditPortalName = async () => {
+      const currentName = this.currentUser?.name || this.currentUser?.full_name || '';
+      const newName = prompt('Enter your updated Full Name:', currentName);
+      if (newName === null) return;
+      const trimmed = newName.trim();
+      if (!trimmed || trimmed.length < 2 || trimmed.length > 60) {
+        alert('Name must be between 2 and 60 characters.');
+        return;
+      }
+      if (trimmed === currentName) return;
+
+      try {
+        const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
+        const res = await fetch('/api/users/profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name: trimmed })
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.currentUser.name = data.name || trimmed;
+          this.currentUser.full_name = data.name || trimmed;
+          localStorage.setItem('rosterx_auth_user', JSON.stringify(this.currentUser));
+          this.renderHeaderUserInfo();
+          const modalTitle = document.getElementById('modalAccountName');
+          if (modalTitle) modalTitle.textContent = this.currentUser.name;
+          const fullEl = document.getElementById('profileFullName');
+          if (fullEl) fullEl.textContent = this.currentUser.name;
+        } else {
+          alert('Failed to update name: ' + (data.message || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error updating name: ' + err.message);
+      }
+    };
+
+    const btnEditName = document.getElementById('btnEditPortalName');
+    const btnEditFullName = document.getElementById('btnEditPortalFullName');
+    btnEditName?.addEventListener('click', handleEditPortalName);
+    btnEditFullName?.addEventListener('click', handleEditPortalName);
 
 
 

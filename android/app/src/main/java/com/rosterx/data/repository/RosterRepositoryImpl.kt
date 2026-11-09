@@ -884,6 +884,27 @@ class RosterRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateProfileName(name: String, username: String?): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val req = com.rosterx.data.remote.UpdateProfileNameRequest(name = name, username = username)
+            val res = apiService.updateProfileName(req)
+            if (res.success) {
+                val updatedName = res.name ?: name
+                val current = sessionManager.currentUser.value
+                if (current != null && (username.isNullOrBlank() || username.equals(current.username, ignoreCase = true))) {
+                    sessionManager.updateCurrentUserName(updatedName)
+                }
+                Result.success(updatedName)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to update profile name"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>?): Result<AssistantChatResponse> = withContext(Dispatchers.IO) {
         try {
             val req = AssistantChatRequest(

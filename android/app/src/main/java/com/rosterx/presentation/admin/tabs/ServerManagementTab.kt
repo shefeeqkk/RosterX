@@ -36,14 +36,44 @@ import com.rosterx.util.NetworkUtils
 fun ServerManagementTab(
     state: AdminRosterState,
     currentBaseUrl: String,
+    currentUser: com.rosterx.domain.model.Engineer? = null,
     onSaveBaseUrl: (String) -> Unit,
     onRefreshDiagnostics: () -> Unit,
     onRefreshLogs: () -> Unit = onRefreshDiagnostics,
+    onUploadProfilePicture: (String, String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _, _ -> },
+    onRemoveProfilePicture: (String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _ -> },
+    onUpdateProfileName: (String, String?, ((Boolean, String?) -> Unit)?) -> Unit = { _, _, _ -> },
     onSignOut: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     var baseUrlInput by remember(currentBaseUrl) { mutableStateOf(currentBaseUrl) }
+
+    val adminName = currentUser?.name ?: "System Administrator"
+    val adminPic = currentUser?.profilePicture
+
+    var showPhotoActionDialog by remember { mutableStateOf(false) }
+    var showConfirmRemovePhotoDialog by remember { mutableStateOf(false) }
+    var showEditNameDialog by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            val b64 = com.rosterx.presentation.components.compressImageUriToBase64(context, uri, maxDimension = 256, quality = 85)
+            if (b64 != null) {
+                onUploadProfilePicture(b64, currentUser?.username ?: "admin") { success, err ->
+                    android.widget.Toast.makeText(
+                        context,
+                        if (success) "Profile picture updated!" else (err ?: "Upload failed"),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else {
+                android.widget.Toast.makeText(context, "Could not process selected image", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     // Dynamic real network transport detection (differentiates 5G/4G cellular vs Wi-Fi)
     val activeNetworkName = remember(state.isConnected) {
@@ -57,7 +87,28 @@ fun ServerManagementTab(
         contentPadding = PaddingValues(bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 0. Administrator Account Profile & Security
+        // 0. Administrator Standard Profile Header
+        item {
+            com.rosterx.presentation.components.StandardProfileHeaderCard(
+                name = adminName,
+                roleTitle = "ADMINISTRATOR (ROOT)",
+                profilePicture = adminPic,
+                onAvatarClick = {
+                    if (adminPic.isNullOrBlank()) {
+                        photoPickerLauncher.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
+                        )
+                    } else {
+                        showPhotoActionDialog = true
+                    }
+                },
+                onEditNameClick = { showEditNameDialog = true }
+            )
+        }
+
+        // 1. Administrator Account Security & Password Details
         item {
             var showPasswordChange by remember { mutableStateOf(false) }
             var currentPass by remember { mutableStateOf("") }
@@ -531,6 +582,49 @@ fun ServerManagementTab(
             }
         }
     }
+
+    com.rosterx.presentation.components.ProfilePhotoActionDialog(
+        show = showPhotoActionDialog,
+        hasExistingPhoto = !adminPic.isNullOrBlank(),
+        onDismiss = { showPhotoActionDialog = false },
+        onChooseNewPhoto = {
+            photoPickerLauncher.launch(
+                androidx.activity.result.PickVisualMediaRequest(
+                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                )
+            )
+        },
+        onRemovePhotoClick = { showConfirmRemovePhotoDialog = true }
+    )
+
+    com.rosterx.presentation.components.ConfirmRemovePhotoDialog(
+        show = showConfirmRemovePhotoDialog,
+        onDismiss = { showConfirmRemovePhotoDialog = false },
+        onConfirm = {
+            onRemoveProfilePicture(currentUser?.username ?: "admin") { success, err ->
+                android.widget.Toast.makeText(
+                    context,
+                    if (success) "Profile picture removed" else (err ?: "Removal failed"),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    )
+
+    com.rosterx.presentation.components.EditNameDialog(
+        show = showEditNameDialog,
+        currentName = adminName,
+        onDismiss = { showEditNameDialog = false },
+        onSave = { newName ->
+            onUpdateProfileName(newName, currentUser?.username ?: "admin") { success, err ->
+                android.widget.Toast.makeText(
+                    context,
+                    if (success) "Admin name updated to $newName" else (err ?: "Update failed"),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    )
 }
 
 @Composable

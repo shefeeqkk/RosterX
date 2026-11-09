@@ -1254,15 +1254,20 @@
           <span id="modalAccountAvatarText"><i class="ph ph-user-circle"></i></span>
         </div>
         <div class="flex-1">
-          <h3 class="text-base font-bold text-slate-900 dark:text-white font-outfit" id="modalAccountName">User Profile</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white font-outfit" id="modalAccountName">User Profile</h3>
+            <button type="button" id="btnEditPortalName" class="text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 p-1 rounded-md hover:bg-cyan-50 dark:hover:bg-cyan-950/40 transition cursor-pointer" title="Edit Full Name">
+              <i class="ph ph-pencil-simple text-sm"></i>
+            </button>
+          </div>
           <p class="text-xs text-slate-500 dark:text-slate-400">Account Credentials, Contact Data & Profile Picture</p>
           <div class="flex items-center gap-2 mt-1.5">
             <label for="inputPortalAvatar" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white cursor-pointer transition shadow-xs flex items-center gap-1">
-              <i class="ph ph-camera"></i> <span id="lblUploadPhoto">Upload Photo</span>
+              <i class="ph ph-camera"></i> <span id="lblUploadPhoto">Change Photo</span>
             </label>
             <input type="file" id="inputPortalAvatar" accept="image/*" class="hidden" />
             <button type="button" id="btnRemovePortalAvatar" class="px-2 py-1 text-[11px] font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 transition cursor-pointer hidden">
-              Remove
+              <i class="ph ph-trash"></i> Remove Photo
             </button>
             <span id="avatarUploadStatus" class="text-[10px] text-slate-500 font-medium"></span>
           </div>
@@ -1284,7 +1289,10 @@
         <div class="grid grid-cols-2 gap-3 text-xs">
           <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
             <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Full Name</span>
-            <span id="profileFullName" class="font-bold text-slate-900 dark:text-slate-100 text-xs">--</span>
+            <div class="flex items-center justify-between">
+              <span id="profileFullName" class="font-bold text-slate-900 dark:text-slate-100 text-xs">--</span>
+              <button type="button" id="btnEditPortalFullName" class="text-cyan-600 dark:text-cyan-400 text-xs hover:underline cursor-pointer"><i class="ph ph-pencil-simple"></i> Edit</button>
+            </div>
           </div>
           <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
             <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Username / Staff ID</span>

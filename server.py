@@ -3352,6 +3352,66 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": f"Failed to save profile picture: {e}"}, 500)
                 return
 
+        # 3.65 POST /api/users/profile (Update Profile Details such as Name)
+        if clean_path in ("/api/users/profile", "/api/users/profile/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            if ATLAS_DB is None:
+                self.send_json_response({"success": False, "message": "Database is not connected"}, 503)
+                return
+
+            caller_user = str(claims.get("username", "")).strip().lower()
+            caller_role = str(claims.get("role", "")).strip().lower()
+            target_user = str(body.get("username") or caller_user).strip().lower()
+
+            if caller_role not in ("admin", "manager") and target_user != caller_user:
+                self.send_json_response({"success": False, "message": "Permission denied. You can only update your own profile."}, 403)
+                return
+
+            new_name = str(body.get("name") or body.get("full_name") or "").strip()
+            if not new_name or len(new_name) < 2 or len(new_name) > 60:
+                self.send_json_response({"success": False, "message": "Name must be between 2 and 60 characters."}, 400)
+                return
+
+            try:
+                update_fields = {
+                    "name": new_name,
+                    "full_name": new_name,
+                    "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                }
+                res = ATLAS_DB.engineers.update_one(
+                    {"username": target_user},
+                    {"$set": update_fields},
+                    upsert=False
+                )
+                if res.matched_count == 0:
+                    self.send_json_response({"success": False, "message": f"User '{target_user}' not found in database."}, 404)
+                    return
+
+                platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                record_audit_event(
+                    new_name,
+                    caller_user,
+                    caller_role,
+                    platform_client,
+                    "Update Profile Name",
+                    {"target_user": target_user, "new_name": new_name}
+                )
+
+                updated_doc = ATLAS_DB.engineers.find_one({"username": target_user}, {"_id": 0, "password": 0})
+                self.send_json_response({
+                    "success": True,
+                    "message": "Profile name updated successfully.",
+                    "name": new_name,
+                    "user": updated_doc
+                })
+                return
+            except Exception as e:
+                self.send_json_response({"success": False, "message": f"Failed to update profile: {e}"}, 500)
+                return
+
                 # 3.7 POST /api/notifications/dismiss (Persistent Notification Dismissal in Atlas DB)
         if clean_path in ("/api/notifications/dismiss", "/api/notifications/dismiss/"):
             claims = self.require_auth()
