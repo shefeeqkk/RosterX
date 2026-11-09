@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.4"
+SERVER_VERSION = "1.21.5"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -173,7 +173,7 @@ FAILED_LOGIN_ATTEMPTS = collections.defaultdict(list)  # { ip_user_key: [timesta
 DEFAULT_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "")
 RESEND_API_KEY = DEFAULT_RESEND_API_KEY
-RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <onboarding@resend.dev>")
+RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>")
 
 # Gmail SMTP Configuration for Native Password Recovery OTP
 # Configured with fail-safe defaults so Render free-tier and cloud deploys work out-of-the-box
@@ -931,7 +931,22 @@ def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> b
 
     log_server(f"[DISPATCH] Initiating OTP verification dispatch to: {recipient_email} (User: {display_name})")
 
-    # Strategy 1: Direct SMTP over Port 465 (timeout=3.5s for fast fallback if cloud firewall blocks)
+    # Strategy 1: High-Speed Primary HTTPS REST API (Port 443 via Resend with verified notify@rosterx.online)
+    # Delivered in ~300ms, completely immune to cloud host socket/port restrictions
+    log_server(f"[DISPATCH] Transmitting OTP verification code via Resend HTTPS REST API to '{recipient_email}'...")
+    try:
+        resend_result = send_resend_email(recipient_email, subject, html_content, allow_sandbox_redirect=False)
+        if resend_result and resend_result.get("success"):
+            dest = resend_result.get("delivered_to", recipient_email)
+            log_server(f"[DISPATCH] ✅ Successfully delivered OTP email to '{dest}' via Resend HTTPS REST API.")
+            return True
+        else:
+            err = resend_result.get("error", "Unknown Resend error") if resend_result else "No response"
+            log_server(f"[DISPATCH WARNING] Resend API failed ({err}). Attempting secondary Gmail SMTP...")
+    except Exception as fb_err:
+        log_server(f"[DISPATCH WARNING] Resend API exception ({fb_err}). Attempting secondary Gmail SMTP...")
+
+    # Strategy 2: Secondary Fail-Safe Gmail SMTP over Port 465 SSL
     try:
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=3.5) as server:
@@ -942,7 +957,7 @@ def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> b
     except Exception as ssl_err:
         log_server(f"[SMTP WARNING] Port 465 SSL failed ({ssl_err}). Attempting Port 587 STARTTLS...")
 
-    # Strategy 2: Direct SMTP with STARTTLS over Port 587 (timeout=3.5s)
+    # Strategy 3: Direct SMTP with STARTTLS over Port 587 (timeout=3.5s)
     try:
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=3.5) as server:
             server.ehlo()
@@ -954,21 +969,6 @@ def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> b
         return True
     except Exception as tls_err:
         log_server(f"[SMTP WARNING] Port 587 STARTTLS failed ({tls_err}). Cloud firewall blocks raw outbound SMTP ports.")
-
-    # Strategy 3: Automatic Fail-Safe HTTPS REST API Fallback (Port 443 via Resend)
-    # Render and cloud free tiers allow Port 443 outbound HTTPS, bypassing raw socket blocks!
-    log_server(f"[DISPATCH FALLBACK] Initiating HTTPS REST API (Port 443) dispatch via Resend for '{recipient_email}'...")
-    try:
-        resend_result = send_resend_email(recipient_email, subject, html_content, allow_sandbox_redirect=True)
-        if resend_result and resend_result.get("success"):
-            dest = resend_result.get("delivered_to", recipient_email)
-            log_server(f"[DISPATCH FALLBACK] ✅ Successfully delivered OTP email to '{dest}' via HTTPS REST API.")
-            return True
-        else:
-            err = resend_result.get("error", "Unknown Resend error") if resend_result else "No response"
-            log_server(f"[DISPATCH ERROR] HTTPS REST API fallback also failed: {err}")
-    except Exception as fb_err:
-        log_server(f"[DISPATCH ERROR] HTTPS REST API fallback exception: {fb_err}")
 
     return False
 
@@ -1892,9 +1892,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         origin = self.headers.get("Origin", "")
         allowed_origin = "*"
         if origin:
-            # Allow local origins, render domains, and trycloudflare tunnels
+            # Allow local origins, render domains, rosterx.online domain, and trycloudflare tunnels
             if re.match(r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.0\.2\.2)(:\d+)?$", origin) or \
-               origin.endswith(".onrender.com") or origin.endswith(".trycloudflare.com"):
+               origin.endswith(".onrender.com") or origin.endswith(".trycloudflare.com") or \
+               origin.endswith("rosterx.online"):
                 allowed_origin = origin
             else:
                 allowed_origin = origin
@@ -3920,7 +3921,7 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
 
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY, DEFAULT_ALERT_EMAIL
     RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or DEFAULT_RESEND_API_KEY
-    RESEND_FROM = env.get("RESEND_FROM", "RosterX Operations <onboarding@resend.dev>").strip()
+    RESEND_FROM = env.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>").strip()
 
     mongo_uri = env.get("MONGODB_URI", "")
     cluster_name = env.get("ATLAS_CLUSTER", "Cluster0")

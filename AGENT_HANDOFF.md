@@ -8,12 +8,13 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.0`** (Android `versionCode: 65`, Server `SERVER_VERSION = "1.21.0"`)
-- **Previous Versions**: `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
-- **Production Server**: ☁️ **Render Cloud (100% Pure)**  
-  🌐 `https://rosterx-vc30.onrender.com`  
-  📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
-- **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://rosterx-vc30.onrender.com/`)
+- **Semantic Version**: **`1.21.5`** (Android `versionCode: 70`, Server `SERVER_VERSION = "1.21.5"`)
+- **Previous Versions**: `1.21.4` (Build 69), `1.21.3` (Build 68), `1.21.2` (Build 67), `1.21.1` (Build 66), `1.21.0` (Build 65), `1.20.0` (Build 64)
+- **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
+  🌐 `https://rosterx.online` & `https://api.rosterx.online`  
+  📱 **Android Base URL**: `https://api.rosterx.online/api/`
+- **Local Asset Sync File**: `android/app/src/main/assets/server_url.txt` (`https://api.rosterx.online/`)
+- **Email Infrastructure**: Verified Custom Domain `rosterx.online` on Resend. Primary dispatch: `RosterX Operations <notify@rosterx.online>` via HTTPS REST (Port 443).
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collections: `engineers`, `rosters`, `roster_backups`, `operational_policies`, `notifications`, `broadcast_templates`, `password_resets`, `audit_logs`)
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
