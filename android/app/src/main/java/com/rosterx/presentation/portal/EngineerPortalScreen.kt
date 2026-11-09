@@ -142,6 +142,7 @@ import com.rosterx.domain.model.ShiftCode
 
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.lazy.LazyRow
@@ -1562,6 +1563,8 @@ fun ManagerDashboardView(
 ) {
     val engineer = state.loggedInEngineer
     val today = LocalDate.now()
+    var dismissingIds by remember { mutableStateOf(setOf<String>()) }
+    val coroutineScope = rememberCoroutineScope()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1641,7 +1644,7 @@ fun ManagerDashboardView(
         val activeNotifs = state.notifications.mapIndexed { idx, n ->
             val id = n.id ?: "notif_$idx"
             id to n
-        }.filter { (id, _) -> id !in state.dismissedNotificationIds }
+        }.filter { (id, _) -> id !in state.dismissedNotificationIds || id in dismissingIds }
 
         if (activeNotifs.isNotEmpty()) {
             val engName = engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager"
@@ -1683,7 +1686,15 @@ fun ManagerDashboardView(
                     }
 
                     TextButton(
-                        onClick = onClearAllNotifications,
+                        onClick = {
+                            val allActiveIds = activeNotifs.map { it.first }.toSet()
+                            dismissingIds = dismissingIds + allActiveIds
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(320)
+                                onClearAllNotifications()
+                                dismissingIds = dismissingIds - allActiveIds
+                            }
+                        },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Icon(
@@ -1717,9 +1728,16 @@ fun ManagerDashboardView(
                     .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
 
                 AnimatedVisibility(
-                    visible = notifId !in state.dismissedNotificationIds,
-                    enter = fadeIn() + expandVertically(),
-                    exit = slideOutHorizontally(animationSpec = tween(300)) { -it } + fadeOut(animationSpec = tween(200)) + shrinkVertically()
+                    visible = notifId !in dismissingIds && notifId !in state.dismissedNotificationIds,
+                    enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(250)),
+                    exit = slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(durationMillis = 220)
+                    ) + shrinkVertically(
+                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                    )
                 ) {
                     NeumorphicCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -1770,7 +1788,14 @@ fun ManagerDashboardView(
                                             elevation = NeumorphicTokens.ElevationInset,
                                             surfaceColor = NeumorphicTokens.Surface
                                         )
-                                        .clickable { onDismissNotification(notifId) },
+                                        .clickable {
+                                            dismissingIds = dismissingIds + notifId
+                                            coroutineScope.launch {
+                                                kotlinx.coroutines.delay(320)
+                                                onDismissNotification(notifId)
+                                                dismissingIds = dismissingIds - notifId
+                                            }
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -1837,6 +1862,8 @@ fun DashboardView(
     val roster = getRosterForEngineer(state.liveRoster, engineer)
     val today = LocalDate.now()
     val tomorrow = today.plusDays(1)
+    var dismissingIds by remember { mutableStateOf(setOf<String>()) }
+    val coroutineScope = rememberCoroutineScope()
 
     var currentTimeSec by remember {
         mutableStateOf(java.time.LocalTime.now().toSecondOfDay().toLong())
@@ -2077,7 +2104,7 @@ fun DashboardView(
 
             id to n
 
-        }.filter { (id, _) -> id !in state.dismissedNotificationIds }
+        }.filter { (id, _) -> id !in state.dismissedNotificationIds || id in dismissingIds }
 
 
 
@@ -2161,7 +2188,15 @@ fun DashboardView(
 
                     TextButton(
 
-                        onClick = onClearAllNotifications,
+                        onClick = {
+                            val allActiveIds = activeNotifs.map { it.first }.toSet()
+                            dismissingIds = dismissingIds + allActiveIds
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(320)
+                                onClearAllNotifications()
+                                dismissingIds = dismissingIds - allActiveIds
+                            }
+                        },
 
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
 
@@ -2215,9 +2250,16 @@ fun DashboardView(
                     .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
 
                 AnimatedVisibility(
-                    visible = notifId !in state.dismissedNotificationIds,
-                    enter = fadeIn() + expandVertically(),
-                    exit = slideOutHorizontally(animationSpec = tween(300)) { -it } + fadeOut(animationSpec = tween(200)) + shrinkVertically()
+                    visible = notifId !in dismissingIds && notifId !in state.dismissedNotificationIds,
+                    enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(250)),
+                    exit = slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(durationMillis = 220)
+                    ) + shrinkVertically(
+                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                    )
                 ) {
                     NeumorphicCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -2269,7 +2311,14 @@ fun DashboardView(
                                             elevation = NeumorphicTokens.ElevationInset,
                                             surfaceColor = NeumorphicTokens.Surface
                                         )
-                                        .clickable { onDismissNotification(notifId) },
+                                        .clickable {
+                                            dismissingIds = dismissingIds + notifId
+                                            coroutineScope.launch {
+                                                kotlinx.coroutines.delay(320)
+                                                onDismissNotification(notifId)
+                                                dismissingIds = dismissingIds - notifId
+                                            }
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

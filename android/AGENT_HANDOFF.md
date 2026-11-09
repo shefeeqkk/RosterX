@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 06:55 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 20:15 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.8`** (Android `versionCode: 73`, Server `SERVER_VERSION = "1.21.8"`)
-- **Previous Versions**: `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70), `1.21.4` (Build 69)
+- **Semantic Version**: **`1.21.9`** (Android `versionCode: 74`, Server `SERVER_VERSION = "1.21.9"`)
+- **Previous Versions**: `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -19,6 +19,26 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.21.9
+
+### 1. 🎬 Fluid In-App Notification Dismissal Animations
+- **Slide & Fade Exit Transitions**:
+  - *Root Cause*: Previously, tapping the close button on an operational broadcast card immediately dispatched `onDismissNotification(id)` to the ViewModel. This mutated `state.dismissedNotificationIds`, causing the card to be immediately unmounted from `items(activeNotifs)` during recomposition before `AnimatedVisibility` could execute its exit transition.
+  - *Fix*: Introduced local `dismissingIds` state in both `ManagerDashboardView` and `DashboardView`. When the close button or "Clear All" is pressed, the ID is immediately added to `dismissingIds` (keeping it present in `activeNotifs`), triggering a 320ms `slideOutHorizontally(targetOffsetX = { it }) + fadeOut() + shrinkVertically()` animation before calling ViewModel dismiss.
+
+### 2. 📱 2-Column Manager Widget (4x2 and 3x2 Sizes)
+- **Optimized Screen Real Estate**:
+  - Eliminated the wide, blank whitespace on the right side of the manager widget by grouping on-duty and rest engineers into responsive 2-column paired rows (`item_widget_shift_pair.xml`).
+  - Displays the engineer's first name only (e.g. `[FS] Nandu` | `[FS] Dhanush`) and compact shift timing (e.g. `07:30 - 04:30`), fitting 6+ on-duty engineers in just 3 vertical rows without truncation.
+  - Gracefully handles odd engineer counts by rendering the right column as `View.INVISIBLE` to preserve balanced 50/50 sizing.
+
+### 3. 🖼️ Widget Showcase Mockup Preview
+- **Realistic "Add Widget" Screen Preview**:
+  - *Root Cause*: The Android widget picker previously showed only the app hexagon logo (`ic_rosterx_widget_logo`) in a plain grey box because `android:previewLayout` was missing.
+  - *Fix*: Added `android:previewLayout="@layout/widget_preview_mockup"` in `rosterx_widget_info.xml`. Designed a realistic Neumorphic preview (`widget_preview_mockup.xml`) showing authentic Today & Tomorrow shift cards, colored squircle badges, active duty indicators, and rest day pills.
 
 ---
 

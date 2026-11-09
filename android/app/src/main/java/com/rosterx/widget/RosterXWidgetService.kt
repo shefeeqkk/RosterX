@@ -9,6 +9,7 @@ import android.widget.RemoteViewsService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.rosterx.R
+import java.util.Locale
 
 class RosterXWidgetService : RemoteViewsService() {
 
@@ -16,9 +17,14 @@ class RosterXWidgetService : RemoteViewsService() {
         return RosterXWidgetFactory(applicationContext)
     }
 
+    private sealed class WidgetRow {
+        data class Header(val title: String, val count: String) : WidgetRow()
+        data class ShiftPair(val left: WidgetDutyItem, val right: WidgetDutyItem?) : WidgetRow()
+    }
+
     private class RosterXWidgetFactory(private val context: Context) : RemoteViewsFactory {
 
-        private val items = mutableListOf<WidgetDutyItem>()
+        private val rows = mutableListOf<WidgetRow>()
         private val gson = Gson()
 
         override fun onCreate() {
@@ -30,52 +36,65 @@ class RosterXWidgetService : RemoteViewsService() {
         }
 
         override fun onDestroy() {
-            items.clear()
+            rows.clear()
         }
 
-        override fun getCount(): Int = items.size
+        override fun getCount(): Int = rows.size
 
-        override fun getViewTypeCount(): Int = 3
+        override fun getViewTypeCount(): Int = 2
 
         override fun getViewAt(position: Int): RemoteViews? {
-            if (position < 0 || position >= items.size) return null
-            val item = items[position]
+            if (position < 0 || position >= rows.size) return null
 
-            return when (item.itemType) {
-                WidgetDutyItem.TYPE_HEADER -> {
+            return when (val row = rows[position]) {
+                is WidgetRow.Header -> {
                     val rv = RemoteViews(context.packageName, R.layout.item_widget_section_header)
-                    rv.setTextViewText(R.id.widget_section_title, item.sectionTitle)
-                    rv.setTextViewText(R.id.widget_section_count, item.sectionCount)
+                    rv.setTextViewText(R.id.widget_section_title, row.title)
+                    rv.setTextViewText(R.id.widget_section_count, row.count)
                     rv
                 }
-                WidgetDutyItem.TYPE_REST -> {
-                    val rv = RemoteViews(context.packageName, R.layout.item_widget_rest)
-                    rv.setTextViewText(R.id.item_rest_badge_code, item.shiftCode)
+                is WidgetRow.ShiftPair -> {
+                    val rv = RemoteViews(context.packageName, R.layout.item_widget_shift_pair)
+
+                    // 1. Column 1 (Left Engineer)
+                    val left = row.left
+                    rv.setTextViewText(R.id.left_badge_code, left.shiftCode)
                     try {
-                        rv.setInt(R.id.item_rest_badge_bg, "setColorFilter", Color.parseColor(item.bgHex))
-                        rv.setTextColor(R.id.item_rest_badge_code, Color.parseColor(item.textHex))
+                        rv.setInt(R.id.left_badge_bg, "setColorFilter", Color.parseColor(left.bgHex))
+                        rv.setTextColor(R.id.left_badge_code, Color.parseColor(left.textHex))
                     } catch (_: Exception) {}
 
-                    rv.setTextViewText(R.id.item_rest_engineer_name, item.engineerName)
-                    rv.setTextViewText(R.id.item_rest_desc, item.shiftName.ifBlank { "Scheduled Rest" })
-                    rv
-                }
-                else -> {
-                    val rv = RemoteViews(context.packageName, R.layout.item_widget_shift)
-                    rv.setTextViewText(R.id.item_badge_code, item.shiftCode)
-                    try {
-                        rv.setInt(R.id.item_badge_bg, "setColorFilter", Color.parseColor(item.bgHex))
-                        rv.setTextColor(R.id.item_badge_code, Color.parseColor(item.textHex))
-                    } catch (_: Exception) {}
+                    rv.setTextViewText(R.id.left_engineer_name, extractFirstName(left.engineerName))
+                    rv.setTextViewText(R.id.left_shift_timing, formatCompactTiming(left.timing.ifBlank { left.shiftName }))
 
-                    rv.setTextViewText(R.id.item_engineer_name, item.engineerName)
-                    rv.setTextViewText(R.id.item_shift_timing, item.timing)
-
-                    if (item.isActiveNow) {
-                        rv.setViewVisibility(R.id.item_active_pill, View.VISIBLE)
+                    if (left.isActiveNow) {
+                        rv.setViewVisibility(R.id.left_active_dot, View.VISIBLE)
                     } else {
-                        rv.setViewVisibility(R.id.item_active_pill, View.GONE)
+                        rv.setViewVisibility(R.id.left_active_dot, View.GONE)
                     }
+
+                    // 2. Column 2 (Right Engineer or Invisible Spacer)
+                    val right = row.right
+                    if (right != null) {
+                        rv.setViewVisibility(R.id.pair_right_root, View.VISIBLE)
+                        rv.setTextViewText(R.id.right_badge_code, right.shiftCode)
+                        try {
+                            rv.setInt(R.id.right_badge_bg, "setColorFilter", Color.parseColor(right.bgHex))
+                            rv.setTextColor(R.id.right_badge_code, Color.parseColor(right.textHex))
+                        } catch (_: Exception) {}
+
+                        rv.setTextViewText(R.id.right_engineer_name, extractFirstName(right.engineerName))
+                        rv.setTextViewText(R.id.right_shift_timing, formatCompactTiming(right.timing.ifBlank { right.shiftName }))
+
+                        if (right.isActiveNow) {
+                            rv.setViewVisibility(R.id.right_active_dot, View.VISIBLE)
+                        } else {
+                            rv.setViewVisibility(R.id.right_active_dot, View.GONE)
+                        }
+                    } else {
+                        rv.setViewVisibility(R.id.pair_right_root, View.INVISIBLE)
+                    }
+
                     rv
                 }
             }
@@ -90,17 +109,50 @@ class RosterXWidgetService : RemoteViewsService() {
         override fun hasStableIds(): Boolean = true
 
         private fun loadItems() {
-            items.clear()
+            rows.clear()
             val prefs = context.getSharedPreferences("rosterx_widget_cache", Context.MODE_PRIVATE)
             val json = prefs.getString("key_manager_duty_list_json", null)
             if (!json.isNullOrBlank()) {
                 try {
                     val type = object : TypeToken<List<WidgetDutyItem>>() {}.type
-                    val list: List<WidgetDutyItem> = gson.fromJson(json, type)
-                    items.addAll(list)
+                    val rawList: List<WidgetDutyItem> = gson.fromJson(json, type) ?: emptyList()
+
+                    var i = 0
+                    while (i < rawList.size) {
+                        val current = rawList[i]
+                        if (current.itemType == WidgetDutyItem.TYPE_HEADER) {
+                            rows.add(WidgetRow.Header(current.sectionTitle, current.sectionCount))
+                            i++
+                        } else {
+                            // Group consecutive duty or rest items under this section into 2-column pairs
+                            val left = current
+                            val right = if (i + 1 < rawList.size && rawList[i + 1].itemType != WidgetDutyItem.TYPE_HEADER) {
+                                rawList[i + 1]
+                            } else {
+                                null
+                            }
+                            rows.add(WidgetRow.ShiftPair(left, right))
+                            i += if (right != null) 2 else 1
+                        }
+                    }
                 } catch (_: Exception) {}
             }
         }
+
+        private fun extractFirstName(name: String): String {
+            val trimmed = name.trim()
+            if (trimmed.isEmpty()) return ""
+            val first = trimmed.split(Regex("\\s+")).firstOrNull() ?: trimmed
+            return first.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+        }
+
+        private fun formatCompactTiming(timing: String): String {
+            return timing
+                .replace(" AM", "")
+                .replace(" PM", "")
+                .replace(" – ", " - ")
+                .replace(" - ", " - ")
+                .trim()
+        }
     }
 }
-
