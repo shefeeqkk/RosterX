@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 05:45 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 06:10 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.1`** (Android `versionCode: 66`, Server `SERVER_VERSION = "1.21.1"`)
-- **Previous Versions**: `1.21.0` (Build 65), `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59)
+- **Semantic Version**: **`1.21.2`** (Android `versionCode: 67`, Server `SERVER_VERSION = "1.21.2"`)
+- **Previous Versions**: `1.21.1` (Build 66), `1.21.0` (Build 65), `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
@@ -18,6 +18,27 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.21.2
+
+### 1. 📊 Google Firebase Analytics Integration
+- **SDK Integration**: Added `firebase-analytics` to `android/gradle/libs.versions.toml` and `android/app/build.gradle.kts`.
+- **`AnalyticsManager` Singleton**:
+  - Injected across app (`MainActivity`, `RosterXFirebaseMessagingService`).
+  - Automatically captures screen transitions (`login`, `admin`, `engineer`), user ID and role properties, login events, and notification receipt telemetry.
+- **Instant DebugView Support**: Configured for testing via `adb shell setprop debug.firebase.analytics.app com.rosterx`.
+
+### 2. 🔔 FCM Backend Authentication Architecture & Render Configuration
+- Added `firebase-admin>=6.5.0` to `requirements.txt`.
+- Enhanced `send_fcm_push()` in `server.py` to support `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable (for Render cloud deployment) alongside local `firebase-adminsdk.json`.
+- Strict telemetry logging for token delivery and credential status.
+
+### 3. 🕒 Local Timezone Formatting for Broadcast History
+- Replaced raw UTC date rendering (`2026-11-09 00:21:26 UTC`) with intelligent client-side timezone formatting:
+  - Web Admin: Uses browser `Intl.DateTimeFormat` to show local Indian Standard Time (e.g. `09 Nov 2026, 05:51:26 AM (IST)`).
+  - Android App: Formats timestamps via `java.time.ZoneId.systemDefault()` into localized strings (`dd MMM, hh:mm a`).
 
 ---
 

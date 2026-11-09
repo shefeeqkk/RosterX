@@ -1335,7 +1335,7 @@ fun NotificationHistoryCard(
                 }
 
                 Text(
-                    text = notif.createdAt?.take(16) ?: "",
+                    text = formatNotificationTimestamp(notif),
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -1562,5 +1562,28 @@ fun NotificationHistoryCard(
                 }
             }
         )
+    }
+}
+
+fun formatNotificationTimestamp(notif: NotificationDto): String {
+    val raw = notif.createdAt ?: return "Recently"
+    return try {
+        val instant = when {
+            raw.endsWith(" UTC") -> {
+                val iso = raw.removeSuffix(" UTC").replace(' ', 'T') + "Z"
+                java.time.Instant.parse(iso)
+            }
+            raw.contains("T") -> java.time.Instant.parse(raw)
+            else -> null
+        }
+        if (instant != null) {
+            val zdt = instant.atZone(java.time.ZoneId.systemDefault())
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM, hh:mm a")
+            zdt.format(formatter)
+        } else {
+            raw.take(16)
+        }
+    } catch (_: Exception) {
+        notif.createdAt?.take(16) ?: "Recently"
     }
 }

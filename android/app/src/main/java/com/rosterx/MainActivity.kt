@@ -42,6 +42,7 @@ import androidx.fragment.app.FragmentActivity
 
 import com.rosterx.data.local.UserSessionManager
 import com.rosterx.data.remote.RosterApiService
+import com.rosterx.analytics.AnalyticsManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -75,6 +76,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var apiService: RosterApiService
+
+    @Inject
+    lateinit var analyticsManager: AnalyticsManager
 
     private val loginViewModel: LoginViewModel by viewModels()
 
@@ -146,13 +150,17 @@ class MainActivity : FragmentActivity() {
                 ) {
 
                     val targetScreen = when {
-
                         currentUser == null -> "login"
-
                         currentUser?.role == EngineerRole.ADMIN -> "admin"
-
                         else -> "engineer"
+                    }
 
+                    LaunchedEffect(targetScreen, currentUser) {
+                        analyticsManager.logScreenView(targetScreen)
+                        currentUser?.let { user ->
+                            analyticsManager.setUserId(user.username)
+                            analyticsManager.setUserRole(user.role.name)
+                        }
                     }
 
 
