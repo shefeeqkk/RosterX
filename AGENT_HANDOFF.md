@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 04:40 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 20:15 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.8`** (Android `versionCode: 73`, Server `SERVER_VERSION = "1.21.8"`)
-- **Previous Versions**: `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70), `1.21.4` (Build 69)
+- **Semantic Version**: **`1.21.9`** (Android `versionCode: 74`, Server `SERVER_VERSION = "1.21.9"`)
+- **Previous Versions**: `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -19,6 +19,83 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.21.9
+
+### 1. 🎬 Fluid In-App Notification Dismissal Animations
+- **Slide & Fade Exit Transitions**:
+  - *Root Cause*: Previously, tapping the close button on an operational broadcast card immediately dispatched `onDismissNotification(id)` to the ViewModel. This mutated `state.dismissedNotificationIds`, causing the card to be immediately unmounted from `items(activeNotifs)` during recomposition before `AnimatedVisibility` could execute its exit transition.
+  - *Fix*: Introduced local `dismissingIds` state in both `ManagerDashboardView` and `DashboardView`. When the close button or "Clear All" is pressed, the ID is immediately added to `dismissingIds` (keeping it present in `activeNotifs`), triggering a 320ms `slideOutHorizontally(targetOffsetX = { it }) + fadeOut() + shrinkVertically()` animation before calling ViewModel dismiss.
+
+### 2. 📱 2-Column Manager Widget (4x2 and 3x2 Sizes)
+- **Optimized Screen Real Estate**:
+  - Eliminated the wide, blank whitespace on the right side of the manager widget by grouping on-duty and rest engineers into responsive 2-column paired rows (`item_widget_shift_pair.xml`).
+  - Displays the engineer's first name only (e.g. `[FS] Nandu` | `[FS] Dhanush`) and compact shift timing (e.g. `07:30 - 04:30`), fitting 6+ on-duty engineers in just 3 vertical rows without truncation.
+  - Gracefully handles odd engineer counts by rendering the right column as `View.INVISIBLE` to preserve balanced 50/50 sizing.
+
+### 3. 🖼️ Widget Showcase Mockup Preview
+- **Realistic "Add Widget" Screen Preview**:
+  - *Root Cause*: The Android widget picker previously showed only the app hexagon logo (`ic_rosterx_widget_logo`) in a plain grey box because `android:previewLayout` was missing.
+  - *Fix*: Added `android:previewLayout="@layout/widget_preview_mockup"` in `rosterx_widget_info.xml`. Designed a realistic Neumorphic preview (`widget_preview_mockup.xml`) showing authentic Today & Tomorrow shift cards, colored squircle badges, active duty indicators, and rest day pills.
+
+---
+
+## 🚀 Major Upgrades in v1.21.3
+
+### 1. 👤 Dynamic Per-Recipient FCM Personalization
+- **Fixed Generic "Team Member" in FCM Push**:
+  - *Root Cause*: `server.py` was batch-sending FCM push payloads with `{name}` collapsed to a fallback `"Team Member"` placeholder.
+  - *Fix*: Refactored `server.py` to iterate through each recipient engineer individually and dynamically substitute `{name}` with their actual `fullName` or `name` (e.g. `Dear SHEFEEQ,` or `Dear Nandu Anthikat,`) and `{username}` with their username.
+- **Synchronized with Web Admin Simulator**: Now the live simulator in the Web Admin Console and the physical phone notification panel show the exact same personalized engineer greeting!
+
+---
+
+## 🚀 Major Upgrades in v1.21.2
+
+### 1. 📊 Google Firebase Analytics Integration
+- **SDK Integration**: Added `firebase-analytics` to `android/gradle/libs.versions.toml` and `android/app/build.gradle.kts`.
+- **`AnalyticsManager` Singleton**:
+  - Injected across app (`MainActivity`, `RosterXFirebaseMessagingService`).
+  - Automatically captures screen transitions (`login`, `admin`, `engineer`), user ID and role properties, login events, and notification receipt telemetry.
+- **Instant DebugView Support**: Configured for testing via `adb shell setprop debug.firebase.analytics.app com.rosterx`.
+
+### 2. 🔔 FCM Backend Authentication Architecture & Render Configuration
+- Added `firebase-admin>=6.5.0` to `requirements.txt`.
+- Enhanced `send_fcm_push()` in `server.py` to support `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable (for Render cloud deployment) alongside local `firebase-adminsdk.json`.
+- Strict telemetry logging for token delivery and credential status.
+
+### 3. 🕒 Local Timezone Formatting for Broadcast History
+- Replaced raw UTC date rendering (`2026-11-09 00:21:26 UTC`) with intelligent client-side timezone formatting:
+  - Web Admin: Uses browser `Intl.DateTimeFormat` to show local Indian Standard Time (e.g. `09 Nov 2026, 05:51:26 AM (IST)`).
+  - Android App: Formats timestamps via `java.time.ZoneId.systemDefault()` into localized strings (`dd MMM, hh:mm a`).
+
+---
+
+## 🚀 Major Upgrades in v1.21.1
+
+### 1. 🛠️ Critical Broadcast Bug Fixes (Web Admin & Backend)
+- **Resolved Specific Engineer Selection Highlighting All Chips**:
+  - *Root Cause*: Default engineers lacked an `id` field, making `has(eng.id)` check `has(undefined)` and highlighting all chips upon clicking any engineer.
+  - *Fix*: Created robust key helper `getEngineerKey(eng)` mapping across `id`, `username`, and normalized `eng_<name>`.
+- **Fixed Live `@` Mention Selection Not Applying**:
+  - *Root Cause*: Textarea blur event fired before suggestion click; cursor selection shifted and missing usernames led to `@undefined`.
+  - *Fix*: Added `mousedown` listener with `e.preventDefault()`, tracked exact character replacement ranges (`mentionMatchStartIndex`/`EndIndex`), and applied fallback usernames.
+- **Fixed Message Dispatch & Visibility When Typing in Web Admin**:
+  - *Root Cause*: Broadcasts dispatched with `send_in_app: false` were previously skipped from DB insertion, leaving history blank.
+  - *Fix*: Backend now ALWAYS records all broadcasts into `ATLAS_DB.notifications` and memory for full audit trail and read receipts. `send_in_app` now selectively controls visibility for non-admin engineer portal feeds.
+  - Added `Ctrl+Enter` shortcut in composer textarea for instant broadcast dispatch.
+
+### 2. 📱 Full Android App Feature Parity for Broadcast Console (`NotificationsTab.kt`)
+- **Operational Templates Carousel**: Integrated quick-load template chips (Shift Announcement, Urgent Handover, System Maintenance, Swap Request) fetching from server API and local defaults.
+- **Tri-Channel Delivery Controls**: Added dedicated Phone Panel (FCM Push) toggle alongside In-App and Email.
+- **Inline `@` Mention Suggestions**: Floating suggestion dropdown appears in Compose whenever `@` is typed, inserting `@username` or `@all` and auto-selecting the engineer.
+- **Dynamic Live Preview**: Translates `@username` to full name badges in real time and simulator chips.
+- **Broadcast History Read Receipts & Soft-Retraction**:
+  - Added live read receipts display (`X Read / Y Pending`), FCM push count, and email count on each card.
+  - Added "Clone" notice button to load history notices back into composer.
+  - Added "Retract" action with confirmation dialog calling `POST /api/notifications/retract`.
 
 ---
 
