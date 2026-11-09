@@ -204,6 +204,9 @@ interface RosterApiService {
     @POST("api/users/profile-picture")
     suspend fun updateProfilePicture(@Body request: UpdateProfilePictureRequest): UpdateProfilePictureResponse
 
+    @POST("api/users/profile")
+    suspend fun updateProfileName(@Body request: UpdateProfileNameRequest): UpdateProfileNameResponse
+
     @POST("api/users/fcm-token")
     suspend fun registerFcmToken(@Body body: Map<String, String>): PingResponse
 
@@ -223,6 +226,18 @@ data class UpdateProfilePictureResponse(
     val success: Boolean,
     val message: String?,
     @SerializedName("profile_picture") val profilePicture: String? = null
+)
+
+data class UpdateProfileNameRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("username") val username: String? = null
+)
+
+data class UpdateProfileNameResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val name: String? = null,
+    val user: EngineerDto? = null
 )
 
 data class SyncEngineersRequest(

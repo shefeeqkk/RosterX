@@ -437,11 +437,19 @@ fun AdminMainScreen(
 
                                 currentBaseUrl = viewModel.getBaseUrl(),
 
+                                currentUser = currentUser,
+
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
 
                                 onRefreshDiagnostics = viewModel::loadData,
 
                                 onRefreshLogs = viewModel::refreshLogs,
+
+                                onUploadProfilePicture = viewModel::uploadProfilePicture,
+
+                                onRemoveProfilePicture = viewModel::removeProfilePicture,
+
+                                onUpdateProfileName = viewModel::updateProfileName,
 
                                 onSignOut = viewModel::logout
 

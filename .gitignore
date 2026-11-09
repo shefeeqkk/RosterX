@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+firebase-adminsdk*.json
+*-adminsdk-*.json
 
 # Backups & Local Recovery Dumps
 backups/

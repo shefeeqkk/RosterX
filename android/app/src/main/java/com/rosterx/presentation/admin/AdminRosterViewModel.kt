@@ -641,4 +641,48 @@ class AdminRosterViewModel @Inject constructor(
             )
         }
     }
+
+    fun uploadProfilePicture(base64Image: String, targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {
+        viewModelScope.launch {
+            val res = repository.updateProfilePicture(targetUsername, base64Image)
+            if (res.isSuccess) {
+                val newPic = res.getOrNull()
+                val updatedEngineers = _state.value.engineers.map { eng ->
+                    if (eng.username.equals(targetUsername ?: sessionManager.currentUser.value?.username, ignoreCase = true)) {
+                        eng.copy(profilePicture = newPic)
+                    } else {
+                        eng
+                    }
+                }
+                _state.value = _state.value.copy(engineers = updatedEngineers)
+                onResult?.invoke(true, null)
+            } else {
+                onResult?.invoke(false, res.exceptionOrNull()?.message ?: "Upload failed")
+            }
+        }
+    }
+
+    fun removeProfilePicture(targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {
+        uploadProfilePicture("", targetUsername, onResult)
+    }
+
+    fun updateProfileName(newName: String, targetUsername: String? = null, onResult: ((Boolean, String?) -> Unit)? = null) {
+        viewModelScope.launch {
+            val res = repository.updateProfileName(newName, targetUsername)
+            if (res.isSuccess) {
+                val updatedName = res.getOrNull() ?: newName
+                val updatedEngineers = _state.value.engineers.map { eng ->
+                    if (eng.username.equals(targetUsername ?: sessionManager.currentUser.value?.username, ignoreCase = true)) {
+                        eng.copy(name = updatedName)
+                    } else {
+                        eng
+                    }
+                }
+                _state.value = _state.value.copy(engineers = updatedEngineers)
+                onResult?.invoke(true, null)
+            } else {
+                onResult?.invoke(false, res.exceptionOrNull()?.message ?: "Update failed")
+            }
+        }
+    }
 }
