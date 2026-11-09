@@ -8,8 +8,8 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.6`** (Android `versionCode: 71`, Server `SERVER_VERSION = "1.21.6"`)
-- **Previous Versions**: `1.21.5` (Build 70), `1.21.4` (Build 69), `1.21.3` (Build 68), `1.21.2` (Build 67), `1.21.1` (Build 66)
+- **Semantic Version**: **`1.21.7`** (Android `versionCode: 72`, Server `SERVER_VERSION = "1.21.7"`)
+- **Previous Versions**: `1.21.6` (Build 71), `1.21.5` (Build 70), `1.21.4` (Build 69), `1.21.3` (Build 68)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
