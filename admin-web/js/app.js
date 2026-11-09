@@ -1435,7 +1435,7 @@ class RosterXApp {
     this.dom.formEngStatus = document.getElementById('formEngStatus');
 
     this.dom.formEngJoinDate = document.getElementById('formEngJoinDate');
-
+    this.dom.formEngBirthday = document.getElementById('formEngBirthday');
     this.dom.formEngResignDate = document.getElementById('formEngResignDate');
 
     this.dom.formEngOff1 = document.getElementById('formEngOff1');
@@ -3952,11 +3952,9 @@ class RosterXApp {
         </td>
 
         <td class="p-2.5 text-[11px] font-mono">
-
           <div>Join: ${eng.join_date || '—'}</div>
-
+          ${eng.birthday ? `<div class="text-amber-600 font-semibold">🎂 ${eng.birthday}</div>` : ''}
           ${eng.resignation_date ? `<div class="text-red-600">Exit: ${eng.resignation_date}</div>` : ''}
-
         </td>
 
         <td class="p-2.5 text-right space-x-1.5 whitespace-nowrap sticky right-0 ${isEditing ? 'bg-blue-50' : 'bg-white'} shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] min-w-[140px]">
@@ -4092,7 +4090,7 @@ class RosterXApp {
       this.dom.formEngStatus.value = eng.status || 'Active';
 
       this.dom.formEngJoinDate.value = eng.join_date || '';
-
+      if (this.dom.formEngBirthday) this.dom.formEngBirthday.value = eng.birthday || '';
       this.dom.formEngResignDate.value = eng.resignation_date || '';
 
       
@@ -4147,7 +4145,7 @@ class RosterXApp {
       this.dom.formEngStatus.value = 'Active';
 
       this.dom.formEngJoinDate.value = new Date().toISOString().split('T')[0];
-
+      if (this.dom.formEngBirthday) this.dom.formEngBirthday.value = '';
       this.dom.formEngResignDate.value = '';
 
       this.dom.formEngOff1.value = 'Saturday';
@@ -4328,7 +4326,7 @@ class RosterXApp {
     const status = this.dom.formEngStatus.value;
 
     const joinDate = this.dom.formEngJoinDate.value || null;
-
+    const birthday = (this.dom.formEngBirthday && this.dom.formEngBirthday.value) ? this.dom.formEngBirthday.value : null;
     const resignDate = this.dom.formEngResignDate.value || null;
 
     const off1 = this.dom.formEngOff1.value;
@@ -4388,6 +4386,7 @@ class RosterXApp {
       status,
       default_weekly_offs: [off1, off2],
       join_date: joinDate,
+      birthday: birthday,
       resignation_date: resignDate,
       preferred_shifts: ["FS", "FG", "SS"]
     };

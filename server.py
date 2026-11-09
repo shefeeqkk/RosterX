@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.9"
+SERVER_VERSION = "1.22.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2161,7 +2161,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 try:
                     user_doc = ATLAS_DB.engineers.find_one({"username": str(claims["username"]).strip().lower()}, {"_id": 0, "password": 0})
                     if user_doc:
-                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status"):
+                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "birthday"):
                             if k in user_doc:
                                 response_user[k] = user_doc[k]
                     if response_user.get("name"):
@@ -3386,7 +3386,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": f"Failed to save profile picture: {e}"}, 500)
                 return
 
-        # 3.65 POST /api/users/profile (Update Profile Details such as Name)
+        # 3.65 POST /api/users/profile (Unified Profile & Account Update: Name, Phone, Email, Join Date, Birthday, Photo, Password)
         if clean_path in ("/api/users/profile", "/api/users/profile/"):
             claims = self.require_auth()
             if not claims:
@@ -3404,22 +3404,71 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": "Permission denied. You can only update your own profile."}, 403)
                 return
 
-            new_name = str(body.get("name") or body.get("full_name") or "").strip()
-            if not new_name or len(new_name) < 2 or len(new_name) > 60:
-                self.send_json_response({"success": False, "message": "Name must be between 2 and 60 characters."}, 400)
-                return
-
-            new_name = to_proper_name(new_name)
-
             try:
                 update_fields = {
-                    "name": new_name,
-                    "full_name": new_name,
                     "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 }
+                unset_fields = {}
+
+                # 1. Name
+                new_name = str(body.get("name") or body.get("full_name") or "").strip()
+                if new_name:
+                    if len(new_name) < 2 or len(new_name) > 60:
+                        self.send_json_response({"success": False, "message": "Name must be between 2 and 60 characters."}, 400)
+                        return
+                    proper_name = to_proper_name(new_name)
+                    update_fields["name"] = proper_name
+                    update_fields["full_name"] = proper_name
+
+                # 2. Contact Phone
+                if "phone" in body:
+                    update_fields["phone"] = str(body.get("phone") or "").strip()
+
+                # 3. Email
+                if "email" in body:
+                    new_email = str(body.get("email") or "").strip().lower()
+                    if new_email and "@" not in new_email:
+                        self.send_json_response({"success": False, "message": "Invalid email format."}, 400)
+                        return
+                    update_fields["email"] = new_email
+
+                # 4. Join Date
+                if "join_date" in body or "joinDate" in body:
+                    val = str(body.get("join_date") or body.get("joinDate") or "").strip()
+                    update_fields["join_date"] = val
+
+                # 5. Birthday
+                if "birthday" in body:
+                    val = str(body.get("birthday") or "").strip()
+                    update_fields["birthday"] = val
+
+                # 6. Profile Picture
+                if "profile_picture" in body:
+                    raw_pic = body.get("profile_picture")
+                    if raw_pic and isinstance(raw_pic, str) and raw_pic.strip():
+                        try:
+                            processed_pic = process_profile_picture_base64(raw_pic, max_dimension=256, quality=85)
+                            update_fields["profile_picture"] = processed_pic
+                        except Exception as pe:
+                            print(f"  [PROFILE] Picture compression warning: {pe}")
+                    elif raw_pic is None or raw_pic == "" or raw_pic == "remove":
+                        unset_fields["profile_picture"] = ""
+
+                # 7. Password Change (Optional)
+                new_pass = str(body.get("password") or body.get("new_password") or "").strip()
+                if new_pass:
+                    if len(new_pass) < 6:
+                        self.send_json_response({"success": False, "message": "New password must be at least 6 characters."}, 400)
+                        return
+                    update_fields["password"] = hash_password(new_pass)
+
+                mongo_op = {"$set": update_fields}
+                if unset_fields:
+                    mongo_op["$unset"] = unset_fields
+
                 res = ATLAS_DB.engineers.update_one(
                     {"username": target_user},
-                    {"$set": update_fields},
+                    mongo_op,
                     upsert=False
                 )
                 if res.matched_count == 0:
@@ -3428,19 +3477,19 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                 platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
                 record_audit_event(
-                    new_name,
+                    update_fields.get("name", target_user),
                     caller_user,
                     caller_role,
                     platform_client,
-                    "Update Profile Name",
-                    {"target_user": target_user, "new_name": new_name}
+                    "Update Account Profile",
+                    {"target_user": target_user, "updated_fields": list(update_fields.keys())}
                 )
 
                 updated_doc = ATLAS_DB.engineers.find_one({"username": target_user}, {"_id": 0, "password": 0})
                 self.send_json_response({
                     "success": True,
-                    "message": "Profile name updated successfully.",
-                    "name": new_name,
+                    "message": "Account profile updated successfully.",
+                    "name": updated_doc.get("name", ""),
                     "user": updated_doc
                 })
                 return

@@ -85,7 +85,8 @@ data class AdminRosterState(
 @HiltViewModel
 class AdminRosterViewModel @Inject constructor(
     private val repository: RosterRepository,
-    private val sessionManager: UserSessionManager
+    private val sessionManager: UserSessionManager,
+    val analyticsManager: com.rosterx.analytics.AnalyticsManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AdminRosterState())

@@ -22,7 +22,8 @@ data class Engineer(
     val resignationDate: String? = null,
     val password: String? = null,
     val originalUsername: String? = null,
-    val profilePicture: String? = null
+    val profilePicture: String? = null,
+    val birthday: String? = null
 )
 
 /**

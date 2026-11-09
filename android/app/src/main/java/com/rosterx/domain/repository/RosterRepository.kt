@@ -63,6 +63,16 @@ interface RosterRepository {
     suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>? = null): Result<com.rosterx.data.remote.AssistantChatResponse>
     suspend fun updateProfilePicture(username: String?, base64Image: String?): Result<String?>
     suspend fun updateProfileName(name: String, username: String? = null): Result<String>
+    suspend fun updateUserProfile(
+        name: String? = null,
+        phone: String? = null,
+        email: String? = null,
+        joinDate: String? = null,
+        birthday: String? = null,
+        profilePicture: String? = null,
+        newPassword: String? = null,
+        username: String? = null
+    ): Result<Engineer>
 }
 
 
