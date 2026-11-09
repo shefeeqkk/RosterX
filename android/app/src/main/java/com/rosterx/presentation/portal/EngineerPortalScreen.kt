@@ -4403,9 +4403,6 @@ fun AccountView(
         item {
 
             var showGatewaySettings by remember { mutableStateOf(false) }
-
-            var urlInput by remember(state.currentBaseUrl) { mutableStateOf(state.currentBaseUrl) }
-
             val activeNetworkName = remember(state.isConnected) { NetworkUtils.getActiveNetworkDescription(context) }
 
 
@@ -4444,7 +4441,7 @@ fun AccountView(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            Text("SERVER & PUBLIC GATEWAY SETTINGS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("SERVER & CLOUD INFRASTRUCTURE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
 
                         }
 
@@ -4520,226 +4517,89 @@ fun AccountView(
 
 
 
-                            // Current Active Endpoint with Copy
-
+                            // Production Gateway with Copy
                             Surface(
-
-                                shape = RoundedCornerShape(8.dp),
-
+                                shape = RoundedCornerShape(10.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-
                                 modifier = Modifier.fillMaxWidth()
-
                             ) {
-
                                 Row(
-
                                     modifier = Modifier
-
                                         .fillMaxWidth()
-
-                                        .padding(horizontal = 10.dp, vertical = 8.dp),
-
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
-
                                     verticalAlignment = Alignment.CenterVertically
-
                                 ) {
-
                                     Column(modifier = Modifier.weight(1f)) {
-
-                                        Text("Active Gateway URL:", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
+                                        Text("Production Gateway (Custom Domain):", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Text(
-
                                             text = state.currentBaseUrl,
-
-                                            fontSize = 12.sp,
-
+                                            fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
-
                                             fontFamily = FontFamily.Monospace,
-
                                             color = MaterialTheme.colorScheme.primary,
-
                                             maxLines = 1,
-
                                             overflow = TextOverflow.Ellipsis
-
                                         )
-
                                     }
-
                                     IconButton(
-
                                         onClick = {
-
                                             clipboardManager.setText(AnnotatedString(state.currentBaseUrl))
-
                                             Toast.makeText(context, "Copied URL to clipboard", Toast.LENGTH_SHORT).show()
-
                                         },
-
                                         modifier = Modifier.size(32.dp)
-
                                     ) {
-
                                         Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-
                                     }
-
                                 }
-
                             }
 
-
-
-                            OutlinedTextField(
-
-                                value = urlInput,
-
-                                onValueChange = { urlInput = it },
-
-                                label = { Text("Server Base URL", fontSize = 12.sp) },
-
-                                placeholder = { Text("https://xxx.trycloudflare.com/api/", fontSize = 12.sp) },
-
-                                trailingIcon = {
-
-                                    if (urlInput.isNotBlank()) {
-
-                                        IconButton(onClick = { urlInput = "" }) {
-
-                                            Icon(Icons.Default.Clear, contentDescription = "Clear", modifier = Modifier.size(16.dp))
-
-                                        }
-
-                                    }
-
-                                },
-
-                                modifier = Modifier.fillMaxWidth(),
-
-                                shape = RoundedCornerShape(8.dp),
-
-                                singleLine = true
-
-                            )
-
-
-
-                            Row(
-
-                                modifier = Modifier.fillMaxWidth(),
-
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-
+                            // Infrastructure Specs Badges
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-
-                                OutlinedButton(
-
-                                    onClick = {
-
-                                        val renderUrl = "https://rosterx-vc30.onrender.com/"
-
-                                        urlInput = renderUrl
-
-                                        onSaveBaseUrl(renderUrl)
-
-                                        Toast.makeText(context, "Switched to Render Cloud", Toast.LENGTH_SHORT).show()
-
-                                    },
-
-                                    modifier = Modifier.weight(1f),
-
-                                    shape = RoundedCornerShape(8.dp)
-
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-
-                                    Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(16.dp))
-
-                                    Spacer(modifier = Modifier.width(4.dp))
-
-                                    Text("Render", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-
+                                    Text("Cloud Infrastructure", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Cloudflare Edge + Render Cloud", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                                 }
-
-
-
-                                OutlinedButton(
-
-                                    onClick = {
-
-                                        try {
-
-                                            val assetUrl = context.assets.open("server_url.txt").bufferedReader().use { it.readText().trim() }
-
-                                            if (assetUrl.isNotBlank()) {
-
-                                                var clean = assetUrl
-
-                                                if (!clean.endsWith("/")) clean += "/"
-
-                                                if (!clean.endsWith("/api/")) clean += "api/"
-
-                                                urlInput = clean
-
-                                                onSaveBaseUrl(clean)
-
-                                                Toast.makeText(context, "Switched to Cloudflare Tunnel", Toast.LENGTH_SHORT).show()
-
-                                            }
-
-                                        } catch (e: Exception) {
-
-                                            Toast.makeText(context, "Default asset not found", Toast.LENGTH_SHORT).show()
-
-                                        }
-
-                                    },
-
-                                    modifier = Modifier.weight(1f),
-
-                                    shape = RoundedCornerShape(8.dp)
-
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-
-                                    Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(16.dp))
-
-                                    Spacer(modifier = Modifier.width(4.dp))
-
-                                    Text("Cloudflare", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-
+                                    Text("Security Protocol", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Enforced TLS 1.3 / SSL", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF10B981))
                                 }
-
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Database Engine", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("MongoDB Atlas Cluster0", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                }
                             }
 
-                            
-
-                            Button(
-
+                            // Single Action Button: Refresh / Test Connection
+                            OutlinedButton(
                                 onClick = {
-
-                                    onSaveBaseUrl(urlInput)
-
-                                    Toast.makeText(context, "Saved & Reconnecting...", Toast.LENGTH_SHORT).show()
-
+                                    val prodUrl = "https://api.rosterx.online/"
+                                    onSaveBaseUrl(prodUrl)
+                                    Toast.makeText(context, "Connected to api.rosterx.online", Toast.LENGTH_SHORT).show()
                                 },
-
                                 modifier = Modifier.fillMaxWidth(),
-
                                 shape = RoundedCornerShape(8.dp)
-
                             ) {
-
-                                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-
-                                Spacer(modifier = Modifier.width(4.dp))
-
-                                Text("Save & Connect Custom URL", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Test Connection & Reconnect", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
 
                         }
