@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rosterx.data.remote.BroadcastTemplateDto
 import com.rosterx.data.remote.NotificationDto
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
@@ -56,8 +58,13 @@ fun NotificationsTab(
         priority: String,
         sendEmail: Boolean,
         sendInApp: Boolean,
+        sendPush: Boolean,
         onComplete: (Boolean, String) -> Unit
     ) -> Unit,
+    onRetractNotification: (
+        notificationId: String,
+        onComplete: (Boolean, String) -> Unit
+    ) -> Unit = { _, _ -> },
     onRefreshNotifications: () -> Unit
 ) {
     val context = LocalContext.current
@@ -67,30 +74,104 @@ fun NotificationsTab(
         state.engineers.filter { it.status != EngineerStatus.RESIGNED && !it.isManagementAccount }
     }
 
+    // Default Operational Templates
+    val defaultTemplates = remember {
+        listOf(
+            BroadcastTemplateDto(
+                id = "tpl_shift_announcement",
+                name = "Shift Announcement",
+                title = "Shift Operations Announcement",
+                message = "Dear {name},\n\nPlease review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.\n\nBest regards,\nOperations Desk",
+                priority = "info"
+            ),
+            BroadcastTemplateDto(
+                id = "tpl_urgent_handover",
+                name = "Urgent Handover",
+                title = "Urgent Operational Handover",
+                message = "Dear {name},\n\nURGENT: Critical operational updates require immediate attention before beginning your shift. Please acknowledge handover protocols immediately.\n\nBest regards,\nOperations Desk",
+                priority = "urgent"
+            ),
+            BroadcastTemplateDto(
+                id = "tpl_maintenance",
+                name = "System Maintenance",
+                title = "Scheduled System Maintenance",
+                message = "Dear {name},\n\nScheduled maintenance is planned for this Sunday between 02:00 UTC and 04:00 UTC. System services may experience intermittent availability.\n\nBest regards,\nOperations Desk",
+                priority = "info"
+            ),
+            BroadcastTemplateDto(
+                id = "tpl_coverage_swap",
+                name = "Swap Request",
+                title = "Shift Coverage Swap Request",
+                message = "Dear {name},\n\nA shift coverage swap request has been submitted for upcoming operational dates. Please review the updated schedule.\n\nBest regards,\nOperations Desk",
+                priority = "shift_update"
+            )
+        )
+    }
+
+    val availableTemplates = remember(state.broadcastTemplates) {
+        if (state.broadcastTemplates.isNotEmpty()) state.broadcastTemplates else defaultTemplates
+    }
+
     // Form states
     var targetMode by remember { mutableStateOf("everyone") } // "everyone" or "specific"
     val selectedEngineerIds = remember { mutableStateListOf<String>() }
     var notificationTitle by remember { mutableStateOf("Shift Operations Announcement") }
-    var notificationMessage by remember { mutableStateOf("Dear {name},\n\nPlease review your updated shift assignments for the upcoming week. Contact the operations desk for any shift swap requests.\n\nBest regards,\nOperations Desk") }
+    var notificationMessage by remember { mutableStateOf("Dear {name},\n\nPlease review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.\n\nBest regards,\nOperations Desk") }
     var selectedPriority by remember { mutableStateOf(NotificationPriority.INFO) }
     var sendInAppChecked by remember { mutableStateOf(true) }
+    var sendPushChecked by remember { mutableStateOf(true) }
     var sendEmailChecked by remember { mutableStateOf(true) }
     var showMentionDialog by remember { mutableStateOf(false) }
+
+    // Live '@' Mention inline detector
+    val mentionMatch = remember(notificationMessage) {
+        Regex("@([a-zA-Z0-9_\\-\\.]*)$").find(notificationMessage)
+    }
+    val mentionQuery = mentionMatch?.groupValues?.getOrNull(1)?.lowercase()
+    val isMentionActive = mentionMatch != null
+
+    val matchingMentionEngineers = remember(mentionQuery, activeEngineers) {
+        if (mentionQuery == null) emptyList()
+        else {
+            activeEngineers.filter { eng ->
+                val uname = eng.username.lowercase()
+                val fname = (eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name).lowercase()
+                mentionQuery.isEmpty() || uname.contains(mentionQuery) || fname.contains(mentionQuery)
+            }.take(5)
+        }
+    }
 
     // Live preview recipient selector
     var previewTargetIndex by remember { mutableIntStateOf(0) }
     val previewEngineer = activeEngineers.getOrNull(previewTargetIndex) ?: activeEngineers.firstOrNull()
 
-    // Calculated personalized preview
-    val resolvedPreviewMessage = remember(notificationMessage, previewEngineer) {
+    // Calculated personalized preview with @mention resolution to Full Names
+    val resolvedPreviewMessage = remember(notificationMessage, previewEngineer, activeEngineers) {
         val engName = previewEngineer?.fullName?.takeIf { it.isNotBlank() }
             ?: previewEngineer?.name ?: "Engineer"
         val engUsername = previewEngineer?.username ?: engName.lowercase().replace(" ", "")
 
-        notificationMessage
+        var text = notificationMessage
             .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
             .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
             .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+
+        val nameMap = activeEngineers.associate { e ->
+            val u = e.username.lowercase()
+            val fn = e.fullName?.takeIf { it.isNotBlank() } ?: e.name
+            u to fn
+        }
+
+        text = Regex("@([a-zA-Z0-9_\\-\\.]+)").replace(text) { m ->
+            val u = m.groupValues[1].lowercase()
+            if (u in listOf("all", "everyone", "team")) {
+                "@Everyone (All Team)"
+            } else {
+                val resolved = nameMap[u] ?: u
+                "@$resolved"
+            }
+        }
+        text
     }
 
     LazyColumn(
@@ -152,7 +233,7 @@ fun NotificationsTab(
                                     letterSpacing = 1.2.sp
                                 )
                                 Text(
-                                    text = "Operations Notifications & Alerts",
+                                    text = "Multi-Channel Operations Dispatcher",
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -160,7 +241,7 @@ fun NotificationsTab(
                             }
                         }
                         Text(
-                            text = "Send real-time alerts to all engineers or specific teammates. Use Dear {name} or @mention for automatic personalized delivery.",
+                            text = "Broadcast live notices across In-App feeds, Android Notification Panel (FCM), and Email. Type @ to mention teammates.",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 16.sp
@@ -170,14 +251,85 @@ fun NotificationsTab(
             }
         }
 
-        // --- 2. Recipient Audience Card ---
+        // --- 2. Operational Templates Carousel ---
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "OPERATIONAL TEMPLATES",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = "Tap to load",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(availableTemplates) { tpl ->
+                            SuggestionChip(
+                                onClick = {
+                                    notificationTitle = tpl.title ?: tpl.name ?: "Announcement"
+                                    notificationMessage = tpl.message ?: ""
+                                    when (tpl.priority?.lowercase()) {
+                                        "urgent" -> selectedPriority = NotificationPriority.URGENT
+                                        "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
+                                        "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
+                                        else -> selectedPriority = NotificationPriority.INFO
+                                    }
+                                    Toast.makeText(context, "Loaded template: ${tpl.name ?: tpl.title}", Toast.LENGTH_SHORT).show()
+                                },
+                                label = {
+                                    Text(
+                                        tpl.name ?: tpl.title ?: "Template",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                },
+                                icon = {
+                                    Icon(
+                                        Icons.Default.Article,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 3. Recipient Audience Card ---
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(
@@ -257,7 +409,7 @@ fun NotificationsTab(
                                             selectedEngineerIds.clear()
                                         } else {
                                             selectedEngineerIds.clear()
-                                            selectedEngineerIds.addAll(activeEngineers.map { it.id })
+                                            selectedEngineerIds.addAll(activeEngineers.map { it.id.ifBlank { it.username } })
                                         }
                                     },
                                     contentPadding = PaddingValues(0.dp)
@@ -275,16 +427,17 @@ fun NotificationsTab(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 activeEngineers.forEach { eng ->
-                                    val isSelected = selectedEngineerIds.contains(eng.id)
+                                    val engKey = eng.id.ifBlank { eng.username }
+                                    val isSelected = selectedEngineerIds.contains(engKey)
                                     FilterChip(
                                         selected = isSelected,
                                         onClick = {
-                                            if (isSelected) selectedEngineerIds.remove(eng.id)
-                                            else selectedEngineerIds.add(eng.id)
+                                            if (isSelected) selectedEngineerIds.remove(engKey)
+                                            else selectedEngineerIds.add(engKey)
                                         },
                                         label = {
                                             Text(
-                                                eng.name,
+                                                eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
                                                 fontSize = 12.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                             )
@@ -314,7 +467,7 @@ fun NotificationsTab(
             }
         }
 
-        // --- 3. Composer Card ---
+        // --- 4. Composer Card ---
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -397,13 +550,13 @@ fun NotificationsTab(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Auto-Personalization & Mentions:",
+                                text = "Quick Mentions & Tokens:",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Inserts at cursor",
+                                text = "Type @ anytime",
                                 fontSize = 10.sp,
                                 color = MaterialTheme.colorScheme.outline
                             )
@@ -420,18 +573,29 @@ fun NotificationsTab(
                                 onClick = {
                                     notificationMessage = "Dear {name},\n\n$notificationMessage"
                                 },
-                                label = { Text("✨ Dear {name},") },
+                                label = { Text("✨ {name}") },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                                 )
                             )
 
-                            // {Their name}
+                            // {username}
                             SuggestionChip(
                                 onClick = {
-                                    notificationMessage += " {Their name} "
+                                    notificationMessage += " {username} "
                                 },
-                                label = { Text("+ {Their name}") }
+                                label = { Text("+ {username}") }
+                            )
+
+                            // @all
+                            SuggestionChip(
+                                onClick = {
+                                    notificationMessage += " @all "
+                                },
+                                label = { Text("@all") },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = Color(0xFF8B5CF6).copy(alpha = 0.12f)
+                                )
                             )
 
                             // @ Mention Engineer Dialog
@@ -454,18 +618,121 @@ fun NotificationsTab(
                         }
                     }
 
-                    // Message Body
+                    // Message Body Textfield
                     OutlinedTextField(
                         value = notificationMessage,
                         onValueChange = { notificationMessage = it },
-                        label = { Text("Message Body (Supports {name}, {username})") },
+                        label = { Text("Message Body (Supports {name}, @username, @all)") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 130.dp),
                         shape = RoundedCornerShape(12.dp)
                     )
 
-                    // Delivery Options (In-App Notification and Email switches)
+                    // Live '@' Mention Autocomplete Popup Dropdown
+                    AnimatedVisibility(
+                        visible = isMentionActive && (matchingMentionEngineers.isNotEmpty() || "all".contains(mentionQuery ?: ""))
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(1.dp, Color(0xFF8B5CF6)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp)) {
+                                Text(
+                                    text = "Select teammate to mention:",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF8B5CF6),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+
+                                // @all team option
+                                if ("all".contains(mentionQuery ?: "") || "everyone".contains(mentionQuery ?: "")) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.Transparent,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                val q = mentionQuery ?: ""
+                                                notificationMessage = notificationMessage.dropLast(q.length + 1) + "@all "
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = Color(0xFF8B5CF6),
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text("@", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                                }
+                                            }
+                                            Text("@all — Everyone (All Team)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                matchingMentionEngineers.forEach { eng ->
+                                    val engKey = eng.id.ifBlank { eng.username }
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.Transparent,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                val q = mentionQuery ?: ""
+                                                notificationMessage = notificationMessage.dropLast(q.length + 1) + "@${eng.username} "
+                                                if (targetMode == "specific" && !selectedEngineerIds.contains(engKey)) {
+                                                    selectedEngineerIds.add(engKey)
+                                                }
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        eng.name.take(1).uppercase(),
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+                                            }
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Text(
+                                                    "@${eng.username}",
+                                                    fontSize = 10.sp,
+                                                    color = MaterialTheme.colorScheme.outline
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Delivery Options (In-App, FCM Push, and Email)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "Delivery Channels:",
@@ -499,8 +766,8 @@ fun NotificationsTab(
                                         tint = if (sendInAppChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                                     )
                                     Column {
-                                        Text("Send In-App Notification", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                        Text("Publishes live banner announcement card inside mobile app", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("Send In-App Portal Notice", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text("Publishes live banner announcement card inside mobile & web portal", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                                 Switch(
@@ -510,7 +777,43 @@ fun NotificationsTab(
                             }
                         }
 
-                        // Channel 2: Email via Resend
+                        // Channel 2: FCM Push Notification (Android Shade Panel)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (sendPushChecked) Color(0xFFF59E0B).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(1.dp, if (sendPushChecked) Color(0xFFF59E0B).copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        Icons.Default.PhoneAndroid, 
+                                        contentDescription = null, 
+                                        tint = if (sendPushChecked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.outline
+                                    )
+                                    Column {
+                                        Text("Phone Panel (FCM Push)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text("Instant alert straight into phone notification panel", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                Switch(
+                                    checked = sendPushChecked,
+                                    onCheckedChange = { sendPushChecked = it }
+                                )
+                            }
+                        }
+
+                        // Channel 3: Email via Resend
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = if (sendEmailChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -550,7 +853,7 @@ fun NotificationsTab(
             }
         }
 
-        // --- 4. Live Personalized Preview Card ---
+        // --- 5. Live Personalized Preview Card ---
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -610,6 +913,55 @@ fun NotificationsTab(
                         }
                     }
 
+                    // Channel indicator badges
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (sendInAppChecked) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    "✓ In-App",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        if (sendPushChecked) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFF59E0B).copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    "🔔 FCM Push",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFF59E0B),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        if (sendEmailChecked) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFF3B82F6).copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    "✉ Email",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF3B82F6),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
                     // Preview Box
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -659,10 +1011,11 @@ fun NotificationsTab(
             }
         }
 
-        // --- 5. Dispatch Button ---
+        // --- 6. Dispatch Button ---
         item {
             val recipientCount = if (targetMode == "everyone") activeEngineers.size else selectedEngineerIds.size
-            val canSend = notificationTitle.isNotBlank() && notificationMessage.isNotBlank() && recipientCount > 0 && (sendInAppChecked || sendEmailChecked) && !state.isSendingNotification
+            val hasChannel = sendInAppChecked || sendPushChecked || sendEmailChecked
+            val canSend = notificationTitle.isNotBlank() && notificationMessage.isNotBlank() && recipientCount > 0 && hasChannel && !state.isSendingNotification
 
             Button(
                 onClick = {
@@ -670,8 +1023,8 @@ fun NotificationsTab(
                         Toast.makeText(context, "Please select at least one engineer.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    if (!sendInAppChecked && !sendEmailChecked) {
-                        Toast.makeText(context, "Please enable at least one delivery channel (In-App or Email).", Toast.LENGTH_SHORT).show()
+                    if (!hasChannel) {
+                        Toast.makeText(context, "Please enable at least one delivery channel.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
                     val targetPayload: Any = if (targetMode == "everyone") "everyone" else selectedEngineerIds.toList()
@@ -682,7 +1035,8 @@ fun NotificationsTab(
                         targetPayload,
                         selectedPriority.key,
                         sendEmailChecked,
-                        sendInAppChecked
+                        sendInAppChecked,
+                        sendPushChecked
                     ) { success, msg ->
                         Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                     }
@@ -703,7 +1057,7 @@ fun NotificationsTab(
                         strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("Broadcasting...", fontWeight = FontWeight.Bold)
+                    Text("Broadcasting Announcement...", fontWeight = FontWeight.Bold)
                 } else {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -716,7 +1070,7 @@ fun NotificationsTab(
             }
         }
 
-        // --- 6. Broadcast History Section ---
+        // --- 7. Broadcast History Section with Read Receipts & Retraction ---
         item {
             Row(
                 modifier = Modifier
@@ -726,7 +1080,7 @@ fun NotificationsTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "BROADCAST HISTORY (${state.notifications.size})",
+                    text = "BROADCAST HISTORY & AUDIT (${state.notifications.size})",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -761,7 +1115,25 @@ fun NotificationsTab(
             }
         } else {
             items(state.notifications) { notif ->
-                NotificationHistoryCard(notif)
+                NotificationHistoryCard(
+                    notif = notif,
+                    onClone = {
+                        notificationTitle = notif.title ?: ""
+                        notificationMessage = notif.rawMessage ?: ""
+                        when (notif.priority?.lowercase()) {
+                            "urgent" -> selectedPriority = NotificationPriority.URGENT
+                            "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
+                            "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
+                            else -> selectedPriority = NotificationPriority.INFO
+                        }
+                        Toast.makeText(context, "Loaded notice into composer!", Toast.LENGTH_SHORT).show()
+                    },
+                    onRetract = { nid ->
+                        onRetractNotification(nid) { success, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
             }
         }
     }
@@ -786,15 +1158,55 @@ fun NotificationsTab(
                         .heightIn(max = 300.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(activeEngineers) { eng ->
+                    // Everyone option
+                    item {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    val tag = "@{${eng.username}}"
-                                    notificationMessage += " $tag "
+                                    notificationMessage += " @all "
+                                    showMentionDialog = false
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFF8B5CF6),
+                                    modifier = Modifier.size(30.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("@", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Everyone (Team)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text("@all", fontSize = 11.sp, color = Color(0xFF8B5CF6))
+                                }
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+
+                    items(activeEngineers) { eng ->
+                        val engKey = eng.id.ifBlank { eng.username }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    notificationMessage += " @${eng.username} "
+                                    if (targetMode == "specific" && !selectedEngineerIds.contains(engKey)) {
+                                        selectedEngineerIds.add(engKey)
+                                    }
                                     showMentionDialog = false
                                 }
                         ) {
@@ -820,7 +1232,11 @@ fun NotificationsTab(
                                     }
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(eng.name, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                     Text("@${eng.username}", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                                 }
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -839,8 +1255,15 @@ fun NotificationsTab(
 }
 
 @Composable
-fun NotificationHistoryCard(notif: NotificationDto) {
+fun NotificationHistoryCard(
+    notif: NotificationDto,
+    onClone: () -> Unit = {},
+    onRetract: (String) -> Unit = {}
+) {
     var expanded by remember { mutableStateOf(false) }
+    var showRetractConfirm by remember { mutableStateOf(false) }
+
+    val isRetracted = notif.isRetracted == true
 
     val pColor = when (notif.priority?.lowercase()) {
         "urgent" -> Color(0xFFEF4444)
@@ -852,16 +1275,18 @@ fun NotificationHistoryCard(notif: NotificationDto) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isRetracted) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, if (isRetracted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = !expanded }
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Header Row: Priority, Retracted Badge, Title
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -884,8 +1309,24 @@ fun NotificationHistoryCard(notif: NotificationDto) {
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
+
+                    if (isRetracted) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF64748B).copy(alpha = 0.2f)
+                        ) {
+                            Text(
+                                text = "🚫 RETRACTED",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
                     Text(
-                        text = notif.title ?: "Untitled",
+                        text = notif.title ?: "Untitled Notice",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         maxLines = 1,
@@ -893,57 +1334,233 @@ fun NotificationHistoryCard(notif: NotificationDto) {
                     )
                 }
 
-                Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.outline
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "👥 ${notif.recipientsCount ?: 0} Recipients • ✉️ ${notif.emailsDispatched ?: 0} Mails",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
                 Text(
                     text = notif.createdAt?.take(16) ?: "",
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.outline
                 )
             }
 
+            // Metric Pills (Targeted, Read Receipts, FCM Pushes, Emails)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Targeted
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = "👥 ${notif.recipientsCount ?: 0} Targeted",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                // Read Receipts Breakdown
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFF10B981).copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "✓ ${notif.readCount ?: 0} Read / ⏳ ${notif.pendingCount ?: 0} Pending",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF059669),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                // FCM Pushes
+                if ((notif.pushDispatched ?: 0) > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFF59E0B).copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "🔔 ${notif.pushDispatched} FCM",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD97706),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                // Emails
+                if ((notif.emailsDispatched ?: 0) > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF3B82F6).copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = "✉ ${notif.emailsDispatched} Mails",
+                            fontSize = 10.sp,
+                            color = Color(0xFF2563EB),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // Card Action Buttons (Clone, Details, Retract)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onClone,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Clone", fontSize = 11.sp)
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                OutlinedButton(
+                    onClick = { expanded = !expanded },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(if (expanded) "Hide" else "Details", fontSize = 11.sp)
+                }
+
+                if (!isRetracted && notif.id != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Button(
+                        onClick = { showRetractConfirm = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(12.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Retract", fontSize = 11.sp)
+                    }
+                }
+            }
+
+            // Expanded Details View
             AnimatedVisibility(visible = expanded) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
                     Text(
-                        text = "Message Content (Sample):",
+                        text = "Message Content:",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
+
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = notif.samplePersonalized ?: notif.rawMessage ?: "",
+                            text = notif.rawMessage ?: "",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(10.dp)
                         )
                     }
+
+                    // Read by engineers
+                    if (!notif.readBy.isNullOrEmpty()) {
+                        Text(
+                            text = "Read / Dismissed by (${notif.readBy.size}):",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF059669)
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF10B981).copy(alpha = 0.08f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = notif.readBy.joinToString(", "),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+
+                    // Pending engineers
+                    if (!notif.pending.isNullOrEmpty()) {
+                        Text(
+                            text = "Pending Acknowledgment (${notif.pending.size}):",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD97706)
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF59E0B).copy(alpha = 0.08f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = notif.pending.joinToString(", "),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+
+    // Retract Confirmation Dialog
+    if (showRetractConfirm && notif.id != null) {
+        AlertDialog(
+            onDismissRequest = { showRetractConfirm = false },
+            title = { Text("Retract Broadcast Announcement?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("This will immediately retract and hide the broadcast from all engineer mobile feeds and in-app views while preserving audit history.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRetractConfirm = false
+                        onRetract(notif.id)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Confirm Retraction")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRetractConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

@@ -54,8 +54,11 @@ interface RosterRepository {
         target: Any,
         priority: String,
         sendEmail: Boolean,
-        sendInApp: Boolean = true
+        sendInApp: Boolean = true,
+        sendPush: Boolean = true
     ): Result<com.rosterx.data.remote.SendNotificationResponse>
+    suspend fun retractNotification(notificationId: String): Result<Unit>
+    suspend fun getBroadcastTemplates(): Result<List<com.rosterx.data.remote.BroadcastTemplateDto>>
     suspend fun dismissNotification(notificationId: String, dismissAll: Boolean = false): Result<Unit>
     suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>? = null): Result<com.rosterx.data.remote.AssistantChatResponse>
     suspend fun updateProfilePicture(username: String?, base64Image: String?): Result<String?>

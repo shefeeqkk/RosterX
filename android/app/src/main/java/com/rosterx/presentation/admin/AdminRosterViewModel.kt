@@ -70,6 +70,8 @@ data class AdminRosterState(
 
     val notifications: List<com.rosterx.data.remote.NotificationDto> = emptyList(),
 
+    val broadcastTemplates: List<com.rosterx.data.remote.BroadcastTemplateDto> = emptyList(),
+
     val isSendingNotification: Boolean = false,
 
     val notificationActionMessage: String? = null,
@@ -491,89 +493,73 @@ class AdminRosterViewModel @Inject constructor(
 
 
     fun loadNotifications() {
-
         viewModelScope.launch {
-
             repository.getNotifications().onSuccess { notifs ->
-
                 _state.value = _state.value.copy(notifications = notifs)
-
             }
-
+            loadBroadcastTemplates()
         }
-
     }
 
-
+    fun loadBroadcastTemplates() {
+        viewModelScope.launch {
+            repository.getBroadcastTemplates().onSuccess { tpls ->
+                _state.value = _state.value.copy(broadcastTemplates = tpls)
+            }
+        }
+    }
 
     fun sendNotification(
-
         title: String,
-
         message: String,
-
         target: Any,
-
         priority: String,
-
         sendEmail: Boolean,
-
         sendInApp: Boolean = true,
-
+        sendPush: Boolean = true,
         onComplete: (Boolean, String) -> Unit = { _, _ -> }
-
     ) {
-
         viewModelScope.launch {
-
             _state.value = _state.value.copy(isSendingNotification = true)
-
             val result = repository.sendNotification(
-
                 title = title,
-
                 message = message,
-
                 target = target,
-
                 priority = priority,
-
                 sendEmail = sendEmail,
-
-                sendInApp = sendInApp
-
+                sendInApp = sendInApp,
+                sendPush = sendPush
             )
-
             result.onSuccess { resp ->
-
                 _state.value = _state.value.copy(
-
                     isSendingNotification = false,
-
                     notificationActionMessage = resp.message ?: "Notification dispatched successfully"
-
                 )
-
                 loadNotifications()
-
                 onComplete(true, resp.message ?: "Broadcast sent successfully")
-
             }.onFailure { err ->
-
                 _state.value = _state.value.copy(
-
                     isSendingNotification = false,
-
                     notificationActionMessage = "Failed: ${err.message}"
-
                 )
-
                 onComplete(false, err.message ?: "Dispatch failed")
-
             }
-
         }
+    }
 
+    fun retractNotification(
+        notificationId: String,
+        onComplete: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val res = repository.retractNotification(notificationId)
+            res.onSuccess {
+                loadNotifications()
+                onComplete(true, "Announcement retracted successfully")
+            }.onFailure { err ->
+                onComplete(false, err.message ?: "Failed to retract")
+            }
+        }
     }
 
 

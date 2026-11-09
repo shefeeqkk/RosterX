@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 04:40 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 05:45 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.21.0`** (Android `versionCode: 65`, Server `SERVER_VERSION = "1.21.0"`)
-- **Previous Versions**: `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59), `1.14.15` (Build 58), `1.14.14` (Build 57), `1.14.13` (Build 56), `1.14.12` (Build 55), `1.14.11` (Build 54), `1.14.10` (Build 53), `1.14.9` (Build 52), `1.14.8` (Build 51), `1.14.7` (Build 50), `1.14.6` (Build 49), `1.14.5` (Build 48), `1.14.4` (Build 47), `1.14.3` (Build 46), `1.14.2` (Build 45), `1.14.1` (Build 44), `1.14.0` (Build 43), `1.13.1` (Build 42), `1.13.0` (Build 41), `1.12.1` (Build 40), `1.12.0` (Build 39), `1.11.8` (Build 38), `1.11.7` (Build 37), `1.11.6` (Build 36), `1.11.5` (Build 35), `1.11.4` (Build 34), `1.11.0` (Build 30), `1.10.0` (Build 29)
+- **Semantic Version**: **`1.21.1`** (Android `versionCode: 66`, Server `SERVER_VERSION = "1.21.1"`)
+- **Previous Versions**: `1.21.0` (Build 65), `1.20.0` (Build 64), `1.19.0` (Build 63), `1.18.0` (Build 62), `1.17.0` (Build 61), `1.16.0` (Build 60), `1.15.0` (Build 59)
 - **Production Server**: ☁️ **Render Cloud (100% Pure)**  
   🌐 `https://rosterx-vc30.onrender.com`  
   📱 **Android Base URL**: `https://rosterx-vc30.onrender.com/api/`
@@ -18,6 +18,32 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.21.1
+
+### 1. 🛠️ Critical Broadcast Bug Fixes (Web Admin & Backend)
+- **Resolved Specific Engineer Selection Highlighting All Chips**:
+  - *Root Cause*: Default engineers lacked an `id` field, making `has(eng.id)` check `has(undefined)` and highlighting all chips upon clicking any engineer.
+  - *Fix*: Created robust key helper `getEngineerKey(eng)` mapping across `id`, `username`, and normalized `eng_<name>`.
+- **Fixed Live `@` Mention Selection Not Applying**:
+  - *Root Cause*: Textarea blur event fired before suggestion click; cursor selection shifted and missing usernames led to `@undefined`.
+  - *Fix*: Added `mousedown` listener with `e.preventDefault()`, tracked exact character replacement ranges (`mentionMatchStartIndex`/`EndIndex`), and applied fallback usernames.
+- **Fixed Message Dispatch & Visibility When Typing in Web Admin**:
+  - *Root Cause*: Broadcasts dispatched with `send_in_app: false` were previously skipped from DB insertion, leaving history blank.
+  - *Fix*: Backend now ALWAYS records all broadcasts into `ATLAS_DB.notifications` and memory for full audit trail and read receipts. `send_in_app` now selectively controls visibility for non-admin engineer portal feeds.
+  - Added `Ctrl+Enter` shortcut in composer textarea for instant broadcast dispatch.
+
+### 2. 📱 Full Android App Feature Parity for Broadcast Console (`NotificationsTab.kt`)
+- **Operational Templates Carousel**: Integrated quick-load template chips (Shift Announcement, Urgent Handover, System Maintenance, Swap Request) fetching from server API and local defaults.
+- **Tri-Channel Delivery Controls**: Added dedicated Phone Panel (FCM Push) toggle alongside In-App and Email.
+- **Inline `@` Mention Suggestions**: Floating suggestion dropdown appears in Compose whenever `@` is typed, inserting `@username` or `@all` and auto-selecting the engineer.
+- **Dynamic Live Preview**: Translates `@username` to full name badges in real time and simulator chips.
+- **Broadcast History Read Receipts & Soft-Retraction**:
+  - Added live read receipts display (`X Read / Y Pending`), FCM push count, and email count on each card.
+  - Added "Clone" notice button to load history notices back into composer.
+  - Added "Retract" action with confirmation dialog calling `POST /api/notifications/retract`.
 
 ---
 

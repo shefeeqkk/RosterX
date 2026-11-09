@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.0"
+SERVER_VERSION = "1.21.1"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2351,8 +2351,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             is_admin = bool(claims.get("role") in ("admin", "manager") or claims.get("is_admin"))
 
             if not is_admin:
-                # Regular engineers do not see soft-retracted broadcasts
-                notifs = [n for n in notifs if not n.get("is_retracted")]
+                # Regular engineers do not see soft-retracted broadcasts and only see in-app notices
+                notifs = [n for n in notifs if not n.get("is_retracted") and n.get("send_in_app", True)]
             else:
                 # Admins get live read receipts per broadcast
                 dismissed_map = {}
@@ -3541,14 +3541,30 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if is_everyone:
                 recipients = [e for e in engineers if e.get("status") != "Resigned"]
             elif isinstance(target, list):
-                target_norm = [str(t).strip().lower() for t in target]
-                recipients = [e for e in engineers if e.get("id", "").lower() in target_norm or e.get("username", "").lower() in target_norm or e.get("name", "").lower() in target_norm]
+                target_norm = [str(t).strip().lower() for t in target if t]
+                def _matches_target(e):
+                    eid = str(e.get("id") or "").strip().lower()
+                    eun = str(e.get("username") or "").strip().lower()
+                    enm = str(e.get("name") or "").strip().lower()
+                    efn = str(e.get("fullName") or "").strip().lower()
+                    ekey = 'eng_' + re.sub(r'[^a-z0-9]', '', (enm or efn))
+                    return (eid and eid in target_norm) or (eun and eun in target_norm) or (enm and enm in target_norm) or (efn and efn in target_norm) or (ekey in target_norm)
+
+                recipients = [e for e in engineers if _matches_target(e)]
             elif isinstance(target, str):
-                target_norm = target.strip().lower()
-                recipients = [e for e in engineers if e.get("id", "").lower() == target_norm or e.get("username", "").lower() == target_norm or e.get("name", "").lower() == target_norm]
+                t_val = target.strip().lower()
+                def _matches_str(e):
+                    eid = str(e.get("id") or "").strip().lower()
+                    eun = str(e.get("username") or "").strip().lower()
+                    enm = str(e.get("name") or "").strip().lower()
+                    efn = str(e.get("fullName") or "").strip().lower()
+                    ekey = 'eng_' + re.sub(r'[^a-z0-9]', '', (enm or efn))
+                    return eid == t_val or eun == t_val or enm == t_val or efn == t_val or ekey == t_val
+
+                recipients = [e for e in engineers if _matches_str(e)]
 
             if not recipients:
-                recipients = engineers[:1]
+                recipients = [e for e in engineers if e.get("status") != "Resigned"]
 
             emails_sent = 0
             for eng in recipients:
@@ -3637,13 +3653,13 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "timestamp": time.time()
             }
 
-            if send_in_app:
-                SERVER_NOTIFICATIONS.appendleft(notif_doc)
-                if ATLAS_DB is not None:
-                    try:
-                        ATLAS_DB.notifications.insert_one({**notif_doc, "_id": notif_id})
-                    except Exception as e:
-                        print(f"  [NOTIF DB SAVE ERROR] {e}")
+            # ALWAYS record into SERVER_NOTIFICATIONS and ATLAS_DB for audit, admin history & read receipts
+            SERVER_NOTIFICATIONS.appendleft(notif_doc)
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.notifications.insert_one({**notif_doc, "_id": notif_id})
+                except Exception as e:
+                    print(f"  [NOTIF DB SAVE ERROR] {e}")
 
             self.send_json_response({
                 "success": True,

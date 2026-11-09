@@ -206,6 +206,12 @@ interface RosterApiService {
 
     @POST("api/users/fcm-token")
     suspend fun registerFcmToken(@Body body: Map<String, String>): PingResponse
+
+    @GET("api/broadcast/templates")
+    suspend fun getBroadcastTemplates(): BroadcastTemplatesResponse
+
+    @POST("api/notifications/retract")
+    suspend fun retractNotification(@Body body: Map<String, String>): PingResponse
 }
 
 data class UpdateProfilePictureRequest(
@@ -243,6 +249,7 @@ data class SendNotificationRequest(
     val priority: String = "info",
     @SerializedName("send_email") val sendEmail: Boolean = false,
     @SerializedName("send_in_app") val sendInApp: Boolean = true,
+    @SerializedName("send_push") val sendPush: Boolean = true,
     val sender: String = "System Administrator"
 )
 
@@ -256,7 +263,27 @@ data class NotificationDto(
     @SerializedName("created_at") val createdAt: String?,
     @SerializedName("recipients_count") val recipientsCount: Int? = 0,
     @SerializedName("emails_dispatched") val emailsDispatched: Int? = 0,
-    @SerializedName("sample_personalized") val samplePersonalized: String? = null
+    @SerializedName("push_dispatched") val pushDispatched: Int? = 0,
+    @SerializedName("sample_personalized") val samplePersonalized: String? = null,
+    @SerializedName("is_retracted") val isRetracted: Boolean? = false,
+    @SerializedName("read_count") val readCount: Int? = 0,
+    @SerializedName("pending_count") val pendingCount: Int? = 0,
+    @SerializedName("read_by") val readBy: List<String>? = null,
+    @SerializedName("pending") val pending: List<String>? = null
+)
+
+data class BroadcastTemplateDto(
+    val id: String,
+    val name: String? = null,
+    val title: String? = null,
+    val message: String? = null,
+    val priority: String? = null,
+    @SerializedName("target_default") val targetDefault: String? = null
+)
+
+data class BroadcastTemplatesResponse(
+    val success: Boolean,
+    val templates: List<BroadcastTemplateDto>? = null
 )
 
 data class SendNotificationResponse(

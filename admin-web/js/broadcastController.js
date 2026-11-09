@@ -29,7 +29,13 @@ export class BroadcastController {
     this.mentionSuggestions = [];
     this.selectedMentionIndex = 0;
     this.mentionQueryStart = -1;
+    this.mentionQueryEnd = -1;
     this.isMentionDropdownOpen = false;
+  }
+
+  getEngineerKey(eng) {
+    if (!eng) return '';
+    return String(eng.id || eng.username || ('eng_' + (eng.name || eng.fullName || '').toLowerCase().replace(/[^a-z0-9]/g, ''))).trim();
   }
 
   init({ atlasService, getEngineers, showToast }) {
@@ -216,7 +222,8 @@ export class BroadcastController {
     this.dom.recipientChipsContainer.innerHTML = '';
 
     engineers.forEach(eng => {
-      const isSelected = this.selectedEngineerIds.has(eng.id);
+      const engKey = this.getEngineerKey(eng);
+      const isSelected = this.selectedEngineerIds.has(engKey);
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = `recipient-chip inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer select-none border ${
@@ -224,7 +231,7 @@ export class BroadcastController {
           ? 'bg-purple-600 text-white border-purple-700 dark:border-purple-500 shadow-2xs'
           : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
       }`;
-      chip.dataset.engId = eng.id;
+      chip.dataset.engId = engKey;
       chip.dataset.engName = (eng.fullName || eng.name || '').toLowerCase();
       chip.dataset.engUsername = (eng.username || '').toLowerCase();
 
@@ -237,7 +244,7 @@ export class BroadcastController {
       `;
 
       chip.addEventListener('click', () => {
-        this.toggleEngineerSelection(eng.id);
+        this.toggleEngineerSelection(engKey);
       });
 
       this.dom.recipientChipsContainer.appendChild(chip);
@@ -246,18 +253,19 @@ export class BroadcastController {
     this.updateAudienceSummary();
   }
 
-  toggleEngineerSelection(engId) {
-    if (this.selectedEngineerIds.has(engId)) {
-      this.selectedEngineerIds.delete(engId);
+  toggleEngineerSelection(engKey) {
+    if (!engKey) return;
+    if (this.selectedEngineerIds.has(engKey)) {
+      this.selectedEngineerIds.delete(engKey);
     } else {
-      this.selectedEngineerIds.add(engId);
+      this.selectedEngineerIds.add(engKey);
     }
     this.renderRecipientChips();
   }
 
   selectAllEngineers() {
     const engineers = this.getActiveEngineers();
-    this.selectedEngineerIds = new Set(engineers.map(e => e.id));
+    this.selectedEngineerIds = new Set(engineers.map(e => this.getEngineerKey(e)).filter(Boolean));
     this.renderRecipientChips();
   }
 
@@ -315,6 +323,7 @@ export class BroadcastController {
     if (mentionMatch) {
       const query = mentionMatch[1].toLowerCase();
       this.mentionQueryStart = textarea.selectionStart - mentionMatch[0].length;
+      this.mentionQueryEnd = textarea.selectionStart;
       this.showMentionDropdown(query);
     } else {
       this.closeMentionDropdown();
@@ -324,6 +333,12 @@ export class BroadcastController {
   }
 
   handleMessageKeydown(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      this.dispatchBroadcast();
+      return;
+    }
+
     if (!this.isMentionDropdownOpen) return;
 
     if (e.key === 'ArrowDown') {
@@ -407,7 +422,13 @@ export class BroadcastController {
         `;
       }
 
-      row.addEventListener('click', () => {
+      // Use mousedown with preventDefault so textarea does not blur before selection
+      row.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        this.selectMention(item);
+      });
+      row.addEventListener('click', (e) => {
+        e.preventDefault();
         this.selectMention(item);
       });
 
@@ -433,19 +454,31 @@ export class BroadcastController {
     const textarea = this.dom.messageInput;
     if (!textarea) return;
 
-    const mentionTag = item.isTag ? `@${item.tag}` : `@${item.username}`;
-    const before = textarea.value.slice(0, this.mentionQueryStart);
-    const after = textarea.value.slice(textarea.selectionStart);
+    const uname = item.isTag ? item.tag : (item.username || (item.name || 'engineer').toLowerCase().replace(/[\s\W]+/g, ''));
+    const mentionTag = `@${uname}`;
+
+    const startIdx = (this.mentionQueryStart >= 0) ? this.mentionQueryStart : 0;
+    const endIdx = (this.mentionQueryEnd >= startIdx) ? this.mentionQueryEnd : textarea.selectionStart;
+
+    const before = textarea.value.slice(0, startIdx);
+    const after = textarea.value.slice(endIdx);
 
     textarea.value = `${before}${mentionTag} ${after}`;
     const newCursorPos = before.length + mentionTag.length + 1;
     textarea.setSelectionRange(newCursorPos, newCursorPos);
     textarea.focus();
 
+    // Reset query range
+    this.mentionQueryStart = -1;
+    this.mentionQueryEnd = -1;
+
     // Auto-select in audience if in specific mode
-    if (!item.isTag && this.audienceMode === 'specific' && item.id) {
-      this.selectedEngineerIds.add(item.id);
-      this.renderRecipientChips();
+    if (!item.isTag && this.audienceMode === 'specific') {
+      const key = this.getEngineerKey(item);
+      if (key) {
+        this.selectedEngineerIds.add(key);
+        this.renderRecipientChips();
+      }
     }
 
     this.closeMentionDropdown();
@@ -455,6 +488,8 @@ export class BroadcastController {
   closeMentionDropdown() {
     this.dom.mentionDropdown?.classList.add('hidden');
     this.isMentionDropdownOpen = false;
+    this.mentionQueryStart = -1;
+    this.mentionQueryEnd = -1;
   }
 
   insertToken(token) {
@@ -481,13 +516,14 @@ export class BroadcastController {
 
     engineers.forEach((eng, idx) => {
       const opt = document.createElement('option');
-      opt.value = eng.id;
+      const key = this.getEngineerKey(eng);
+      opt.value = key;
       opt.textContent = eng.fullName || eng.name || `Engineer ${idx + 1}`;
       this.dom.previewSelect.appendChild(opt);
     });
 
     if (engineers.length > 0) {
-      this.previewEngineerId = engineers[0].id;
+      this.previewEngineerId = this.getEngineerKey(engineers[0]);
     }
   }
 
@@ -500,14 +536,16 @@ export class BroadcastController {
     if (!rawMessage) return '';
     const engineers = this.getActiveEngineers();
     
-    // Map username/id -> Full Name
+    // Map username/id/name -> Full Name
     const nameByUser = {};
     engineers.forEach(e => {
       const uname = (e.username || '').toLowerCase();
       const uid = (e.id || '').toLowerCase();
+      const rawName = (e.name || '').toLowerCase();
       const fname = e.fullName || e.name || uname;
       if (uname) nameByUser[uname] = fname;
       if (uid) nameByUser[uid] = fname;
+      if (rawName) nameByUser[rawName] = fname;
     });
 
     const engName = previewEngineer?.fullName || previewEngineer?.name || 'Engineer';
@@ -537,7 +575,7 @@ export class BroadcastController {
     const rawMessage = this.dom.messageInput?.value || '';
     const priority = this.getSelectedPriority();
     const engineers = this.getActiveEngineers();
-    const previewEng = engineers.find(e => e.id === this.previewEngineerId) || engineers[0];
+    const previewEng = engineers.find(e => this.getEngineerKey(e) === this.previewEngineerId) || engineers[0];
 
     // Priority styling
     const priorityConfigs = {
@@ -745,11 +783,12 @@ export class BroadcastController {
 
     let target = 'everyone';
     if (this.audienceMode === 'specific') {
-      if (this.selectedEngineerIds.size === 0) {
+      const validIds = Array.from(this.selectedEngineerIds).filter(Boolean);
+      if (validIds.length === 0) {
         this.showToast('Please select at least one engineer in the target audience', 'error');
         return;
       }
-      target = Array.from(this.selectedEngineerIds);
+      target = validIds;
     }
 
     const payload = {
