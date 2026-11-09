@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.6"
+SERVER_VERSION = "1.21.7"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -170,10 +170,10 @@ OTP_IP_REQUESTS = collections.defaultdict(list)  # { ip: [timestamps] }
 FAILED_LOGIN_ATTEMPTS = collections.defaultdict(list)  # { ip_user_key: [timestamps] }
 
 # Resend Configuration
-DEFAULT_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "")
+DEFAULT_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip().strip("'\"")
+DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "").strip().strip("'\"")
 RESEND_API_KEY = DEFAULT_RESEND_API_KEY
-RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>")
+RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>").strip().strip("'\"")
 
 # Gmail SMTP Configuration for Native Password Recovery OTP
 # Configured with fail-safe defaults so Render free-tier and cloud deploys work out-of-the-box
@@ -614,18 +614,17 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
     Includes comprehensive [RESEND AUDIT] logging and sandbox constraint handling.
     """
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY
-    if not RESEND_API_KEY:
-        env = load_env_variables()
-        RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "").strip() or DEFAULT_RESEND_API_KEY
-    api_key = RESEND_API_KEY or DEFAULT_RESEND_API_KEY
+    env = load_env_variables()
+    raw_key = env.get("RESEND_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "").strip() or (RESEND_API_KEY or "").strip() or (DEFAULT_RESEND_API_KEY or "").strip()
+    api_key = raw_key.strip("'\"").strip()
     if not api_key:
-        print("[RESEND AUDIT] ERROR: RESEND_API_KEY is not configured in .env or environment.")
+        log_server("[RESEND AUDIT] ERROR: RESEND_API_KEY is not configured in .env or environment.")
         return {"success": False, "error": "RESEND_API_KEY is not configured in .env"}
 
-    from_sender = (RESEND_FROM or "").strip() or "RosterX Operations <notify@rosterx.online>"
+    raw_from = env.get("RESEND_FROM", "").strip() or os.environ.get("RESEND_FROM", "").strip() or (RESEND_FROM or "").strip()
+    from_sender = raw_from.strip("'\"").strip() or "RosterX Operations <notify@rosterx.online>"
 
-    env = load_env_variables()
-    primary_sandbox_email = env.get("ALERT_EMAIL", "").strip() or os.environ.get("ALERT_EMAIL", "kkshefeeq005@gmail.com")
+    primary_sandbox_email = (env.get("ALERT_EMAIL", "") or os.environ.get("ALERT_EMAIL", "") or "kkshefeeq005@gmail.com").strip().strip("'\"")
 
     payload = {
         "from": from_sender,
@@ -1164,7 +1163,7 @@ def load_env_variables():
 
     for k, v in os.environ.items():
         if v:
-            env_data[k] = v.strip()
+            env_data[k] = v.strip().strip("'\"")
 
     return env_data
 
@@ -3922,8 +3921,8 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [ATLAS DB] Status: {ATLAS_STATUS} ({ATLAS_CLUSTER}/{ATLAS_DB_NAME})")
 
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY, DEFAULT_ALERT_EMAIL
-    RESEND_API_KEY = env.get("RESEND_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "").strip() or DEFAULT_RESEND_API_KEY
-    RESEND_FROM = env.get("RESEND_FROM", "").strip() or os.environ.get("RESEND_FROM", "").strip() or "RosterX Operations <notify@rosterx.online>"
+    RESEND_API_KEY = (env.get("RESEND_API_KEY", "") or os.environ.get("RESEND_API_KEY", "") or DEFAULT_RESEND_API_KEY).strip().strip("'\"")
+    RESEND_FROM = (env.get("RESEND_FROM", "") or os.environ.get("RESEND_FROM", "") or "RosterX Operations <notify@rosterx.online>").strip().strip("'\"")
 
     mongo_uri = env.get("MONGODB_URI", "")
     cluster_name = env.get("ATLAS_CLUSTER", "Cluster0")
