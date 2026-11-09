@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.22.2"
+SERVER_VERSION = "1.22.3"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2315,7 +2315,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 try:
                     user_doc = ATLAS_DB.engineers.find_one({"username": str(claims["username"]).strip().lower()}, {"_id": 0, "password": 0})
                     if user_doc:
-                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "birthday"):
+                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "birthday", "default_weekly_offs"):
                             if k in user_doc:
                                 response_user[k] = user_doc[k]
                     if response_user.get("name"):
@@ -2497,13 +2497,21 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 if not item.get("username") and item.get("email") and "@" in item["email"]:
                     item["username"] = item["email"].split("@")[0].strip().lower()
                 caller_user = str(claims.get("username") or "").strip().lower()
+                caller_id = str(claims.get("id") or claims.get("sub") or "").strip().lower().replace("eng_", "")
                 caller_role = str(claims.get("role") or "").strip().lower()
                 caller_email = str(claims.get("email") or "").strip().lower()
                 caller_name = str(claims.get("name") or "").strip().lower()
+
+                item_user = str(item.get("username") or "").strip().lower()
+                item_email = str(item.get("email") or "").strip().lower()
+                item_name = str(item.get("name") or "").strip().lower()
+                item_fullname = str(item.get("full_name") or "").strip().lower()
+
                 is_own_profile = (
-                    (str(item.get("username") or "").strip().lower() == caller_user) or
-                    (caller_email and str(item.get("email") or "").strip().lower() == caller_email) or
-                    (caller_name and str(item.get("name") or "").strip().lower() == caller_name)
+                    (caller_user and item_user == caller_user) or
+                    (caller_id and item_user == caller_id) or
+                    (caller_email and item_email == caller_email) or
+                    (caller_name and (item_name == caller_name or item_fullname == caller_name))
                 )
                 can_view_phone = is_admin or (caller_role == "manager") or is_own_profile
                 if not can_view_phone and item.get("phone"):

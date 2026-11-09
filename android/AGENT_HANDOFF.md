@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-09 22:05 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-09 22:45 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.22.2`** (Android `versionCode: 77`, Server `SERVER_VERSION = "1.22.2"`)
-- **Previous Versions**: `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71)
+- **Semantic Version**: **`1.22.3`** (Android `versionCode: 78`, Server `SERVER_VERSION = "1.22.3"`)
+- **Previous Versions**: `1.22.2` (Build 77), `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -19,6 +19,27 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.22.3
+
+### 1. ✏️ Top Bar Pencil Icon Eliminated (Single Pencil Standard Enforced)
+- Removed the conditional `IconButton` with `Icons.Default.Edit` from `TopAppBar` `actions` in `EngineerPortalScreen.kt`.
+- The top app bar now cleanly contains only the profile chip.
+- The solitary pencil icon in the entire Account & Settings interface is situated at the top-right of the avatar card (`StandardProfileHeaderCard`), exactly fulfilling the user design specification.
+
+### 2. 📱 Authoritative Profile Hydration & Own Phone Unmasking
+- **`GET /api/auth/me` Integration**:
+  - Added `getMe(): CurrentUserResponse` to `RosterApiService` and `getCurrentUser(): Result<Engineer>` to `RosterRepository`.
+  - Added authoritative profile hydration directly into `EngineerPortalViewModel.loadPortalData()`, guaranteeing the logged-in user's profile is initialized with unmasked data (`+91 9809226169`).
+- **Asterisk Contamination Prevention**:
+  - In `UserSessionManager.setCurrentUser()`, if an incoming `user.phone` contains `*` but the local session already has a clean unmasked phone, the clean phone is preserved.
+  - In `EngineerPortalViewModel`, merging directory engineers into `loggedInEngineer` ignores phone numbers containing `*`.
+  - In `UnifiedEditProfileDialog`, if `currentPhone` contains asterisks, the text field defaults to empty instead of pre-populating asterisks.
+- **Backend Role & Identity Checks**:
+  - In `server.py` `GET /api/engineers`, hardened `is_own_profile` matching across `username`, `id` (`eng_*`), `email`, `name`, and `full_name`.
+  - In `server.py` `GET /api/auth/me`, added `default_weekly_offs` to returned claims.
 
 ---
 

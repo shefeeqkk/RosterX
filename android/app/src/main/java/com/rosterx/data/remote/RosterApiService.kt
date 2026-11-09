@@ -28,7 +28,16 @@ data class UserDto(
     val email: String?,
     val phone: String?,
     val role: String?,
-    @SerializedName("profile_picture") val profilePicture: String? = null
+    @SerializedName("profile_picture") val profilePicture: String? = null,
+    @SerializedName("join_date") val joinDate: String? = null,
+    @SerializedName("birthday") val birthday: String? = null,
+    @SerializedName("default_weekly_offs") val defaultWeeklyOffs: List<String>? = null
+)
+
+data class CurrentUserResponse(
+    val success: Boolean,
+    val user: UserDto? = null,
+    val message: String? = null
 )
 
 data class SendOtpRequest(
@@ -150,6 +159,9 @@ data class RestoreRosterResponse(
 interface RosterApiService {
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequest): LoginResponse
+
+    @GET("api/auth/me")
+    suspend fun getMe(): CurrentUserResponse
 
     @POST("api/auth/send-otp")
     suspend fun sendOtp(@Body request: SendOtpRequest): SendOtpResponse

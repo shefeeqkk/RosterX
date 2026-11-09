@@ -526,28 +526,6 @@ fun EngineerPortalScreen(
                 },
 
                 actions = {
-                    if ((isManager && selectedTab == 3) || (!isManager && selectedTab == 4)) {
-                        IconButton(
-                            onClick = { showUnifiedEditProfileDialog = true },
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                modifier = Modifier.size(34.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Edit Profile & Security",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(17.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     if (state.loggedInEngineer != null) {
 
                         NeumorphicCard(

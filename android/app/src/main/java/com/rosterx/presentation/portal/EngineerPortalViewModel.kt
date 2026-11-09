@@ -229,8 +229,21 @@ class EngineerPortalViewModel @Inject constructor(
 
             val engineers = engineersResult.getOrElse { emptyList() }
 
+            // 1.1 Refresh authoritative logged-in user profile from /api/auth/me
+            val meResult = repository.getCurrentUser()
+            var current = if (meResult.isSuccess) {
+                val me = meResult.getOrNull()
+                if (me != null) {
+                    _state.value = _state.value.copy(loggedInEngineer = me)
+                    me
+                } else {
+                    _state.value.loggedInEngineer
+                }
+            } else {
+                _state.value.loggedInEngineer
+            }
+
             // Merge details (like defaultWeeklyOffs) into loggedInEngineer
-            val current = _state.value.loggedInEngineer
             if (current != null && engineers.isNotEmpty()) {
                 val fullProfile = engineers.find { 
                     it.username.equals(current.username, ignoreCase = true) ||
@@ -241,7 +254,9 @@ class EngineerPortalViewModel @Inject constructor(
                     val mergedUser = current.copy(
                         defaultWeeklyOffs = if (fullProfile.defaultWeeklyOffs.isNotEmpty()) fullProfile.defaultWeeklyOffs else current.defaultWeeklyOffs,
                         email = if (fullProfile.email.isNotBlank()) fullProfile.email else current.email,
-                        phone = if (fullProfile.phone.isNotBlank()) fullProfile.phone else current.phone
+                        phone = if (!fullProfile.phone.contains("*") && fullProfile.phone.isNotBlank()) fullProfile.phone else current.phone,
+                        joinDate = if (fullProfile.joinDate.isNotBlank()) fullProfile.joinDate else current.joinDate,
+                        birthday = if (!fullProfile.birthday.isNullOrBlank()) fullProfile.birthday else current.birthday
                     )
                     sessionManager.setCurrentUser(mergedUser)
                     _state.value = _state.value.copy(loggedInEngineer = mergedUser)

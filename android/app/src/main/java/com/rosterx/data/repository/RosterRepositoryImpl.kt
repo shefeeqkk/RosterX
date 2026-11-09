@@ -105,6 +105,35 @@ class RosterRepositoryImpl @Inject constructor(
 
     }
 
+    override suspend fun getCurrentUser(): Result<Engineer> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getMe()
+            if (response.success && response.user != null) {
+                val u = response.user
+                val eng = Engineer(
+                    id = u.id?.ifBlank { null } ?: u.username ?: "",
+                    name = u.name ?: "",
+                    fullName = u.full_name ?: u.name ?: "",
+                    email = u.email ?: "",
+                    username = u.username ?: "",
+                    phone = u.phone ?: "",
+                    role = try { EngineerRole.valueOf((u.role ?: "ENGINEER").uppercase()) } catch (e: Exception) { EngineerRole.ENGINEER },
+                    status = EngineerStatus.ACTIVE,
+                    defaultWeeklyOffs = u.defaultWeeklyOffs ?: emptyList(),
+                    joinDate = u.joinDate ?: "",
+                    profilePicture = u.profilePicture,
+                    birthday = u.birthday
+                )
+                sessionManager.setCurrentUser(eng)
+                Result.success(eng)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to get current user"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 
 
     override suspend fun sendOtp(identifier: String): Result<String> = withContext(Dispatchers.IO) {
