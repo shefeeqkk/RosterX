@@ -494,7 +494,7 @@ fun EngineerPortalScreen(
 
                                 Text(
 
-                                    text = state.loggedInEngineer!!.name.split(" ")[0],
+                                    text = state.loggedInEngineer!!.name.toProperCase().split(" ")[0],
 
                                     fontWeight = FontWeight.Bold,
 
@@ -1570,7 +1570,7 @@ fun ManagerDashboardView(
     ) {
         // 1. Sleek Compact Welcome Card (Operation Manager / Operation Hub stripped)
         item {
-            val engDisplayName = engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager"
+            val engDisplayName = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager").toProperCase()
             NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -1892,7 +1892,7 @@ fun DashboardView(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Welcome, ${engineer?.name ?: "Engineer"}! \uD83D\uDC4B",
+                        text = "Welcome, ${(engineer?.name ?: "Engineer").toProperCase()}! \uD83D\uDC4B",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = NeumorphicTokens.TextMain
@@ -2822,7 +2822,7 @@ fun TeamShiftsView(
 
                                         Text(
 
-                                            text = engineer.name,
+                                            text = engineer.name.toProperCase(),
 
                                             fontWeight = if (isUser) FontWeight.ExtraBold else FontWeight.Medium,
 
@@ -3731,7 +3731,7 @@ fun MonthRosterView(
 
                                         Text(
 
-                                            text = engineer.name,
+                                            text = engineer.name.toProperCase(),
 
                                             fontWeight = if (isUser) FontWeight.ExtraBold else FontWeight.Medium,
 

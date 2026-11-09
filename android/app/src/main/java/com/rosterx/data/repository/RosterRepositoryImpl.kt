@@ -823,7 +823,13 @@ class RosterRepositoryImpl @Inject constructor(
 
 
     private fun EngineerDto.toDomain(): Engineer {
-        val resolvedName = name ?: ""
+        val rawName = name ?: ""
+        val resolvedName = rawName.trim().split(" ")
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { word ->
+                if (word.length == 1) word.uppercase()
+                else word.lowercase().replaceFirstChar { it.uppercase() }
+            }
         val resolvedUsername = username ?: if (resolvedName.isNotBlank()) resolvedName.split(" ")[0].lowercase() else ""
         val resolvedId = id?.ifBlank { null } ?: engineerId?.ifBlank { null } ?: resolvedUsername
 

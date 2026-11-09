@@ -46,7 +46,9 @@ import {
 
   isSwapShift,
 
-  isOffCategory
+  isOffCategory,
+
+  toProperCase
 
 } from './constants.js?v=1.0';
 
@@ -1182,7 +1184,7 @@ class RosterXApp {
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-900 dark:text-white text-sm">${this.escapeHtml(eng.name)}</span>
+              <span class="font-bold text-slate-900 dark:text-white text-sm">${this.escapeHtml(toProperCase(eng.name))}</span>
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleColor} uppercase">${this.escapeHtml(eng.role || 'engineer')}</span>
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}">${this.escapeHtml(eng.status || 'Active')}</span>
             </div>
@@ -3163,7 +3165,7 @@ class RosterXApp {
 
       nameTd.innerHTML = `
 
-        <span class="truncate font-bold text-slate-900 text-sm" title="${eng.name}">${eng.name}</span>
+        <span class="truncate font-bold text-slate-900 text-sm" title="${toProperCase(eng.name)}">${toProperCase(eng.name)}</span>
 
         <span class="text-[11px] text-slate-400 font-mono font-semibold">#${actualIndex + 1}</span>
 
@@ -3899,9 +3901,9 @@ class RosterXApp {
 
         <td class="p-2.5">
 
-          <div class="font-bold text-slate-900">${eng.name}</div>
+          <div class="font-bold text-slate-900">${toProperCase(eng.name)}</div>
 
-          <div class="text-[11px] text-slate-500">${eng.full_name || '—'}</div>
+          <div class="text-[11px] text-slate-500">${toProperCase(eng.full_name) || '—'}</div>
 
         </td>
 

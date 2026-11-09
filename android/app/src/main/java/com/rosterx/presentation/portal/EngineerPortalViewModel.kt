@@ -14,6 +14,7 @@ import com.rosterx.domain.model.ShiftCode
 import com.rosterx.domain.model.isManagementAccount
 import com.rosterx.domain.model.isEligibleForShiftRoster
 import com.rosterx.domain.model.isEligibleForMonthRoster
+import com.rosterx.presentation.components.toProperCase
 
 import com.rosterx.domain.repository.RosterRepository
 
@@ -694,7 +695,7 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     fun clearAssistantChat() {
-        val engName = _state.value.loggedInEngineer?.name ?: "Engineer"
+        val engName = (_state.value.loggedInEngineer?.name ?: "Engineer").toProperCase()
         val welcomeMsg = listOf(
             com.rosterx.presentation.components.AssistantChatMessage(
                 id = "init",
@@ -708,7 +709,7 @@ class EngineerPortalViewModel @Inject constructor(
 
     fun openAssistant() {
         val msgs = if (_state.value.assistantMessages.isEmpty()) {
-            val engName = _state.value.loggedInEngineer?.name ?: "Engineer"
+            val engName = (_state.value.loggedInEngineer?.name ?: "Engineer").toProperCase()
             listOf(
                 com.rosterx.presentation.components.AssistantChatMessage(
                     id = "init",

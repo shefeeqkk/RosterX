@@ -36,7 +36,9 @@ import {
 
   shiftsMapToArray,
 
-  isOffCategory
+  isOffCategory,
+
+  toProperCase
 
 } from './constants.js?v=1.0';
 
@@ -963,7 +965,7 @@ export class UserPortalController {
       }
     }
 
-    if (nameEl) nameEl.textContent = this.currentUser.name || this.currentUser.username;
+    if (nameEl) nameEl.textContent = toProperCase(this.currentUser.name || this.currentUser.username);
 
     if (roleEl) {
 
@@ -1227,7 +1229,7 @@ export class UserPortalController {
 
     const displayName = (this.matchedEngineer ? this.matchedEngineer.name : this.currentUser.name) || 'Engineer';
 
-    if (welcomeName) welcomeName.textContent = displayName;
+    if (welcomeName) welcomeName.textContent = toProperCase(displayName);
 
 
 
