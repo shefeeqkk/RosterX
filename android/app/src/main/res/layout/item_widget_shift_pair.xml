@@ -15,6 +15,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
+        android:layout_marginEnd="2.5dp"
         android:background="@drawable/widget_inner_card"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -96,17 +97,13 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Column Gap -->
-    <Space
-        android:layout_width="4dp"
-        android:layout_height="match_parent" />
-
     <!-- Column 2 (Right Engineer) -->
     <LinearLayout
         android:id="@+id/pair_right_root"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
+        android:layout_marginStart="2.5dp"
         android:background="@drawable/widget_inner_card"
         android:gravity="center_vertical"
         android:orientation="horizontal"
