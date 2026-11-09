@@ -724,53 +724,51 @@ class RosterRepositoryImpl @Inject constructor(
 
 
     override suspend fun sendNotification(
-
         title: String,
-
         message: String,
-
         target: Any,
-
         priority: String,
-
         sendEmail: Boolean,
-
-        sendInApp: Boolean
-
+        sendInApp: Boolean,
+        sendPush: Boolean
     ): Result<com.rosterx.data.remote.SendNotificationResponse> {
-
         return try {
-
             val req = com.rosterx.data.remote.SendNotificationRequest(
-
                 title = title,
-
                 message = message,
-
                 target = target,
-
                 priority = priority,
-
                 sendEmail = sendEmail,
-
-                sendInApp = sendInApp
-
+                sendInApp = sendInApp,
+                sendPush = sendPush
             )
-
             val response = apiService.sendNotification(req)
-
             if (response.success) {
-
                 Result.success(response)
-
             } else {
-
                 Result.failure(Exception(response.message ?: "Failed to dispatch notification"))
-
             }
-
         } catch (e: HttpException) {
             Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun retractNotification(notificationId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val resp = apiService.retractNotification(mapOf("id" to notificationId))
+            if (resp.success) Result.success(Unit)
+            else Result.failure(Exception(resp.message ?: "Failed to retract broadcast"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getBroadcastTemplates(): Result<List<com.rosterx.data.remote.BroadcastTemplateDto>> = withContext(Dispatchers.IO) {
+        try {
+            val resp = apiService.getBroadcastTemplates()
+            Result.success(resp.templates ?: emptyList())
         } catch (e: Exception) {
             Result.failure(e)
         }

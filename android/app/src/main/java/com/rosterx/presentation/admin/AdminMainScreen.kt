@@ -425,13 +425,10 @@ fun AdminMainScreen(
                             )
 
                             3 -> NotificationsTab(
-
                                 state = state,
-
                                 onSendNotification = viewModel::sendNotification,
-
+                                onRetractNotification = viewModel::retractNotification,
                                 onRefreshNotifications = viewModel::loadNotifications
-
                             )
 
                             4 -> ServerManagementTab(
