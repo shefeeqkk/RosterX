@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.2"
+SERVER_VERSION = "1.21.3"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -293,6 +293,24 @@ def verify_password(password: str, stored_hash: str) -> bool:
     if hmac.compare_digest(stored_hash, password):
         return True
     return False
+
+def to_proper_name(name: str) -> str:
+    """
+    Normalizes a name string from ALL CAPS or arbitrary casing into clean Proper Title Case.
+    Preserves initials and short single-character tokens (e.g. 'Dhanush B', 'Rohit N').
+    """
+    if not name or not isinstance(name, str):
+        return name
+    words = name.strip().split()
+    proper_words = []
+    for w in words:
+        if len(w) == 1:
+            proper_words.append(w.upper())
+        elif w.upper() in ("II", "III", "IV", "V"):
+            proper_words.append(w.upper())
+        else:
+            proper_words.append(w.capitalize())
+    return " ".join(proper_words)
 
 def process_profile_picture_base64(raw_base64_str: str, max_dimension: int = 256, quality: int = 85) -> str:
     """
@@ -3375,6 +3393,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": "Name must be between 2 and 60 characters."}, 400)
                 return
 
+            new_name = to_proper_name(new_name)
+
             try:
                 update_fields = {
                     "name": new_name,
@@ -3693,26 +3713,36 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             notif_id = f"notif_{int(time.time()*1000)}"
 
-            # FCM Push Notification Dispatch
+            # FCM Push Notification Dispatch (Personalized per recipient)
             push_dispatched = 0
             if send_push:
-                push_tokens = []
+                def _format_mention_plain(m):
+                    t_u = m.group(1).lower()
+                    if t_u in ("all", "everyone", "team"):
+                        return "@Everyone"
+                    return f"@{name_by_user.get(t_u) or name_by_id.get(t_u) or t_u}"
+
                 for eng in recipients:
                     toks = eng.get("fcm_tokens", [])
+                    push_tokens = []
                     if isinstance(toks, list):
-                        push_tokens.extend(toks)
-                    elif isinstance(toks, str) and toks:
-                        push_tokens.append(toks)
+                        push_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
+                    elif isinstance(toks, str) and toks.strip():
+                        push_tokens.append(toks.strip())
 
-                if push_tokens:
-                    def _format_mention_plain(m):
-                        t_u = m.group(1).lower()
-                        if t_u in ("all", "everyone", "team"):
-                            return "@Everyone"
-                        return f"@{name_by_user.get(t_u) or name_by_id.get(t_u) or t_u}"
-                    plain_body = re.sub(r'@([a-zA-Z0-9_\-\.]+)', _format_mention_plain, raw_message)
-                    plain_body = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', 'Team Member', plain_body, flags=re.IGNORECASE)
-                    push_dispatched = send_fcm_push(push_tokens, f"📢 [{priority.upper()}] {title}", plain_body, priority=priority, notif_id=notif_id)
+                    if push_tokens:
+                        eng_name = str(eng.get("fullName") or eng.get("name") or "Engineer").strip()
+                        eng_uname = str(eng.get("username") or "").strip()
+
+                        # Personalize per engineer
+                        p_body = raw_message
+                        p_body = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', eng_name, p_body, flags=re.IGNORECASE)
+                        p_body = re.sub(r'\{\s*username\s*\}', eng_uname, p_body, flags=re.IGNORECASE)
+                        p_body = re.sub(r'@\{\s*username\s*\}', f"@{eng_uname}", p_body, flags=re.IGNORECASE)
+                        p_body = re.sub(r'@([a-zA-Z0-9_\-\.]+)', _format_mention_plain, p_body)
+
+                        sent = send_fcm_push(push_tokens, f"📢 [{priority.upper()}] {title}", p_body, priority=priority, notif_id=notif_id)
+                        push_dispatched += sent
 
             notif_doc = {
                 "id": notif_id,
