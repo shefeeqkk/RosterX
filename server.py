@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.21.1"
+SERVER_VERSION = "1.21.2"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -757,26 +757,49 @@ def send_fcm_push(tokens, title, body, priority="info", notif_id=""):
         from firebase_admin import credentials, messaging
 
         if not firebase_admin._apps:
-            service_account_paths = [
-                os.path.join(os.path.dirname(__file__), "firebase-adminsdk.json"),
-                os.path.join(os.path.dirname(__file__), "android", "app", "google-services.json"),
-                os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
-            ]
             cred = None
-            for sa_path in service_account_paths:
-                if sa_path and os.path.exists(sa_path):
-                    try:
-                        with open(sa_path, "r", encoding="utf-8") as f:
-                            sa_data = json.load(f)
-                        if "private_key" in sa_data:
-                            cred = credentials.Certificate(sa_path)
-                            break
-                    except Exception:
-                        pass
+
+            # 1. Check FIREBASE_SERVICE_ACCOUNT_JSON env variable (raw string or base64)
+            env_sa = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+            if env_sa:
+                try:
+                    if env_sa.startswith("{"):
+                        sa_data = json.loads(env_sa)
+                    else:
+                        import base64
+                        decoded = base64.b64decode(env_sa).decode("utf-8")
+                        sa_data = json.loads(decoded)
+                    if "private_key" in sa_data:
+                        cred = credentials.Certificate(sa_data)
+                        log_server("[FCM] Loaded Firebase Service Account from FIREBASE_SERVICE_ACCOUNT_JSON environment variable.")
+                except Exception as e:
+                    log_server(f"[FCM] Failed parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+
+            # 2. Check filesystem candidate paths
+            if not cred:
+                service_account_paths = [
+                    os.path.join(os.path.dirname(__file__), "firebase-adminsdk.json"),
+                    os.path.join(os.path.dirname(__file__), "android", "app", "firebase-adminsdk.json"),
+                    os.environ.get("FIREBASE_ADMINSDK_PATH", ""),
+                    os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
+                ]
+                for sa_path in service_account_paths:
+                    if sa_path and os.path.exists(sa_path):
+                        try:
+                            with open(sa_path, "r", encoding="utf-8") as f:
+                                sa_data = json.load(f)
+                            if "private_key" in sa_data:
+                                cred = credentials.Certificate(sa_path)
+                                log_server(f"[FCM] Loaded Firebase Service Account from {sa_path}")
+                                break
+                        except Exception as e:
+                            log_server(f"[FCM] Error reading service account {sa_path}: {e}")
+
             if cred:
                 firebase_admin.initialize_app(cred)
             else:
-                firebase_admin.initialize_app()
+                log_server("[FCM WARNING] No Firebase Admin Service Account key found. To enable push alerts, download your service account JSON from Firebase Console -> Project Settings -> Service accounts, and set FIREBASE_SERVICE_ACCOUNT_JSON in Render or save as firebase-adminsdk.json.")
+                return 0
 
         for token in unique_tokens:
             try:
@@ -801,15 +824,15 @@ def send_fcm_push(tokens, title, body, priority="info", notif_id=""):
                 dispatched_count += 1
             except Exception as item_err:
                 log_server(f"[FCM] Token delivery error: {item_err}")
+
         log_server(f"[FCM] Firebase Admin SDK dispatch completed: {dispatched_count}/{len(unique_tokens)} pushed successfully.")
         return dispatched_count
     except ImportError:
-        pass
+        log_server("[FCM ERROR] firebase-admin package is not installed. Add firebase-admin to requirements.txt.")
+        return 0
     except Exception as e:
-        log_server(f"[FCM] Firebase Admin SDK attempt: {e}")
-
-    log_server(f"[FCM] Push dispatched to {len(unique_tokens)} queued recipient devices.")
-    return len(unique_tokens)
+        log_server(f"[FCM ERROR] Firebase Admin SDK attempt failed: {e}")
+        return 0
 
 def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> bool:
     """

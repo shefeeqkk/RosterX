@@ -15,6 +15,7 @@ import com.rosterx.MainActivity
 import com.rosterx.R
 import com.rosterx.data.local.UserSessionManager
 import com.rosterx.data.remote.RosterApiService
+import com.rosterx.analytics.AnalyticsManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,9 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject
     lateinit var apiService: RosterApiService
+
+    @Inject
+    lateinit var analyticsManager: AnalyticsManager
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -66,6 +70,11 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
 
         // 2. Display native Android notification panel alert
         showSystemNotification(title, body, priority, notificationId)
+
+        // 3. Log event to Firebase Analytics
+        try {
+            analyticsManager.logNotificationReceived(title, priority)
+        } catch (_: Exception) {}
     }
 
     private fun showSystemNotification(

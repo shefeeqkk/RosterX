@@ -839,6 +839,38 @@ export class BroadcastController {
     }
   }
 
+  formatDateTime(notif) {
+    if (!notif) return 'Recently';
+    let d = null;
+    if (notif.timestamp) {
+      const ts = typeof notif.timestamp === 'number' && notif.timestamp < 1e11 ? notif.timestamp * 1000 : Number(notif.timestamp);
+      if (!isNaN(ts)) d = new Date(ts);
+    }
+    if (!d && notif.created_at) {
+      const raw = String(notif.created_at).trim();
+      const isoCandidate = raw.endsWith(' UTC') ? raw.replace(' UTC', 'Z').replace(' ', 'T') : raw;
+      const parsed = new Date(isoCandidate);
+      if (!isNaN(parsed.getTime())) d = parsed;
+    }
+    if (!d || isNaN(d.getTime())) return notif.created_at || 'Recently';
+
+    try {
+      const localStr = new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      }).format(d);
+      const tzName = Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d).find(p => p.type === 'timeZoneName')?.value || '';
+      return `${localStr} (${tzName || 'Local'})`.trim();
+    } catch (_) {
+      return d.toLocaleString();
+    }
+  }
+
   renderHistory() {
     const list = this.dom.historyList;
     const empty = this.dom.historyEmpty;
@@ -892,7 +924,7 @@ export class BroadcastController {
             ` : ''}
             <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">${notif.title || 'Untitled Notice'}</h4>
           </div>
-          <span class="text-[10px] font-mono text-slate-400">${notif.created_at || 'Recently'}</span>
+          <span class="text-[10px] font-mono text-slate-400">${this.formatDateTime(notif)}</span>
         </div>
 
         <div class="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed whitespace-pre-wrap font-sans">
@@ -989,7 +1021,7 @@ export class BroadcastController {
     if (!this.dom.modalDetails) return;
 
     if (this.dom.detailTitle) this.dom.detailTitle.textContent = notif.title || 'Announcement Details';
-    if (this.dom.detailMeta) this.dom.detailMeta.textContent = `Dispatched by ${notif.sender || 'Admin'} on ${notif.created_at || 'Recently'}`;
+    if (this.dom.detailMeta) this.dom.detailMeta.textContent = `Dispatched by ${notif.sender || 'Admin'} on ${this.formatDateTime(notif)}`;
     if (this.dom.detailBody) this.dom.detailBody.textContent = notif.raw_message || '';
 
     const targetCount = notif.recipients_count || (notif.recipients ? notif.recipients.length : 0);

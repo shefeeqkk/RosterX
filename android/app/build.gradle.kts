@@ -15,8 +15,8 @@ android {
         applicationId = "com.rosterx"
         minSdk = 26
         targetSdk = 35
-        versionCode = 66
-        versionName = "1.21.1"
+        versionCode = 67
+        versionName = "1.21.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -82,9 +82,10 @@ dependencies {
     // Gemini GenAI SDK
     implementation(libs.generativeai)
 
-    // Firebase Cloud Messaging (FCM)
+    // Firebase Services (FCM + Google Analytics)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.analytics)
 
     // Testing
     testImplementation(libs.junit)
