@@ -8,8 +8,8 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.22.0`** (Android `versionCode: 75`, Server `SERVER_VERSION = "1.22.0"`)
-- **Previous Versions**: `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70)
+- **Semantic Version**: **`1.22.1`** (Android `versionCode: 76`, Server `SERVER_VERSION = "1.22.1"`)
+- **Previous Versions**: `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73), `1.21.7` (Build 72), `1.21.6` (Build 71), `1.21.5` (Build 70)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -19,6 +19,20 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.22.1
+
+### 1. 🐛 Fix Manager Widget "Loading..." Row Inflation Crash
+- **Root Cause**:
+  - `item_widget_shift_pair.xml` contained an `<Space android:layout_width="4dp".../>` element between the two engineer columns.
+  - In Android's widget framework, only a strict whitelist of view classes (`LinearLayout`, `FrameLayout`, `RelativeLayout`, `GridLayout`, `TextView`, `ImageView`, `Button`, etc.) is permitted inside `RemoteViews`.
+  - When the launcher's widget host encountered `<Space>`, it threw `InflateException: Class not allowed to be inflated in RemoteViews: android.widget.Space`. The launcher caught this exception and fell back to displaying Android's default adapter loading view (`"Loading..."`).
+- **Fix**:
+  - Replaced `<Space>` with balanced `android:layout_marginEnd="2.5dp"` on Column 1 and `android:layout_marginStart="2.5dp"` on Column 2.
+  - Made color parsing and RemoteViews method execution in `RosterXWidgetService.kt` completely null-safe.
+  - The 2-column manager duty items now inflate cleanly and instantly on all device launchers.
 
 ---
 

@@ -59,10 +59,16 @@ class RosterXWidgetService : RemoteViewsService() {
                     // 1. Column 1 (Left Engineer)
                     val left = row.left
                     rv.setTextViewText(R.id.left_badge_code, left.shiftCode)
-                    try {
-                        rv.setInt(R.id.left_badge_bg, "setColorFilter", Color.parseColor(left.bgHex))
-                        rv.setTextColor(R.id.left_badge_code, Color.parseColor(left.textHex))
-                    } catch (_: Exception) {}
+                    if (!left.bgHex.isNullOrBlank() && left.bgHex.startsWith("#")) {
+                        try {
+                            rv.setInt(R.id.left_badge_bg, "setColorFilter", Color.parseColor(left.bgHex))
+                        } catch (_: Exception) {}
+                    }
+                    if (!left.textHex.isNullOrBlank() && left.textHex.startsWith("#")) {
+                        try {
+                            rv.setTextColor(R.id.left_badge_code, Color.parseColor(left.textHex))
+                        } catch (_: Exception) {}
+                    }
 
                     rv.setTextViewText(R.id.left_engineer_name, extractFirstName(left.engineerName))
                     rv.setTextViewText(R.id.left_shift_timing, formatCompactTiming(left.timing.ifBlank { left.shiftName }))
@@ -78,10 +84,16 @@ class RosterXWidgetService : RemoteViewsService() {
                     if (right != null) {
                         rv.setViewVisibility(R.id.pair_right_root, View.VISIBLE)
                         rv.setTextViewText(R.id.right_badge_code, right.shiftCode)
-                        try {
-                            rv.setInt(R.id.right_badge_bg, "setColorFilter", Color.parseColor(right.bgHex))
-                            rv.setTextColor(R.id.right_badge_code, Color.parseColor(right.textHex))
-                        } catch (_: Exception) {}
+                        if (!right.bgHex.isNullOrBlank() && right.bgHex.startsWith("#")) {
+                            try {
+                                rv.setInt(R.id.right_badge_bg, "setColorFilter", Color.parseColor(right.bgHex))
+                            } catch (_: Exception) {}
+                        }
+                        if (!right.textHex.isNullOrBlank() && right.textHex.startsWith("#")) {
+                            try {
+                                rv.setTextColor(R.id.right_badge_code, Color.parseColor(right.textHex))
+                            } catch (_: Exception) {}
+                        }
 
                         rv.setTextViewText(R.id.right_engineer_name, extractFirstName(right.engineerName))
                         rv.setTextViewText(R.id.right_shift_timing, formatCompactTiming(right.timing.ifBlank { right.shiftName }))
@@ -100,9 +112,7 @@ class RosterXWidgetService : RemoteViewsService() {
             }
         }
 
-        override fun getLoadingView(): RemoteViews {
-            return RemoteViews(context.packageName, R.layout.widget_empty_loading)
-        }
+        override fun getLoadingView(): RemoteViews? = null
 
         override fun getItemId(position: Int): Long = position.toLong()
 
