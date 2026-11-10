@@ -4741,11 +4741,14 @@ fun AccountView(
             )
         }
 
-        // Weekly Offs Pill Card (Mon - Sun)
-        item {
-            com.rosterx.presentation.components.WeeklyOffsCard(
-                weeklyOffs = engineer?.defaultWeeklyOffs ?: emptyList()
-            )
+        // Weekly Offs Pill Card (Mon - Sun) — Only relevant for shift personnel (Engineers & Apprentices)
+        if (engineer?.role != com.rosterx.domain.model.EngineerRole.ADMIN &&
+            engineer?.role != com.rosterx.domain.model.EngineerRole.MANAGER) {
+            item {
+                com.rosterx.presentation.components.WeeklyOffsCard(
+                    weeklyOffs = engineer?.defaultWeeklyOffs ?: emptyList()
+                )
+            }
         }
 
         // Account Details Card (Domain, Email with Copy, Phone with Dialer)

@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.23.3"
+SERVER_VERSION = "1.23.4"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -213,7 +213,7 @@ DEFAULT_SERVER_ENGINEERS = [
     {"name": "Nandu Anthikat", "username": "nandua", "full_name": "Nandu Anthikat", "email": "nandua@tejasnetworks.com", "phone": "+919811001103", "role": "engineer", "status": "Active", "default_weekly_offs": ["Sunday", "Monday"], "preferred_shifts": ["FS", "FG"]},
     {"name": "Shefeeq", "username": "shefeeqkk", "full_name": "Shefeeq K K", "email": "shefeeqkk@tejasnetworks.com", "phone": "+91 9809226169", "role": "engineer", "status": "Active", "default_weekly_offs": ["Monday", "Tuesday"], "preferred_shifts": ["G", "FG"]},
     {"name": "Dyani Desoza", "username": "dyanid", "full_name": "Dyani DeSoza", "email": "dyanid@tejasnetworks.com", "phone": "+919811001105", "role": "engineer", "status": "Active", "default_weekly_offs": ["Tuesday", "Wednesday"], "preferred_shifts": ["SS", "SG"]},
-    {"name": "Atul Kangralkar", "username": "athulka", "full_name": "Atul Kangralkar", "email": "athulka@tejasnetworks.com", "phone": "+919811001106", "role": "admin", "status": "Active", "default_weekly_offs": ["Wednesday", "Thursday"], "preferred_shifts": ["FG", "G"]},
+    {"name": "Atul Kangralkar", "username": "athulka", "full_name": "Atul Kangralkar", "email": "athulka@tejasnetworks.com", "phone": "+919811001106", "role": "admin", "status": "Active", "default_weekly_offs": [], "preferred_shifts": ["FG", "G"]},
     {"name": "Silambarasan", "username": "silambarasan", "full_name": "Silambarasan V", "email": "silambarasan@tejasnetworks.com", "phone": "+919811001107", "role": "engineer", "status": "Active", "default_weekly_offs": ["Thursday", "Friday"], "preferred_shifts": ["FS", "SS"]},
     {"name": "Hemanth", "username": "hemanthti", "full_name": "Hemanth K", "email": "hemanthti@tejasnetworks.com", "phone": "+919811001108", "role": "engineer", "status": "Active", "default_weekly_offs": ["Friday", "Saturday"], "preferred_shifts": ["SG", "G"]},
     {"name": "Manoj", "username": "manoj", "full_name": "Manoj N", "email": "manoj@tejasnetworks.com", "phone": "+919811001101", "role": "engineer", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["FS", "FG", "SS"]},
@@ -609,6 +609,17 @@ def init_atlas_connection(env):
                         print(f"  [ATLAS ROSTER SANITIZE] Purged management accounts from roster '{r_id}'.")
             except Exception as r_err:
                 print(f"  [ATLAS ROSTER SANITIZE NOTE] {r_err}")
+
+            # Sanitize Leadership (Admin & Manager) week offs: Leadership is not on shift schedules
+            try:
+                lead_res = ATLAS_DB.engineers.update_many(
+                    {"role": {"$in": ["admin", "manager", "ADMIN", "MANAGER"]}},
+                    {"$set": {"default_weekly_offs": []}}
+                )
+                if lead_res.modified_count > 0:
+                    print(f"  [ATLAS SANITIZE] Cleared default_weekly_offs to [] for {lead_res.modified_count} admin/manager accounts.")
+            except Exception as l_err:
+                print(f"  [ATLAS SANITIZE NOTE] {l_err}")
 
             recalculate_dynamic_preferred_shifts()
         except Exception as e:
@@ -2832,7 +2843,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "phone": "",
                     "role": "admin",
                     "status": "Active",
-                    "default_weekly_offs": ["Saturday", "Sunday"],
+                    "default_weekly_offs": [],
                     "join_date": "2026-01-01",
                     "password": hash_password(password),
                     "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -3404,6 +3415,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         eng["status"] = "Active"
                     elif raw_status in ("resigned", "retired"):
                         eng["status"] = "Resigned"
+
+                    # Enforce empty weekly offs for Leadership (Admin & Manager)
+                    eng_role = str(eng.get("role") or "").strip().lower()
+                    if eng_role in ("admin", "manager"):
+                        eng["default_weekly_offs"] = []
 
                     # Never overwrite existing password hash with blank or plaintext
                     if "password" in eng and not str(eng["password"]).startswith("pbkdf2_sha256$"):
