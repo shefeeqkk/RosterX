@@ -8,6 +8,10 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1380,32 +1384,41 @@ fun QuickNotificationsBottomSheet(
     dismissedNotificationIds: Set<String>,
     onDismiss: () -> Unit,
     onDismissNotification: (String) -> Unit,
-    onClearAllNotifications: () -> Unit
+    onClearAllNotifications: () -> Unit,
+    loggedInEngineer: com.rosterx.domain.model.Engineer? = null,
+    onOpenCelebrationWishes: () -> Unit = {}
 ) {
     if (!show) return
 
     val activeAccent = LocalThemeAccent.current
-    val activeNotifs = notifications.mapIndexed { idx, n ->
-        val id = n.id ?: "idx_$idx"
-        val title = n.title?.takeIf { it.isNotBlank() } ?: "Operational Update"
-        val body = n.samplePersonalized?.takeIf { it.isNotBlank() } ?: n.rawMessage ?: ""
-        Triple(id, title, body)
-    }.filter { (id, _, _) -> id !in dismissedNotificationIds }
+    val coroutineScope = rememberCoroutineScope()
+    var dismissingIds by remember { mutableStateOf(setOf<String>()) }
+
+    val engName = loggedInEngineer?.fullName?.takeIf { it.isNotBlank() } ?: loggedInEngineer?.name ?: "Engineer"
+    val engUsername = loggedInEngineer?.username ?: engName.lowercase().replace(" ", "")
+
+    val activeNotifs = remember(notifications, dismissedNotificationIds, dismissingIds) {
+        notifications.mapIndexed { idx, n ->
+            val id = n.id ?: "idx_$idx"
+            id to n
+        }.filter { (id, _) -> id !in dismissedNotificationIds || id in dismissingIds }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = NeumorphicTokens.Surface,
         tonalElevation = 6.dp,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Header Bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1413,66 +1426,104 @@ fun QuickNotificationsBottomSheet(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .background(activeAccent.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(activeAccent.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Notifications,
                             contentDescription = null,
                             tint = activeAccent,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    Text(
-                        text = "Notifications (${activeNotifs.size})",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Column {
+                        Text(
+                            text = "NOTIFICATIONS",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 0.5.sp,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        val unreadCount = activeNotifs.count { it.first !in dismissingIds }
+                        Text(
+                            text = if (unreadCount > 0) "$unreadCount active alert${if (unreadCount > 1) "s" else ""}" else "All caught up",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = NeumorphicTokens.TextMuted
+                        )
+                    }
                 }
 
-                if (activeNotifs.isNotEmpty()) {
-                    TextButton(onClick = onClearAllNotifications) {
+                if (activeNotifs.any { it.first !in dismissingIds }) {
+                    TextButton(
+                        onClick = {
+                            val allActiveIds = activeNotifs.map { it.first }.toSet()
+                            dismissingIds = dismissingIds + allActiveIds
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(320)
+                                onClearAllNotifications()
+                                dismissingIds = dismissingIds - allActiveIds
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ClearAll,
+                            contentDescription = "Clear All",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Clear All",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            HorizontalDivider(
+                color = NeumorphicTokens.SurfaceContrast,
+                thickness = 1.dp
+            )
 
-            if (activeNotifs.isEmpty()) {
-                Box(
+            if (activeNotifs.isEmpty() || activeNotifs.all { it.first in dismissingIds }) {
+                NeumorphicCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 16.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    style = NeumorphicElevationStyle.Raised,
+                    surfaceColor = NeumorphicTokens.Surface,
+                    contentPadding = 24.dp
                 ) {
                     Column(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("🎉", fontSize = 36.sp)
+                        Text("🎉", fontSize = 38.sp)
                         Text(
-                            text = "No active notifications",
+                            text = "No Active Notifications",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontSize = 16.sp,
+                            color = NeumorphicTokens.TextMain
                         )
                         Text(
-                            text = "You're all caught up with your roster and duties!",
+                            text = "You're all caught up with your roster and operational briefings!",
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = NeumorphicTokens.TextMuted,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
                 }
@@ -1481,48 +1532,141 @@ fun QuickNotificationsBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    activeNotifs.forEach { (notifId, title, body) ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                            modifier = Modifier.fillMaxWidth()
+                    activeNotifs.forEach { (notifId, notif) ->
+                        val isCelebrationNotif = notif.celebrationType != null ||
+                            notif.sender?.contains("Celebration", ignoreCase = true) == true ||
+                            notif.title?.contains("🎂") == true || notif.title?.contains("🏆") == true
+
+                        val pColor = when {
+                            isCelebrationNotif -> Color(0xFFF59E0B)
+                            notif.priority?.lowercase() == "urgent" -> Color(0xFFEF4444)
+                            notif.priority?.lowercase() == "shift_update" -> Color(0xFFF59E0B)
+                            notif.priority?.lowercase() == "broadcast" -> Color(0xFF8B5CF6)
+                            else -> Color(0xFF3B82F6)
+                        }
+
+                        val resolvedMsg = (notif.rawMessage ?: notif.samplePersonalized ?: "")
+                            .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
+                            .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
+                            .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+
+                        AnimatedVisibility(
+                            visible = notifId !in dismissingIds && notifId !in dismissedNotificationIds,
+                            enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(250)),
+                            exit = slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                            ) + fadeOut(
+                                animationSpec = tween(durationMillis = 220)
+                            ) + shrinkVertically(
+                                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                            )
                         ) {
-                            Row(
+                            NeumorphicCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .then(
+                                        if (isCelebrationNotif) {
+                                            Modifier.clickable { onOpenCelebrationWishes() }
+                                        } else Modifier
+                                    ),
+                                shape = RoundedCornerShape(20.dp),
+                                style = NeumorphicElevationStyle.Raised,
+                                surfaceColor = NeumorphicTokens.Surface,
+                                contentPadding = 16.dp
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = title,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    if (body.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(pColor.copy(alpha = 0.16f))
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isCelebrationNotif) "CELEBRATION 🎉" else (notif.priority ?: "INFO").uppercase(),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = pColor
+                                                )
+                                            }
+                                            Text(
+                                                text = notif.title ?: "Broadcast Announcement",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = NeumorphicTokens.TextMain,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+
+                                        // Neumorphic Inset Close Button
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .neumorphicInset(
+                                                    shape = CircleShape,
+                                                    elevation = NeumorphicTokens.ElevationInset,
+                                                    surfaceColor = NeumorphicTokens.Surface
+                                                )
+                                                .clickable {
+                                                    dismissingIds = dismissingIds + notifId
+                                                    coroutineScope.launch {
+                                                        kotlinx.coroutines.delay(320)
+                                                        onDismissNotification(notifId)
+                                                        dismissingIds = dismissingIds - notifId
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear Notification",
+                                                tint = NeumorphicTokens.TextMuted,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+
+                                    if (resolvedMsg.isNotBlank()) {
                                         Text(
-                                            text = body,
+                                            text = resolvedMsg,
                                             fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            lineHeight = 17.sp,
+                                            color = NeumorphicTokens.TextMain.copy(alpha = 0.88f)
                                         )
                                     }
-                                }
-                                IconButton(
-                                    onClick = { onDismissNotification(notifId) },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Dismiss",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "By ${notif.sender ?: "Operations Desk"}",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = NeumorphicTokens.TextMuted
+                                        )
+                                        if (!notif.createdAt.isNullOrBlank()) {
+                                            Text(
+                                                text = notif.createdAt,
+                                                fontSize = 10.sp,
+                                                color = NeumorphicTokens.TextMuted
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
