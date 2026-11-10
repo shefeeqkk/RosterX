@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 
 data class LoginState(
@@ -96,6 +97,15 @@ class LoginViewModel @Inject constructor(
             loggedInEngineer = null
         )
         sessionManager.setCurrentUser(engineer)
+        // Immediately register FCM token for active user to enforce exclusive device binding
+        val fcmToken = sessionManager.getFcmToken()
+        if (!fcmToken.isNullOrBlank()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    repository.registerFcmToken(fcmToken)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     fun resetLoginState() {

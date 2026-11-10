@@ -291,6 +291,9 @@ interface RosterApiService {
     @POST("api/users/fcm-token")
     suspend fun registerFcmToken(@Body body: Map<String, String>): PingResponse
 
+    @POST("api/users/fcm-token/unregister")
+    suspend fun unregisterFcmToken(@Body body: Map<String, String>): PingResponse
+
     @GET("api/broadcast/templates")
     suspend fun getBroadcastTemplates(): BroadcastTemplatesResponse
 

@@ -1013,4 +1013,22 @@ class RosterRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun registerFcmToken(token: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.registerFcmToken(mapOf("token" to token))
+            if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed to register FCM token"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun unregisterFcmToken(token: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.unregisterFcmToken(mapOf("token" to token))
+            if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed to unregister FCM token"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
