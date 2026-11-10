@@ -123,46 +123,64 @@ fun StandardProfileHeaderCard(
 
     val activeAccent = LocalThemeAccent.current
     val isDark = LocalIsDarkTheme.current
-    val darker = remember(activeAccent, isDark) {
+    val heroShape = RoundedCornerShape(24.dp)
+
+    val gradientColors = remember(activeAccent, isDark) {
         if (isDark) {
-            Color(
+            // Deep Midnight to Rich Accent — Starts from deep dark canvas tint (~80% darker) and smoothly transitions into deep rich theme tone (~40% darker)
+            val deepMidnight = Color(
+                red = (activeAccent.red * 0.18f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.18f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.18f).coerceIn(0f, 1f),
+                alpha = 1f
+            )
+            val midDark = Color(
+                red = (activeAccent.red * 0.40f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.40f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.40f).coerceIn(0f, 1f),
+                alpha = 1f
+            )
+            val richAccent = Color(
+                red = (activeAccent.red * 0.58f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.58f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.58f).coerceIn(0f, 1f),
+                alpha = 1f
+            )
+            listOf(deepMidnight, midDark, richAccent)
+        } else {
+            // Calibrated Light Mode — Rich Theme Base (~25-30% darker) to Pure Theme Accent
+            val richBase = Color(
                 red = (activeAccent.red * 0.70f).coerceIn(0f, 1f),
                 green = (activeAccent.green * 0.70f).coerceIn(0f, 1f),
                 blue = (activeAccent.blue * 0.70f).coerceIn(0f, 1f),
                 alpha = 1f
             )
-        } else {
-            Color(
-                red = (activeAccent.red * 0.65f).coerceIn(0f, 1f),
-                green = (activeAccent.green * 0.65f).coerceIn(0f, 1f),
-                blue = (activeAccent.blue * 0.65f).coerceIn(0f, 1f),
+            val midTone = Color(
+                red = (activeAccent.red * 0.88f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.88f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.88f).coerceIn(0f, 1f),
                 alpha = 1f
             )
+            val vibrantAccent = activeAccent
+            listOf(richBase, midTone, vibrantAccent)
         }
     }
-    val lighter = remember(activeAccent, isDark) {
-        Color(
-            red = (activeAccent.red * 1.25f).coerceIn(0f, 1f),
-            green = (activeAccent.green * 1.25f).coerceIn(0f, 1f),
-            blue = (activeAccent.blue * 1.25f).coerceIn(0f, 1f),
-            alpha = 1f
-        )
-    }
+    val gradStart = gradientColors.first()
 
     NeumorphicCard(
-        shape = RoundedCornerShape(24.dp),
+        shape = heroShape,
         style = NeumorphicElevationStyle.Raised,
-        surfaceColor = darker,
+        surfaceColor = gradStart,
         contentPadding = 0.dp,
         modifier = modifier.fillMaxWidth()
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(heroShape)
                 .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(darker, activeAccent, lighter)
-                    )
+                    brush = Brush.horizontalGradient(colors = gradientColors),
+                    shape = heroShape
                 )
                 .padding(18.dp)
         ) {
@@ -180,7 +198,7 @@ fun StandardProfileHeaderCard(
                         profilePicture = profilePicture,
                         size = 72.dp,
                         border = BorderStroke(3.dp, Color.White.copy(alpha = 0.9f)),
-                        backgroundColor = darker,
+                        backgroundColor = gradStart,
                         textColor = Color.White,
                         fontSize = 24.sp
                     )

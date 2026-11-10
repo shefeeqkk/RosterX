@@ -92,20 +92,64 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
 
         private val gson = Gson()
 
-        fun saveWidgetData(context: Context, engineerName: String, shiftsMap: Map<String, String>, monthKey: String) {
+        fun saveWidgetData(
+            context: Context,
+            engineerName: String,
+            shiftsMap: Map<String, String>,
+            monthKey: String,
+            keepManagerMode: Boolean = true
+        ) {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit()
-                    .putBoolean(KEY_IS_MANAGER, false)
+                val editor = prefs.edit()
                     .putString(KEY_ENGINEER_NAME, engineerName)
                     .putString(KEY_SHIFTS_JSON, gson.toJson(shiftsMap))
                     .putString(KEY_MONTH_KEY, monthKey)
-                    .apply()
+
+                if (!keepManagerMode) {
+                    editor.putBoolean(KEY_IS_MANAGER, false)
+                }
+                editor.apply()
 
                 updateAllWidgets(context)
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to saveWidgetData", e)
             }
+        }
+
+        fun findEngineerShifts(
+            eng: Engineer,
+            roster: Map<String, Map<String, String>>
+        ): Map<String, String>? {
+            // 1. Direct key lookups
+            roster[eng.username]?.let { return it }
+            roster[eng.id]?.let { return it }
+            roster[eng.name]?.let { return it }
+            if (eng.fullName.isNotBlank()) roster[eng.fullName]?.let { return it }
+            roster[eng.name.uppercase()]?.let { return it }
+            roster[eng.name.lowercase()]?.let { return it }
+
+            // 2. First name lookup (e.g. "Shefeeq K K" -> "Shefeeq")
+            val firstName = eng.name.trim().split(Regex("\\s+")).firstOrNull { it.isNotBlank() } ?: ""
+            if (firstName.isNotBlank()) {
+                roster[firstName]?.let { return it }
+                roster[firstName.uppercase()]?.let { return it }
+                roster[firstName.lowercase()]?.let { return it }
+            }
+
+            // 3. Substring / Prefix match across all roster keys
+            val engLower = eng.name.trim().lowercase()
+            val firstLower = firstName.lowercase()
+            for ((key, map) in roster) {
+                val keyLower = key.trim().lowercase()
+                if (keyLower == engLower ||
+                    (firstLower.isNotBlank() && keyLower == firstLower) ||
+                    engLower.startsWith(keyLower) ||
+                    keyLower.startsWith(engLower)) {
+                    return map
+                }
+            }
+            return null
         }
 
         fun saveManagerWidgetData(
@@ -201,6 +245,11 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 if (rosterJson.isNullOrBlank() || engJson.isNullOrBlank()) {
                     // Update header date so widget never displays an outdated calendar day
                     prefs.edit().putString(KEY_MANAGER_DATE_STR, dateFormatted).apply()
+                    try {
+                        androidx.work.WorkManager.getInstance(context).enqueue(
+                            androidx.work.OneTimeWorkRequestBuilder<com.rosterx.worker.RosterSyncWorker>().build()
+                        )
+                    } catch (_: Throwable) {}
                     return false
                 }
 
@@ -229,14 +278,8 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 // 1. Overnight Shift Rollover: If between 00:00 and 07:30 AM, yesterday's NS engineer is actively on duty!
                 if (isPostMidnightMorning) {
                     activeEngineers.forEach { eng ->
-                        val yCode = (yesterdayRoster[eng.username]?.get(yesterdayDayStr)
-                            ?: yesterdayRoster[eng.id]?.get(yesterdayDayStr)
-                            ?: yesterdayRoster[eng.name]?.get(yesterdayDayStr)
-                            ?: yesterdayRoster[eng.name.uppercase()]?.get(yesterdayDayStr)
-                            ?: yesterdayRoster[eng.name.lowercase()]?.get(yesterdayDayStr)
-                            ?: fullRoster[eng.username]?.get(yesterdayDayStr)
-                            ?: fullRoster[eng.name]?.get(yesterdayDayStr)
-                            ?: "OFF").trim().uppercase()
+                        val yShiftMap = findEngineerShifts(eng, yesterdayRoster) ?: findEngineerShifts(eng, fullRoster)
+                        val yCode = (yShiftMap?.get(yesterdayDayStr) ?: "OFF").trim().uppercase()
 
                         if (yCode == "NS") {
                             overnightActiveEngNames.add(eng.name.lowercase())
@@ -265,12 +308,8 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                             eng.id.lowercase() in overnightActiveEngNames ||
                             eng.username.lowercase() in overnightActiveEngNames
 
-                    val rawCode = (fullRoster[eng.username]?.get(todayDayStr)
-                        ?: fullRoster[eng.id]?.get(todayDayStr)
-                        ?: fullRoster[eng.name]?.get(todayDayStr)
-                        ?: fullRoster[eng.name.uppercase()]?.get(todayDayStr)
-                        ?: fullRoster[eng.name.lowercase()]?.get(todayDayStr)
-                        ?: "OFF").trim().uppercase()
+                    val shiftMap = findEngineerShifts(eng, fullRoster)
+                    val rawCode = (shiftMap?.get(todayDayStr) ?: "OFF").trim().uppercase()
 
                     val isRest = rawCode in setOf("OFF", "L") || rawCode.startsWith("SW")
                     if (!isRest) {
@@ -476,8 +515,8 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // MANAGER WIDGET VIEW: Display Compact Today's Duty List
-            if (isManager) {
+            // OPERATIONS RADAR WIDGET VIEW: Display Compact Today's Team Duty List
+            if (isManager || !prefs.getString(KEY_MANAGER_DUTY_LIST_JSON, null).isNullOrBlank()) {
                 val managerViews = RemoteViews(context.packageName, R.layout.widget_rosterx_manager)
 
                 // Launch MainActivity on widget tap

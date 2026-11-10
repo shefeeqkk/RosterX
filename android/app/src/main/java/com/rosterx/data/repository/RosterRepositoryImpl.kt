@@ -450,9 +450,13 @@ class RosterRepositoryImpl @Inject constructor(
 
                             
 
-                            val firstName = name.trim().split(" ")[0].lowercase()
+                            val firstName = name.trim().split(" ")[0]
 
                             rosterMap[firstName] = dayMap
+
+                            rosterMap[firstName.uppercase()] = dayMap
+
+                            rosterMap[firstName.lowercase()] = dayMap
 
                         }
 

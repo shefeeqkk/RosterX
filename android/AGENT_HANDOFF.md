@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-10 09:15 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-10 10:25 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.23.2`** (Android `versionCode: 81`, Server `SERVER_VERSION = "1.23.2"`)
-- **Previous Versions**: `1.23.1` (Build 80), `1.23.0` (Build 79), `1.22.3` (Build 78), `1.22.2` (Build 77), `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73)
+- **Semantic Version**: **`1.23.3`** (Android `versionCode: 82`, Server `SERVER_VERSION = "1.23.3"`)
+- **Previous Versions**: `1.23.2` (Build 81), `1.23.1` (Build 80), `1.23.0` (Build 79), `1.22.3` (Build 78), `1.22.2` (Build 77), `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -22,9 +22,51 @@
 
 ---
 
+## 🚀 Major Upgrades in v1.23.3 (Build 82)
+
+### 1. ⚡ Complete Decoupling of Operations Duty Roster Cache from Manager Role Gating
+- **Root Cause of Static / Yesterday Shifts on Engineer Device**:
+  - `EngineerPortalViewModel` and `RosterSyncWorker` previously wrapped `RosterXAppWidgetProvider.saveManagerDutyRoster()` inside `if (currentEng.role == EngineerRole.MANAGER)`.
+  - When Shefeeq (`ENGINEER`) logged in, caching of the full team roster (`KEY_FULL_ROSTER_JSON`, `KEY_ENGINEERS_JSON`) was completely bypassed.
+  - When the Operations Radar widget woke up on Nov 10, it successfully rolled over the date string to `Tue, Nov 10`, but found no cached monthly roster to recompute the duty list. As a result, the internal duty list stayed frozen on the Nov 09 duties.
+- **Universal Cache Synchronization**:
+  - Removed manager gating: all authenticated sessions (Engineers, Managers, Admins) now automatically compute and save both the team's Operations Radar duty roster AND individual shifts.
+  - Added `keepManagerMode = true` in `saveWidgetData` so personal shift caching never demotes an active Operations Radar widget.
+
+### 2. 🎯 Fuzzy & Prefix Name Matching Engine for MongoDB Rosters
+- **Root Cause of Name Mismatch**:
+  - In MongoDB `db.engineers`, Shefeeq's name is `'Shefeeq K K'`.
+  - In MongoDB `db.rosters['2026-11']`, the shift entry key is `'Shefeeq'`.
+  - Direct map lookups (`roster[eng.name]`) returned `null`, treating Shefeeq as unscheduled or defaulting to OFF.
+- **Flexible Resolution**:
+  - Added `findEngineerShifts()` in `RosterXAppWidgetProvider` and `findShiftMap()` in `EngineerPortalViewModel`.
+  - Checks username, id, full name, name, first name (`name.split(" ").first()`), and prefix/substring matches across all roster keys.
+  - Shefeeq (`eng_shefeeqkk` / `Shefeeq K K`) is correctly mapped to `Shefeeq`, correctly showing **SS (Second Shift 01:00 PM – 10:00 PM)** on Nov 10!
+
+### 3. 🎨 Add Widget Drawer Mockup Preview Date Normalization
+- Changed static `TODAY (Nov 09)` and `TOMORROW (Nov 10)` in `widget_preview_mockup.xml` to clean design-time tokens `TODAY` and `TOMORROW` to avoid confusion with live data.
+
+---
+
 ## 🚀 Major Upgrades in v1.23.2
 
-### 1. 🔄 Complete Automated Widget Daily Rollover & Dynamic Duty Roster
+### 1. 🛡️ Hero Profile Card Smooth Rounded Corners & Clipping
+- **Eliminated Square Box Artifact**:
+  - The hero card in `StandardProfileHeaderCard` previously drew an unclipped rectangular gradient background that overflowed `NeumorphicCard`'s rounded boundaries, resulting in sharp 90° square corners.
+  - Added explicit `.clip(heroShape)` and `.background(..., shape = heroShape)` with `RoundedCornerShape(24.dp)` so the hero card flows seamlessly with the rounded tactile cards beneath it.
+
+### 2. 🌌 Deep Midnight to Rich Accent Dark Mode Gradient (High Contrast)
+- **Deep Midnight Gradient Formulation**:
+  - In dark mode, bright accent multipliers previously caused light yellow/cyan stops that washed out white text and badges.
+  - Replaced with a calibrated 3-stop deep midnight to rich accent gradient:
+    - Left: `deepMidnight` (`activeAccent * 0.18f`) ~80% darker than accent, blending seamlessly into dark canvas.
+    - Center: `midDark` (`activeAccent * 0.40f`) ~60% darker.
+    - Right: `richAccent` (`activeAccent * 0.58f`) ~40% darker.
+  - Guarantees AAA contrast (>6:1) for white text ("Shefeeq K K"), "@username" pills, "ENGINEER" role pill, and the edit pencil across all 6 palettes.
+- **Calibrated Light Mode Contrast**:
+  - Light mode now starts from a rich theme base (`activeAccent * 0.70f`) and transitions to vibrant theme accent (`activeAccent`), preventing washed-out whites on lighter palettes.
+
+### 3. 🔄 Complete Automated Widget Daily Rollover & Dynamic Duty Roster
 - **Root Cause of Widget Freezing on Yesterday**:
   - `RosterXAppWidgetProvider` stored a single-day static string snapshot (`KEY_MANAGER_DATE_STR = "Mon, Nov 09"`) and pre-calculated duty list JSON (`KEY_MANAGER_DUTY_LIST_JSON`).
   - When the calendar day flipped from Nov 09 to Nov 10, the widget was unable to recompute the duty list for the new day because the full monthly roster and engineers list were not cached for background evaluation.

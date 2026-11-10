@@ -72,7 +72,7 @@
                 android:fontFamily="sans-serif-black"
                 android:maxLines="1"
                 android:singleLine="true"
-                android:text="TODAY (Nov 09)"
+                android:text="TODAY"
                 android:textColor="@color/widget_text_muted"
                 android:textSize="10sp"
                 android:textStyle="bold" />
@@ -159,7 +159,7 @@
                 android:fontFamily="sans-serif-black"
                 android:maxLines="1"
                 android:singleLine="true"
-                android:text="TOMORROW (Nov 10)"
+                android:text="TOMORROW"
                 android:textColor="@color/widget_text_muted"
                 android:textSize="10sp"
                 android:textStyle="bold" />
