@@ -44,23 +44,25 @@ class GooglePasswordManagerHelper @Inject constructor(
         password: String
     ): Boolean = withContext(Dispatchers.Main) {
         if (!isGooglePasswordManagerEnabled() || username.isBlank() || password.isBlank()) {
+            Log.d(TAG, "Google Password Manager: Save skipped (enabled=${isGooglePasswordManagerEnabled()}, user=${username.isNotBlank()})")
             return@withContext false
         }
         try {
+            Log.i(TAG, "Google Password Manager: Launching CreatePasswordRequest for '$username'...")
             val credentialManager = CredentialManager.create(activity)
             val request = CreatePasswordRequest(id = username.trim(), password = password)
-            credentialManager.createCredential(activity, request)
-            Log.d(TAG, "Google Password Manager: Successfully stored credentials for $username")
+            val response = credentialManager.createCredential(activity, request)
+            Log.i(TAG, "Google Password Manager: Successfully stored credentials for $username! (response=$response)")
             true
         } catch (e: CreateCredentialCancellationException) {
             // User dismissed or tapped "Not now" - respect choice silently
-            Log.d(TAG, "Google Password Manager: User dismissed save prompt.")
+            Log.i(TAG, "Google Password Manager: User dismissed save prompt.")
             false
         } catch (e: CreateCredentialException) {
-            Log.w(TAG, "Google Password Manager: Save failed (${e.type}): ${e.message}")
+            Log.w(TAG, "Google Password Manager: Save failed (${e.type}): ${e.message}", e)
             false
         } catch (e: Throwable) {
-            Log.w(TAG, "Google Password Manager: Unexpected error saving credentials: ${e.message}")
+            Log.w(TAG, "Google Password Manager: Unexpected error saving credentials: ${e.message}", e)
             false
         }
     }

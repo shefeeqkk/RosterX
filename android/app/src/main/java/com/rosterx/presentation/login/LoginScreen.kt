@@ -1,6 +1,8 @@
 package com.rosterx.presentation.login
 
 import android.app.Activity
+import android.os.Build
+import android.view.autofill.AutofillManager
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -28,18 +30,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.AutofillNode
-import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalAutofill
-import androidx.compose.ui.platform.LocalAutofillTree
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -50,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rosterx.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -63,6 +60,7 @@ fun LoginScreen(
     val passwordFocusRequester = remember { FocusRequester() }
     val context = LocalContext.current
     val activity = context as? Activity
+    val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
 
     var identifier by remember { mutableStateOf("") }
@@ -71,26 +69,12 @@ fun LoginScreen(
     var isIdentifierError by remember { mutableStateOf(false) }
     var localErrorMsg by remember { mutableStateOf<String?>(null) }
 
-    // Compose Native Autofill Integration
-    val autofill = LocalAutofill.current
-    val usernameAutofillNode = remember {
-        AutofillNode(
-            onFill = { identifier = it },
-            autofillTypes = listOf(AutofillType.Username, AutofillType.EmailAddress)
-        )
-    }
-    val passwordAutofillNode = remember {
-        AutofillNode(
-            onFill = { password = it },
-            autofillTypes = listOf(AutofillType.Password)
-        )
-    }
-    LocalAutofillTree.current += usernameAutofillNode
-    LocalAutofillTree.current += passwordAutofillNode
-
-    // 1-Tap Google Password Manager sheet prompt on screen launch
+    // 1-Tap Google Password Manager sheet prompt on screen launch & state cleanup
     var hasAttemptedCredentialFetch by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
+        if (!state.loginSuccess) {
+            viewModel.resetLoginState()
+        }
         if (!hasAttemptedCredentialFetch && activity != null && identifier.isBlank()) {
             hasAttemptedCredentialFetch = true
             viewModel.googlePasswordManager.getSavedCredentials(activity) { savedUser, savedPass ->
@@ -103,17 +87,20 @@ fun LoginScreen(
     // Google Password Manager Save Prompt on successful login
     LaunchedEffect(state.loginSuccess) {
         if (state.loginSuccess) {
+            keyboardController?.hide()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val autofillManager = context.getSystemService(AutofillManager::class.java)
+                    autofillManager?.commit()
+                } catch (_: Throwable) {}
+            }
+            delay(250)
             val creds = state.lastSuccessCredentials
             val eng = state.loggedInEngineer
             if (activity != null && creds != null) {
-                // 1. Explicitly commit the Android OS Autofill framework session
-                try {
-                    val autofillManager = activity.getSystemService(android.view.autofill.AutofillManager::class.java)
-                    autofillManager?.commit()
-                } catch (_: Exception) {}
-
-                // 2. Launch Google Password Manager bottom sheet prompt and await user's choice
-                viewModel.googlePasswordManager.saveCredentials(activity, creds.first, creds.second)
+                val saveUser = eng?.username?.ifBlank { creds.first } ?: creds.first
+                // Launch Google Password Manager bottom sheet prompt and await user's choice
+                viewModel.googlePasswordManager.saveCredentials(activity, saveUser, creds.second)
             }
             if (eng != null) {
                 viewModel.completeLogin(eng)
@@ -457,20 +444,14 @@ fun LoginScreen(
                             )
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onGloballyPositioned { usernameAutofillNode.boundingBox = it.boundsInWindow() }
-                        .onFocusChanged {
-                            if (it.isFocused) autofill?.requestAutofillForNode(usernameAutofillNode)
-                            else autofill?.cancelAutofillForNode(usernameAutofillNode)
-                        },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Password Input Field with Autofill & Google Password Manager
+                // Password Input Field with Google Password Manager
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; localErrorMsg = null },
@@ -505,12 +486,7 @@ fun LoginScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(passwordFocusRequester)
-                        .onGloballyPositioned { passwordAutofillNode.boundingBox = it.boundsInWindow() }
-                        .onFocusChanged {
-                            if (it.isFocused) autofill?.requestAutofillForNode(passwordAutofillNode)
-                            else autofill?.cancelAutofillForNode(passwordAutofillNode)
-                        },
+                        .focusRequester(passwordFocusRequester),
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
