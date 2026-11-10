@@ -9,6 +9,13 @@ import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.foundation.Canvas
 
 import androidx.compose.animation.core.Spring
 
@@ -384,6 +391,169 @@ fun getShiftChronologicalOrder(shift: ShiftCode): Int {
 
 
 
+@Composable
+fun Photorealistic3DBell(
+    modifier: Modifier = Modifier,
+    clapperAngle: Float = 0f
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+
+        // 1. Top Hanger Ring
+        val ringRadius = w * 0.12f
+        val ringCenterY = h * 0.13f
+        drawCircle(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFFFE082),
+                    Color(0xFFD97706),
+                    Color(0xFF78350F)
+                ),
+                startY = ringCenterY - ringRadius,
+                endY = ringCenterY + ringRadius
+            ),
+            radius = ringRadius,
+            center = Offset(cx, ringCenterY),
+            style = Stroke(width = w * 0.06f)
+        )
+
+        // 2. Clapper (Spherical bell hammer swinging at bottom)
+        val clapperRad = w * 0.11f
+        val clapperRadAngle = Math.toRadians(clapperAngle.toDouble())
+        val clapperOffsetX = (Math.sin(clapperRadAngle) * (h * 0.18f)).toFloat()
+        val clapperY = h * 0.85f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(0xFFFFF9C4),
+                    Color(0xFFF59E0B),
+                    Color(0xFF92400E),
+                    Color(0xFF451A03)
+                ),
+                center = Offset(cx + clapperOffsetX - clapperRad * 0.3f, clapperY - clapperRad * 0.3f),
+                radius = clapperRad * 1.2f
+            ),
+            radius = clapperRad,
+            center = Offset(cx + clapperOffsetX, clapperY)
+        )
+
+        // 3. Bell Body (Dome with flared rim)
+        val bellPath = Path().apply {
+            moveTo(cx - w * 0.16f, h * 0.22f)
+            // Left curve downwards to flare
+            cubicTo(
+                cx - w * 0.18f, h * 0.40f,
+                cx - w * 0.26f, h * 0.62f,
+                cx - w * 0.44f, h * 0.77f
+            )
+            // Left rim flare lip
+            quadraticBezierTo(
+                cx - w * 0.46f, h * 0.80f,
+                cx - w * 0.42f, h * 0.82f
+            )
+            // Bottom rim curve towards right
+            cubicTo(
+                cx - w * 0.20f, h * 0.85f,
+                cx + w * 0.20f, h * 0.85f,
+                cx + w * 0.42f, h * 0.82f
+            )
+            // Right rim flare lip
+            quadraticBezierTo(
+                cx + w * 0.46f, h * 0.80f,
+                cx + w * 0.44f, h * 0.77f
+            )
+            // Right curve upwards to crown
+            cubicTo(
+                cx + w * 0.26f, h * 0.62f,
+                cx + w * 0.18f, h * 0.40f,
+                cx + w * 0.16f, h * 0.22f
+            )
+            // Top crown cap
+            quadraticBezierTo(
+                cx, h * 0.18f,
+                cx - w * 0.16f, h * 0.22f
+            )
+            close()
+        }
+
+        // Draw 3D Metallic Golden Body Gradient
+        drawPath(
+            path = bellPath,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    Color(0xFF78350F), // Bronze deep edge
+                    Color(0xFFB45309), // Warm shadow
+                    Color(0xFFF59E0B), // Rich golden base
+                    Color(0xFFFEF08A), // Specular golden highlight ridge
+                    Color(0xFFFBBF24), // Vibrant amber gold
+                    Color(0xFFD97706), // Mid tone
+                    Color(0xFF78350F)  // Right bronze shadow
+                ),
+                start = Offset(cx - w * 0.46f, h * 0.5f),
+                end = Offset(cx + w * 0.46f, h * 0.5f)
+            )
+        )
+
+        // 4. Bottom Rim Lip 3D Thickness Band
+        val rimBandPath = Path().apply {
+            moveTo(cx - w * 0.42f, h * 0.77f)
+            cubicTo(
+                cx - w * 0.20f, h * 0.81f,
+                cx + w * 0.20f, h * 0.81f,
+                cx + w * 0.42f, h * 0.77f
+            )
+            quadraticBezierTo(
+                cx + w * 0.44f, h * 0.80f,
+                cx + w * 0.42f, h * 0.82f
+            )
+            cubicTo(
+                cx + w * 0.20f, h * 0.86f,
+                cx - w * 0.20f, h * 0.86f,
+                cx - w * 0.42f, h * 0.82f
+            )
+            close()
+        }
+        drawPath(
+            path = rimBandPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFFEF3C7),
+                    Color(0xFFB45309)
+                ),
+                startY = h * 0.76f,
+                endY = h * 0.86f
+            )
+        )
+
+        // 5. Specular Vertical Curved Glint Highlight (Gloss effect)
+        val glintPath = Path().apply {
+            moveTo(cx - w * 0.08f, h * 0.25f)
+            cubicTo(
+                cx - w * 0.12f, h * 0.42f,
+                cx - w * 0.18f, h * 0.60f,
+                cx - w * 0.28f, h * 0.73f
+            )
+        }
+        drawPath(
+            path = glintPath,
+            color = Color.White.copy(alpha = 0.55f),
+            style = Stroke(
+                width = w * 0.055f,
+                cap = StrokeCap.Round
+            )
+        )
+
+        // 6. Top Crown Specular Shimmer
+        drawCircle(
+            color = Color.White.copy(alpha = 0.65f),
+            radius = w * 0.04f,
+            center = Offset(cx - w * 0.05f, h * 0.22f)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
@@ -531,15 +701,26 @@ fun EngineerPortalScreen(
                     val settingsTabIndex = if (state.loggedInEngineer?.role == EngineerRole.MANAGER) 3 else 4
                     val unreadCount = state.notifications.count { (it.id ?: "") !in state.dismissedNotificationIds }
 
-                    // Animated bell wiggle when there are unread notifications
+                    // Natural lively bell ringing animation with clapper physics & rest cadence
                     val bellInfiniteTransition = rememberInfiniteTransition(label = "bell_wiggle")
                     val bellRotation by if (unreadCount > 0) {
                         bellInfiniteTransition.animateFloat(
-                            initialValue = -15f,
-                            targetValue = 15f,
+                            initialValue = 0f,
+                            targetValue = 0f,
                             animationSpec = infiniteRepeatable(
-                                animation = tween(durationMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
+                                animation = keyframes {
+                                    durationMillis = 2400
+                                    0f at 0
+                                    -18f at 80 using FastOutSlowInEasing
+                                    16f at 180 using FastOutSlowInEasing
+                                    -14f at 280 using FastOutSlowInEasing
+                                    10f at 380 using FastOutSlowInEasing
+                                    -6f at 480 using FastOutSlowInEasing
+                                    3f at 580 using FastOutSlowInEasing
+                                    0f at 680 using FastOutSlowInEasing
+                                    0f at 2400
+                                },
+                                repeatMode = RepeatMode.Restart
                             ),
                             label = "bell_rotation"
                         )
@@ -547,56 +728,80 @@ fun EngineerPortalScreen(
                         remember { mutableStateOf(0f) }
                     }
 
-                    // Notification Bell Button
-                    Box(modifier = Modifier.padding(end = 8.dp)) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                            shadowElevation = 1.dp,
+                    val clapperRotation by if (unreadCount > 0) {
+                        bellInfiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 0f,
+                            animationSpec = infiniteRepeatable(
+                                animation = keyframes {
+                                    durationMillis = 2400
+                                    0f at 0
+                                    12f at 100 using FastOutSlowInEasing
+                                    -12f at 200 using FastOutSlowInEasing
+                                    9f at 300 using FastOutSlowInEasing
+                                    -6f at 400 using FastOutSlowInEasing
+                                    3f at 500 using FastOutSlowInEasing
+                                    0f at 680 using FastOutSlowInEasing
+                                    0f at 2400
+                                },
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "clapper_rotation"
+                        )
+                    } else {
+                        remember { mutableStateOf(0f) }
+                    }
+
+                    // 3D Notification Bell (Clean & borderless with ripple)
+                    Box(modifier = Modifier.padding(end = 6.dp)) {
+                        Box(
                             modifier = Modifier
-                                .size(38.dp)
-                                .clickable { showQuickNotificationsSheet = true }
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .clickable { showQuickNotificationsSheet = true },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Notifications,
-                                    contentDescription = "Notifications",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .graphicsLayer { rotationZ = bellRotation }
-                                )
-                            }
+                            Photorealistic3DBell(
+                                modifier = Modifier
+                                    .size(27.dp)
+                                    .graphicsLayer {
+                                        rotationZ = bellRotation
+                                        transformOrigin = TransformOrigin(0.5f, 0.12f)
+                                    },
+                                clapperAngle = clapperRotation
+                            )
                         }
                         if (unreadCount > 0) {
-                            // Adaptive badge: circle for 1 digit, pill for 2+
                             val isSingleDigit = unreadCount < 10
-                            Box(
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFDC2626), // Vibrant Crimson
+                                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface),
+                                shadowElevation = 2.dp,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .offset(x = 4.dp, y = (-2).dp)
-                                    .then(
-                                        if (isSingleDigit)
-                                            Modifier.size(16.dp)
-                                        else
-                                            Modifier
-                                                .defaultMinSize(minWidth = 20.dp, minHeight = 16.dp)
-                                                .padding(horizontal = 3.dp)
-                                    )
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFEF4444))
-                                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                contentAlignment = Alignment.Center
+                                    .height(18.dp)
+                                    .defaultMinSize(minWidth = if (isSingleDigit) 18.dp else 24.dp)
                             ) {
-                                Text(
-                                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                                    color = Color.White,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Black,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    maxLines = 1
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = if (isSingleDigit) 0.dp else 5.dp)
+                                        .fillMaxHeight(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                        color = Color.White,
+                                        style = TextStyle(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Black,
+                                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                            textAlign = TextAlign.Center
+                                        ),
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
