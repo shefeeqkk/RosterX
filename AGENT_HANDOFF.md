@@ -1,15 +1,15 @@
 # 👵 Aunty (Antigravity) ⇄ 🤖 Kunjappan (Android Studio) Handoff Bridge
 
 > **"Aunty looks after the backend & servers; Kunjappan builds the native Android app!"**  
-> *Last Synced by Aunty:* **2026-11-10 00:20 IST** 👵⚡🌴
+> *Last Synced by Aunty:* **2026-11-10 09:10 IST** 👵⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.23.0`** (Android `versionCode: 79`, Server `SERVER_VERSION = "1.23.0"`)
-- **Previous Versions**: `1.22.3` (Build 78), `1.22.2` (Build 77), `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73)
+- **Semantic Version**: **`1.23.1`** (Android `versionCode: 80`, Server `SERVER_VERSION = "1.23.1"`)
+- **Previous Versions**: `1.23.0` (Build 79), `1.22.3` (Build 78), `1.22.2` (Build 77), `1.22.1` (Build 76), `1.22.0` (Build 75), `1.21.9` (Build 74), `1.21.8` (Build 73)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -19,6 +19,37 @@
 - **Tailscale Static IP for Phone**: `100.71.241.36`
 - **Cross-Platform Parity Specification**: [`ANDROID_PARITY.md`](../ANDROID_PARITY.md)
 - **Remote Agent Guide**: [`REMOTE_AGENT_GUIDE.md`](../REMOTE_AGENT_GUIDE.md)
+
+---
+
+## 🚀 Major Upgrades in v1.23.1
+
+### 1. 🎨 Dynamic Theme Palette Adaptation for Settings & Profile
+- **Dynamic 3-Stop Theme Hero Gradient (`StandardProfileHeaderCard`)**:
+  - Dynamically calculates `darker`, `activeAccent`, and `lighter` stops from `LocalThemeAccent.current`.
+  - Seamlessly adapts across all brand palettes: Tory Blue, Crimson Coral, Emerald Green, Sunset Amber, Indigo Violet, and Ocean Cyan.
+  - Avatar ring styled with a refined semi-translucent white border and darker background.
+  - Role pill text colored in the active theme accent.
+- **Dynamic Headings & Highlight Colors**:
+  - `WeeklyOffsCard`: "WEEKLY OFFS" heading styled with `activeAccent`. Highlighted scheduled off-day pills filled with `activeAccent` and boosted with `neumorphicAccentGlow(activeAccent.copy(alpha = 0.35f))`. Working day pills rendered as sunken wells (`neumorphicInset`).
+  - `AccountDetailsCard`: "ACCOUNT DETAILS" heading in `activeAccent`. Leading icon boxes tinted in `activeAccent.copy(alpha = 0.10f)` with matching icon tint.
+  - `AppearanceThemeCard`: Title "APPEARANCE & THEME" and selector accents synchronized to `activeAccent`.
+  - `Server & Cloud Infrastructure`: Title "SERVER & CLOUD INFRASTRUCTURE" and icons in `activeAccent`.
+  - `About RosterX & Specs`: Title "ABOUT ROSTERX & SPECS", version badge, and icon in `activeAccent`.
+- **Edit Profile & Security Dialog Synchronized**:
+  - Header title "Edit profile" and primary "Save" button adapt to `activeAccent`.
+  - Sleek Hero avatar section features the dynamic 3-stop theme gradient.
+  - Photo action buttons and camera badge icons use `activeAccent`.
+  - Personal Information and Security & Password section headings styled in `activeAccent`.
+  - Datepicker trailing icons (joining date & birthday) tinted in `activeAccent`.
+  - Input field leading icon boxes tinted in `activeAccent.copy(alpha = 0.10f)`.
+
+### 2. 🧱 Neumorphic Soft UI Architecture for All Settings Cards
+- Migrated all Settings cards (`TenureAndBirthdayRow`, `WeeklyOffsCard`, `AccountDetailsCard`, `AppearanceThemeCard`, `Server & Cloud Infrastructure`, and `About RosterX & Specs`) from flat `Surface` to `NeumorphicCard`:
+  - `shape = RoundedCornerShape(20.dp)`
+  - `style = NeumorphicElevationStyle.Raised`
+  - `surfaceColor = NeumorphicTokens.Surface`
+- Seamlessly integrates with RosterX tactile design system in both Light and Dark modes.
 
 ---
 

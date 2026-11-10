@@ -505,12 +505,23 @@ class EngineerPortalViewModel @Inject constructor(
                     val dateFormatted = today.format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd"))
                     val summaryStr = "Total on Duty: ${onDutyItems.size} Engineers | Rest: ${restItems.size} Engineers"
 
+                    val fullStringRoster = effectiveLive.mapValues { entry ->
+                        entry.value.mapValues { it.value.code }
+                    }
+                    val yesterdayStringRoster = yesterdayRosterMap.mapValues { entry ->
+                        entry.value.mapValues { it.value.code }
+                    }
+
                     com.rosterx.widget.RosterXAppWidgetProvider.saveManagerDutyRoster(
                         context = context,
                         managerName = currentEng.name,
                         dateFormatted = dateFormatted,
                         dutyList = finalWidgetList,
-                        summaryText = summaryStr
+                        summaryText = summaryStr,
+                        fullRoster = fullStringRoster,
+                        yesterdayRoster = yesterdayStringRoster,
+                        engineers = activeEngineers,
+                        monthKey = liveMonthKey
                     )
                 } else {
                     val engShifts = effectiveLive[currentEng.username]

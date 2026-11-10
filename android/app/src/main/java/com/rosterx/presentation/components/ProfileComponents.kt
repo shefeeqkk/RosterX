@@ -42,6 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.rosterx.ui.neumorphic.NeumorphicTokens
+import com.rosterx.ui.neumorphic.neumorphicAccentGlow
+import com.rosterx.ui.neumorphic.neumorphicInset
+import com.rosterx.ui.neumorphic.neumorphicRaised
+import com.rosterx.ui.theme.LocalIsDarkTheme
+import com.rosterx.ui.theme.LocalThemeAccent
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
@@ -115,10 +121,39 @@ fun StandardProfileHeaderCard(
     }
     val hasEditAction = onEditClick != null || onEditNameClick != null || onAvatarClick != null
 
-    Surface(
+    val activeAccent = LocalThemeAccent.current
+    val isDark = LocalIsDarkTheme.current
+    val darker = remember(activeAccent, isDark) {
+        if (isDark) {
+            Color(
+                red = (activeAccent.red * 0.70f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.70f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.70f).coerceIn(0f, 1f),
+                alpha = 1f
+            )
+        } else {
+            Color(
+                red = (activeAccent.red * 0.65f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.65f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.65f).coerceIn(0f, 1f),
+                alpha = 1f
+            )
+        }
+    }
+    val lighter = remember(activeAccent, isDark) {
+        Color(
+            red = (activeAccent.red * 1.25f).coerceIn(0f, 1f),
+            green = (activeAccent.green * 1.25f).coerceIn(0f, 1f),
+            blue = (activeAccent.blue * 1.25f).coerceIn(0f, 1f),
+            alpha = 1f
+        )
+    }
+
+    NeumorphicCard(
         shape = RoundedCornerShape(24.dp),
-        color = Color(0xFF0F3E99),
-        shadowElevation = 3.dp,
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = darker,
+        contentPadding = 0.dp,
         modifier = modifier.fillMaxWidth()
     ) {
         Box(
@@ -126,11 +161,7 @@ fun StandardProfileHeaderCard(
                 .fillMaxWidth()
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFF0F3E99),
-                            Color(0xFF1D4ED8),
-                            Color(0xFF2563EB)
-                        )
+                        colors = listOf(darker, activeAccent, lighter)
                     )
                 )
                 .padding(18.dp)
@@ -139,7 +170,7 @@ fun StandardProfileHeaderCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: Circular Avatar with Vibrant Cyan Ring
+                // Left: Circular Avatar with Vibrant Ring
                 Box(
                     modifier = Modifier.size(76.dp),
                     contentAlignment = Alignment.Center
@@ -148,8 +179,8 @@ fun StandardProfileHeaderCard(
                         name = name.toProperCase(),
                         profilePicture = profilePicture,
                         size = 72.dp,
-                        border = BorderStroke(3.dp, Color(0xFF00E5FF)),
-                        backgroundColor = Color(0xFF0A2563),
+                        border = BorderStroke(3.dp, Color.White.copy(alpha = 0.9f)),
+                        backgroundColor = darker,
                         textColor = Color.White,
                         fontSize = 24.sp
                     )
@@ -184,7 +215,7 @@ fun StandardProfileHeaderCard(
                         ) {
                             Text(
                                 text = roleTitle.uppercase(),
-                                color = Color(0xFF0F3E99),
+                                color = activeAccent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -239,6 +270,7 @@ fun TenureAndBirthdayRow(
     birthday: String?,
     modifier: Modifier = Modifier
 ) {
+    val activeAccent = LocalThemeAccent.current
     val tenure = remember(joinDate) { calculateTenure(joinDate) }
     val daysUntilBday = remember(birthday) { calculateDaysUntilBirthday(birthday) }
 
@@ -247,12 +279,12 @@ fun TenureAndBirthdayRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // 1. Tenure Card
-        Surface(
+        NeumorphicCard(
+            modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-            shadowElevation = 1.dp,
-            modifier = Modifier.weight(1f)
+            style = NeumorphicElevationStyle.Raised,
+            surfaceColor = NeumorphicTokens.Surface,
+            contentPadding = 0.dp
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
@@ -261,7 +293,7 @@ fun TenureAndBirthdayRow(
                     text = "Tenure",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = NeumorphicTokens.TextMuted
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 if (tenure != null) {
@@ -273,50 +305,50 @@ fun TenureAndBirthdayRow(
                                 text = "${tenure.years}",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0F3E99)
+                                color = activeAccent
                             )
                             Text(
                                 text = " yr ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = NeumorphicTokens.TextMuted
                             )
                             Text(
                                 text = "${tenure.months}",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0F3E99)
+                                color = activeAccent
                             )
                             Text(
                                 text = " mo",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = NeumorphicTokens.TextMuted
                             )
                         } else {
                             Text(
                                 text = "${tenure.months}",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0F3E99)
+                                color = activeAccent
                             )
                             Text(
                                 text = " mo ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = NeumorphicTokens.TextMuted
                             )
                             Text(
                                 text = "${tenure.days}",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0F3E99)
+                                color = activeAccent
                             )
                             Text(
                                 text = " d",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = NeumorphicTokens.TextMuted
                             )
                         }
                     }
@@ -325,19 +357,19 @@ fun TenureAndBirthdayRow(
                         text = "--",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = NeumorphicTokens.TextMuted
                     )
                 }
             }
         }
 
         // 2. Birthday Countdown Card
-        Surface(
+        NeumorphicCard(
+            modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-            shadowElevation = 1.dp,
-            modifier = Modifier.weight(1f)
+            style = NeumorphicElevationStyle.Raised,
+            surfaceColor = NeumorphicTokens.Surface,
+            contentPadding = 0.dp
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
@@ -346,7 +378,7 @@ fun TenureAndBirthdayRow(
                     text = "BIRTHDAY IN",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = NeumorphicTokens.TextMuted,
                     letterSpacing = 0.5.sp
                 )
                 Spacer(modifier = Modifier.height(6.dp))
@@ -364,13 +396,13 @@ fun TenureAndBirthdayRow(
                                 text = "$daysUntilBday",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0F3E99)
+                                color = activeAccent
                             )
                             Text(
                                 text = if (daysUntilBday == 1) " day" else " days",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = NeumorphicTokens.TextMuted
                             )
                         }
                     }
@@ -379,7 +411,7 @@ fun TenureAndBirthdayRow(
                         text = "--",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = NeumorphicTokens.TextMuted
                     )
                 }
             }
@@ -392,21 +424,23 @@ fun WeeklyOffsCard(
     weeklyOffs: List<String>,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    val activeAccent = LocalThemeAccent.current
+
+    NeumorphicCard(
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-        shadowElevation = 1.dp,
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 16.dp,
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text(
                 text = "WEEKLY OFFS",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF0F3E99),
+                color = activeAccent,
                 letterSpacing = 0.5.sp
             )
 
@@ -430,12 +464,13 @@ fun WeeklyOffsCard(
                 days.forEach { (fullName, letter) ->
                     val isOff = weeklyOffs.any { it.equals(fullName, ignoreCase = true) }
                     if (isOff) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF0F3E99),
+                        Box(
                             modifier = Modifier
                                 .width(42.dp)
                                 .height(58.dp)
+                                .neumorphicAccentGlow(glowColor = activeAccent.copy(alpha = 0.35f), radius = 8.dp)
+                                .background(activeAccent, RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxSize(),
@@ -458,24 +493,22 @@ fun WeeklyOffsCard(
                             }
                         }
                     } else {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        Box(
                             modifier = Modifier
                                 .width(42.dp)
                                 .height(58.dp)
+                                .neumorphicInset(
+                                    shape = RoundedCornerShape(16.dp),
+                                    elevation = NeumorphicTokens.ElevationInsetSubtle
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = letter,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Text(
+                                text = letter,
+                                color = NeumorphicTokens.TextMuted,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -493,22 +526,21 @@ fun AccountDetailsCard(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val activeAccent = LocalThemeAccent.current
 
-    Surface(
+    NeumorphicCard(
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-        shadowElevation = 1.dp,
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 16.dp,
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "ACCOUNT DETAILS",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF0F3E99),
+                color = activeAccent,
                 letterSpacing = 0.5.sp
             )
 
@@ -522,13 +554,13 @@ fun AccountDetailsCard(
                 Box(
                     modifier = Modifier
                         .size(42.dp)
-                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                        .background(activeAccent.copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Person,
                         contentDescription = null,
-                        tint = Color(0xFF0F3E99),
+                        tint = activeAccent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -537,14 +569,14 @@ fun AccountDetailsCard(
                     Text(
                         text = "Domain username",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = NeumorphicTokens.TextMuted,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = username.ifBlank { "--" },
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = NeumorphicTokens.TextMain
                     )
                 }
             }
@@ -562,13 +594,13 @@ fun AccountDetailsCard(
                 Box(
                     modifier = Modifier
                         .size(42.dp)
-                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                        .background(activeAccent.copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Mail,
                         contentDescription = null,
-                        tint = Color(0xFF0F3E99),
+                        tint = activeAccent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -577,14 +609,14 @@ fun AccountDetailsCard(
                     Text(
                         text = "Registered email",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = NeumorphicTokens.TextMuted,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = email.ifBlank { "--" },
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = NeumorphicTokens.TextMain,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -600,7 +632,7 @@ fun AccountDetailsCard(
                         Icon(
                             imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = "Copy Email",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = NeumorphicTokens.TextMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -620,13 +652,13 @@ fun AccountDetailsCard(
                 Box(
                     modifier = Modifier
                         .size(42.dp)
-                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                        .background(activeAccent.copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Phone,
                         contentDescription = null,
-                        tint = Color(0xFF0F3E99),
+                        tint = activeAccent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -635,14 +667,14 @@ fun AccountDetailsCard(
                     Text(
                         text = "Contact phone",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = NeumorphicTokens.TextMuted,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = phone.ifBlank { "--" },
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = NeumorphicTokens.TextMain
                     )
                 }
                 if (phone.isNotBlank()) {
@@ -658,7 +690,7 @@ fun AccountDetailsCard(
                         Icon(
                             imageVector = Icons.Outlined.NorthEast,
                             contentDescription = "Call",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = NeumorphicTokens.TextMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -686,6 +718,8 @@ fun EditProfileInputField(
     readOnly: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
+    val activeAccent = LocalThemeAccent.current
+
     Column(modifier = modifier.fillMaxWidth()) {
         Surface(
             shape = RoundedCornerShape(16.dp),
@@ -708,13 +742,13 @@ fun EditProfileInputField(
                 Box(
                     modifier = Modifier
                         .size(42.dp)
-                        .background(Color(0xFF0F3E99).copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+                        .background(activeAccent.copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = null,
-                        tint = Color(0xFF0F3E99),
+                        tint = activeAccent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -807,6 +841,33 @@ fun UnifiedEditProfileDialog(
     if (!show) return
 
     val context = LocalContext.current
+    val activeAccent = LocalThemeAccent.current
+    val isDark = LocalIsDarkTheme.current
+    val darker = remember(activeAccent, isDark) {
+        if (isDark) {
+            Color(
+                red = (activeAccent.red * 0.70f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.70f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.70f).coerceIn(0f, 1f),
+                alpha = 1f
+            )
+        } else {
+            Color(
+                red = (activeAccent.red * 0.65f).coerceIn(0f, 1f),
+                green = (activeAccent.green * 0.65f).coerceIn(0f, 1f),
+                blue = (activeAccent.blue * 0.65f).coerceIn(0f, 1f),
+                alpha = 1f
+            )
+        }
+    }
+    val lighter = remember(activeAccent, isDark) {
+        Color(
+            red = (activeAccent.red * 1.25f).coerceIn(0f, 1f),
+            green = (activeAccent.green * 1.25f).coerceIn(0f, 1f),
+            blue = (activeAccent.blue * 1.25f).coerceIn(0f, 1f),
+            alpha = 1f
+        )
+    }
 
     var nameInput by remember(currentName, show) { mutableStateOf(currentName.toProperCase()) }
     var phoneInput by remember(currentPhone, show) { mutableStateOf(if (currentPhone.contains("*")) "" else currentPhone) }
@@ -922,7 +983,7 @@ fun UnifiedEditProfileDialog(
                         text = "Edit profile",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF0F3E99)
+                        color = activeAccent
                     )
 
                     Button(
@@ -949,8 +1010,8 @@ fun UnifiedEditProfileDialog(
                         },
                         enabled = canSave,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0F3E99),
-                            disabledContainerColor = Color(0xFF0F3E99).copy(alpha = 0.35f)
+                            containerColor = activeAccent,
+                            disabledContainerColor = activeAccent.copy(alpha = 0.35f)
                         ),
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
@@ -975,7 +1036,7 @@ fun UnifiedEditProfileDialog(
                     // 1. Sleek Hero Card with Avatar & Actions
                     Surface(
                         shape = RoundedCornerShape(22.dp),
-                        color = Color(0xFF0F3E99),
+                        color = darker,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Box(
@@ -983,11 +1044,7 @@ fun UnifiedEditProfileDialog(
                                 .fillMaxWidth()
                                 .background(
                                     Brush.linearGradient(
-                                        listOf(
-                                            Color(0xFF0A2B70),
-                                            Color(0xFF0F3E99),
-                                            Color(0xFF1E5BBF)
-                                        )
+                                        listOf(darker, activeAccent, lighter)
                                     )
                                 )
                                 .padding(vertical = 20.dp, horizontal = 16.dp),
@@ -997,12 +1054,12 @@ fun UnifiedEditProfileDialog(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                // Avatar with cyan border and camera badge
+                                // Avatar with white accent ring and camera badge
                                 Box(contentAlignment = Alignment.BottomEnd) {
                                     Box(
                                         modifier = Modifier
                                             .size(92.dp)
-                                            .border(3.dp, Color(0xFF06B6D4), CircleShape)
+                                            .border(3.dp, Color.White.copy(alpha = 0.9f), CircleShape)
                                             .padding(3.dp)
                                             .clip(CircleShape),
                                         contentAlignment = Alignment.Center
@@ -1011,7 +1068,7 @@ fun UnifiedEditProfileDialog(
                                             name = nameInput.ifBlank { "User" }.toProperCase(),
                                             profilePicture = effectivePhoto,
                                             size = 86.dp,
-                                            backgroundColor = Color(0xFF0B2D6E),
+                                            backgroundColor = darker,
                                             textColor = Color.White,
                                             fontSize = 28.sp
                                         )
@@ -1034,7 +1091,7 @@ fun UnifiedEditProfileDialog(
                                             Icon(
                                                 imageVector = Icons.Default.PhotoCamera,
                                                 contentDescription = "Pick Photo",
-                                                tint = Color(0xFF0F3E99),
+                                                tint = activeAccent,
                                                 modifier = Modifier.size(15.dp)
                                             )
                                         }
@@ -1054,7 +1111,7 @@ fun UnifiedEditProfileDialog(
                                         },
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color.White,
-                                            contentColor = Color(0xFF0F3E99)
+                                            contentColor = activeAccent
                                         ),
                                         shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -1063,7 +1120,7 @@ fun UnifiedEditProfileDialog(
                                             text = "Change photo",
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F3E99)
+                                            color = activeAccent
                                         )
                                     }
 
@@ -1122,7 +1179,7 @@ fun UnifiedEditProfileDialog(
                         text = "PERSONAL INFORMATION",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF0F3E99),
+                        color = activeAccent,
                         letterSpacing = 0.8.sp
                     )
 
@@ -1166,7 +1223,7 @@ fun UnifiedEditProfileDialog(
                                 Icon(
                                     imageVector = Icons.Outlined.CalendarMonth,
                                     contentDescription = "Pick Joining Date",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = activeAccent,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1186,7 +1243,7 @@ fun UnifiedEditProfileDialog(
                                 Icon(
                                     imageVector = Icons.Outlined.CalendarMonth,
                                     contentDescription = "Pick Birthday",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = activeAccent,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1203,7 +1260,7 @@ fun UnifiedEditProfileDialog(
                             text = "SECURITY & PASSWORD",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF0F3E99),
+                            color = activeAccent,
                             letterSpacing = 0.8.sp
                         )
                         Text(
@@ -1309,6 +1366,7 @@ fun QuickNotificationsBottomSheet(
 ) {
     if (!show) return
 
+    val activeAccent = LocalThemeAccent.current
     val activeNotifs = notifications.mapIndexed { idx, n ->
         val id = n.id ?: "idx_$idx"
         val title = n.title?.takeIf { it.isNotBlank() } ?: "Operational Update"
@@ -1342,13 +1400,13 @@ fun QuickNotificationsBottomSheet(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(Color(0xFF0F3E99).copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
+                            .background(activeAccent.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Notifications,
                             contentDescription = null,
-                            tint = Color(0xFF0F3E99),
+                            tint = activeAccent,
                             modifier = Modifier.size(20.dp)
                         )
                     }
