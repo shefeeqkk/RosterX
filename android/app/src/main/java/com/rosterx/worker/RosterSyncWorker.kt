@@ -64,33 +64,39 @@ class RosterSyncWorker(
                 } else null
 
                 if (user != null) {
-                    // 1. Always save team Operations Radar duty roster cache for all users
-                    RosterXAppWidgetProvider.saveManagerDutyRoster(
-                        context = context,
-                        managerName = user.fullName.takeIf { it.isNotBlank() } ?: user.name,
-                        dateFormatted = today.format(DateTimeFormatter.ofPattern("EEE, MMM dd")),
-                        dutyList = emptyList(),
-                        summaryText = "Coverage Updated",
-                        fullRoster = rawRoster,
-                        yesterdayRoster = yesterdayRoster,
-                        engineers = engineers,
-                        monthKey = currentMonthKey
-                    )
-                    RosterXAppWidgetProvider.recomputeManagerDutyList(context, today, LocalTime.now())
-
-                    // 2. Always save individual shifts using flexible name matching
-                    val engShifts = RosterXAppWidgetProvider.findEngineerShifts(user, rawRoster) ?: emptyMap()
-                    if (engShifts.isNotEmpty()) {
-                        RosterXAppWidgetProvider.saveWidgetData(
+                    val isManager = (user.role == EngineerRole.MANAGER || user.role == EngineerRole.ADMIN)
+                    if (isManager) {
+                        // 1. Manager / Admin: Save Operations Radar duty roster
+                        RosterXAppWidgetProvider.saveManagerDutyRoster(
                             context = context,
-                            engineerName = user.fullName.takeIf { it.isNotBlank() } ?: user.name,
-                            shiftsMap = engShifts,
-                            monthKey = currentMonthKey,
-                            keepManagerMode = true
+                            managerName = user.fullName.takeIf { it.isNotBlank() } ?: user.name,
+                            dateFormatted = today.format(DateTimeFormatter.ofPattern("EEE, MMM dd")),
+                            dutyList = emptyList(),
+                            summaryText = "Coverage Updated",
+                            fullRoster = rawRoster,
+                            yesterdayRoster = yesterdayRoster,
+                            engineers = engineers,
+                            monthKey = currentMonthKey
                         )
+                        RosterXAppWidgetProvider.recomputeManagerDutyList(context, today, LocalTime.now())
+                    } else {
+                        // 2. Engineer: Save Personal Shifts (keepManagerMode = false)
+                        val engShifts = RosterXAppWidgetProvider.findEngineerShifts(user, rawRoster) ?: emptyMap()
+                        if (engShifts.isNotEmpty()) {
+                            RosterXAppWidgetProvider.saveWidgetData(
+                                context = context,
+                                engineerName = user.fullName.takeIf { it.isNotBlank() } ?: user.name,
+                                shiftsMap = engShifts,
+                                monthKey = currentMonthKey,
+                                keepManagerMode = false
+                            )
+                        }
                     }
 
                     RosterXAppWidgetProvider.updateAllWidgets(context)
+                } else {
+                    // User is logged out: enforce secure signed-out state on widget
+                    RosterXAppWidgetProvider.clearWidgetData(context)
                 }
             }
             Result.success()

@@ -83,6 +83,68 @@ data class ServerLogsResponse(
     val database: String? = null
 )
 
+// --- Telemetry DTOs ---
+data class AtlasStorageDto(
+    @SerializedName("storage_size_bytes") val storageSizeBytes: Long = 0L,
+    @SerializedName("data_size_bytes") val dataSizeBytes: Long = 0L,
+    @SerializedName("index_size_bytes") val indexSizeBytes: Long = 0L,
+    @SerializedName("total_size_bytes") val totalSizeBytes: Long = 0L,
+    @SerializedName("storage_size_formatted") val storageSizeFormatted: String = "0 KB",
+    @SerializedName("data_size_formatted") val dataSizeFormatted: String = "0 KB",
+    @SerializedName("index_size_formatted") val indexSizeFormatted: String = "0 KB",
+    @SerializedName("total_size_formatted") val totalSizeFormatted: String = "0 KB",
+    @SerializedName("objects_count") val objectsCount: Int = 0,
+    @SerializedName("collections_count") val collectionsCount: Int = 0
+)
+
+data class AtlasTelemetryDto(
+    val status: String = "DISCONNECTED",
+    val cluster: String = "Cluster0",
+    val database: String = "rosterx",
+    @SerializedName("ping_ms") val pingMs: Long = 0L,
+    val collections: Map<String, Int> = emptyMap(),
+    val storage: AtlasStorageDto = AtlasStorageDto()
+)
+
+data class RenderDeploymentDto(
+    @SerializedName("service_name") val serviceName: String = "rosterx-backend",
+    val status: String = "Healthy (Live)",
+    @SerializedName("deployed_url") val deployedUrl: String = "https://rosterx-vc30.onrender.com",
+    @SerializedName("custom_domain") val customDomain: String = "https://api.rosterx.online",
+    @SerializedName("is_render_cloud") val isRenderCloud: Boolean = true,
+    @SerializedName("ssl_active") val sslActive: Boolean = true
+)
+
+data class EnvironmentTelemetryDto(
+    @SerializedName("python_version") val pythonVersion: String = "",
+    @SerializedName("os_platform") val osPlatform: String = "",
+    @SerializedName("is_render") val isRender: Boolean = false
+)
+
+data class NetworkTelemetryDto(
+    val port: Int = 5000,
+    @SerializedName("lan_ip") val lanIp: String = "",
+    @SerializedName("public_url") val publicUrl: String? = null,
+    @SerializedName("tunnel_active") val tunnelActive: Boolean = false
+)
+
+data class ServerTelemetryDataDto(
+    @SerializedName("uptime_seconds") val uptimeSeconds: Double = 0.0,
+    @SerializedName("uptime_formatted") val uptimeFormatted: String = "0s",
+    val environment: EnvironmentTelemetryDto = EnvironmentTelemetryDto(),
+    val atlas: AtlasTelemetryDto = AtlasTelemetryDto(),
+    val render: RenderDeploymentDto = RenderDeploymentDto(),
+    @SerializedName("memory_rss_mb") val memoryRssMb: Double = 0.0,
+    val network: NetworkTelemetryDto = NetworkTelemetryDto(),
+    val version: String = "",
+    val timestamp: Double = 0.0
+)
+
+data class ServerTelemetryResponse(
+    val success: Boolean,
+    val data: ServerTelemetryDataDto?
+)
+
 data class EngineersResponse(
     val success: Boolean,
     @SerializedName("documents") val documents: List<EngineerDto>?,
@@ -171,6 +233,9 @@ interface RosterApiService {
 
     @GET("api/test-connection")
     suspend fun pingServer(): PingResponse
+
+    @GET("api/telemetry/server")
+    suspend fun getServerTelemetry(): ServerTelemetryResponse
 
     @GET("api/logs")
     suspend fun getServerLogs(): ServerLogsResponse

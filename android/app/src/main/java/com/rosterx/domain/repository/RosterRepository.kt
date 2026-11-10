@@ -29,6 +29,7 @@ interface RosterRepository {
     suspend fun verifyOtp(identifier: String, otp: String, newPassword: String): Result<String>
     suspend fun pingServer(): Boolean
     suspend fun getServerDiagnostics(): ServerDiagnostics
+    suspend fun getServerTelemetry(): Result<com.rosterx.data.remote.ServerTelemetryDataDto>
     suspend fun getServerLogs(): List<String>
     suspend fun getEngineers(): Result<List<Engineer>>
     suspend fun syncEngineers(engineers: List<Engineer>): Result<Unit>

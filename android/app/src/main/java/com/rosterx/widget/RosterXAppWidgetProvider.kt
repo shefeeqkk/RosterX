@@ -17,6 +17,7 @@ import com.google.gson.reflect.TypeToken
 import com.rosterx.MainActivity
 import com.rosterx.R
 import com.rosterx.domain.model.Engineer
+import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.isEligibleForShiftRoster
 import java.time.LocalDate
 import java.time.LocalTime
@@ -53,6 +54,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
         private const val KEY_SHIFTS_JSON = "key_shifts_json"
         private const val KEY_MONTH_KEY = "key_month_key"
         private const val KEY_IS_MANAGER = "key_is_manager"
+        private const val KEY_IS_LOGGED_OUT = "key_is_logged_out"
         private const val KEY_MANAGER_ACTIVE_CODE = "key_manager_active_code"
         private const val KEY_MANAGER_ACTIVE_NAME = "key_manager_active_name"
         private const val KEY_MANAGER_ACTIVE_TIMING = "key_manager_active_timing"
@@ -97,7 +99,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             engineerName: String,
             shiftsMap: Map<String, String>,
             monthKey: String,
-            keepManagerMode: Boolean = true
+            keepManagerMode: Boolean = false
         ) {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -105,15 +107,64 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                     .putString(KEY_ENGINEER_NAME, engineerName)
                     .putString(KEY_SHIFTS_JSON, gson.toJson(shiftsMap))
                     .putString(KEY_MONTH_KEY, monthKey)
+                    .putBoolean(KEY_IS_LOGGED_OUT, false)
 
                 if (!keepManagerMode) {
                     editor.putBoolean(KEY_IS_MANAGER, false)
+                    editor.remove(KEY_MANAGER_DUTY_LIST_JSON)
                 }
                 editor.apply()
 
                 updateAllWidgets(context)
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to saveWidgetData", e)
+            }
+        }
+
+        fun clearWidgetData(context: Context) {
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit()
+                    .putBoolean(KEY_IS_LOGGED_OUT, true)
+                    .putBoolean(KEY_IS_MANAGER, false)
+                    .putString(KEY_ENGINEER_NAME, "Signed Out")
+                    .remove(KEY_SHIFTS_JSON)
+                    .remove(KEY_MONTH_KEY)
+                    .remove(KEY_MANAGER_DUTY_LIST_JSON)
+                    .remove(KEY_MANAGER_DATE_STR)
+                    .remove(KEY_MANAGER_SUMMARY_STR)
+                    .remove(KEY_FULL_ROSTER_JSON)
+                    .remove(KEY_YESTERDAY_ROSTER_JSON)
+                    .remove(KEY_ENGINEERS_JSON)
+                    .remove(KEY_ROSTER_MONTH_KEY)
+                    .apply()
+
+                updateAllWidgets(context)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to clearWidgetData", e)
+            }
+        }
+
+        fun onUserLoggedIn(context: Context, user: Engineer) {
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val isManager = (user.role == EngineerRole.MANAGER || user.role == EngineerRole.ADMIN)
+                val displayName = user.fullName.takeIf { it.isNotBlank() } ?: user.name
+
+                val editor = prefs.edit()
+                    .putBoolean(KEY_IS_LOGGED_OUT, false)
+                    .putBoolean(KEY_IS_MANAGER, isManager)
+                    .putString(KEY_ENGINEER_NAME, displayName)
+
+                if (!isManager) {
+                    editor.remove(KEY_MANAGER_DUTY_LIST_JSON)
+                    editor.remove(KEY_SHIFTS_JSON)
+                }
+                editor.apply()
+
+                updateAllWidgets(context)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to onUserLoggedIn", e)
             }
         }
 
@@ -203,6 +254,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val editor = prefs.edit()
+                    .putBoolean(KEY_IS_LOGGED_OUT, false)
                     .putBoolean(KEY_IS_MANAGER, true)
                     .putString(KEY_ENGINEER_NAME, managerName)
                     .putString(KEY_MANAGER_DATE_STR, dateFormatted)
@@ -497,12 +549,14 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
 
             // 2. Load cached data from SharedPreferences
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val isLoggedOut = prefs.getBoolean(KEY_IS_LOGGED_OUT, false)
             var engineerName = prefs.getString(KEY_ENGINEER_NAME, null)
             val isManager = prefs.getBoolean(KEY_IS_MANAGER, false)
             val shiftsJson = prefs.getString(KEY_SHIFTS_JSON, null)
+            val dutyListJson = prefs.getString(KEY_MANAGER_DUTY_LIST_JSON, null)
 
             // Fallback: Check user session if engineer name not in widget cache
-            if (engineerName.isNullOrBlank()) {
+            if (!isLoggedOut && engineerName.isNullOrBlank()) {
                 val sessionPrefs = context.getSharedPreferences("rosterx_user_session", Context.MODE_PRIVATE)
                 val userJson = sessionPrefs.getString("saved_user", null)
                 if (!userJson.isNullOrBlank()) {
@@ -515,8 +569,32 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // OPERATIONS RADAR WIDGET VIEW: Display Compact Today's Team Duty List
-            if (isManager || !prefs.getString(KEY_MANAGER_DUTY_LIST_JSON, null).isNullOrBlank()) {
+            // A. SECURE SIGNED-OUT STATE: Display locked placeholder
+            if (isLoggedOut || engineerName == "Signed Out") {
+                views.setTextViewText(R.id.widget_engineer_name, "Signed Out")
+                views.setTextViewText(R.id.widget_today_title, "SESSION")
+                views.setTextViewText(R.id.widget_today_badge, "LOCK")
+                views.setInt(R.id.widget_today_badge_bg, "setColorFilter", Color.parseColor("#475569"))
+                views.setTextColor(R.id.widget_today_badge, Color.WHITE)
+                views.setTextViewText(R.id.widget_today_name, "Tap to Sign In")
+                views.setTextViewText(R.id.widget_today_timing, "Open RosterX app")
+
+                views.setTextViewText(R.id.widget_tomorrow_title, "ROSTER")
+                views.setTextViewText(R.id.widget_tomorrow_badge, "AUTH")
+                views.setInt(R.id.widget_tomorrow_badge_bg, "setColorFilter", Color.parseColor("#475569"))
+                views.setTextColor(R.id.widget_tomorrow_badge, Color.WHITE)
+                views.setTextViewText(R.id.widget_tomorrow_name, "Sign in required")
+                views.setTextViewText(R.id.widget_tomorrow_timing, "Private schedule")
+
+                views.setTextViewText(R.id.widget_timer_text, "🔒 Sign in to access your NOC shifts")
+                views.setTextViewText(R.id.widget_rest_text, "RosterX Secure Portal")
+
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+                return
+            }
+
+            // B. OPERATIONS RADAR WIDGET VIEW: Strictly for Managers/Admins with duty list
+            if (isManager && !dutyListJson.isNullOrBlank()) {
                 val managerViews = RemoteViews(context.packageName, R.layout.widget_rosterx_manager)
 
                 // Launch MainActivity on widget tap
@@ -548,20 +626,26 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 return
             }
 
+            // C. PERSONAL ENGINEER WIDGET: Loading / Syncing placeholder
             if (shiftsJson.isNullOrBlank()) {
-                views.setTextViewText(R.id.widget_engineer_name, engineerName ?: "NOC Operations")
-                views.setTextViewText(R.id.widget_today_badge, "OK")
-                views.setInt(R.id.widget_today_badge_bg, "setColorFilter", Color.parseColor("#10B981"))
+                views.setTextViewText(R.id.widget_engineer_name, engineerName ?: "Engineer")
+                views.setTextViewText(R.id.widget_today_title, "TODAY")
+                views.setTextViewText(R.id.widget_today_badge, "SYNC")
+                views.setInt(R.id.widget_today_badge_bg, "setColorFilter", Color.parseColor("#0284C7"))
                 views.setTextColor(R.id.widget_today_badge, Color.WHITE)
-                views.setTextViewText(R.id.widget_today_name, "Tap to Sync Shifts")
-                views.setTextViewText(R.id.widget_today_timing, "Open RosterX app")
-                views.setTextViewText(R.id.widget_tomorrow_badge, "OK")
-                views.setInt(R.id.widget_tomorrow_badge_bg, "setColorFilter", Color.parseColor("#10B981"))
+                views.setTextViewText(R.id.widget_today_name, "Syncing Schedule...")
+                views.setTextViewText(R.id.widget_today_timing, "Fetching live shifts")
+
+                views.setTextViewText(R.id.widget_tomorrow_title, "TOMORROW")
+                views.setTextViewText(R.id.widget_tomorrow_badge, "SYNC")
+                views.setInt(R.id.widget_tomorrow_badge_bg, "setColorFilter", Color.parseColor("#0284C7"))
                 views.setTextColor(R.id.widget_tomorrow_badge, Color.WHITE)
-                views.setTextViewText(R.id.widget_tomorrow_name, "Sync Active Roster")
-                views.setTextViewText(R.id.widget_tomorrow_timing, "Tap widget to refresh")
-                views.setTextViewText(R.id.widget_timer_text, "Tap widget to sync schedule")
-                views.setTextViewText(R.id.widget_rest_text, "Next Rest Day: Tap to sync")
+                views.setTextViewText(R.id.widget_tomorrow_name, "Connecting to Atlas...")
+                views.setTextViewText(R.id.widget_tomorrow_timing, "Please wait a moment")
+
+                views.setTextViewText(R.id.widget_timer_text, "Connecting to RosterX live gateway...")
+                views.setTextViewText(R.id.widget_rest_text, "Schedule update in progress")
+
                 appWidgetManager.updateAppWidget(appWidgetId, views)
                 scheduleNextUpdateAlarm(context)
                 return
