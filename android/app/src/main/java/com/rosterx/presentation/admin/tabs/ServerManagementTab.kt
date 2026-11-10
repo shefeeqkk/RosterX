@@ -1,5 +1,6 @@
 package com.rosterx.presentation.admin.tabs
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
@@ -626,7 +627,67 @@ fun ServerManagementTab(
             }
         }
 
-        // 4. Application Specs & Build Version Card
+        // 4. Google Password Manager & Credential Security Card
+        item {
+            val ctx = LocalContext.current
+            var gpmEnabled by remember {
+                mutableStateOf(
+                    ctx.getSharedPreferences("rosterx_gpm_prefs", Context.MODE_PRIVATE)
+                        .getBoolean("gpm_autofill_enabled", true)
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Key, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Text("CREDENTIALS & PASSWORDS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                        }
+                        Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF10B981).copy(alpha = 0.15f)) {
+                            Text("STANDARD", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text("Google Password Manager", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Offer to save and autofill passwords via Google Play Services Credential Manager.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = gpmEnabled,
+                            onCheckedChange = {
+                                gpmEnabled = it
+                                ctx.getSharedPreferences("rosterx_gpm_prefs", Context.MODE_PRIVATE)
+                                    .edit().putBoolean("gpm_autofill_enabled", it).apply()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // 5. Application Specs & Build Version Card
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
