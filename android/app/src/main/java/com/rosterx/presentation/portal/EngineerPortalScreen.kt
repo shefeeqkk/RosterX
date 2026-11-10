@@ -4644,6 +4644,7 @@ fun AccountView(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val engineer = state.loggedInEngineer
+    val activeAccent = LocalThemeAccent.current
 
     val today = LocalDate.now()
     val todayMd = String.format("%02d-%02d", today.monthValue, today.dayOfMonth)
@@ -4775,56 +4776,31 @@ fun AccountView(
 
 
 
-            Surface(
-
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-
-                color = MaterialTheme.colorScheme.surface,
-
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-
-                shadowElevation = 1.dp,
-
-                modifier = Modifier.fillMaxWidth()
-
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 0.dp
             ) {
-
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
                     Row(
-
                         modifier = Modifier
-
                             .fillMaxWidth()
-
                             .clickable { showGatewaySettings = !showGatewaySettings },
-
                         horizontalArrangement = Arrangement.SpaceBetween,
-
                         verticalAlignment = Alignment.CenterVertically
-
                     ) {
-
                         Row(verticalAlignment = Alignment.CenterVertically) {
-
-                            Icon(Icons.Default.Dns, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-
+                            Icon(Icons.Default.Dns, contentDescription = null, tint = activeAccent, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-
-                            Text("SERVER & CLOUD INFRASTRUCTURE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
+                            Text("SERVER & CLOUD INFRASTRUCTURE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = activeAccent)
                         }
-
                         Icon(
-
                             imageVector = if (showGatewaySettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-
                             contentDescription = "Toggle",
-
-                            tint = MaterialTheme.colorScheme.primary
-
+                            tint = activeAccent
                         )
-
                     }
 
 
@@ -4985,101 +4961,53 @@ fun AccountView(
 
 
         // Application Specs & Build Version Card
-
         item {
-
-            Surface(
-
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-
-                color = MaterialTheme.colorScheme.surface,
-
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-
-                shadowElevation = 1.dp,
-
-                modifier = Modifier.fillMaxWidth()
-
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 0.dp
             ) {
-
                 Column(
-
                     modifier = Modifier.padding(16.dp),
-
                     verticalArrangement = Arrangement.spacedBy(10.dp)
-
                 ) {
-
                     Row(
-
                         modifier = Modifier.fillMaxWidth(),
-
                         horizontalArrangement = Arrangement.SpaceBetween,
-
                         verticalAlignment = Alignment.CenterVertically
-
                     ) {
-
                         Row(
-
                             verticalAlignment = Alignment.CenterVertically,
-
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
-
                         ) {
-
                             Icon(
-
                                 Icons.Default.Info,
-
                                 contentDescription = null,
-
-                                tint = MaterialTheme.colorScheme.primary,
-
+                                tint = activeAccent,
                                 modifier = Modifier.size(18.dp)
-
                             )
-
                             Text(
-
                                 text = "ABOUT ROSTERX & SPECS",
-
                                 fontSize = 11.sp,
-
                                 fontWeight = FontWeight.Bold,
-
-                                color = MaterialTheme.colorScheme.primary,
-
+                                color = activeAccent,
                                 letterSpacing = 1.sp
-
                             )
-
                         }
-
                         Surface(
-
                             shape = RoundedCornerShape(8.dp),
-
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-
+                            color = activeAccent.copy(alpha = 0.12f)
                         ) {
-
                             Text(
-
                                 text = "v${BuildConfig.VERSION_NAME}",
-
                                 fontSize = 11.sp,
-
                                 fontWeight = FontWeight.ExtraBold,
-
-                                color = MaterialTheme.colorScheme.primary,
-
+                                color = activeAccent,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-
                             )
-
                         }
-
                     }
 
 
@@ -5152,12 +5080,12 @@ fun AppearanceThemeCard(
 
     var isExpanded by remember { mutableStateOf(false) }
 
-    Surface(
+    NeumorphicCard(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-        shadowElevation = 1.dp,
-        modifier = Modifier.fillMaxWidth()
+        style = NeumorphicElevationStyle.Raised,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

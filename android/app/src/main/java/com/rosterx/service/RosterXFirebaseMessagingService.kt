@@ -75,6 +75,13 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
         try {
             analyticsManager.logNotificationReceived(title, priority)
         } catch (_: Exception) {}
+
+        // 4. Instantly refresh home screen widgets & sync in background
+        try {
+            com.rosterx.widget.RosterXAppWidgetProvider.updateAllWidgets(applicationContext)
+            val syncNow = androidx.work.OneTimeWorkRequestBuilder<com.rosterx.worker.RosterSyncWorker>().build()
+            androidx.work.WorkManager.getInstance(applicationContext).enqueue(syncNow)
+        } catch (_: Exception) {}
     }
 
     private fun showSystemNotification(
