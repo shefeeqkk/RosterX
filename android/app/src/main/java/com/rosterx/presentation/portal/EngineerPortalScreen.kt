@@ -531,6 +531,22 @@ fun EngineerPortalScreen(
                     val settingsTabIndex = if (state.loggedInEngineer?.role == EngineerRole.MANAGER) 3 else 4
                     val unreadCount = state.notifications.count { (it.id ?: "") !in state.dismissedNotificationIds }
 
+                    // Animated bell wiggle when there are unread notifications
+                    val bellInfiniteTransition = rememberInfiniteTransition(label = "bell_wiggle")
+                    val bellRotation by if (unreadCount > 0) {
+                        bellInfiniteTransition.animateFloat(
+                            initialValue = -15f,
+                            targetValue = 15f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "bell_rotation"
+                        )
+                    } else {
+                        remember { mutableStateOf(0f) }
+                    }
+
                     // Notification Bell Button
                     Box(modifier = Modifier.padding(end = 8.dp)) {
                         Surface(
@@ -547,28 +563,39 @@ fun EngineerPortalScreen(
                                     imageVector = Icons.Outlined.Notifications,
                                     contentDescription = "Notifications",
                                     tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .graphicsLayer { rotationZ = bellRotation }
                                 )
                             }
                         }
                         if (unreadCount > 0) {
+                            // Adaptive badge: circle for 1 digit, pill for 2+
+                            val isSingleDigit = unreadCount < 10
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .offset(x = 4.dp, y = (-2).dp)
+                                    .then(
+                                        if (isSingleDigit)
+                                            Modifier.size(16.dp)
+                                        else
+                                            Modifier
+                                                .defaultMinSize(minWidth = 20.dp, minHeight = 16.dp)
+                                                .padding(horizontal = 3.dp)
+                                    )
                                     .clip(CircleShape)
                                     .background(Color(0xFFEF4444))
-                                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                                    .padding(horizontal = if (unreadCount > 9) 4.dp else 2.dp)
-                                    .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp),
+                                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = if (unreadCount > 99) "99+" else unreadCount.toString(),
                                     color = Color.White,
-                                    fontSize = 9.sp,
+                                    fontSize = 8.sp,
                                     fontWeight = FontWeight.Black,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -4543,11 +4570,11 @@ fun AccountView(
 
 
 
-                    ProfileDetailRow("Application Name", "Project RosterX")
+                    ProfileDetailRow("Application Name", "RosterX")
 
                     ProfileDetailRow("Android App Version", "v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})")
 
-                    ProfileDetailRow("Backend Server Version", "v1.7.3")
+                    ProfileDetailRow("Backend Server Version", state.serverVersion.ifBlank { "v${BuildConfig.VERSION_NAME}" })
 
                     ProfileDetailRow("Mobile Architecture", "Native Android (Jetpack Compose)")
 
