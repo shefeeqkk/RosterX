@@ -718,6 +718,14 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     fun logout() {
+        val fcmToken = sessionManager.getFcmToken()
+        if (!fcmToken.isNullOrBlank()) {
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    repository.unregisterFcmToken(fcmToken)
+                } catch (_: Exception) {}
+            }
+        }
         _state.value = _state.value.copy(
             loggedInEngineer = null,
             assistantMessages = emptyList(),

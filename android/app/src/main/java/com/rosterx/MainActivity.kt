@@ -97,6 +97,7 @@ class MainActivity : FragmentActivity() {
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful && !task.result.isNullOrBlank()) {
                         val token = task.result
+                        sessionManager.setFcmToken(token)
                         lifecycleScope.launch(Dispatchers.IO) {
                             try {
                                 if (!sessionManager.getToken().isNullOrBlank()) {

@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.24.1"
+SERVER_VERSION = "1.24.2"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -779,7 +779,7 @@ DEFAULT_BROADCAST_TEMPLATES = [
     }
 ]
 
-def send_fcm_push(tokens, title, body, priority="info", notif_id=""):
+def send_fcm_push(tokens, title, body, priority="info", notif_id="", extra_data=None):
     """
     Dispatch Firebase Cloud Messaging (FCM) push notifications to Android devices.
     Supports firebase_admin SDK or direct Google OAuth2 FCM REST dispatch.
@@ -846,14 +846,19 @@ def send_fcm_push(tokens, title, body, priority="info", notif_id=""):
 
         for token in unique_tokens:
             try:
+                payload_data = {
+                    "id": str(notif_id),
+                    "priority": str(priority),
+                    "title": str(title),
+                    "body": str(body)
+                }
+                if extra_data and isinstance(extra_data, dict):
+                    for ek, ev in extra_data.items():
+                        payload_data[str(ek)] = str(ev)
+
                 msg = messaging.Message(
                     notification=messaging.Notification(title=title, body=body),
-                    data={
-                        "id": str(notif_id),
-                        "priority": str(priority),
-                        "title": str(title),
-                        "body": str(body)
-                    },
+                    data=payload_data,
                     token=token,
                     android=messaging.AndroidConfig(
                         priority="high" if priority.lower() == "urgent" else "normal",
@@ -1021,7 +1026,7 @@ def check_and_trigger_celebrations(force=False):
                     triggered_events.append({"user": uname, "name": full_name, "type": event_type, "title": title})
                     log_server(f"[CELEBRATION] Triggered {event_type} announcement for '{full_name}' ({uname}).")
                     if all_fcm_tokens:
-                        sent = send_fcm_push(all_fcm_tokens, title, msg, priority="high", notif_id=notif_id)
+                        sent = send_fcm_push(all_fcm_tokens, title, msg, priority="high", notif_id=notif_id, extra_data={"target_user": "everyone"})
                         log_server(f"[CELEBRATION] FCM push delivered to {sent} devices for {full_name}.")
                 except Exception as ins_err:
                     print(f"  [CELEBRATION ERROR] Failed to record notification: {ins_err}")
@@ -2770,7 +2775,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/roster-backups/restore", "/notifications/send",
             "/notifications/dismiss", "/notifications/retract",
             "/broadcast/templates", "/broadcast/templates/delete",
-            "/users/fcm-token", "/users/profile", "/celebrations/check",
+            "/users/fcm-token", "/users/fcm-token/unregister", "/fcm/unregister",
+            "/users/profile", "/celebrations/check",
             "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant",
             "/users/profile-picture"
         ) or norm_path.startswith("/roster-backups/"):
@@ -3845,7 +3851,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # 3.8 POST /api/users/fcm-token (Register FCM Device Push Token)
+        # 3.8 POST /api/users/fcm-token (Register FCM Device Push Token - Exclusive Binding)
         if clean_path in ("/api/users/fcm-token", "/api/users/fcm-token/"):
             claims = self.require_auth()
             if not claims:
@@ -3860,15 +3866,38 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             if ATLAS_DB is not None and username:
                 try:
+                    # Exclusive Single-User Binding:
+                    # 1. Atomically remove this device token from ANY other engineer accounts
+                    pull_res = ATLAS_DB.engineers.update_many(
+                        {"username": {"$ne": username}},
+                        {"$pull": {"fcm_tokens": token}}
+                    )
+                    # 2. Add exclusively to current active engineer
                     ATLAS_DB.engineers.update_one(
                         {"username": username},
                         {"$addToSet": {"fcm_tokens": token}}
                     )
-                    log_server(f"[FCM] Registered device token for engineer '{username}'.")
+                    log_server(f"[FCM] Bound device token exclusively to '{username}' (purged from {pull_res.modified_count} previous account(s)).")
                 except Exception as e:
                     print(f"  [FCM TOKEN REGISTER ERROR] {e}")
 
-            self.send_json_response({"success": True, "message": "FCM device token registered successfully."})
+            self.send_json_response({"success": True, "message": "FCM device token registered exclusively."})
+            return
+
+        # 3.8b POST /api/users/fcm-token/unregister (Unregister FCM Device Push Token on Sign-Out)
+        if clean_path in ("/api/users/fcm-token/unregister", "/api/users/fcm-token/unregister/", "/api/fcm/unregister", "/api/fcm/unregister/"):
+            token = str(body.get("token", "")).strip()
+            if token and ATLAS_DB is not None:
+                try:
+                    del_res = ATLAS_DB.engineers.update_many(
+                        {},
+                        {"$pull": {"fcm_tokens": token}}
+                    )
+                    log_server(f"[FCM] Sign-Out: Unregistered device token from {del_res.modified_count} engineer account(s).")
+                except Exception as e:
+                    print(f"  [FCM TOKEN UNREGISTER ERROR] {e}")
+
+            self.send_json_response({"success": True, "message": "FCM device token unregistered successfully on sign-out."})
             return
 
         # 3.9 POST /api/broadcast/templates (Create or Update Operational Broadcast Template)
@@ -4092,7 +4121,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             notif_id = f"notif_{int(time.time()*1000)}"
 
-            # FCM Push Notification Dispatch (Personalized per recipient)
+            # FCM Push Notification Dispatch (Personalized per recipient, deduplicated per physical device)
             push_dispatched = 0
             if send_push:
                 def _format_mention_plain(m):
@@ -4101,13 +4130,19 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         return "@Everyone"
                     return f"@{name_by_user.get(t_u) or name_by_id.get(t_u) or t_u}"
 
+                dispatched_device_tokens = set()
                 for eng in recipients:
                     toks = eng.get("fcm_tokens", [])
-                    push_tokens = []
+                    raw_tokens = []
                     if isinstance(toks, list):
-                        push_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
+                        raw_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
                     elif isinstance(toks, str) and toks.strip():
-                        push_tokens.append(toks.strip())
+                        raw_tokens.append(toks.strip())
+
+                    # Strict device deduplication: Ensure no physical phone receives duplicate pushes
+                    push_tokens = [t for t in raw_tokens if t not in dispatched_device_tokens]
+                    for t in push_tokens:
+                        dispatched_device_tokens.add(t)
 
                     if push_tokens:
                         eng_name = str(eng.get("fullName") or eng.get("name") or "Engineer").strip()
@@ -4120,7 +4155,18 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         p_body = re.sub(r'@\{\s*username\s*\}', f"@{eng_uname}", p_body, flags=re.IGNORECASE)
                         p_body = re.sub(r'@([a-zA-Z0-9_\-\.]+)', _format_mention_plain, p_body)
 
-                        sent = send_fcm_push(push_tokens, f"📢 [{priority.upper()}] {title}", p_body, priority=priority, notif_id=notif_id)
+                        sent = send_fcm_push(
+                            push_tokens,
+                            f"📢 [{priority.upper()}] {title}",
+                            p_body,
+                            priority=priority,
+                            notif_id=notif_id,
+                            extra_data={
+                                "target_user": eng_uname,
+                                "target_name": eng_name,
+                                "broadcast_id": notif_id
+                            }
+                        )
                         push_dispatched += sent
 
             notif_doc = {

@@ -37,6 +37,7 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "Refreshed FCM device token: $token")
+        sessionManager.setFcmToken(token)
         
         // Dispatch token to backend if user is authenticated
         CoroutineScope(Dispatchers.IO).launch {
@@ -55,6 +56,24 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         Log.d(TAG, "FCM Message received from: ${remoteMessage.from}")
+
+        // Client-Side Identity Filter:
+        // 1. If device is signed out (no active user session), drop notification silently
+        val currentUser = sessionManager.getCurrentUser()
+        if (currentUser == null) {
+            Log.d(TAG, "Dropping FCM push: Device has no active user session (signed out).")
+            return
+        }
+
+        // 2. If message is targeted to a specific username, ensure it matches active logged-in user
+        val targetUser = remoteMessage.data["target_user"]?.trim()?.lowercase()
+        if (!targetUser.isNullOrBlank() && targetUser != "everyone" && targetUser != "all") {
+            val activeUsername = currentUser.username.trim().lowercase()
+            if (targetUser != activeUsername) {
+                Log.d(TAG, "Dropping FCM push: Target recipient '$targetUser' does not match active logged-in user '$activeUsername'.")
+                return
+            }
+        }
 
         // 1. Extract payload from data or notification object
         val title = remoteMessage.data["title"]

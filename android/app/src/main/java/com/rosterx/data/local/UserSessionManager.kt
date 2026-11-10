@@ -64,7 +64,7 @@ class UserSessionManager @Inject constructor(
             }
     }
 
-    private fun loadSavedUser(): Engineer? {
+    fun loadSavedUser(): Engineer? {
         val token = prefs.getString("auth_token", null)
         if (token.isNullOrBlank()) return null
         val json = prefs.getString("saved_user", null) ?: return null
@@ -80,6 +80,8 @@ class UserSessionManager @Inject constructor(
             null
         }
     }
+
+    fun getCurrentUser(): Engineer? = currentUser.value ?: loadSavedUser()
 
     fun setCurrentUser(user: Engineer) {
         val proper = toProperCase(user.name)
@@ -128,12 +130,32 @@ class UserSessionManager @Inject constructor(
         }
     }
 
+    fun getFcmToken(): String? {
+        return prefs.getString("device_fcm_token", null)
+    }
+
+    fun setFcmToken(token: String?) {
+        if (!token.isNullOrBlank()) {
+            prefs.edit().putString("device_fcm_token", token).apply()
+        } else {
+            prefs.edit().remove("device_fcm_token").apply()
+        }
+    }
+
     fun clearSession() {
         _currentUser.value = null
         prefs.edit()
             .remove("saved_user")
             .remove("auth_token")
             .apply()
+
+        // Cancel all pending and active notifications from the system tray on sign-out
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.cancelAll()
+        } catch (e: Throwable) {
+            android.util.Log.e("UserSessionManager", "Failed to clear notifications on logout", e)
+        }
 
         try {
             com.rosterx.widget.RosterXAppWidgetProvider.clearWidgetData(context)

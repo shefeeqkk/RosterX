@@ -76,6 +76,8 @@ interface RosterRepository {
         newPassword: String? = null,
         username: String? = null
     ): Result<Engineer>
+    suspend fun registerFcmToken(token: String): Result<Unit>
+    suspend fun unregisterFcmToken(token: String): Result<Unit>
 }
 
 
