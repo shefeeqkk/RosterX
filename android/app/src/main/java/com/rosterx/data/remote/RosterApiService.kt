@@ -380,6 +380,7 @@ data class NotificationDto(
     val priority: String?,
     val sender: String?,
     @SerializedName("created_at") val createdAt: String?,
+    @SerializedName("timestamp") val timestamp: Double? = null,
     @SerializedName("recipients_count") val recipientsCount: Int? = 0,
     @SerializedName("emails_dispatched") val emailsDispatched: Int? = 0,
     @SerializedName("push_dispatched") val pushDispatched: Int? = 0,

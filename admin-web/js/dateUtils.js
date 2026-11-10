@@ -48,12 +48,11 @@ export function getIstNow(baseDate = new Date()) {
 }
 
 /**
- * Returns standard operational period key 'YYYY-MM' (e.g. '2026-11') for IST now.
+ * Returns standard operational period key 'YYYY-MM' (e.g. '2026-11') for local device now.
  */
 export function currentPeriodKey(baseDate = new Date()) {
-  const ist = getIstNow(baseDate);
-  const y = ist.getFullYear();
-  const m = String(ist.getMonth() + 1).padStart(2, '0');
+  const y = baseDate.getFullYear();
+  const m = String(baseDate.getMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
 }
 

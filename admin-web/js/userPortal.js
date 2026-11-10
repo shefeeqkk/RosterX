@@ -83,16 +83,16 @@ export class UserPortalController {
 
 
     // 1. Live Operational Anchor State (Today & Tomorrow & Team Board)
-    // Dynamically synchronized to current real IST date and time
-    const istNow = getIstNow();
-    const curPeriod = currentPeriodKey();
-    const { year: curYear, month: curMonth } = parsePeriodKey(curPeriod);
+    // Synchronized strictly to user device's local date & time
+    const localNow = new Date();
+    const curYear = localNow.getFullYear();
+    const curMonth = localNow.getMonth() + 1;
     const totalDays = daysInMonth(curYear, curMonth);
-    let curDay = istNow.getDate();
+    let curDay = localNow.getDate();
     if (curDay > totalDays) curDay = totalDays;
 
-    const tomorrow = new Date(istNow);
-    tomorrow.setDate(istNow.getDate() + 1);
+    const tomorrow = new Date(localNow);
+    tomorrow.setDate(localNow.getDate() + 1);
     const tomDay = tomorrow.getDate();
 
     this.liveState = {
@@ -355,6 +355,23 @@ export class UserPortalController {
       card.id = `userNotifCard_${nid}`;
       card.className = `glass-panel rounded-xl p-4 border transition-all duration-300 ${theme.border} ${theme.bg} shadow-xs space-y-2.5`;
 
+      let localTimeStr = notif.created_at || 'Recently';
+      if (notif.timestamp) {
+        try {
+          const d = new Date(notif.timestamp * 1000);
+          localTimeStr = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (_) {}
+      } else if (notif.created_at) {
+        try {
+          const raw = String(notif.created_at).trim();
+          const iso = raw.endsWith(' UTC') ? raw.replace(' UTC', 'Z').replace(' ', 'T') : raw;
+          const d = new Date(iso);
+          if (!isNaN(d.getTime())) {
+            localTimeStr = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          }
+        } catch (_) {}
+      }
+
       card.innerHTML = `
         <div class="flex items-start justify-between gap-3">
           <div class="flex items-center gap-2 flex-wrap">
@@ -372,7 +389,7 @@ export class UserPortalController {
         </div>
         <div class="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-200/50 dark:border-slate-800/50 pt-2 font-mono">
           <span>From: <strong>${notif.sender || 'Operations Admin'}</strong></span>
-          <span>${notif.created_at || 'Recently'}</span>
+          <span>${localTimeStr}</span>
         </div>
       `;
 

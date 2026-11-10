@@ -55,6 +55,11 @@ import com.rosterx.ui.theme.LocalThemeAccent
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
 
@@ -67,6 +72,48 @@ fun String.toProperCase(): String {
             if (word.length == 1) word.uppercase()
             else word.lowercase().replaceFirstChar { it.uppercase() }
         }
+}
+
+fun formatNotificationTime(rawCreatedAt: String?, timestampEpoch: Double?): String {
+    try {
+        if (timestampEpoch != null && timestampEpoch > 0) {
+            val instant = Instant.ofEpochMilli((timestampEpoch * 1000).toLong())
+            val zonedDateTime = instant.atZone(ZoneId.systemDefault())
+            val today = LocalDate.now()
+            val notifDate = zonedDateTime.toLocalDate()
+            val timeFmt = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
+            return when (notifDate) {
+                today -> "Today, ${zonedDateTime.format(timeFmt)}"
+                today.minusDays(1) -> "Yesterday, ${zonedDateTime.format(timeFmt)}"
+                else -> {
+                    val fullFmt = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.US)
+                    zonedDateTime.format(fullFmt)
+                }
+            }
+        }
+    } catch (_: Exception) {}
+
+    if (!rawCreatedAt.isNullOrBlank()) {
+        try {
+            val clean = rawCreatedAt.trim()
+            val utcCandidate = if (clean.endsWith(" UTC")) clean.removeSuffix(" UTC").trim() else clean
+            val utcFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US)
+            val ldt = LocalDateTime.parse(utcCandidate, utcFormatter)
+            val zonedDateTime = ldt.atZone(ZoneOffset.UTC).withZoneSameInstant(ZoneId.systemDefault())
+            val today = LocalDate.now()
+            val notifDate = zonedDateTime.toLocalDate()
+            val timeFmt = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
+            return when (notifDate) {
+                today -> "Today, ${zonedDateTime.format(timeFmt)}"
+                today.minusDays(1) -> "Yesterday, ${zonedDateTime.format(timeFmt)}"
+                else -> {
+                    val fullFmt = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.US)
+                    zonedDateTime.format(fullFmt)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+    return rawCreatedAt ?: ""
 }
 
 data class TenureData(val years: Int, val months: Int, val days: Int)
@@ -1659,9 +1706,10 @@ fun QuickNotificationsBottomSheet(
                                             fontWeight = FontWeight.SemiBold,
                                             color = NeumorphicTokens.TextMuted
                                         )
-                                        if (!notif.createdAt.isNullOrBlank()) {
+                                        val formattedTime = formatNotificationTime(notif.createdAt, notif.timestamp)
+                                        if (formattedTime.isNotBlank()) {
                                             Text(
-                                                text = notif.createdAt,
+                                                text = formattedTime,
                                                 fontSize = 10.sp,
                                                 color = NeumorphicTokens.TextMuted
                                             )
