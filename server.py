@@ -151,13 +151,26 @@ PUBLIC_TUNNEL_URL = None
 TUNNEL_PROC = None
 SERVER_PORT = 8000
 
+IST_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now() -> datetime:
+    """Return timezone-aware current time in Indian Standard Time (IST, UTC+05:30)."""
+    return datetime.now(IST_TIMEZONE)
+
+def get_ist_time_str(format_12h: bool = True) -> str:
+    """Format IST time string in 12-hour format with AM/PM (e.g. '11:58:30 AM')."""
+    now = get_ist_now()
+    if format_12h:
+        return now.strftime("%I:%M:%S %p")
+    return now.strftime("%H:%M:%S")
+
 # Global Live Server Log Ring Buffer (Available for Authenticated Admin Terminal Log Viewer)
 SERVER_LOGS = collections.deque(maxlen=500)
 SERVER_NOTIFICATIONS = collections.deque(maxlen=100)
 
 def log_server(msg: str):
-    """Log to stdout and append timestamped entry to circular SERVER_LOGS buffer."""
-    ts = time.strftime('%Y-%m-%d %H:%M:%S')
+    """Log to stdout and append timestamped entry to circular SERVER_LOGS buffer in Indian Standard Time (IST)."""
+    ts = get_ist_now().strftime('%Y-%m-%d %I:%M:%S %p')
     formatted = f"[{ts}] {msg}"
     print(formatted)
     SERVER_LOGS.append(formatted)
@@ -4155,7 +4168,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             print(f" {color}[HTTP {status}]{reset} {method_path}")
 
             if "/api/logs" not in method_path and "/api/server-logs" not in method_path:
-                timestamp = time.strftime("%H:%M:%S")
+                timestamp = get_ist_time_str(format_12h=True)
                 SERVER_LOGS.append(f"[{timestamp}] [HTTP {status}] {method_path}")
         except Exception:
             pass
@@ -4176,8 +4189,8 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     # Initialize PyMongo Atlas Bridge
     init_atlas_connection(env)
 
-    SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [SYSTEM] RosterX Server v{SERVER_VERSION} listening on port {port}")
-    SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [ATLAS DB] Status: {ATLAS_STATUS} ({ATLAS_CLUSTER}/{ATLAS_DB_NAME})")
+    SERVER_LOGS.append(f"[{get_ist_time_str(format_12h=True)}] [SYSTEM] RosterX Server v{SERVER_VERSION} listening on port {port}")
+    SERVER_LOGS.append(f"[{get_ist_time_str(format_12h=True)}] [ATLAS DB] Status: {ATLAS_STATUS} ({ATLAS_CLUSTER}/{ATLAS_DB_NAME})")
 
     global RESEND_API_KEY, RESEND_FROM, DEFAULT_RESEND_API_KEY, DEFAULT_ALERT_EMAIL
     RESEND_API_KEY = (env.get("RESEND_API_KEY", "") or os.environ.get("RESEND_API_KEY", "") or DEFAULT_RESEND_API_KEY).strip().strip("'\"")
@@ -4203,9 +4216,9 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         print("\n  [CLOUDFLARE] Initializing secure quick tunnel to Cloudflare Edge...")
         tunnel_proc, public_url = start_cloudflared_tunnel(port=port)
         if public_url:
-            SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [GATEWAY] Public Tunnel active: {public_url}")
+            SERVER_LOGS.append(f"[{get_ist_time_str(format_12h=True)}] [GATEWAY] Public Tunnel active: {public_url}")
     elif is_render and public_url:
-        SERVER_LOGS.append(f"[{time.strftime('%H:%M:%S')}] [RENDER CLOUD] Live Service URL: {public_url}")
+        SERVER_LOGS.append(f"[{get_ist_time_str(format_12h=True)}] [RENDER CLOUD] Live Service URL: {public_url}")
 
     publish_server_endpoints(public_url, lan_ip, port)
 

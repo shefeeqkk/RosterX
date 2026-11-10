@@ -1,13 +1,14 @@
 {
-  "antigravity_agent": {
-    "default_name": "Aunty",
-    "role": "Full-Stack Backend, Cloudflare Tunnel & Web Orchestrator",
-    "aliases": ["Aunty", "Auntyji", "Antigravity"]
+  "agent_1": {
+    "default_name": "Dasan",
+    "role": "Antigravity Primary Orchestrator (Backend, Server Infrastructure, Core Sync & Multi-Agent Protocol)",
+    "aliases": ["Dasan", "Dasanji", "DasanAgent", "Agent1"]
   },
-  "android_agent": {
-    "default_name": "Kunjappan",
-    "role": "Android Studio Native Kotlin & Jetpack Compose Specialist",
-    "aliases": ["Kunjappan", "Kunju", "AndroidAgent"]
+  "agent_2": {
+    "default_name": "Vijayan",
+    "role": "Antigravity Parallel Feature & UI Specialist (Jetpack Compose, Android App Lifecycle & Client Web)",
+    "aliases": ["Vijayan", "Vijayankutty", "VijayanAgent", "Agent2"]
   },
-  "note": "Internal IDE configuration only. Never expose these nicknames on public web portals or mobile app screens."
+  "deprecated_names": ["Aunty", "Kunjappan"],
+  "note": "Internal IDE developer workflow configuration only. Never expose these nicknames on user-facing web portals or mobile app screens."
 }

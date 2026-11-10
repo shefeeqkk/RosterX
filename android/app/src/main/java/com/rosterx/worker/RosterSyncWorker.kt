@@ -64,34 +64,33 @@ class RosterSyncWorker(
                 } else null
 
                 if (user != null) {
-                    if (user.role == EngineerRole.MANAGER) {
-                        RosterXAppWidgetProvider.saveManagerDutyRoster(
+                    // 1. Always save team Operations Radar duty roster cache for all users
+                    RosterXAppWidgetProvider.saveManagerDutyRoster(
+                        context = context,
+                        managerName = user.fullName.takeIf { it.isNotBlank() } ?: user.name,
+                        dateFormatted = today.format(DateTimeFormatter.ofPattern("EEE, MMM dd")),
+                        dutyList = emptyList(),
+                        summaryText = "Coverage Updated",
+                        fullRoster = rawRoster,
+                        yesterdayRoster = yesterdayRoster,
+                        engineers = engineers,
+                        monthKey = currentMonthKey
+                    )
+                    RosterXAppWidgetProvider.recomputeManagerDutyList(context, today, LocalTime.now())
+
+                    // 2. Always save individual shifts using flexible name matching
+                    val engShifts = RosterXAppWidgetProvider.findEngineerShifts(user, rawRoster) ?: emptyMap()
+                    if (engShifts.isNotEmpty()) {
+                        RosterXAppWidgetProvider.saveWidgetData(
                             context = context,
-                            managerName = user.name,
-                            dateFormatted = today.format(DateTimeFormatter.ofPattern("EEE, MMM dd")),
-                            dutyList = emptyList(),
-                            summaryText = "Coverage Updated",
-                            fullRoster = rawRoster,
-                            yesterdayRoster = yesterdayRoster,
-                            engineers = engineers,
-                            monthKey = currentMonthKey
+                            engineerName = user.fullName.takeIf { it.isNotBlank() } ?: user.name,
+                            shiftsMap = engShifts,
+                            monthKey = currentMonthKey,
+                            keepManagerMode = true
                         )
-                        RosterXAppWidgetProvider.recomputeManagerDutyList(context, today, LocalTime.now())
-                        RosterXAppWidgetProvider.updateAllWidgets(context)
-                    } else {
-                        val engShifts: Map<String, String> = rawRoster[user.username]
-                            ?: rawRoster[user.id]
-                            ?: rawRoster[user.name]
-                            ?: emptyMap()
-                        if (engShifts.isNotEmpty()) {
-                            RosterXAppWidgetProvider.saveWidgetData(
-                                context,
-                                user.name,
-                                engShifts,
-                                currentMonthKey
-                            )
-                        }
                     }
+
+                    RosterXAppWidgetProvider.updateAllWidgets(context)
                 }
             }
             Result.success()
@@ -146,17 +145,19 @@ class RosterSyncWorker(
     }
 
     private fun EngineerDto.toDomain(): Engineer = Engineer(
-        id = id ?: engineerId ?: "",
-        name = name ?: "",
-        fullName = name ?: "",
-        username = username ?: "",
-        email = email ?: "",
-        phone = phone ?: "",
-        role = try { EngineerRole.valueOf(role?.uppercase() ?: "ENGINEER") } catch (_: Exception) { EngineerRole.ENGINEER },
+        id = this.id?.ifBlank { null } ?: this.engineerId?.ifBlank { null } ?: this.username ?: "",
+        name = this.name ?: "",
+        fullName = this.name ?: "",
+        username = this.username ?: "",
+        email = this.email ?: "",
+        phone = this.phone ?: "",
+        role = try { EngineerRole.valueOf((this.role ?: "ENGINEER").uppercase()) } catch (_: Exception) { EngineerRole.ENGINEER },
         status = EngineerStatus.ACTIVE,
-        defaultWeeklyOffs = defaultWeeklyOffs ?: emptyList(),
-        joinDate = joinDate ?: "",
-        birthday = birthday,
-        profilePicture = profilePicture
+        defaultWeeklyOffs = this.defaultWeeklyOffs ?: emptyList(),
+        joinDate = this.joinDate ?: "",
+        resignationDate = this.resignationDate,
+        originalUsername = this.originalUsername,
+        profilePicture = this.profilePicture,
+        birthday = this.birthday
     )
 }
