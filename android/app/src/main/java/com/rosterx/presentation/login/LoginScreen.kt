@@ -1,42 +1,58 @@
 package com.rosterx.presentation.login
 
+import android.app.Activity
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.AutofillNode
+import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalAutofill
+import androidx.compose.ui.platform.LocalAutofillTree
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rosterx.R
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
@@ -45,13 +61,56 @@ fun LoginScreen(
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
     val passwordFocusRequester = remember { FocusRequester() }
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val coroutineScope = rememberCoroutineScope()
 
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-        var isIdentifierError by remember { mutableStateOf(false) }
+    var isIdentifierError by remember { mutableStateOf(false) }
     var localErrorMsg by remember { mutableStateOf<String?>(null) }
-    
+
+    // Compose Native Autofill Integration
+    val autofill = LocalAutofill.current
+    val usernameAutofillNode = remember {
+        AutofillNode(
+            onFill = { identifier = it },
+            autofillTypes = listOf(AutofillType.Username, AutofillType.EmailAddress)
+        )
+    }
+    val passwordAutofillNode = remember {
+        AutofillNode(
+            onFill = { password = it },
+            autofillTypes = listOf(AutofillType.Password)
+        )
+    }
+    LocalAutofillTree.current += usernameAutofillNode
+    LocalAutofillTree.current += passwordAutofillNode
+
+    // 1-Tap Google Password Manager sheet prompt on screen launch
+    var hasAttemptedCredentialFetch by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!hasAttemptedCredentialFetch && activity != null && identifier.isBlank()) {
+            hasAttemptedCredentialFetch = true
+            viewModel.googlePasswordManager.getSavedCredentials(activity) { savedUser, savedPass ->
+                identifier = savedUser
+                password = savedPass
+            }
+        }
+    }
+
+    // Google Password Manager Save Prompt on successful login
+    LaunchedEffect(state.loginSuccess) {
+        if (state.loginSuccess) {
+            val creds = state.lastSuccessCredentials
+            if (activity != null && creds != null) {
+                viewModel.googlePasswordManager.saveCredentials(activity, creds.first, creds.second)
+            }
+            onLoginSuccess()
+        }
+    }
+
     // OTP Password Reset Dialog State
     var showHelpDialog by remember { mutableStateOf(false) }
     var otpCode by remember { mutableStateOf("") }
@@ -62,12 +121,6 @@ fun LoginScreen(
     // Server Configuration Dialog State (Allows 4G/5G mobile connection setup)
     var showServerDialog by remember { mutableStateOf(false) }
     var serverUrlInput by remember { mutableStateOf(viewModel.getBaseUrl()) }
-
-    LaunchedEffect(state.loginSuccess) {
-        if (state.loginSuccess) {
-            onLoginSuccess()
-        }
-    }
 
     // Webpage-compatible OTP Reset Dialog with Retype Password & Eye Toggle
     if (showHelpDialog) {
@@ -100,6 +153,7 @@ fun LoginScreen(
                             onValueChange = { identifier = it },
                             label = { Text("Username or Email") },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)
                         )
@@ -114,6 +168,7 @@ fun LoginScreen(
                             onValueChange = { otpCode = it },
                             label = { Text("6-Digit OTP Code") },
                             leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             singleLine = true
@@ -133,6 +188,7 @@ fun LoginScreen(
                                 }
                             },
                             visualTransformation = if (resetPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             singleLine = true
@@ -158,6 +214,7 @@ fun LoginScreen(
                                 }
                             },
                             visualTransformation = if (resetPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             singleLine = true
@@ -347,7 +404,7 @@ fun LoginScreen(
                     }
                 }
 
-                // Form Area: Identifier Field
+                // Form Area: Identifier Field with Autofill & Google Password Manager
                 OutlinedTextField(
                     value = identifier,
                     onValueChange = { 
@@ -372,6 +429,13 @@ fun LoginScreen(
                             }
                         }
                     },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { passwordFocusRequester.requestFocus() }
+                    ),
                     isError = isIdentifierError,
                     supportingText = {
                         if (isIdentifierError) {
@@ -382,14 +446,20 @@ fun LoginScreen(
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { usernameAutofillNode.boundingBox = it.boundsInWindow() }
+                        .onFocusChanged {
+                            if (it.isFocused) autofill?.requestAutofillForNode(usernameAutofillNode)
+                            else autofill?.cancelAutofillForNode(usernameAutofillNode)
+                        },
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Password Input Field (Biometrics completely removed - password required)
+                // Password Input Field with Autofill & Google Password Manager
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; localErrorMsg = null },
@@ -410,14 +480,72 @@ fun LoginScreen(
                         }
                     },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (identifier.isNotBlank() && password.isNotBlank()) {
+                                localErrorMsg = null
+                                viewModel.login(identifier, password)
+                            }
+                        }
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(passwordFocusRequester),
+                        .focusRequester(passwordFocusRequester)
+                        .onGloballyPositioned { passwordAutofillNode.boundingBox = it.boundsInWindow() }
+                        .onFocusChanged {
+                            if (it.isFocused) autofill?.requestAutofillForNode(passwordAutofillNode)
+                            else autofill?.cancelAutofillForNode(passwordAutofillNode)
+                        },
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Google Password Manager 1-Tap Trigger Chip
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (activity != null) {
+                                coroutineScope.launch {
+                                    viewModel.googlePasswordManager.getSavedCredentials(activity) { savedUser, savedPass ->
+                                        identifier = savedUser
+                                        password = savedPass
+                                    }
+                                }
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Autofill with Google Password Manager",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // Sign In Button
                 Button(
@@ -449,7 +577,7 @@ fun LoginScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // Footer Options
                 TextButton(

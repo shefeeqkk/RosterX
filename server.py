@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.23.5"
+SERVER_VERSION = "1.23.6"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2122,6 +2122,26 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # REST API Endpoints (/api/*)
         if norm_path.startswith("/api/"):
             self.handle_api_get(norm_path)
+            return
+
+        # Digital Asset Links for Google Password Manager & Android App Links
+        if clean_path in ("/.well-known/assetlinks.json", "/.well-known/assetlinks.json/"):
+            assetlinks_data = [
+                {
+                    "relation": [
+                        "delegate_permission/common.handle_all_urls",
+                        "delegate_permission/common.get_login_creds"
+                    ],
+                    "target": {
+                        "namespace": "android_app",
+                        "package_name": "com.rosterx",
+                        "sha256_cert_fingerprints": [
+                            "EA:81:06:66:4C:EF:E8:51:FD:1B:54:17:D1:77:DD:E6:EB:83:FF:AA:9B:DA:D9:17:33:F5:CC:1D:51:0B:43:7D"
+                        ]
+                    }
+                }
+            ]
+            self.send_json_response(assetlinks_data)
             return
 
         # Security Guards: Block .env and dotfiles

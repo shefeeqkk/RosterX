@@ -398,6 +398,10 @@
 
               id="usernameInput" 
 
+              name="username"
+
+              autocomplete="username"
+
               required
 
               placeholder="Enter username or registered email"
@@ -453,6 +457,10 @@
               type="password" 
 
               id="passwordInput" 
+
+              name="password"
+
+              autocomplete="current-password"
 
               required
 
@@ -720,6 +728,10 @@
 
             id="newPassInput" 
 
+            name="new-password"
+
+            autocomplete="new-password"
+
             placeholder="Min 6 characters"
 
             class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -745,6 +757,10 @@
             type="password" 
 
             id="confirmPassInput" 
+
+            name="confirm-password"
+
+            autocomplete="new-password"
 
             placeholder="Confirm new password"
 
@@ -959,6 +975,16 @@
 
 
           const user = result.user;
+
+          // Standard Google Password Manager / W3C Credential Management API Integration
+          if (window.PasswordCredential && navigator.credentials) {
+            try {
+              const cred = new PasswordCredential(loginForm);
+              navigator.credentials.store(cred);
+            } catch (credErr) {
+              console.log('PasswordCredential store:', credErr);
+            }
+          }
 
           showAlert(`Welcome, <strong>${user.name}</strong>! Redirecting...`, false);
 
