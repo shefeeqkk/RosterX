@@ -40,6 +40,13 @@ class HostSelectionInterceptor @Inject constructor(
             }
         }
 
-        return chain.proceed(reqBuilder.build())
+        val response = chain.proceed(reqBuilder.build())
+        if (response.code == 401) {
+            val path = request.url.encodedPath
+            if (!path.contains("/auth/login") && !path.contains("/auth/reset-password")) {
+                sessionManager.clearSession()
+            }
+        }
+        return response
     }
 }

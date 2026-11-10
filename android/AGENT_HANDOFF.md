@@ -1,40 +1,49 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Synced by Dasan:* **2026-11-10 18:48 IST** 🕵️‍♂️⚡🌴
+> *Last Synced by Dasan:* **2026-11-10 20:00 IST** 🕵️‍♂️⚡🌴
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.23.7`** (Android `versionCode: 86`, Server `SERVER_VERSION = "1.23.7"`)
-- **Previous Versions**: `1.23.6` (Build 85), `1.23.5` (Build 84), `1.23.4` (Build 83), `1.23.3` (Build 82)
+- **Semantic Version**: **`1.23.10`** (Android `versionCode: 89`, Server `SERVER_VERSION = "1.23.10"`)
+- **Previous Versions**: `1.23.9` (Build 88), `1.23.8` (Build 87), `1.23.7` (Build 86), `1.23.6` (Build 85)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
-- **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Storage: ~954 KB, Collections: 9 active, 215 docs)
+- **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`)
 - **Target Device (Tailscale IP)**: `100.71.241.36:5555` (Connected & Verified)
 
 ---
 
-## 🚀 Major Upgrades in v1.23.7 (Build 86)
+## 🚀 Solved in v1.23.10 (Build 89)
 
-### 1. 🔑 Native Google Password Manager & Save Dialog Resolution
-- **Removed Redundant Autofill Button**: Eliminated the non-standard "Autofill with Google Password Manager" chip button from `LoginScreen.kt`. The login screen is now clean and standard.
-- **Deferred Navigation for Save Prompt**:
-  - Previously, `sessionManager.setCurrentUser` was called immediately on network success, instantly unmounting `LoginScreen` and navigating to Dashboard before Google Play Services could attach the "Save password to Google?" bottom sheet dialog.
-  - Now, navigation is cleanly deferred until after `googlePasswordManager.saveCredentials(activity, ...)` presents the save dialog and the user interacts with it (Save/Never/Dismiss).
-- **Explicit Autofill Session Commit**:
-  - Added `autofillManager.commit()` via `activity.getSystemService(AutofillManager::class.java)` upon successful credential submission.
-  - Fixes Google Play Services One-Tap skipping error `[28431] Skipping password saving since the user is likely prompted with Android Autofill`.
-- **Keyboard & Field Autofill**:
-  - Native Compose text fields maintain `AutofillType.Username` and `AutofillType.Password`.
-  - When the user taps the fields, Gboard / system autofill bar suggests saved accounts right above the keyboard.
+### 1. 🛡️ Complete Elimination of 401 Sign-Out Loop Error
+- **Root Cause Isolated**:
+  - When signing out, `sessionManager.clearSession()` cleared `auth_token`.
+  - However, because `LoginViewModel` retained `loginSuccess = true` from the initial session, returning to `LoginScreen` immediately triggered `completeLogin()` which cached `saved_user` into SharedPreferences *without* a token.
+  - Furthermore, `loadSavedUser()` previously loaded user profiles even when `auth_token` was null, leading `MainActivity` to navigate to `EngineerPortalScreen` with an unauthenticated session, resulting in a persistent 401 Unauthorized (`"Authentication required. Please log in."`) error screen.
+- **The Fix**:
+  - `UserSessionManager`: `loadSavedUser()` strictly returns `null` if `auth_token` is null or empty.
+  - `HostSelectionInterceptor`: Intercepts any 401 HTTP response on authenticated endpoints and immediately calls `sessionManager.clearSession()`.
+  - `EngineerPortalViewModel`: Resets session and state upon receiving a 401 error.
+  - `LoginViewModel`: Cleanly resets `loginSuccess = false`, `lastSuccessCredentials = null`, and `loggedInEngineer = null` on logout and on `LoginScreen` mount.
+  - **Result**: Tapping "Sign Out" now lands cleanly on `LoginScreen` with empty fields and no errors.
+
+### 2. 🔑 Google Password Manager "Save password to Google?" Fixed
+- **Root Cause Isolated**:
+  - When the soft keyboard was active, Credential Manager's One-Tap save prompt was suppressed or backed down with `[28431] Skipping password saving since the user is likely prompted with Android Autofill`.
+  - Single-Activity Compose architecture never called `AutofillManager.commit()`, so system autofill never received the trigger to show its save sheet.
+- **The Fix**:
+  - `LoginScreen.kt`: On successful credential verification, soft keyboard is dismissed with `keyboardController?.hide()`, `AutofillManager.commit()` is explicitly dispatched to Android OS, and a brief 250ms settle delay precedes the Google Credential Manager `CreatePasswordRequest`.
+  - Canonical username (`shefeeqkk`) is used for the save request.
+  - **Live Verification**: User confirmed: *"logged in now asking the prompt"* on physical device `100.71.241.36:5555`.
 
 ---
 
 ## 🛠️ Build & Verification
-- Cleanly compiled via `safe_build.bat assembleDebug` (Build successful in 4m 55s, lock released).
-- Successfully stream-installed onto physical device `100.71.241.36:5555` via ADB (`Performing Streamed Install -> Success`).
-- Verified live screen via ADB screenshot `login_v1237.png`.
+- Compiled via `safe_build.bat assembleDebug` (Build successful).
+- Stream-installed onto physical device `100.71.241.36:5555` via ADB (`Performing Streamed Install -> Success`).
+- Successfully authenticated `shefeeqkk` / `Shefeeq@123` directly on device, verified full Dashboard load, and verified clean Sign Out.

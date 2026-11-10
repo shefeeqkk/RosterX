@@ -9,12 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.rosterx.data.local.AppThemeMode
 import com.rosterx.data.local.UserSessionManager
 
-import com.rosterx.domain.model.Engineer
-import com.rosterx.domain.model.ShiftCode
-import com.rosterx.domain.model.isManagementAccount
-import com.rosterx.domain.model.isEligibleForShiftRoster
-import com.rosterx.domain.model.isEligibleForMonthRoster
-import com.rosterx.presentation.components.toProperCase
+import com.rosterx.domain.model.*
+import com.rosterx.presentation.components.*
 
 import com.rosterx.domain.repository.RosterRepository
 
@@ -219,10 +215,14 @@ class EngineerPortalViewModel @Inject constructor(
 
             // If connection failed immediately, abort loading logic to clear spinner faster
             if (engineersResult.isFailure) {
+                val errorMsg = engineersResult.exceptionOrNull()?.message ?: "Failed to connect to backend server."
+                if (errorMsg.contains("Authentication required", ignoreCase = true) || errorMsg.contains("401", ignoreCase = true)) {
+                    sessionManager.clearSession()
+                }
                 _state.value = _state.value.copy(
                     isLoading = false,
                     isConnected = false,
-                    errorMessage = engineersResult.exceptionOrNull()?.message ?: "Failed to connect to backend server."
+                    errorMessage = errorMsg
                 )
                 return@launch
             }
@@ -708,7 +708,12 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     fun logout() {
-        _state.value = _state.value.copy(assistantMessages = emptyList(), isAssistantOpen = false)
+        _state.value = _state.value.copy(
+            loggedInEngineer = null,
+            assistantMessages = emptyList(),
+            isAssistantOpen = false,
+            errorMessage = null
+        )
         sessionManager.clearSession()
     }
 
@@ -942,6 +947,26 @@ class EngineerPortalViewModel @Inject constructor(
             }
         }
         return null
+    }
+
+    private fun String.toProperCase(): String {
+        val clean = this.trim()
+        if (clean.isBlank()) return clean
+        return clean.split(" ")
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { word ->
+                if (word.length == 1) word.uppercase()
+                else word.lowercase().replaceFirstChar { it.uppercase() }
+            }
+    }
+
+    private fun Engineer.isEligibleForShiftRoster(date: LocalDate): Boolean {
+        val uname = username.trim().lowercase()
+        val n = name.trim().lowercase()
+        if (uname in setOf("shefeeqkk", "shefeeq", "athulka")) return true
+        if (role == EngineerRole.MANAGER) return false
+        if (uname in setOf("admin", "manager", "sysadmin", "system_admin", "administrator") || n.contains("system admin")) return false
+        return status != EngineerStatus.RESIGNED
     }
 }
 

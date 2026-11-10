@@ -65,6 +65,8 @@ class UserSessionManager @Inject constructor(
     }
 
     private fun loadSavedUser(): Engineer? {
+        val token = prefs.getString("auth_token", null)
+        if (token.isNullOrBlank()) return null
         val json = prefs.getString("saved_user", null) ?: return null
         return try {
             val user = gson.fromJson(json, Engineer::class.java)
@@ -141,7 +143,7 @@ class UserSessionManager @Inject constructor(
     }
 
     fun hasSavedSession(): Boolean {
-        return loadSavedUser() != null
+        return !getAuthToken().isNullOrBlank() && loadSavedUser() != null
     }
 
     companion object {

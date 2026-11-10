@@ -90,7 +90,16 @@ class LoginViewModel @Inject constructor(
     }
 
     fun completeLogin(engineer: Engineer) {
+        _state.value = _state.value.copy(
+            loginSuccess = false,
+            lastSuccessCredentials = null,
+            loggedInEngineer = null
+        )
         sessionManager.setCurrentUser(engineer)
+    }
+
+    fun resetLoginState() {
+        _state.value = LoginState()
     }
 
     fun sendOtp(identifier: String) {
