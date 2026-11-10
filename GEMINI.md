@@ -8,25 +8,38 @@ Whenever performing modifications and applying changes to this project:
 
 ### Files to Update on Every Version Change:
 1. Android project: `android/app/build.gradle.kts`:
-   - `versionName`: update string to match semantic version (currently `"1.1.0"`).
-   - `versionCode`: increment integer by +1 (currently `3`).
-2. Server backend: `server.py` (`SERVER_VERSION = "1.1.0"`).
+   - `versionName`: update string to match semantic version (e.g., `"1.23.3"`).
+   - `versionCode`: increment integer by +1 (e.g., `82`).
+2. Server backend: `server.py` (`SERVER_VERSION = "1.23.3"`).
 3. Cloudflare tunnel sync: `android/app/src/main/assets/server_url.txt` and `public_tunnel_url.txt`.
 
-## 🔄 Two-Way Agent Synchronization ("Aunty" & "Kunjappan")
+## 🔄 Multi-Conversation Antigravity Synchronization ("Dasan" & "Vijayan")
 
-### 🤖 Agent Nicknames:
-- **Aunty** (👵/⚡) = Antigravity Agent (You!)
-- **Kunjappan** (🤖) = Android Studio Mobile Agent
+### 🤖 Agent Identities:
+- **Dasan** (🕵️‍♂️) = Primary Antigravity Agent (Core Orchestrator, Backend, Server Infrastructure & Build Lead)
+- **Vijayan** (🕵️) = Parallel Antigravity Agent (UI Specialist, Jetpack Compose, Features & Web Portal)
+*(Note: "Aunty" & "Kunjappan" are deprecated as development is executed entirely inside Antigravity).*
 
 ### ⚡ Shortcut Commands:
 Whenever the user types:
-- **`Tell Kunjappan`**, **`Brief Kunjappan`**, **`Connect to Kunjappan`**, or **`Hey Aunty, sync with Kunjappan`**:
-  👉 **Mandatory Action**: Immediately summarize recent backend changes, endpoints, version bumps, and pending mobile tasks directly into [`android/AGENT_HANDOFF.md`](./android/AGENT_HANDOFF.md) and confirm in a witty Aunty style!
+- **`Tell Vijayan`**, **`Brief Vijayan`**, **`Connect to Vijayan`**, or **`Hey Dasan, sync with Vijayan`**:
+  👉 **Mandatory Action**: Immediately summarize recent backend/system changes, endpoints, version bumps, and pending tasks directly into [`android/AGENT_HANDOFF.md`](./android/AGENT_HANDOFF.md) and [`AGENT_HANDOFF.md`](./AGENT_HANDOFF.md) in a sharp, witty Dasan detective style!
+- **`Tell Dasan`**, **`Brief Dasan`**, or **`Sync with Dasan`**:
+  👉 **Mandatory Action**: Summarize latest UI/client tasks and state into the handoff file in Vijayan style!
 
 ### ⚙️ Nickname Customization (Internal to IDE only):
 - Nicknames are defined in [`.agents/agent_config.json`](./.agents/agent_config.json).
-- If the user asks to change or rename either agent (e.g., *"Rename Aunty to Jarvis"* or *"Change Kunjappan to Friday"*):
-  1. Update the `default_name` and `aliases` in [`.agents/agent_config.json`](./.agents/agent_config.json) and both `GEMINI.md` files.
+- If the user asks to change or rename agents:
+  1. Update `default_name` and `aliases` in [`.agents/agent_config.json`](./.agents/agent_config.json) and both `GEMINI.md` files.
   2. Adopt the new names immediately in subsequent conversations.
   3. **Strict Boundary**: This is strictly an IDE-internal developer workflow. Never expose these agent nicknames in user-facing web pages, client portals, or Android mobile screens.
+
+## 🛡️ Multi-Agent Parallel Collaboration Rules (Mandatory)
+When multiple Antigravity conversations work on this monorepo concurrently:
+1. **Never run raw `./gradlew` commands**:
+   - Always run via `cd android && .\safe_build.bat assembleDebug` (which enforces the `build.lock` mutex, preventing corrupted daemons and build collisions).
+2. **Git Pre-Flight Sync**:
+   - Always run `git status` before editing. Never overwrite uncommitted work from a parallel agent.
+3. **Atomic Commits**:
+   - Commit changes immediately upon verification with semantic version bumps.
+4. **Follow Guidelines in [`.agents/AGENT_COLLABORATION_PROTOCOL.md`](./.agents/AGENT_COLLABORATION_PROTOCOL.md)**.

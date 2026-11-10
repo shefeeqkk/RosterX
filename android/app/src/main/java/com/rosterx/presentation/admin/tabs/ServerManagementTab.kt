@@ -1,18 +1,27 @@
 package com.rosterx.presentation.admin.tabs
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +40,12 @@ import androidx.compose.ui.unit.sp
 import com.rosterx.BuildConfig
 import com.rosterx.presentation.admin.AdminRosterState
 import com.rosterx.util.NetworkUtils
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 @Composable
 fun ServerManagementTab(
@@ -420,73 +435,191 @@ fun ServerManagementTab(
             }
         }
 
-        // 3. Terminal Log Viewer (Dynamic real server logs)
+        // 3. Terminal Log Viewer (Collapsible Dynamic real server logs)
         item {
+            var isTerminalExpanded by rememberSaveable { mutableStateOf(false) }
+
+            // Active live stream polling: ONLY runs while expanded, cancelled immediately when collapsed
+            LaunchedEffect(isTerminalExpanded) {
+                if (isTerminalExpanded) {
+                    while (isActive) {
+                        onRefreshLogs()
+                        delay(2000L)
+                    }
+                }
+            }
+
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = Color(0xFF0F172A),
                 border = BorderStroke(1.dp, Color(0xFF1E293B)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Header Row (Clickable to Toggle Collapse/Expand)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { isTerminalExpanded = !isTerminalExpanded }
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("TERMINAL LOG VIEWER", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
-                            Spacer(modifier = Modifier.width(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Code,
+                                contentDescription = null,
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                "TERMINAL LOG VIEWER",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38BDF8)
+                            )
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFF0284C7).copy(alpha = 0.25f)
+                                color = if (isTerminalExpanded) Color(0xFF0284C7).copy(alpha = 0.25f) else Color(0xFF334155).copy(alpha = 0.4f)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    if (isTerminalExpanded) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(Color(0xFF10B981))
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+                                    Text(
+                                        text = if (isTerminalExpanded) "LIVE STREAM" else "PAUSED",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isTerminalExpanded) Color(0xFF38BDF8) else Color(0xFF94A3B8)
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "IST (12H)",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF64748B)
+                            )
+                            Icon(
+                                imageVector = if (isTerminalExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (isTerminalExpanded) "Collapse" else "Expand",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Collapsible Content
+                    AnimatedVisibility(
+                        visible = isTerminalExpanded,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                        ) {
+                            HorizontalDivider(color = Color(0xFF1E293B))
+
+                            val displayLogs = remember(state.serverLogs) {
+                                if (state.serverLogs.isNotEmpty()) {
+                                    state.serverLogs
+                                } else {
+                                    listOf(
+                                        "[SYSTEM] RosterX Terminal Log Initialized",
+                                        "[ATLAS DB] Connected to Cluster0 / rosterx",
+                                        "[NETWORK] Ready for incoming REST requests via Cloudflare & LAN"
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "LIVE STREAM",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF38BDF8),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    text = "Refreshing every 2s • ${displayLogs.size} logs buffered",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF64748B)
                                 )
-                            }
-                        }
 
-                        IconButton(onClick = onRefreshLogs, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Logs", tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
-                        }
-                    }
-
-                    HorizontalDivider(color = Color(0xFF1E293B))
-
-                    val displayLogs = remember(state.serverLogs) {
-                        if (state.serverLogs.isNotEmpty()) {
-                            state.serverLogs
-                        } else {
-                            listOf(
-                                "[SYSTEM] RosterX Terminal Log Initialized",
-                                "[ATLAS DB] Connected to Cluster0 / rosterx",
-                                "[NETWORK] Ready for incoming REST requests via Cloudflare & LAN"
-                            )
-                        }
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        displayLogs.takeLast(15).forEach { log ->
-                            val textColor = when {
-                                log.contains("200") || log.contains("204") -> Color(0xFF10B981) // Green
-                                log.contains("403") || log.contains("404") || log.contains("500") || log.contains("ERROR") -> Color(0xFFEF4444) // Red
-                                log.contains("GATEWAY") || log.contains("TUNNEL") -> Color(0xFFF59E0B) // Amber
-                                log.contains("SYSTEM") || log.contains("ATLAS") -> Color(0xFF38BDF8) // Cyan
-                                else -> Color(0xFF94A3B8)
+                                IconButton(
+                                    onClick = onRefreshLogs,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = "Refresh Logs Now",
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
 
-                            Text(
-                                text = log,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                color = textColor,
-                                lineHeight = 15.sp
-                            )
+                            val terminalScrollState = rememberScrollState()
+
+                            // Auto-scroll to latest log entries when logs change
+                            LaunchedEffect(displayLogs.size) {
+                                terminalScrollState.animateScrollTo(terminalScrollState.maxValue)
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF090D16),
+                                border = BorderStroke(1.dp, Color(0xFF1E293B)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 280.dp)
+                                        .verticalScroll(terminalScrollState)
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    displayLogs.takeLast(50).forEach { rawLog ->
+                                        val formattedLog = formatLogToLocal12Hour(rawLog)
+                                        val textColor = when {
+                                            formattedLog.contains("200") || formattedLog.contains("204") -> Color(0xFF10B981) // Green
+                                            formattedLog.contains("403") || formattedLog.contains("404") || formattedLog.contains("500") || formattedLog.contains("ERROR") -> Color(0xFFEF4444) // Red
+                                            formattedLog.contains("GATEWAY") || formattedLog.contains("TUNNEL") -> Color(0xFFF59E0B) // Amber
+                                            formattedLog.contains("SYSTEM") || formattedLog.contains("ATLAS") -> Color(0xFF38BDF8) // Cyan
+                                            else -> Color(0xFF94A3B8)
+                                        }
+
+                                        Text(
+                                            text = formattedLog,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 11.sp,
+                                            color = textColor,
+                                            lineHeight = 15.sp
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -644,5 +777,64 @@ fun SpecDetailRow(label: String, value: String) {
             modifier = Modifier.weight(1f).padding(start = 12.dp)
         )
     }
+}
+
+/**
+ * Parses timestamps in log lines (e.g., UTC [HH:mm:ss] or [YYYY-MM-DD HH:mm:ss]) and formats
+ * them into 12-hour format with AM/PM according to the device's local timezone (IST in India).
+ */
+fun formatLogToLocal12Hour(log: String): String {
+    val trimmed = log.trim()
+
+    // 1. If already 12-hour format like [11:31:07 AM] or [11:31:07 PM]
+    val already12Hour = Regex("^\\[(\\d{1,2}:\\d{2}:\\d{2}\\s*(?:AM|PM|am|pm))\\](.*)")
+    if (already12Hour.find(trimmed) != null) return trimmed
+
+    // 2. 24-hour timestamp like [HH:mm:ss] (assumed UTC from Render server environment)
+    val time24Pattern = Regex("^\\[(\\d{2}):(\\d{2}):(\\d{2})\\](.*)")
+    val match24 = time24Pattern.find(trimmed)
+    if (match24 != null) {
+        return try {
+            val (hStr, mStr, sStr, rest) = match24.destructured
+            val h = hStr.toInt()
+            val m = mStr.toInt()
+            val s = sStr.toInt()
+
+            val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                set(Calendar.HOUR_OF_DAY, h)
+                set(Calendar.MINUTE, m)
+                set(Calendar.SECOND, s)
+            }
+            val localFormat = SimpleDateFormat("hh:mm:ss a", Locale.getDefault()).apply {
+                timeZone = TimeZone.getDefault()
+            }
+            "[" + localFormat.format(utcCal.time) + "]" + rest
+        } catch (_: Exception) {
+            trimmed
+        }
+    }
+
+    // 3. Full datetime timestamp like [YYYY-MM-DD HH:mm:ss]
+    val dateTimePattern = Regex("^\\[(\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})\\](.*)")
+    val matchDT = dateTimePattern.find(trimmed)
+    if (matchDT != null) {
+        return try {
+            val (dtStr, rest) = matchDT.destructured
+            val utcFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = utcFormat.parse(dtStr)
+            if (date != null) {
+                val localFormat = SimpleDateFormat("hh:mm:ss a", Locale.getDefault()).apply {
+                    timeZone = TimeZone.getDefault()
+                }
+                "[" + localFormat.format(date) + "]" + rest
+            } else trimmed
+        } catch (_: Exception) {
+            trimmed
+        }
+    }
+
+    return trimmed
 }
 
