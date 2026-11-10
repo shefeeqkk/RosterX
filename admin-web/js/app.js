@@ -1176,7 +1176,10 @@ class RosterXApp {
       const statusColor = eng.status === 'Active' 
         ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' 
         : 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700';
-      const offs = Array.isArray(eng.default_weekly_offs) ? eng.default_weekly_offs.join(', ') : 'Sat, Sun';
+      const isShiftStaff = eng.role !== 'admin' && eng.role !== 'manager';
+      const offsText = isShiftStaff 
+        ? `Weekly Offs: ${Array.isArray(eng.default_weekly_offs) && eng.default_weekly_offs.length ? eng.default_weekly_offs.join(', ') : 'None'}` 
+        : 'Non-Shift Operations';
       card.innerHTML = `
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-black flex items-center justify-center text-xs overflow-hidden shrink-0">
@@ -1188,7 +1191,7 @@ class RosterXApp {
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleColor} uppercase">${this.escapeHtml(eng.role || 'engineer')}</span>
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}">${this.escapeHtml(eng.status || 'Active')}</span>
             </div>
-            <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">@${this.escapeHtml(eng.username || eng.name?.toLowerCase().replace(/\\s+/g, '') || '')} • Weekly Offs: ${this.escapeHtml(offs)}</div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">@${this.escapeHtml(eng.username || eng.name?.toLowerCase().replace(/\\s+/g, '') || '')} • ${this.escapeHtml(offsText)}</div>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -1441,6 +1444,20 @@ class RosterXApp {
     this.dom.formEngOff1 = document.getElementById('formEngOff1');
 
     this.dom.formEngOff2 = document.getElementById('formEngOff2');
+    this.dom.formEngOffsContainer = document.getElementById('formEngOffsContainer');
+
+    if (this.dom.formEngRole) {
+      this.dom.formEngRole.addEventListener('change', () => {
+        const r = (this.dom.formEngRole.value || '').toLowerCase();
+        if (this.dom.formEngOffsContainer) {
+          if (r === 'admin' || r === 'manager') {
+            this.dom.formEngOffsContainer.classList.add('hidden');
+          } else {
+            this.dom.formEngOffsContainer.classList.remove('hidden');
+          }
+        }
+      });
+    }
 
     this.dom.formEngPassword = document.getElementById('formEngPassword');
 
@@ -4101,6 +4118,15 @@ class RosterXApp {
 
       this.dom.formEngOff2.value = offs[1] || 'Sunday';
 
+      if (this.dom.formEngOffsContainer) {
+        const r = (eng.role || 'engineer').toLowerCase();
+        if (r === 'admin' || r === 'manager') {
+          this.dom.formEngOffsContainer.classList.add('hidden');
+        } else {
+          this.dom.formEngOffsContainer.classList.remove('hidden');
+        }
+      }
+
       if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.remove('hidden');
 
     } else {
@@ -4109,6 +4135,10 @@ class RosterXApp {
       if (modalSubtitleEl) modalSubtitleEl.textContent = 'Create new engineer, manager, or admin credential profile';
 
       this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-user-plus text-blue-600"></i> Register New Account`;
+
+      if (this.dom.formEngOffsContainer) {
+        this.dom.formEngOffsContainer.classList.remove('hidden');
+      }
 
       if (this.dom.formEngPasswordLabel) this.dom.formEngPasswordLabel.textContent = 'Initial Password *:';
 
@@ -4376,6 +4406,9 @@ class RosterXApp {
     const resolvedUsername = username || (editingUser && editingUser.username) || name.toLowerCase().replace(/[\s\W]+/g, '');
     const oldUsername = (editingUser && editingUser.username) ? editingUser.username.trim().toLowerCase() : null;
 
+    const isLeadership = (role === 'admin' || role === 'manager');
+    const resolvedOffs = isLeadership ? [] : [off1, off2];
+
     const engData = {
       name,
       full_name: fullName,
@@ -4384,7 +4417,7 @@ class RosterXApp {
       phone,
       role,
       status,
-      default_weekly_offs: [off1, off2],
+      default_weekly_offs: resolvedOffs,
       join_date: joinDate,
       birthday: birthday,
       resignation_date: resignDate,
@@ -4411,7 +4444,7 @@ class RosterXApp {
           this.state.gridRoster[gridIdx].name = name;
           this.state.gridRoster[gridIdx].status = status;
           this.state.gridRoster[gridIdx].role = role;
-          this.state.gridRoster[gridIdx].default_weekly_offs = [off1, off2];
+          this.state.gridRoster[gridIdx].default_weekly_offs = resolvedOffs;
         } else if (status === 'Active') {
 
           this.state.gridRoster.push({
@@ -4426,7 +4459,7 @@ class RosterXApp {
 
             role,
 
-            default_weekly_offs: [off1, off2]
+            default_weekly_offs: resolvedOffs
 
           });
 
