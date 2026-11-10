@@ -77,7 +77,10 @@ data class AdminRosterState(
     val notificationActionMessage: String? = null,
     val isAssistantOpen: Boolean = false,
     val isAssistantThinking: Boolean = false,
-    val assistantMessages: List<com.rosterx.presentation.components.AssistantChatMessage> = emptyList()
+    val assistantMessages: List<com.rosterx.presentation.components.AssistantChatMessage> = emptyList(),
+    val telemetry: com.rosterx.data.remote.ServerTelemetryDataDto = com.rosterx.data.remote.ServerTelemetryDataDto(),
+    val isTelemetryLoading: Boolean = false,
+    val analyticsSummary: com.rosterx.analytics.FirebaseAnalyticsSummary = com.rosterx.analytics.FirebaseAnalyticsSummary()
 )
 
 
@@ -108,6 +111,7 @@ class AdminRosterViewModel @Inject constructor(
 
     init {
         checkConnection()
+        refreshTelemetry()
         loadData()
         loadNotifications()
         viewModelScope.launch {
@@ -115,6 +119,30 @@ class AdminRosterViewModel @Inject constructor(
                 if (user == null) {
                     clearAssistantChat()
                 }
+            }
+        }
+        viewModelScope.launch {
+            analyticsManager.summaryState.collect { summary ->
+                _state.value = _state.value.copy(analyticsSummary = summary)
+            }
+        }
+    }
+
+    fun refreshTelemetry() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isTelemetryLoading = true)
+            val result = repository.getServerTelemetry()
+            result.onSuccess { data ->
+                _state.value = _state.value.copy(
+                    telemetry = data,
+                    isTelemetryLoading = false,
+                    isConnected = true,
+                    clusterName = if (data.atlas.cluster.isNotBlank()) "${data.atlas.cluster} (M0)" else _state.value.clusterName,
+                    databaseName = if (data.atlas.database.isNotBlank()) data.atlas.database else _state.value.databaseName,
+                    latencyMs = if (data.atlas.pingMs > 0) data.atlas.pingMs else _state.value.latencyMs
+                )
+            }.onFailure {
+                _state.value = _state.value.copy(isTelemetryLoading = false)
             }
         }
     }
@@ -183,6 +211,7 @@ class AdminRosterViewModel @Inject constructor(
 
     fun loadData(silent: Boolean = false) {
         checkConnection()
+        refreshTelemetry()
         viewModelScope.launch {
             val monthKey = String.format(Locale.US, "%d-%02d", _state.value.currentYear, _state.value.currentMonth)
             val cachedRoster = rosterCache[monthKey]

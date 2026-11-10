@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.23.4"
+SERVER_VERSION = "1.23.5"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2253,8 +2253,54 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         collection_counts["audit_logs"] = ATLAS_DB["audit_logs"].count_documents({})
                     if "operational_policies" in ATLAS_DB.list_collection_names():
                         collection_counts["operational_policies"] = ATLAS_DB["operational_policies"].count_documents({})
+                    if "notifications" in ATLAS_DB.list_collection_names():
+                        collection_counts["notifications"] = ATLAS_DB["notifications"].count_documents({})
                 except Exception as e:
                     print(f"  [TELEMETRY SERVER COUNTS ERROR] {e}")
+
+            db_storage_stats = {
+                "storage_size_bytes": 0,
+                "data_size_bytes": 0,
+                "index_size_bytes": 0,
+                "total_size_bytes": 0,
+                "storage_size_formatted": "0 KB",
+                "data_size_formatted": "0 KB",
+                "index_size_formatted": "0 KB",
+                "total_size_formatted": "0 KB",
+                "objects_count": 0,
+                "collections_count": len(collection_counts)
+            }
+            if ATLAS_DB is not None:
+                try:
+                    stats = ATLAS_DB.command("dbStats")
+                    data_bytes = int(stats.get("dataSize", 0))
+                    storage_bytes = int(stats.get("storageSize", 0))
+                    index_bytes = int(stats.get("indexSize", 0))
+                    total_bytes = storage_bytes + index_bytes
+                    objects_cnt = int(stats.get("objects", 0))
+                    collections_cnt = int(stats.get("collections", len(collection_counts)))
+
+                    def format_bytes(b):
+                        if b >= 1024 * 1024:
+                            return f"{b / (1024 * 1024):.2f} MB"
+                        elif b >= 1024:
+                            return f"{b / 1024:.1f} KB"
+                        return f"{b} B"
+
+                    db_storage_stats = {
+                        "storage_size_bytes": storage_bytes,
+                        "data_size_bytes": data_bytes,
+                        "index_size_bytes": index_bytes,
+                        "total_size_bytes": total_bytes,
+                        "storage_size_formatted": format_bytes(storage_bytes),
+                        "data_size_formatted": format_bytes(data_bytes),
+                        "index_size_formatted": format_bytes(index_bytes),
+                        "total_size_formatted": format_bytes(total_bytes),
+                        "objects_count": objects_cnt,
+                        "collections_count": collections_cnt
+                    }
+                except Exception as e:
+                    print(f"  [TELEMETRY DBSTATS ERROR] {e}")
 
             mem_mb = get_memory_rss_mb()
 
@@ -2273,7 +2319,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "cluster": ATLAS_CLUSTER,
                         "database": ATLAS_DB_NAME,
                         "ping_ms": latency_ms,
-                        "collections": collection_counts
+                        "collections": collection_counts,
+                        "storage": db_storage_stats
+                    },
+                    "render": {
+                        "service_name": "rosterx-backend",
+                        "status": "Healthy (Live)",
+                        "deployed_url": "https://rosterx-vc30.onrender.com",
+                        "custom_domain": "https://api.rosterx.online",
+                        "is_render_cloud": bool(os.environ.get("RENDER")),
+                        "ssl_active": True
                     },
                     "memory_rss_mb": mem_mb,
                     "network": {

@@ -90,6 +90,12 @@ class UserSessionManager @Inject constructor(
         val normalized = user.copy(name = proper, fullName = proper, phone = safePhone)
         _currentUser.value = normalized
         prefs.edit().putString("saved_user", gson.toJson(normalized)).apply()
+
+        try {
+            com.rosterx.widget.RosterXAppWidgetProvider.onUserLoggedIn(context, normalized)
+        } catch (e: Throwable) {
+            android.util.Log.e("UserSessionManager", "Failed to notify widget on login", e)
+        }
     }
 
     fun updateCurrentUserProfilePicture(picture: String?) {
@@ -126,6 +132,12 @@ class UserSessionManager @Inject constructor(
             .remove("saved_user")
             .remove("auth_token")
             .apply()
+
+        try {
+            com.rosterx.widget.RosterXAppWidgetProvider.clearWidgetData(context)
+        } catch (e: Throwable) {
+            android.util.Log.e("UserSessionManager", "Failed to clear widget on logout", e)
+        }
     }
 
     fun hasSavedSession(): Boolean {

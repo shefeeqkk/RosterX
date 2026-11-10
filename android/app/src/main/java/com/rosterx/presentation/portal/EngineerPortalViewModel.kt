@@ -501,30 +501,35 @@ class EngineerPortalViewModel @Inject constructor(
                     entry.value.mapValues { it.value.code }
                 }
 
-                // 1. Always save team duty roster and full dataset for Operations Radar widget
-                com.rosterx.widget.RosterXAppWidgetProvider.saveManagerDutyRoster(
-                    context = context,
-                    managerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
-                    dateFormatted = dateFormatted,
-                    dutyList = finalWidgetList,
-                    summaryText = summaryStr,
-                    fullRoster = fullStringRoster,
-                    yesterdayRoster = yesterdayStringRoster,
-                    engineers = activeEngineers,
-                    monthKey = liveMonthKey
-                )
+                val isManagerRole = currentEng.role == com.rosterx.domain.model.EngineerRole.MANAGER ||
+                                     currentEng.role == com.rosterx.domain.model.EngineerRole.ADMIN
 
-                // 2. Always save logged-in user's individual shift schedule for Personal widget
-                val engShifts = findShiftMap(currentEng, effectiveLive) ?: emptyMap()
-                if (engShifts.isNotEmpty()) {
-                    val stringMap = engShifts.mapValues { it.value.code }
-                    com.rosterx.widget.RosterXAppWidgetProvider.saveWidgetData(
+                if (isManagerRole) {
+                    // 1. Save team duty roster and full dataset for Operations Radar widget
+                    com.rosterx.widget.RosterXAppWidgetProvider.saveManagerDutyRoster(
                         context = context,
-                        engineerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
-                        shiftsMap = stringMap,
-                        monthKey = liveMonthKey,
-                        keepManagerMode = true
+                        managerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
+                        dateFormatted = dateFormatted,
+                        dutyList = finalWidgetList,
+                        summaryText = summaryStr,
+                        fullRoster = fullStringRoster,
+                        yesterdayRoster = yesterdayStringRoster,
+                        engineers = activeEngineers,
+                        monthKey = liveMonthKey
                     )
+                } else {
+                    // 2. Engineer: Save logged-in user's individual shift schedule for Personal widget (Strict Role-Based)
+                    val engShifts = findShiftMap(currentEng, effectiveLive) ?: emptyMap()
+                    if (engShifts.isNotEmpty()) {
+                        val stringMap = engShifts.mapValues { it.value.code }
+                        com.rosterx.widget.RosterXAppWidgetProvider.saveWidgetData(
+                            context = context,
+                            engineerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
+                            shiftsMap = stringMap,
+                            monthKey = liveMonthKey,
+                            keepManagerMode = false
+                        )
+                    }
                 }
             }
 

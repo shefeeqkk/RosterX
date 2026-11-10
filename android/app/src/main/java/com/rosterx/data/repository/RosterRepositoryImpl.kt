@@ -254,19 +254,25 @@ class RosterRepositoryImpl @Inject constructor(
 
 
     override suspend fun getServerLogs(): List<String> = withContext(Dispatchers.IO) {
-
         try {
-
             val response = apiService.getServerLogs()
-
             response.logs ?: emptyList()
-
         } catch (e: Exception) {
-
             emptyList()
-
         }
+    }
 
+    override suspend fun getServerTelemetry(): Result<com.rosterx.data.remote.ServerTelemetryDataDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getServerTelemetry()
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception("Telemetry unavailable"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
 
