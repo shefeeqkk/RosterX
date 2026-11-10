@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.23.11"
+SERVER_VERSION = "1.24.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -4324,6 +4324,43 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
             daemon=True
         )
         t_email.start()
+
+    # ── Daily Celebration Cron Thread ───────────────────────────────────────
+    # Fires at 08:30 IST every day to send Birthday & Work Anniversary FCM
+    # pushes to all active engineers. Also does a startup check on boot.
+    def _daily_celebration_cron():
+        import datetime
+        ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        # Run once at startup (after a short delay to let DB connect settle)
+        time.sleep(10)
+        try:
+            check_and_trigger_celebrations()
+            log_server("[CRON] Startup celebration check complete.")
+        except Exception as _e:
+            log_server(f"[CRON] Startup check error: {_e}")
+
+        while True:
+            now_ist = datetime.datetime.now(ist_tz)
+            # Next 08:30 IST
+            target = now_ist.replace(hour=8, minute=30, second=0, microsecond=0)
+            if now_ist >= target:
+                target += datetime.timedelta(days=1)
+            sleep_secs = (target - now_ist).total_seconds()
+            log_server(f"[CRON] Next birthday/anniversary check in {int(sleep_secs//3600)}h {int((sleep_secs%3600)//60)}m (at 08:30 IST).")
+            time.sleep(max(sleep_secs, 1))
+            try:
+                triggered = check_and_trigger_celebrations(force=True)
+                if triggered:
+                    log_server(f"[CRON] 08:30 celebration cron fired — {len(triggered)} event(s) dispatched.")
+                else:
+                    log_server("[CRON] 08:30 celebration cron fired — no events today.")
+            except Exception as _ce:
+                log_server(f"[CRON] Celebration cron error: {_ce}")
+
+    t_cron = threading.Thread(target=_daily_celebration_cron, daemon=True)
+    t_cron.start()
+    log_server("[CRON] Daily birthday/anniversary cron thread started (fires at 08:30 IST).")
+    # ────────────────────────────────────────────────────────────────────────
 
     border = "=" * 68
     sub_border = "-" * 68

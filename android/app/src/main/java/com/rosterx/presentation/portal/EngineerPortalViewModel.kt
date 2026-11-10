@@ -94,7 +94,9 @@ data class PortalState(
 
     val isAssistantThinking: Boolean = false,
 
-    val assistantMessages: List<com.rosterx.presentation.components.AssistantChatMessage> = emptyList()
+    val assistantMessages: List<com.rosterx.presentation.components.AssistantChatMessage> = emptyList(),
+
+    val serverVersion: String = ""
 
 )
 
@@ -143,13 +145,21 @@ class EngineerPortalViewModel @Inject constructor(
             if (elapsed < 450) {
                 kotlinx.coroutines.delay(450 - elapsed)
             }
+            // Fetch server version from telemetry in parallel
+            val serverVer = try {
+                val telemetry = repository.getServerTelemetry()
+                telemetry.getOrNull()?.version?.let { v ->
+                    if (v.isNotBlank()) "v$v" else ""
+                } ?: ""
+            } catch (e: Exception) { "" }
             _state.value = _state.value.copy(
                 isRefreshingHealth = false,
                 isConnected = diag.isConnected,
                 latencyMs = diag.latencyMs,
                 clusterName = diag.cluster.ifBlank { "Cluster0" },
                 databaseName = diag.database.ifBlank { "rosterx" },
-                currentBaseUrl = sessionManager.getBaseUrl()
+                currentBaseUrl = sessionManager.getBaseUrl(),
+                serverVersion = serverVer
             )
         }
     }
