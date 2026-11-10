@@ -104,8 +104,19 @@ fun LoginScreen(
     LaunchedEffect(state.loginSuccess) {
         if (state.loginSuccess) {
             val creds = state.lastSuccessCredentials
+            val eng = state.loggedInEngineer
             if (activity != null && creds != null) {
+                // 1. Explicitly commit the Android OS Autofill framework session
+                try {
+                    val autofillManager = activity.getSystemService(android.view.autofill.AutofillManager::class.java)
+                    autofillManager?.commit()
+                } catch (_: Exception) {}
+
+                // 2. Launch Google Password Manager bottom sheet prompt and await user's choice
                 viewModel.googlePasswordManager.saveCredentials(activity, creds.first, creds.second)
+            }
+            if (eng != null) {
+                viewModel.completeLogin(eng)
             }
             onLoginSuccess()
         }
@@ -504,48 +515,7 @@ fun LoginScreen(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Google Password Manager 1-Tap Trigger Chip
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (activity != null) {
-                                coroutineScope.launch {
-                                    viewModel.googlePasswordManager.getSavedCredentials(activity) { savedUser, savedPass ->
-                                        identifier = savedUser
-                                        password = savedPass
-                                    }
-                                }
-                            }
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Key,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Autofill with Google Password Manager",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Sign In Button
                 Button(

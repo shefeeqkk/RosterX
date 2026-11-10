@@ -68,7 +68,6 @@ class LoginViewModel @Inject constructor(
             _state.value = _state.value.copy(isLoading = true, errorMessage = null)
             val result = repository.login(identifier, password)
             result.onSuccess { engineer ->
-                sessionManager.setCurrentUser(engineer)
                 _state.value = _state.value.copy(
                     isLoading = false,
                     loginSuccess = true,
@@ -88,6 +87,10 @@ class LoginViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun completeLogin(engineer: Engineer) {
+        sessionManager.setCurrentUser(engineer)
     }
 
     fun sendOtp(identifier: String) {
