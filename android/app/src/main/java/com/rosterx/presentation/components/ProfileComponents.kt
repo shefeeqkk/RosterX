@@ -16,7 +16,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -1423,7 +1427,7 @@ fun UnifiedEditProfileDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun QuickNotificationsBottomSheet(
     show: Boolean,
@@ -1451,19 +1455,34 @@ fun QuickNotificationsBottomSheet(
         }.filter { (id, _) -> id !in dismissedNotificationIds || id in dismissingIds }
     }
 
+    val configuration = LocalConfiguration.current
+    // Fixed height: sits strictly below the top bar (~92dp from top of screen), ensuring zero resizing/jumping when items are dismissed
+    val sheetHeight = (configuration.screenHeightDp.dp - 92.dp).coerceAtLeast(360.dp)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = NeumorphicTokens.Surface,
         tonalElevation = 6.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 6.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(NeumorphicTokens.SurfaceContrast.copy(alpha = 0.6f))
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .padding(bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .height(sheetHeight)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Header Bar
             Row(
@@ -1514,7 +1533,7 @@ fun QuickNotificationsBottomSheet(
                             val allActiveIds = activeNotifs.map { it.first }.toSet()
                             dismissingIds = dismissingIds + allActiveIds
                             coroutineScope.launch {
-                                kotlinx.coroutines.delay(320)
+                                delay(280)
                                 onClearAllNotifications()
                                 dismissingIds = dismissingIds - allActiveIds
                             }
@@ -1543,176 +1562,256 @@ fun QuickNotificationsBottomSheet(
                 thickness = 1.dp
             )
 
-            if (activeNotifs.isEmpty() || activeNotifs.all { it.first in dismissingIds }) {
-                NeumorphicCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    style = NeumorphicElevationStyle.Raised,
-                    surfaceColor = NeumorphicTokens.Surface,
-                    contentPadding = 24.dp
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+            val isListEmpty = activeNotifs.isEmpty() || activeNotifs.all { it.first in dismissingIds }
+
+            AnimatedContent(
+                targetState = isListEmpty,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(280)) togetherWith fadeOut(animationSpec = tween(200))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                label = "notification_body_transition"
+            ) { empty ->
+                if (empty) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("🎉", fontSize = 38.sp)
-                        Text(
-                            text = "No Active Notifications",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = NeumorphicTokens.TextMain
-                        )
-                        Text(
-                            text = "You're all caught up with your roster and operational briefings!",
-                            fontSize = 12.sp,
-                            color = NeumorphicTokens.TextMuted,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    activeNotifs.forEach { (notifId, notif) ->
-                        val isCelebrationNotif = notif.celebrationType != null ||
-                            notif.sender?.contains("Celebration", ignoreCase = true) == true ||
-                            notif.title?.contains("🎂") == true || notif.title?.contains("🏆") == true
-
-                        val pColor = when {
-                            isCelebrationNotif -> Color(0xFFF59E0B)
-                            notif.priority?.lowercase() == "urgent" -> Color(0xFFEF4444)
-                            notif.priority?.lowercase() == "shift_update" -> Color(0xFFF59E0B)
-                            notif.priority?.lowercase() == "broadcast" -> Color(0xFF8B5CF6)
-                            else -> Color(0xFF3B82F6)
-                        }
-
-                        val resolvedMsg = (notif.rawMessage ?: notif.samplePersonalized ?: "")
-                            .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
-                            .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
-                            .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
-
-                        AnimatedVisibility(
-                            visible = notifId !in dismissingIds && notifId !in dismissedNotificationIds,
-                            enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(250)),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { it },
-                                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
-                            ) + fadeOut(
-                                animationSpec = tween(durationMillis = 220)
-                            ) + shrinkVertically(
-                                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
-                            )
+                        NeumorphicCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            style = NeumorphicElevationStyle.Raised,
+                            surfaceColor = NeumorphicTokens.Surface,
+                            contentPadding = 24.dp
                         ) {
-                            NeumorphicCard(
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("🎉", fontSize = 40.sp)
+                                Text(
+                                    text = "No Active Notifications",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = NeumorphicTokens.TextMain
+                                )
+                                Text(
+                                    text = "You're all caught up with your roster and operational briefings!",
+                                    fontSize = 12.sp,
+                                    color = NeumorphicTokens.TextMuted,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Button(
+                                    onClick = onDismiss,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = activeAccent),
+                                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "Close",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(top = 2.dp, bottom = 12.dp)
+                    ) {
+                        items(
+                            items = activeNotifs,
+                            key = { it.first }
+                        ) { (notifId, notif) ->
+                            val isCelebrationNotif = notif.celebrationType != null ||
+                                notif.sender?.contains("Celebration", ignoreCase = true) == true ||
+                                notif.title?.contains("🎂") == true || notif.title?.contains("🏆") == true
+
+                            val pColor = when {
+                                isCelebrationNotif -> Color(0xFFF59E0B)
+                                notif.priority?.lowercase() == "urgent" -> Color(0xFFEF4444)
+                                notif.priority?.lowercase() == "shift_update" -> Color(0xFFF59E0B)
+                                notif.priority?.lowercase() == "broadcast" -> Color(0xFF8B5CF6)
+                                else -> Color(0xFF3B82F6)
+                            }
+
+                            val resolvedMsg = (notif.rawMessage ?: notif.samplePersonalized ?: "")
+                                .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
+                                .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
+                                .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                confirmValueChange = { value ->
+                                    if (value == SwipeToDismissBoxValue.EndToStart || value == SwipeToDismissBoxValue.StartToEnd) {
+                                        onDismissNotification(notifId)
+                                        true
+                                    } else false
+                                }
+                            )
+
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .then(
-                                        if (isCelebrationNotif) {
-                                            Modifier.clickable { onOpenCelebrationWishes() }
-                                        } else Modifier
-                                    ),
-                                shape = RoundedCornerShape(20.dp),
-                                style = NeumorphicElevationStyle.Raised,
-                                surfaceColor = NeumorphicTokens.Surface,
-                                contentPadding = 16.dp
+                                    .animateItemPlacement(
+                                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                                    )
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.weight(1f),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = notifId !in dismissingIds && notifId !in dismissedNotificationIds,
+                                    enter = fadeIn(animationSpec = tween(200)),
+                                    exit = slideOutHorizontally(
+                                        targetOffsetX = { it },
+                                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                                    ) + fadeOut(
+                                        animationSpec = tween(durationMillis = 200)
+                                    )
+                                ) {
+                                    SwipeToDismissBox(
+                                        state = dismissState,
+                                        backgroundContent = {
+                                            val isSwiping = dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
+                                            val alignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                                                Alignment.CenterStart
+                                            } else {
+                                                Alignment.CenterEnd
+                                            }
                                             Box(
                                                 modifier = Modifier
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(pColor.copy(alpha = 0.16f))
-                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                                    .fillMaxSize()
+                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .background(
+                                                        if (isSwiping) Color(0xFFEF4444).copy(alpha = 0.18f) else Color.Transparent
+                                                    )
+                                                    .padding(horizontal = 20.dp),
+                                                contentAlignment = alignment
                                             ) {
-                                                Text(
-                                                    text = if (isCelebrationNotif) "CELEBRATION 🎉" else (notif.priority ?: "INFO").uppercase(),
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = pColor
-                                                )
+                                                if (isSwiping) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.DeleteOutline,
+                                                        contentDescription = "Dismiss",
+                                                        tint = Color(0xFFEF4444),
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
                                             }
-                                            Text(
-                                                text = notif.title ?: "Broadcast Announcement",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = NeumorphicTokens.TextMain,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
                                         }
-
-                                        // Neumorphic Inset Close Button
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .neumorphicInset(
-                                                    shape = CircleShape,
-                                                    elevation = NeumorphicTokens.ElevationInset,
-                                                    surfaceColor = NeumorphicTokens.Surface
-                                                )
-                                                .clickable {
-                                                    dismissingIds = dismissingIds + notifId
-                                                    coroutineScope.launch {
-                                                        kotlinx.coroutines.delay(320)
-                                                        onDismissNotification(notifId)
-                                                        dismissingIds = dismissingIds - notifId
-                                                    }
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Clear Notification",
-                                                tint = NeumorphicTokens.TextMuted,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-
-                                    if (resolvedMsg.isNotBlank()) {
-                                        Text(
-                                            text = resolvedMsg,
-                                            fontSize = 12.sp,
-                                            lineHeight = 17.sp,
-                                            color = NeumorphicTokens.TextMain.copy(alpha = 0.88f)
-                                        )
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            text = "By ${notif.sender ?: "Operations Desk"}",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = NeumorphicTokens.TextMuted
-                                        )
-                                        val formattedTime = formatNotificationTime(notif.createdAt, notif.timestamp)
-                                        if (formattedTime.isNotBlank()) {
-                                            Text(
-                                                text = formattedTime,
-                                                fontSize = 10.sp,
-                                                color = NeumorphicTokens.TextMuted
-                                            )
+                                        NeumorphicCard(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .then(
+                                                    if (isCelebrationNotif) {
+                                                        Modifier.clickable { onOpenCelebrationWishes() }
+                                                    } else Modifier
+                                                ),
+                                            shape = RoundedCornerShape(20.dp),
+                                            style = NeumorphicElevationStyle.Raised,
+                                            surfaceColor = NeumorphicTokens.Surface,
+                                            contentPadding = 16.dp
+                                        ) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(pColor.copy(alpha = 0.16f))
+                                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = if (isCelebrationNotif) "CELEBRATION 🎉" else (notif.priority ?: "INFO").uppercase(),
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.ExtraBold,
+                                                                color = pColor
+                                                            )
+                                                        }
+                                                        Text(
+                                                            text = notif.title ?: "Broadcast Announcement",
+                                                            fontSize = 14.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = NeumorphicTokens.TextMain,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+
+                                                    // Neumorphic Inset Close Button
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(32.dp)
+                                                            .neumorphicInset(
+                                                                shape = CircleShape,
+                                                                elevation = NeumorphicTokens.ElevationInset,
+                                                                surfaceColor = NeumorphicTokens.Surface
+                                                            )
+                                                            .clickable {
+                                                                dismissingIds = dismissingIds + notifId
+                                                                coroutineScope.launch {
+                                                                    delay(280)
+                                                                    onDismissNotification(notifId)
+                                                                    dismissingIds = dismissingIds - notifId
+                                                                }
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Clear Notification",
+                                                            tint = NeumorphicTokens.TextMuted,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                if (resolvedMsg.isNotBlank()) {
+                                                    Text(
+                                                        text = resolvedMsg,
+                                                        fontSize = 12.sp,
+                                                        lineHeight = 17.sp,
+                                                        color = NeumorphicTokens.TextMain.copy(alpha = 0.88f)
+                                                    )
+                                                }
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "By ${notif.sender ?: "Operations Desk"}",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = NeumorphicTokens.TextMuted
+                                                    )
+                                                    val formattedTime = formatNotificationTime(notif.createdAt, notif.timestamp)
+                                                    if (formattedTime.isNotBlank()) {
+                                                        Text(
+                                                            text = formattedTime,
+                                                            fontSize = 10.sp,
+                                                            color = NeumorphicTokens.TextMuted
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
