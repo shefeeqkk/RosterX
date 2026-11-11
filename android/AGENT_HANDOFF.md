@@ -1,20 +1,53 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Synced by Dasan:* **2026-11-11 08:35 IST** 🕵️‍♂️⚡🚀
+> *Last Synced by Dasan:* **2026-11-11 09:16 IST** 🕵️‍♂️⚡🚀
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.24.4`** (Android `versionCode: 95`, Server `SERVER_VERSION = "1.24.4"`)
-- **Previous Versions**: `1.24.3` (Build 94), `1.24.2` (Build 93), `1.24.1` (Build 92), `1.24.0` (Build 91), `1.23.11` (Build 90)
+- **Semantic Version**: **`1.24.6`** (Android `versionCode: 97`, Server `SERVER_VERSION = "1.24.6"`)
+- **Previous Versions**: `1.24.5` (Build 96), `1.24.4` (Build 95), `1.24.3` (Build 94), `1.24.2` (Build 93), `1.24.1` (Build 92)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`)
 - **Target Device (Tailscale IP)**: `100.71.241.36:5555`
+
+---
+
+## 🚀 Solved in v1.24.6 (Build 97) - Zero-Clip Hardware-Layer Shadows & Crossfade
+
+### 1. 🎨 Complete Elimination of Shadow Boundary Clipping
+- **Root Cause Excision**:
+  - Identified and removed `AnimatedContent` and `AnimatedVisibility` from inside the notifications list, which were applying internal `clipToBounds()` layout rects directly over the neumorphic diffuse highlights.
+- **Hardware Layer with `clip = false`**:
+  - Switched card dismiss transitions to hardware-accelerated `graphicsLayer { translationX = offsetX; this.alpha = alpha; clip = false }`.
+  - Added `graphicsLayer { clip = false }` and `PaddingValues(top = 18.dp, bottom = 24.dp, start = 6.dp, end = 6.dp)` to `LazyColumn`.
+  - Replaced body transition with non-clipping `Crossfade`.
+  - Ensures the specular top-left white highlight and bottom-right occlusion shadows render completely free of any clipping boundaries.
+
+---
+
+## 🚀 Solved in v1.24.5 (Build 96) - Custom Soothing Crystal Chime & Zero-Clip Drop Shadow
+
+### 1. 🔔 Custom Soothing "Warm Crystal Chime" Audio Asset
+- **Harmonic Synthesis**:
+  - Synthesized a custom 16-bit 44.1kHz PCM stereo audio asset (`res/raw/rosterx_chime.wav`).
+  - C6 (1046.5 Hz) ascending to G6 (1567.98 Hz) with 22ms smooth raised-cosine attack, exponential decay, and crystal overtones.
+- **System Tray Notification Sound**:
+  - Bound to Android `NotificationChannel` (`rosterx_operational_broadcasts_v2`) and `NotificationCompat.Builder` via `RosterXSoundManager.getNotificationSoundUri(this)`.
+  - Migrated legacy channel to enforce the new chime as default system notification ringtone.
+- **In-App Foreground Playback**:
+  - Implemented `RosterXSoundManager`: preloaded into low-latency Android `SoundPool` at app launch (`MainActivity.onCreate`).
+  - Automatically plays in-app when new FCM pushes arrive in the foreground or when new alerts are discovered during active polling.
+
+### 2. 🎨 Unclipped Neumorphic Drop Shadows in Bottom Sheet
+- **Clearance Spacing**:
+  - Updated `LazyColumn` content padding to `PaddingValues(top = 10.dp, bottom = 16.dp, start = 4.dp, end = 4.dp)` with 14dp card spacing and 2dp item padding.
+  - Gives the top specular highlight and drop shadow on the first card full breathing room below the divider, completely eliminating the top shadow clipping edge.
 
 ---
 
