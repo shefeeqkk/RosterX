@@ -57,7 +57,8 @@ interface RosterRepository {
         priority: String,
         sendEmail: Boolean,
         sendInApp: Boolean = true,
-        sendPush: Boolean = true
+        sendPush: Boolean = true,
+        sender: String? = null
     ): Result<com.rosterx.data.remote.SendNotificationResponse>
     suspend fun retractNotification(notificationId: String): Result<Unit>
     suspend fun getBroadcastTemplates(): Result<List<com.rosterx.data.remote.BroadcastTemplateDto>>

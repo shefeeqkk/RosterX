@@ -551,6 +551,12 @@ class AdminRosterViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isSendingNotification = true)
+            val user = sessionManager.currentUser.value
+            val isManager = user?.role == com.rosterx.domain.model.EngineerRole.MANAGER
+            val prefix = if (isManager) "Manager" else "Admin"
+            val name = user?.name ?: user?.username ?: "Administrator"
+            val senderSig = "$prefix ($name)"
+
             val result = repository.sendNotification(
                 title = title,
                 message = message,
@@ -558,7 +564,8 @@ class AdminRosterViewModel @Inject constructor(
                 priority = priority,
                 sendEmail = sendEmail,
                 sendInApp = sendInApp,
-                sendPush = sendPush
+                sendPush = sendPush,
+                sender = senderSig
             )
             result.onSuccess { resp ->
                 _state.value = _state.value.copy(

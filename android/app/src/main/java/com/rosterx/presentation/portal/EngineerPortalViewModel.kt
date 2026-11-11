@@ -777,6 +777,12 @@ class EngineerPortalViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isSendingBroadcast = true)
+            val user = _state.value.loggedInEngineer
+            val isAdmin = user?.role == com.rosterx.domain.model.EngineerRole.ADMIN
+            val prefix = if (isAdmin) "Admin" else "Manager"
+            val name = user?.name ?: user?.username ?: "Operations"
+            val senderSig = "$prefix ($name)"
+
             val result = repository.sendNotification(
                 title = title,
                 message = message,
@@ -784,7 +790,8 @@ class EngineerPortalViewModel @Inject constructor(
                 priority = priority,
                 sendEmail = sendEmail,
                 sendInApp = sendInApp,
-                sendPush = sendPush
+                sendPush = sendPush,
+                sender = senderSig
             )
             result.onSuccess { resp ->
                 _state.value = _state.value.copy(

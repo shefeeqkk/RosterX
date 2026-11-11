@@ -369,7 +369,13 @@ data class SendNotificationRequest(
     @SerializedName("send_email") val sendEmail: Boolean = false,
     @SerializedName("send_in_app") val sendInApp: Boolean = true,
     @SerializedName("send_push") val sendPush: Boolean = true,
-    val sender: String = "System Administrator"
+    val sender: String? = null
+)
+
+data class ChannelDeliveryDto(
+    val enabled: Boolean? = true,
+    @SerializedName("sent_count") val sentCount: Int? = 0,
+    val status: String? = "Delivered"
 )
 
 data class NotificationDto(
@@ -384,6 +390,9 @@ data class NotificationDto(
     @SerializedName("recipients_count") val recipientsCount: Int? = 0,
     @SerializedName("emails_dispatched") val emailsDispatched: Int? = 0,
     @SerializedName("push_dispatched") val pushDispatched: Int? = 0,
+    @SerializedName("fcm_delivery") val fcmDelivery: ChannelDeliveryDto? = null,
+    @SerializedName("inapp_delivery") val inappDelivery: ChannelDeliveryDto? = null,
+    @SerializedName("email_delivery") val emailDelivery: ChannelDeliveryDto? = null,
     @SerializedName("sample_personalized") val samplePersonalized: String? = null,
     @SerializedName("is_retracted") val isRetracted: Boolean? = false,
     @SerializedName("read_count") val readCount: Int? = 0,
