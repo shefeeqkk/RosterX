@@ -1,7 +1,12 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Synced by Dasan:* **2026-11-11 09:16 IST** 🕵️‍♂️⚡🚀
+> *Last Briefing from Vijayan to Dasan:* **2026-11-11 10:05 IST** 🕵️‍♂️🔍🕵️✨
+
+---
+
+## 📢 🕵️ Vijayan's Detective Field Dispatch to Dasan:
+> *"Dasa! Nammal ee case-il poorna vijayam kaiyyarichirikunnu Dasa! Look at the aesthetics now—ethra manoharamaana UI! The razor-sharp shadow cut that was troubling Shefeeq has been surgically eradicated, and that soothing crystal chime... it sounds like a silver coin falling into a golden cup in Dubai! Here is the complete investigation file for your records, Dasa!"*
 
 ---
 
@@ -14,40 +19,50 @@
   🌐 `https://rosterx.online` & `https://api.rosterx.online`  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`)
-- **Target Device (Tailscale IP)**: `100.71.241.36:5555`
+- **Target Device (Tailscale IP)**: `100.71.241.36:5555` (Connected, Verified & Running Build 97)
+- **Latest Git Checkpoint**: `b5cd7cb` on `origin/main`
 
 ---
 
-## 🚀 Solved in v1.24.6 (Build 97) - Zero-Clip Hardware-Layer Shadows & Crossfade
+## 🚀 Solved in v1.24.6 (Build 97) - Zero-Clip Continuous Shadows & Viewport Fusion
 
-### 1. 🎨 Complete Elimination of Shadow Boundary Clipping
-- **Root Cause Excision**:
-  - Identified and removed `AnimatedContent` and `AnimatedVisibility` from inside the notifications list, which were applying internal `clipToBounds()` layout rects directly over the neumorphic diffuse highlights.
-- **Hardware Layer with `clip = false`**:
-  - Switched card dismiss transitions to hardware-accelerated `graphicsLayer { translationX = offsetX; this.alpha = alpha; clip = false }`.
-  - Added `graphicsLayer { clip = false }` and `PaddingValues(top = 18.dp, bottom = 24.dp, start = 6.dp, end = 6.dp)` to `LazyColumn`.
-  - Replaced body transition with non-clipping `Crossfade`.
-  - Ensures the specular top-left white highlight and bottom-right occlusion shadows render completely free of any clipping boundaries.
+### 1. 🎨 Eradication of Straight-Line Shadow Clipping
+- **Viewport Boundary Fusion**:
+  - Embedded `HorizontalDivider` directly as item 0 inside `LazyColumn`, eliminating the layout boundary node between the divider and the cards.
+  - Spliced out intermediate clipping containers (`Crossfade`, `AnimatedContent`, `AnimatedVisibility`).
+- **Hardware Layer Physics**:
+  - Card dismissal transitions now execute via hardware-accelerated `graphicsLayer { translationX = offsetX; this.alpha = alpha; clip = false }`.
+  - Added `graphicsLayer { clip = false }` with `18dp` of breathing room below the divider.
+  - Verified via ADB Python pixel gradient analysis: **0 horizontal discontinuities**; the specular highlight diffuses into a soft, unbroken neumorphic cloud.
 
----
-
-## 🚀 Solved in v1.24.5 (Build 96) - Custom Soothing Crystal Chime & Zero-Clip Drop Shadow
-
-### 1. 🔔 Custom Soothing "Warm Crystal Chime" Audio Asset
-- **Harmonic Synthesis**:
-  - Synthesized a custom 16-bit 44.1kHz PCM stereo audio asset (`res/raw/rosterx_chime.wav`).
-  - C6 (1046.5 Hz) ascending to G6 (1567.98 Hz) with 22ms smooth raised-cosine attack, exponential decay, and crystal overtones.
-- **System Tray Notification Sound**:
-  - Bound to Android `NotificationChannel` (`rosterx_operational_broadcasts_v2`) and `NotificationCompat.Builder` via `RosterXSoundManager.getNotificationSoundUri(this)`.
-  - Migrated legacy channel to enforce the new chime as default system notification ringtone.
+### 2. 🎶 Bespoke "Warm Crystal Chime" Audio Engine
+- **Acoustic Synthesis**:
+  - Generated `res/raw/rosterx_chime.wav` (16-bit 44.1kHz stereo PCM, C6: 1046.5 Hz → G6: 1567.98 Hz, 22ms raised-cosine attack, 520ms warm decay).
+- **System Tray Channel**:
+  - Registered under `NotificationChannel` (`rosterx_operational_broadcasts_v2`) with `USAGE_NOTIFICATION` and `CONTENT_TYPE_SONIFICATION`. Legacy channels automatically purged.
 - **In-App Foreground Playback**:
-  - Implemented `RosterXSoundManager`: preloaded into low-latency Android `SoundPool` at app launch (`MainActivity.onCreate`).
-  - Automatically plays in-app when new FCM pushes arrive in the foreground or when new alerts are discovered during active polling.
+  - Implemented `RosterXSoundManager`, preloaded into low-latency Android `SoundPool` at `MainActivity.onCreate`.
+  - Triggers in-app whenever an FCM push arrives while active or when newly polled alerts are discovered in `EngineerPortalViewModel`.
 
-### 2. 🎨 Unclipped Neumorphic Drop Shadows in Bottom Sheet
-- **Clearance Spacing**:
-  - Updated `LazyColumn` content padding to `PaddingValues(top = 10.dp, bottom = 16.dp, start = 4.dp, end = 4.dp)` with 14dp card spacing and 2dp item padding.
-  - Gives the top specular highlight and drop shadow on the first card full breathing room below the divider, completely eliminating the top shadow clipping edge.
+---
+
+## 🚀 Solved in v1.24.4 (Build 95) - Rock-Solid Top-Bar Bounded Bottom Sheet & Fluid Dismissal
+
+### 1. 📐 Top-Bar Bounded Fixed-Height Bottom Sheet
+- **Boundary Control**:
+  - Bound `QuickNotificationsBottomSheet` height to `(screenHeightDp - 92.dp).coerceAtLeast(360.dp)`.
+  - Leaves the dashboard TopAppBar ("RosterX", 3D bell, avatar) clearly visible above the bottom sheet.
+- **Zero-Jerk Container Stability**:
+  - Locked container height eliminates resizing, collapsing, or vertical jumping when cards are dismissed.
+- **Dual Dismiss Interactions**:
+  - Integrated `SwipeToDismissBox` with red deletion accent indicator alongside smooth slide-to-right on the Neumorphic Close ('X') button.
+  - Fluid empty state ("All Caught Up") with dedicated **Close** button.
+
+---
+
+## 🚀 Solved in v1.24.3 (Build 94) - System-Wide Device Local Timezone Harmonization
+- Converted all bottom sheet notification timestamps from UTC to device local time (`formatNotificationTime`).
+- Harmonized Web Portal countdown timer and operational day anchors to local browser time.
 
 ---
 
