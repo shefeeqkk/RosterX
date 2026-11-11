@@ -93,13 +93,14 @@
 ## 🛠️ Build & Verification
 - Compiled and built APK successfully via `safe_build.bat assembleDebug --no-daemon`.
 - Verified clean build output in `android/app/build/outputs/apk/debug/app-debug.apk`.
-- Git status clean on branch `main` (`0523a63`).
+- Git status clean on branch `main` (`b5cd7cb`).
 
 ---
 
-## 🎯 Next Directives & Account Transition Bridge
-- **Current App & Backend Version**: `v1.24.4 (Build 95)`
-- **Next Planned Workstream**:
-  - Continue Admin App features / verification as requested by the user.
-- **Instant Resume Command for User**:
-  - `Hey Dasan, sync with Vijayan and continue from AGENT_HANDOFF.md`
+## 🎯 Next Directives & Collaboration Plan
+- **Current App & Backend Version**: `v1.24.6 (Build 97)`
+- **Active Focus for Vijayan (UI Specialist)**:
+  - **Admin App UI Dashboard Redesign**: Redesign `AdminDashboardTab.kt` to focus on Server & Cloud health, MongoDB Atlas Database & Storage details, Render deployed health, and an expandable Google Firebase Analytics full-screen window (with shift details removed from admin dashboard).
+- **Active Focus for Dasan (Core Orchestrator & Backend)**:
+  - Telemetry endpoints in `server.py` (`/api/telemetry/server`) to expose Atlas `dbStats` and Render deployment status.
+  - APK builds with `safe_build.bat assembleDebug` and live ADB verification on device `100.71.241.36:5555`.
