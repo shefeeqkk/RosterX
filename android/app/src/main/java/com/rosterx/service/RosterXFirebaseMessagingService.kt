@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
 import android.util.Log
@@ -16,6 +17,7 @@ import com.rosterx.R
 import com.rosterx.data.local.UserSessionManager
 import com.rosterx.data.remote.RosterApiService
 import com.rosterx.analytics.AnalyticsManager
+import com.rosterx.util.RosterXSoundManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -90,7 +92,12 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
         // 2. Display native Android notification panel alert
         showSystemNotification(title, body, priority, notificationId)
 
-        // 3. Log event to Firebase Analytics
+        // 3. Play soothing Warm Crystal Chime in-app immediately
+        try {
+            RosterXSoundManager.playNotificationChime(applicationContext)
+        } catch (_: Exception) {}
+
+        // 4. Log event to Firebase Analytics
         try {
             analyticsManager.logNotificationReceived(title, priority)
         } catch (_: Exception) {}
@@ -123,7 +130,7 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val soundUri = RosterXSoundManager.getNotificationSoundUri(this)
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -131,7 +138,7 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
-            .setSound(defaultSoundUri)
+            .setSound(soundUri)
             .setContentIntent(pendingIntent)
             .setPriority(
                 if (priority.equals("urgent", ignoreCase = true)) {
@@ -145,12 +152,23 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
 
         // Create Android O Notification Channel
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Delete legacy channel if present to migrate sound
+            try {
+                notificationManager.deleteNotificationChannel(CHANNEL_ID_BROADCASTS_LEGACY)
+            } catch (_: Exception) {}
+
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+
             val channel = NotificationChannel(
                 channelId,
                 "Operations & Broadcasts",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Live shift updates, urgent operational alerts, and team broadcasts"
+                setSound(soundUri, audioAttributes)
                 enableVibration(true)
             }
             notificationManager.createNotificationChannel(channel)
@@ -162,6 +180,7 @@ class RosterXFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         private const val TAG = "RosterX_FCM"
-        const val CHANNEL_ID_BROADCASTS = "rosterx_operational_broadcasts"
+        const val CHANNEL_ID_BROADCASTS_LEGACY = "rosterx_operational_broadcasts"
+        const val CHANNEL_ID_BROADCASTS = "rosterx_operational_broadcasts_v2"
     }
 }

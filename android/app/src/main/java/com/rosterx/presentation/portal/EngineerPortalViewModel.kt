@@ -337,6 +337,21 @@ class EngineerPortalViewModel @Inject constructor(
                 }
             }
 
+            // Detect newly discovered notifications during active app polling and play soothing chime
+            val prevNotifs = _state.value.notifications
+            val prevIds = prevNotifs.mapNotNull { it.id }.toSet()
+            if (prevIds.isNotEmpty()) {
+                val newIncoming = notifs.filter { n ->
+                    val nid = n.id ?: ""
+                    nid.isNotBlank() && nid !in prevIds && nid !in savedDismissed
+                }
+                if (newIncoming.isNotEmpty()) {
+                    try {
+                        com.rosterx.util.RosterXSoundManager.playNotificationChime(context)
+                    } catch (_: Exception) {}
+                }
+            }
+
             // Also fetch server diagnostics to keep cluster, database, and latency current
             val diag = repository.getServerDiagnostics()
 

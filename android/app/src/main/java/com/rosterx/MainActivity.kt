@@ -132,6 +132,9 @@ class MainActivity : FragmentActivity() {
 
 
 
+        // Preload custom Warm Crystal Chime into SoundPool for zero-latency alerts
+        com.rosterx.util.RosterXSoundManager.preload(this)
+
         setContent {
             val currentUser by sessionManager.currentUser.collectAsState()
             val themeMode by sessionManager.themeMode.collectAsState()
