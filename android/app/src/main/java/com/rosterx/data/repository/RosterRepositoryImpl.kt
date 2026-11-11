@@ -769,7 +769,8 @@ class RosterRepositoryImpl @Inject constructor(
         priority: String,
         sendEmail: Boolean,
         sendInApp: Boolean,
-        sendPush: Boolean
+        sendPush: Boolean,
+        sender: String?
     ): Result<com.rosterx.data.remote.SendNotificationResponse> {
         return try {
             val req = com.rosterx.data.remote.SendNotificationRequest(
@@ -779,7 +780,8 @@ class RosterRepositoryImpl @Inject constructor(
                 priority = priority,
                 sendEmail = sendEmail,
                 sendInApp = sendInApp,
-                sendPush = sendPush
+                sendPush = sendPush,
+                sender = sender
             )
             val response = apiService.sendNotification(req)
             if (response.success) {

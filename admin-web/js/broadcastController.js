@@ -78,8 +78,8 @@ export class BroadcastController {
       
       // Quick Tokens
       btnInsertTokenName: document.getElementById('btnInsertTokenName'),
-      btnInsertTokenUsername: document.getElementById('btnInsertTokenUsername'),
       btnInsertMentionAll: document.getElementById('btnInsertMentionAll'),
+      btnInsertMentionPrompt: document.getElementById('btnInsertMentionPrompt'),
       
       // Channels
       channelInApp: document.getElementById('broadcastChannelInApp'),
@@ -118,6 +118,15 @@ export class BroadcastController {
       detailTitle: document.getElementById('detailModalTitle'),
       detailMeta: document.getElementById('detailModalMeta'),
       detailBody: document.getElementById('detailModalBody'),
+      detailFcmStatusBadge: document.getElementById('detailFcmStatusBadge'),
+      detailFcmCount: document.getElementById('detailFcmCount'),
+      detailFcmSubtext: document.getElementById('detailFcmSubtext'),
+      detailInAppStatusBadge: document.getElementById('detailInAppStatusBadge'),
+      detailInAppCount: document.getElementById('detailInAppCount'),
+      detailInAppSubtext: document.getElementById('detailInAppSubtext'),
+      detailEmailStatusBadge: document.getElementById('detailEmailStatusBadge'),
+      detailEmailCount: document.getElementById('detailEmailCount'),
+      detailEmailSubtext: document.getElementById('detailEmailSubtext'),
       detailTargetCount: document.getElementById('detailModalTargetCount'),
       detailReadCount: document.getElementById('detailModalReadCount'),
       detailPendingCount: document.getElementById('detailModalPendingCount'),
@@ -157,10 +166,13 @@ export class BroadcastController {
       setTimeout(() => this.closeMentionDropdown(), 200);
     });
 
-    // 5. Quick Token Buttons
+    // 5. Quick Token Buttons (Retain {name}, @all, and @mention; removed {username} & + Urgent Action)
     this.dom.btnInsertTokenName?.addEventListener('click', () => this.insertToken('{name}'));
-    this.dom.btnInsertTokenUsername?.addEventListener('click', () => this.insertToken('{username}'));
     this.dom.btnInsertMentionAll?.addEventListener('click', () => this.insertToken('@all '));
+    this.dom.btnInsertMentionPrompt?.addEventListener('click', () => {
+      this.insertToken('@');
+      this.handleMentionTrigger();
+    });
 
     // 6. Channels
     this.dom.channelInApp?.addEventListener('change', () => this.updatePreviewChannels());
@@ -791,11 +803,18 @@ export class BroadcastController {
       target = validIds;
     }
 
+    const activeAuthUser = JSON.parse(localStorage.getItem('rosterx_auth_user') || '{}');
+    const uRole = (activeAuthUser?.role || '').toLowerCase();
+    const roleLabel = uRole === 'manager' ? 'Manager' : 'Admin';
+    const uName = (activeAuthUser?.fullName || activeAuthUser?.name || (roleLabel === 'Manager' ? 'Operations Manager' : 'System Administrator')).trim();
+    const explicitSender = `${roleLabel} (${uName})`;
+
     const payload = {
       title,
       message,
       target,
       priority,
+      sender: explicitSender,
       send_in_app: sendInApp,
       send_push: sendPush,
       send_email: sendEmail
@@ -1027,6 +1046,55 @@ export class BroadcastController {
     const targetCount = notif.recipients_count || (notif.recipients ? notif.recipients.length : 0);
     const readCount = notif.read_count || 0;
     const pendingCount = notif.pending_count || 0;
+
+    // 1. FCM Delivery Card
+    const fcmInfo = notif.fcm_delivery || {};
+    const isPushEnabled = notif.send_push !== false;
+    const pushCount = notif.push_dispatched != null ? notif.push_dispatched : (fcmInfo.dispatched_count || 0);
+    if (this.dom.detailFcmStatusBadge) {
+      this.dom.detailFcmStatusBadge.textContent = isPushEnabled ? 'Dispatched' : 'Disabled';
+      this.dom.detailFcmStatusBadge.className = isPushEnabled
+        ? 'text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
+        : 'text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+    }
+    if (this.dom.detailFcmCount) {
+      this.dom.detailFcmCount.textContent = isPushEnabled ? `${pushCount} Devices` : 'None';
+    }
+    if (this.dom.detailFcmSubtext) {
+      this.dom.detailFcmSubtext.textContent = isPushEnabled ? `${pushCount} physical phones alerted` : 'Channel not selected';
+    }
+
+    // 2. In-App Delivery Card
+    const isInAppEnabled = notif.send_in_app !== false;
+    if (this.dom.detailInAppStatusBadge) {
+      this.dom.detailInAppStatusBadge.textContent = isInAppEnabled ? (notif.is_retracted ? 'Retracted' : 'Active') : 'Disabled';
+      this.dom.detailInAppStatusBadge.className = isInAppEnabled && !notif.is_retracted
+        ? 'text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+        : 'text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+    }
+    if (this.dom.detailInAppCount) {
+      this.dom.detailInAppCount.textContent = isInAppEnabled ? `${readCount} / ${targetCount} Read` : 'None';
+    }
+    if (this.dom.detailInAppSubtext) {
+      this.dom.detailInAppSubtext.textContent = isInAppEnabled ? `${pendingCount} pending acknowledgment` : 'Channel not selected';
+    }
+
+    // 3. Email Delivery Card
+    const emailInfo = notif.email_delivery || {};
+    const isEmailEnabled = !!notif.send_email;
+    const emailCount = notif.emails_dispatched != null ? notif.emails_dispatched : (emailInfo.dispatched_count || 0);
+    if (this.dom.detailEmailStatusBadge) {
+      this.dom.detailEmailStatusBadge.textContent = isEmailEnabled ? 'Sent' : 'Disabled';
+      this.dom.detailEmailStatusBadge.className = isEmailEnabled
+        ? 'text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+        : 'text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+    }
+    if (this.dom.detailEmailCount) {
+      this.dom.detailEmailCount.textContent = isEmailEnabled ? `${emailCount} Sent` : 'None';
+    }
+    if (this.dom.detailEmailSubtext) {
+      this.dom.detailEmailSubtext.textContent = isEmailEnabled ? 'Delivered via Resend SMTP' : 'Channel not selected';
+    }
 
     if (this.dom.detailTargetCount) this.dom.detailTargetCount.textContent = targetCount;
     if (this.dom.detailReadCount) this.dom.detailReadCount.textContent = readCount;

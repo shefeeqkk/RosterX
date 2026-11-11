@@ -69,6 +69,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 import androidx.compose.runtime.*
 
@@ -575,6 +578,18 @@ fun EngineerPortalScreen(
     var activeCelebrationType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
     var activeCelebrationYears by rememberSaveable { mutableIntStateOf(1) }
 
+    val pullRefreshState = rememberPullToRefreshState()
+    if (pullRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            viewModel.loadData()
+        }
+    }
+    LaunchedEffect(state.isLoading) {
+        if (!state.isLoading) {
+            pullRefreshState.endRefresh()
+        }
+    }
+
     val portalContext = LocalContext.current
     LaunchedEffect(state.loggedInEngineer) {
         val eng = state.loggedInEngineer ?: return@LaunchedEffect
@@ -954,9 +969,10 @@ fun EngineerPortalScreen(
                 top = if (!isFullScreenRoster) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
             )
             .background(NeumorphicTokens.Canvas)
+            .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
 
-            if (state.isLoading) {
+            if (state.isLoading && state.engineers.isEmpty()) {
 
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
 
@@ -1079,6 +1095,11 @@ fun EngineerPortalScreen(
                 }
 
             }
+
+            PullToRefreshContainer(
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
 
             if (!isFullScreenRoster) {
                 com.rosterx.presentation.components.FloatingAiBotButton(

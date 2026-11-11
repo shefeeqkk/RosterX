@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.24.7"
+SERVER_VERSION = "1.24.8"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2722,6 +2722,31 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         n["pending"] = []
                         n["pending_count"] = 0
 
+                    # Ensure separate 3-channel delivery report telemetry is present
+                    if "inapp_delivery" in n and isinstance(n["inapp_delivery"], dict):
+                        n["inapp_delivery"]["read_count"] = len(read_list)
+                        n["inapp_delivery"]["pending_count"] = n["pending_count"]
+                    else:
+                        n["inapp_delivery"] = {
+                            "enabled": n.get("send_in_app", True),
+                            "target_count": len(recipients_list),
+                            "read_count": len(read_list),
+                            "pending_count": n["pending_count"],
+                            "status": "Active in Feed" if n.get("send_in_app", True) else "Disabled"
+                        }
+                    if "fcm_delivery" not in n:
+                        n["fcm_delivery"] = {
+                            "enabled": n.get("send_push", True),
+                            "dispatched_count": n.get("push_dispatched", 0),
+                            "status": f"Dispatched ({n.get('push_dispatched', 0)} devices)" if n.get("send_push", True) else "Disabled"
+                        }
+                    if "email_delivery" not in n:
+                        n["email_delivery"] = {
+                            "enabled": n.get("send_email", False),
+                            "dispatched_count": n.get("emails_dispatched", 0),
+                            "status": f"Sent ({n.get('emails_dispatched', 0)} emails)" if n.get("send_email", False) else "Disabled"
+                        }
+
             self.send_json_response({
                 "success": True,
                 "notifications": notifs,
@@ -4023,13 +4048,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             target = body.get("target", "everyone")
             priority = str(body.get("priority", "info")).lower()
 
-            # Dynamic Signature: 'Manager (<Name>)' or 'Admin (<Name>)'
-            role_raw = str(claims.get("role", "admin")).strip().lower()
-            sender_role = "Manager" if role_raw == "manager" else "Admin"
-            raw_sender_name = str(claims.get("name") or claims.get("full_name") or "").strip()
-            if not raw_sender_name:
-                raw_sender_name = "System Administrator" if sender_role == "Admin" else "Operations Manager"
-            sender = f"{sender_role} ({raw_sender_name})"
+            # Dynamic Signature: Respect explicit client sender or derive 'Manager (<Name>)' / 'Admin (<Name>)'
+            client_sender = str(body.get("sender") or "").strip()
+            if client_sender and any(client_sender.startswith(k) for k in ("Manager (", "Admin (", "Operations Desk")):
+                sender = client_sender
+            else:
+                role_raw = str(claims.get("role", "admin")).strip().lower()
+                sender_role = "Manager" if role_raw == "manager" else "Admin"
+                raw_sender_name = str(claims.get("name") or claims.get("full_name") or "").strip()
+                if not raw_sender_name:
+                    raw_sender_name = "System Administrator" if sender_role == "Admin" else "Operations Manager"
+                sender = f"{sender_role} ({raw_sender_name})"
 
             send_email = bool(body.get("send_email", False))
             send_in_app = bool(body.get("send_in_app", True))
@@ -4205,6 +4234,23 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "send_push": send_push,
                 "emails_dispatched": emails_sent,
                 "push_dispatched": push_dispatched,
+                "fcm_delivery": {
+                    "enabled": send_push,
+                    "dispatched_count": push_dispatched,
+                    "status": f"Dispatched ({push_dispatched} devices)" if send_push else "Disabled"
+                },
+                "inapp_delivery": {
+                    "enabled": send_in_app,
+                    "target_count": len(recipients),
+                    "read_count": 0,
+                    "pending_count": len(recipients),
+                    "status": "Active in Feed" if send_in_app else "Disabled"
+                },
+                "email_delivery": {
+                    "enabled": send_email,
+                    "dispatched_count": emails_sent,
+                    "status": f"Sent ({emails_sent} emails)" if send_email else "Disabled"
+                },
                 "is_retracted": False,
                 "retracted_at": None,
                 "retracted_by": None,

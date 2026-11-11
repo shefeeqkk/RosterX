@@ -579,14 +579,6 @@ fun NotificationsTab(
                                 )
                             )
 
-                            // {username}
-                            SuggestionChip(
-                                onClick = {
-                                    notificationMessage += " {username} "
-                                },
-                                label = { Text("+ {username}") }
-                            )
-
                             // @all
                             SuggestionChip(
                                 onClick = {
@@ -606,14 +598,6 @@ fun NotificationsTab(
                                 colors = SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = Color(0xFF8B5CF6).copy(alpha = 0.12f)
                                 )
-                            )
-
-                            // Urgent Window
-                            SuggestionChip(
-                                onClick = {
-                                    notificationMessage += "\n⚠️ ACTION REQUIRED: Please review and acknowledge within 24 hours."
-                                },
-                                label = { Text("+ Urgent Action") }
                             )
                         }
                     }
@@ -1470,6 +1454,162 @@ fun NotificationHistoryCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                    // Sender Signature
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Sender Signature:",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = notif.sender ?: "System Administrator",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    // 3-Card Delivery Breakdown Panel
+                    Text(
+                        text = "Delivery Audit Breakdown:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Card 1: FCM Push
+                        val fcmCount = notif.fcmDelivery?.sentCount ?: notif.pushDispatched ?: 0
+                        val fcmStatus = notif.fcmDelivery?.status ?: if (fcmCount > 0) "Delivered" else "No Active Tokens"
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFF59E0B).copy(alpha = 0.08f)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.25f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("🔔", fontSize = 12.sp)
+                                    Text("FCM Push", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+                                }
+                                Text("$fcmCount Devices", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = if (fcmCount > 0) Color(0xFF10B981).copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = fcmStatus,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (fcmCount > 0) Color(0xFF059669) else MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        // Card 2: In-App Feed
+                        val inappCount = notif.inappDelivery?.sentCount ?: notif.recipientsCount ?: 0
+                        val inappStatus = notif.inappDelivery?.status ?: "Published"
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFF8B5CF6).copy(alpha = 0.08f)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.25f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("📱", fontSize = 12.sp)
+                                    Text("In-App Feed", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7C3AED))
+                                }
+                                Text("$inappCount Targets", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = inappStatus,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF059669),
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        // Card 3: Email Broadcast
+                        val emailCount = notif.emailDelivery?.sentCount ?: notif.emailsDispatched ?: 0
+                        val emailStatus = notif.emailDelivery?.status ?: if (emailCount > 0) "Dispatched" else "Disabled"
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFF3B82F6).copy(alpha = 0.08f)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFF3B82F6).copy(alpha = 0.25f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("✉", fontSize = 12.sp)
+                                    Text("Email", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                                }
+                                Text("$emailCount Mails", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = if (emailCount > 0) Color(0xFF10B981).copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = emailStatus,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (emailCount > 0) Color(0xFF059669) else MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Text(
                         text = "Message Content:",

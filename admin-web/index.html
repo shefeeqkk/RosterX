@@ -1512,11 +1512,11 @@
               <button id="btnInsertTokenName" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
                 {name}
               </button>
-              <button id="btnInsertTokenUsername" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-                {username}
-              </button>
               <button id="btnInsertMentionAll" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-800 transition cursor-pointer">
                 @all
+              </button>
+              <button id="btnInsertMentionPrompt" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-cyan-50 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 border border-cyan-200 dark:border-cyan-800 transition cursor-pointer" title="Mention an individual engineer">
+                @mention
               </button>
               <span class="text-[11px] text-slate-400 italic ml-auto">Tip: Type <strong>@</strong> anywhere to mention</span>
             </div>
@@ -3852,19 +3852,47 @@ Operations Desk</textarea>
           <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Message Content</label>
           <div id="detailModalBody" class="text-xs p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 whitespace-pre-wrap font-sans text-slate-800 dark:text-slate-200 leading-relaxed"></div>
         </div>
-        <!-- Delivery Stats Cards -->
-        <div class="grid grid-cols-3 gap-2.5 text-center">
-          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <div class="text-[10px] text-slate-500 font-bold uppercase">Targeted</div>
-            <div id="detailModalTargetCount" class="text-base font-black text-slate-800 dark:text-slate-100 font-mono">0</div>
-          </div>
-          <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-            <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Read / Dismissed</div>
-            <div id="detailModalReadCount" class="text-base font-black text-emerald-700 dark:text-emerald-300 font-mono">0</div>
-          </div>
-          <div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
-            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Pending Read</div>
-            <div id="detailModalPendingCount" class="text-base font-black text-amber-700 dark:text-amber-300 font-mono">0</div>
+        <!-- 3-Channel Delivery Breakdown Panel (FCM Push, In-App, Email) -->
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
+            <i class="ph ph-chart-polar text-purple-500"></i> Multi-Channel Delivery Audit Report
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <!-- 1. FCM Push Delivery Card -->
+            <div class="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                  <i class="ph ph-bell text-xs"></i> FCM Push
+                </span>
+                <span id="detailFcmStatusBadge" class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200">Active</span>
+              </div>
+              <div id="detailFcmCount" class="text-base font-black text-amber-900 dark:text-amber-100 font-mono">0 Devices</div>
+              <div id="detailFcmSubtext" class="text-[10px] text-amber-700 dark:text-amber-400">Push notifications delivered</div>
+            </div>
+
+            <!-- 2. In-App Notification Feed Card -->
+            <div class="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase text-purple-700 dark:text-purple-400 flex items-center gap-1">
+                  <i class="ph ph-browsers text-xs"></i> In-App Feed
+                </span>
+                <span id="detailInAppStatusBadge" class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200">Active</span>
+              </div>
+              <div id="detailInAppCount" class="text-base font-black text-purple-900 dark:text-purple-100 font-mono">0 / 0 Read</div>
+              <div id="detailInAppSubtext" class="text-[10px] text-purple-700 dark:text-purple-400">0 pending acknowledgment</div>
+            </div>
+
+            <!-- 3. Email Broadcast Card -->
+            <div class="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                  <i class="ph ph-envelope-simple text-xs"></i> Email Broadcast
+                </span>
+                <span id="detailEmailStatusBadge" class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-200">Sent</span>
+              </div>
+              <div id="detailEmailCount" class="text-base font-black text-blue-900 dark:text-blue-100 font-mono">0 Sent</div>
+              <div id="detailEmailSubtext" class="text-[10px] text-blue-700 dark:text-blue-400">Dispatched via Resend API</div>
+            </div>
           </div>
         </div>
         <!-- Read vs Pending breakdown lists -->
