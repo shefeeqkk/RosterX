@@ -87,7 +87,10 @@ data class PortalState(
     val constraints: com.rosterx.domain.model.OperationalConstraints = com.rosterx.domain.model.OperationalConstraints(),
 
     val notifications: List<com.rosterx.data.remote.NotificationDto> = emptyList(),
-
+    val broadcastTemplates: List<com.rosterx.data.remote.BroadcastTemplateDto> = emptyList(),
+    val broadcastHistory: List<com.rosterx.data.remote.NotificationDto> = emptyList(),
+    val isSendingBroadcast: Boolean = false,
+    val broadcastActionMessage: String? = null,
     val dismissedNotificationIds: Set<String> = emptySet(),
 
     val isAssistantOpen: Boolean = false,
@@ -337,10 +340,15 @@ class EngineerPortalViewModel @Inject constructor(
                 }
             }
 
-            // Detect newly discovered notifications during active app polling and play soothing chime
+            val currentRole = _state.value.loggedInEngineer?.role
+            val isManagementUser = _state.value.loggedInEngineer?.isManagementAccount == true ||
+                currentRole == com.rosterx.domain.model.EngineerRole.ADMIN ||
+                currentRole == com.rosterx.domain.model.EngineerRole.MANAGER
+
+            // Detect newly discovered notifications during active app polling and play soothing chime (Shift engineers only)
             val prevNotifs = _state.value.notifications
             val prevIds = prevNotifs.mapNotNull { it.id }.toSet()
-            if (prevIds.isNotEmpty()) {
+            if (!isManagementUser && prevIds.isNotEmpty()) {
                 val newIncoming = notifs.filter { n ->
                     val nid = n.id ?: ""
                     nid.isNotBlank() && nid !in prevIds && nid !in savedDismissed
@@ -352,6 +360,9 @@ class EngineerPortalViewModel @Inject constructor(
                 }
             }
 
+            // Exclude Admin and Manager from operational notifications feed & bell badge
+            val displayNotifs = if (isManagementUser) emptyList() else notifs
+
             // Also fetch server diagnostics to keep cluster, database, and latency current
             val diag = repository.getServerDiagnostics()
 
@@ -362,13 +373,18 @@ class EngineerPortalViewModel @Inject constructor(
                 yesterdayRoster = yesterdayRosterMap,
                 gridRoster = if (gridRosterResult.isSuccess) gridRosterMap else (rosterCache[gridMonthKey] ?: emptyMap()),
                 constraints = loadedConstraints,
-                notifications = notifs,
+                notifications = displayNotifs,
+                broadcastHistory = notifs,
                 dismissedNotificationIds = savedDismissed,
                 isConnected = engineersResult.isSuccess && diag.isConnected,
                 clusterName = diag.cluster.ifBlank { "Cluster0" },
                 databaseName = diag.database.ifBlank { "rosterx" },
                 latencyMs = diag.latencyMs
             )
+
+            if (isManagementUser && _state.value.broadcastTemplates.isEmpty()) {
+                loadBroadcastTemplates()
+            }
 
             // Auto-sync Home Screen App Widget with latest duty assignments for ALL users
             val currentEng = _state.value.loggedInEngineer
@@ -729,6 +745,80 @@ class EngineerPortalViewModel @Inject constructor(
         )
         viewModelScope.launch {
             repository.dismissNotification("", dismissAll = true)
+        }
+    }
+
+    fun loadBroadcastTemplates() {
+        viewModelScope.launch {
+            repository.getBroadcastTemplates().onSuccess { tpls ->
+                _state.value = _state.value.copy(broadcastTemplates = tpls)
+            }
+        }
+    }
+
+    fun loadBroadcastHistory() {
+        viewModelScope.launch {
+            repository.getNotifications().onSuccess { notifs ->
+                _state.value = _state.value.copy(broadcastHistory = notifs)
+            }
+            loadBroadcastTemplates()
+        }
+    }
+
+    fun sendBroadcast(
+        title: String,
+        message: String,
+        target: Any,
+        priority: String,
+        sendEmail: Boolean,
+        sendInApp: Boolean = true,
+        sendPush: Boolean = true,
+        onComplete: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isSendingBroadcast = true)
+            val result = repository.sendNotification(
+                title = title,
+                message = message,
+                target = target,
+                priority = priority,
+                sendEmail = sendEmail,
+                sendInApp = sendInApp,
+                sendPush = sendPush
+            )
+            result.onSuccess { resp ->
+                _state.value = _state.value.copy(
+                    isSendingBroadcast = false,
+                    broadcastActionMessage = resp.message ?: "Broadcast dispatched successfully"
+                )
+                repository.getNotifications().onSuccess { allNotifs ->
+                    _state.value = _state.value.copy(broadcastHistory = allNotifs)
+                }
+                onComplete(true, resp.message ?: "Broadcast sent successfully")
+            }.onFailure { err ->
+                _state.value = _state.value.copy(
+                    isSendingBroadcast = false,
+                    broadcastActionMessage = "Failed: ${err.message}"
+                )
+                onComplete(false, err.message ?: "Failed to dispatch broadcast")
+            }
+        }
+    }
+
+    fun retractBroadcast(
+        notificationId: String,
+        onComplete: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val result = repository.retractNotification(notificationId)
+            result.onSuccess {
+                repository.getNotifications().onSuccess { allNotifs ->
+                    _state.value = _state.value.copy(broadcastHistory = allNotifs)
+                }
+                onComplete(true, "Broadcast retracted successfully")
+            }.onFailure { err ->
+                onComplete(false, err.message ?: "Failed to retract broadcast")
+            }
         }
     }
 

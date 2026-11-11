@@ -131,6 +131,8 @@ import com.rosterx.domain.model.isManagementAccount
 import com.rosterx.domain.model.isEligibleForShiftRoster
 import com.rosterx.domain.model.isEligibleForMonthRoster
 import com.rosterx.domain.model.parseResignationDate
+import com.rosterx.presentation.admin.AdminRosterState
+import com.rosterx.presentation.admin.tabs.NotificationsTab
 import com.rosterx.ui.neumorphic.BrandPalettes
 import com.rosterx.ui.neumorphic.DefaultPalette
 import com.rosterx.ui.theme.LocalIsDarkTheme
@@ -631,7 +633,8 @@ fun EngineerPortalScreen(
                 0 -> "Manager Dashboard"
                 1 -> "Team Shifts"
                 2 -> "Month Roster"
-                3 -> "Settings"
+                3 -> "Broadcast Console"
+                4 -> "Settings"
                 else -> "Manager Dashboard"
             }
         } else {
@@ -698,8 +701,11 @@ fun EngineerPortalScreen(
                 },
 
                 actions = {
-                    val settingsTabIndex = if (state.loggedInEngineer?.role == EngineerRole.MANAGER) 3 else 4
-                    val unreadCount = state.notifications.count { (it.id ?: "") !in state.dismissedNotificationIds }
+                    val settingsTabIndex = 4
+                    val isManagementAccountUser = state.loggedInEngineer?.isManagementAccount == true ||
+                        state.loggedInEngineer?.role == EngineerRole.ADMIN ||
+                        state.loggedInEngineer?.role == EngineerRole.MANAGER
+                    val unreadCount = if (isManagementAccountUser) 0 else state.notifications.count { (it.id ?: "") !in state.dismissedNotificationIds }
 
                     // Natural lively bell ringing animation with clapper physics & rest cadence
                     val bellInfiniteTransition = rememberInfiniteTransition(label = "bell_wiggle")
@@ -752,55 +758,57 @@ fun EngineerPortalScreen(
                         remember { mutableStateOf(0f) }
                     }
 
-                    // 3D Notification Bell (Clean & borderless with ripple)
-                    Box(modifier = Modifier.padding(end = 6.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable { showQuickNotificationsSheet = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Photorealistic3DBell(
+                    // 3D Notification Bell (Duty engineers only - excluded for Admin & Manager)
+                    if (!isManagementAccountUser) {
+                        Box(modifier = Modifier.padding(end = 6.dp)) {
+                            Box(
                                 modifier = Modifier
-                                    .size(27.dp)
-                                    .graphicsLayer {
-                                        rotationZ = bellRotation
-                                        transformOrigin = TransformOrigin(0.5f, 0.12f)
-                                    },
-                                clapperAngle = clapperRotation
-                            )
-                        }
-                        if (unreadCount > 0) {
-                            val isSingleDigit = unreadCount < 10
-                            Surface(
-                                shape = CircleShape,
-                                color = Color(0xFFDC2626), // Vibrant Crimson
-                                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface),
-                                shadowElevation = 2.dp,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .offset(x = 4.dp, y = (-2).dp)
-                                    .height(18.dp)
-                                    .defaultMinSize(minWidth = if (isSingleDigit) 18.dp else 24.dp)
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .clickable { showQuickNotificationsSheet = true },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
+                                Photorealistic3DBell(
                                     modifier = Modifier
-                                        .padding(horizontal = if (isSingleDigit) 0.dp else 5.dp)
-                                        .fillMaxHeight(),
-                                    contentAlignment = Alignment.Center
+                                        .size(27.dp)
+                                        .graphicsLayer {
+                                            rotationZ = bellRotation
+                                            transformOrigin = TransformOrigin(0.5f, 0.12f)
+                                        },
+                                    clapperAngle = clapperRotation
+                                )
+                            }
+                            if (unreadCount > 0) {
+                                val isSingleDigit = unreadCount < 10
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFFDC2626), // Vibrant Crimson
+                                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface),
+                                    shadowElevation = 2.dp,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 4.dp, y = (-2).dp)
+                                        .height(18.dp)
+                                        .defaultMinSize(minWidth = if (isSingleDigit) 18.dp else 24.dp)
                                 ) {
-                                    Text(
-                                        text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                                        color = Color.White,
-                                        style = TextStyle(
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Black,
-                                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                                            textAlign = TextAlign.Center
-                                        ),
-                                        maxLines = 1
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(horizontal = if (isSingleDigit) 0.dp else 5.dp)
+                                            .fillMaxHeight(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                            color = Color.White,
+                                            style = TextStyle(
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                textAlign = TextAlign.Center
+                                            ),
+                                            maxLines = 1
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -910,7 +918,8 @@ fun EngineerPortalScreen(
                         NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
                         NavTabItem(1, "Team Shifts", Icons.Default.Group),
                         NavTabItem(2, "Month Roster", Icons.Default.GridView),
-                        NavTabItem(3, "Settings", Icons.Default.Settings)
+                        NavTabItem(3, "Broadcast", Icons.Default.Campaign),
+                        NavTabItem(4, "Settings", Icons.Default.Settings)
                     )
                 } else {
                     listOf(
@@ -1003,7 +1012,22 @@ fun EngineerPortalScreen(
                             )
                             1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                             2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
-                            3 -> AccountView(
+                            3 -> NotificationsTab(
+                                state = AdminRosterState(
+                                    engineers = state.engineers,
+                                    broadcastTemplates = state.broadcastTemplates,
+                                    isSendingNotification = state.isSendingBroadcast,
+                                    notifications = state.broadcastHistory
+                                ),
+                                onSendNotification = { title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete ->
+                                    viewModel.sendBroadcast(title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete)
+                                },
+                                onRetractNotification = { notifId, onComplete ->
+                                    viewModel.retractBroadcast(notifId, onComplete)
+                                },
+                                onRefreshNotifications = viewModel::loadBroadcastHistory
+                            )
+                            4 -> AccountView(
                                 state = state,
                                 onOpenEditProfile = { showUnifiedEditProfileDialog = true },
                                 onLogout = viewModel::logout,
@@ -1158,8 +1182,19 @@ data class PortalTimersData(
 private fun computePortalTimers(
     roster: Map<String, ShiftCode>,
     today: LocalDate,
-    currentTimeSec: Long
+    currentTimeSec: Long,
+    isManagement: Boolean = false
 ): PortalTimersData {
+    if (isManagement) {
+        return PortalTimersData(
+            shiftLabel = "Operational Duty:",
+            shiftTime = "Supervisory Access",
+            isShiftRunning = false,
+            restLabel = "Schedule Status:",
+            restValue = "Non-Roster Operations"
+        )
+    }
+
     val todayShift = roster[today.dayOfMonth.toString()]
     val todayCode = todayShift?.code?.uppercase() ?: "OFF"
 
@@ -2154,8 +2189,12 @@ fun DashboardView(
         }
     }
 
-    val timers = remember(roster, today, currentTimeSec) {
-        computePortalTimers(roster, today, currentTimeSec)
+    val isManagement = state.loggedInEngineer?.isManagementAccount == true ||
+        state.loggedInEngineer?.role == EngineerRole.ADMIN ||
+        state.loggedInEngineer?.role == EngineerRole.MANAGER
+
+    val timers = remember(roster, today, currentTimeSec, isManagement) {
+        computePortalTimers(roster, today, currentTimeSec, isManagement)
     }
 
     val todayShift = roster[today.dayOfMonth.toString()]

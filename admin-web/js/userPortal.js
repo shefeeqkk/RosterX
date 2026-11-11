@@ -237,6 +237,14 @@ export class UserPortalController {
 
   async loadBroadcastNotifications() {
     try {
+      const uRole = (this.currentUser?.role || '').toLowerCase();
+      const isAdminOrManager = uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
+      if (isAdminOrManager) {
+        this.activeBroadcasts = [];
+        this.renderBroadcastNotifications();
+        return;
+      }
+
       const res = await this.atlasService.getNotifications();
       if (!res || !res.success || !res.notifications) return;
 
@@ -936,12 +944,19 @@ export class UserPortalController {
       });
     }
 
-    if (!match && (u.role === 'admin' || uUser === 'ADMIN')) {
-      // Pure system administrator fallback only
-      match = pool.find(e => e.name && e.name.toUpperCase().includes('SHEFEEQ')) || pool[0];
-    }
-
-    if (!match) {
+    const isMgmt = (u.role === 'admin' || u.role === 'manager' || u.is_admin || uUser === 'ADMIN' || uUser === 'MANAGER' || uName === 'ADMIN' || uName === 'MANAGER');
+    if (isMgmt) {
+      // Management accounts exist strictly for supervisory oversight - never assigned to working desk shifts
+      match = {
+        id: uId || `mgmt_${uUser.toLowerCase() || 'admin'}`,
+        name: u.name || u.full_name || (u.role === 'manager' ? 'Operations Manager' : 'System Administrator'),
+        username: u.username || (u.role === 'manager' ? 'manager' : 'admin'),
+        shifts: new Array(this.liveState.totalDays).fill(''),
+        status: 'Active',
+        role: u.role || 'admin',
+        isManagement: true
+      };
+    } else if (!match) {
       // NEVER assign another person's identity to the logged-in engineer!
       match = {
         id: uId || `eng_${uUser.toLowerCase() || 'user'}`,
@@ -985,25 +1000,29 @@ export class UserPortalController {
     if (nameEl) nameEl.textContent = toProperCase(this.currentUser.name || this.currentUser.username);
 
     if (roleEl) {
-
       const role = (this.currentUser.role || 'engineer').toUpperCase();
-
-      roleEl.textContent = role === 'ADMIN' ? 'ADMINISTRATOR' : (role === 'APPRENTICE' ? 'APPRENTICE' : 'NOC ENGINEER');
-
+      roleEl.textContent = role === 'ADMIN' ? 'ADMINISTRATOR' : (role === 'MANAGER' ? 'OPERATIONS MANAGER' : (role === 'APPRENTICE' ? 'APPRENTICE' : 'NOC ENGINEER'));
       if (role === 'ADMIN') {
-
         roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30';
-
+      } else if (role === 'MANAGER') {
+        roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
       } else if (role === 'APPRENTICE') {
-
         roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-
       } else {
-
         roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
-
       }
+    }
 
+    const mgmtBtn = document.getElementById('btnManagementConsole');
+    if (mgmtBtn) {
+      const uRole = (this.currentUser?.role || '').toLowerCase();
+      if (uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin) {
+        mgmtBtn.classList.remove('hidden');
+        mgmtBtn.classList.add('flex');
+      } else {
+        mgmtBtn.classList.add('hidden');
+        mgmtBtn.classList.remove('flex');
+      }
     }
 
   }
@@ -1257,9 +1276,15 @@ export class UserPortalController {
     const opDay = this.liveState.todayDay || now.getDate();
     const dutyStatus = this.getRealtimeDutyStatus(this.matchedEngineer, opDay, now);
 
-    if (shiftBadge) {
+    const uRole = (this.currentUser?.role || '').toLowerCase();
+    const isMgmt = this.matchedEngineer?.isManagement || uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
 
-      if (dutyStatus.isOnDuty) {
+    if (shiftBadge) {
+      if (isMgmt) {
+        const roleLabel = (uRole === 'manager') ? 'Operations Manager' : 'System Administrator';
+        shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700/60 flex items-center gap-2 shadow-xs';
+        shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> Supervisory Access (${roleLabel})`;
+      } else if (dutyStatus.isOnDuty) {
 
         if (dutyStatus.activeCode === 'NS') {
 
@@ -1334,6 +1359,54 @@ export class UserPortalController {
     const eng = this.matchedEngineer;
 
     if (!eng) return;
+
+    const uRole = (this.currentUser?.role || '').toLowerCase();
+    const isMgmt = eng.isManagement || uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
+
+    if (isMgmt) {
+      const todayCardStatusBadge = document.getElementById('todayCardStatusBadge');
+      if (todayCardStatusBadge) {
+        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950/80 text-indigo-900 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800/60 flex items-center gap-1 shadow-xs';
+        todayCardStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> Supervisory Active';
+      }
+      const todayCodeEl = document.getElementById('todayShiftCode');
+      const todayNameEl = document.getElementById('todayShiftName');
+      const todayTimingsEl = document.getElementById('todayShiftTimings');
+      const todayDescEl = document.getElementById('todayShiftDesc');
+      if (todayCodeEl) {
+        todayCodeEl.textContent = 'MGMT';
+        todayCodeEl.style.backgroundColor = '#4f46e5';
+        todayCodeEl.style.color = '#ffffff';
+      }
+      if (todayNameEl) todayNameEl.textContent = 'Supervisory / Administrative Duty';
+      if (todayTimingsEl) todayTimingsEl.textContent = 'Operational Oversight & Desk Management';
+      if (todayDescEl) todayDescEl.textContent = 'Dedicated management access. Oversee live shift operations and team coordination.';
+
+      const tomorrowCodeEl = document.getElementById('tomorrowShiftCode');
+      const tomorrowNameEl = document.getElementById('tomorrowShiftName');
+      const tomorrowTimingsEl = document.getElementById('tomorrowShiftTimings');
+      const tomorrowDescEl = document.getElementById('tomorrowShiftDesc');
+      if (tomorrowCodeEl) {
+        tomorrowCodeEl.textContent = 'MGMT';
+        tomorrowCodeEl.style.backgroundColor = '#4f46e5';
+        tomorrowCodeEl.style.color = '#ffffff';
+      }
+      if (tomorrowNameEl) tomorrowNameEl.textContent = 'Supervisory / Administrative Duty';
+      if (tomorrowTimingsEl) tomorrowTimingsEl.textContent = 'Operational Oversight & Desk Management';
+      if (tomorrowDescEl) tomorrowDescEl.textContent = 'Continuous administrative oversight and escalation point.';
+
+      const dayCountEl = document.getElementById('cardMetricDay');
+      const nightCountEl = document.getElementById('cardMetricNight');
+      const offCountEl = document.getElementById('cardMetricOff');
+      const totalCountEl = document.getElementById('cardMetricTotal');
+      if (dayCountEl) dayCountEl.textContent = '--';
+      if (nightCountEl) nightCountEl.textContent = '--';
+      if (offCountEl) offCountEl.textContent = '--';
+      if (totalCountEl) totalCountEl.textContent = 'Supervisory';
+      const cardRestDay = document.getElementById('cardUpcomingRestDay');
+      if (cardRestDay) cardRestDay.textContent = 'Supervisory Role - Non-Roster Schedule';
+      return;
+    }
 
 
 
@@ -3021,7 +3094,33 @@ export class UserPortalController {
   updateCountdownTimer() {
     const labelEl = document.getElementById('shiftCountdownLabel');
     const timeEl = document.getElementById('shiftCountdownTime');
+    const restNoticeLabelEl = document.getElementById('restDayNoticeLabel');
+    const restNoticeValEl = document.getElementById('restDayNoticeValue');
+    const cardRestDayEl = document.getElementById('cardUpcomingRestDay');
     if (!timeEl) return;
+
+    const uRole = (this.currentUser?.role || '').toLowerCase();
+    const isAdminOrManager = this.matchedEngineer?.isManagement || uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
+
+    if (isAdminOrManager) {
+      if (labelEl) labelEl.textContent = 'Operational Duty:';
+      timeEl.textContent = 'Administrative / Supervisory';
+      timeEl.className = 'font-bold text-indigo-700 dark:text-indigo-300 tracking-wide';
+
+      if (restNoticeLabelEl) restNoticeLabelEl.textContent = 'Active On Desk:';
+      if (restNoticeValEl) {
+        const now = getIstNow();
+        const opDay = this.liveState.todayDay || now.getDate();
+        let onDutyCount = 0;
+        (this.liveState.roster || []).forEach(eng => {
+          if (this.getRealtimeDutyStatus(eng, opDay, now).isOnDuty) onDutyCount++;
+        });
+        restNoticeValEl.textContent = `${onDutyCount} Engineers On Duty`;
+        restNoticeValEl.className = 'font-bold text-emerald-700 dark:text-emerald-400 tracking-wide';
+      }
+      if (cardRestDayEl) cardRestDayEl.textContent = 'Supervisory Account - No Shift Duty Required';
+      return;
+    }
 
     const roster = this.liveState.roster || [];
     const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
@@ -3031,7 +3130,7 @@ export class UserPortalController {
       const rId = String(r.id || '').trim().toLowerCase();
       const rName = String(r.name || '').trim().toLowerCase();
       return (myId && rId === myId) || (myName && rName === myName) || rName.includes(myId) || (myId && rId.includes(myId));
-    }) || roster[0] || null;
+    }) || null;
 
     const todayNum = this.liveState.todayDay || new Date().getDate();
     const code = (myRow && myRow.shifts && myRow.shifts[todayNum - 1]) ? myRow.shifts[todayNum - 1].trim().toUpperCase() : 'OFF';
