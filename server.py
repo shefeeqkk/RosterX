@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.24.6"
+SERVER_VERSION = "1.24.7"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -3864,6 +3864,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": "FCM device token cannot be blank."}, 400)
                 return
 
+            if claims.get("role") in ("admin", "manager") or username in ("admin", "manager"):
+                # Admin and Manager accounts are exempt from receiving operational FCM push broadcasts
+                self.send_json_response({"success": True, "message": "FCM device token registered (exempt from operational broadcasts)."})
+                return
+
             if ATLAS_DB is not None and username:
                 try:
                     # Exclusive Single-User Binding:
@@ -4017,7 +4022,15 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             raw_message = str(body.get("message", "")).strip()
             target = body.get("target", "everyone")
             priority = str(body.get("priority", "info")).lower()
-            sender = str(body.get("sender") or claims.get("name") or "System Administrator").strip()
+
+            # Dynamic Signature: 'Manager (<Name>)' or 'Admin (<Name>)'
+            role_raw = str(claims.get("role", "admin")).strip().lower()
+            sender_role = "Manager" if role_raw == "manager" else "Admin"
+            raw_sender_name = str(claims.get("name") or claims.get("full_name") or "").strip()
+            if not raw_sender_name:
+                raw_sender_name = "System Administrator" if sender_role == "Admin" else "Operations Manager"
+            sender = f"{sender_role} ({raw_sender_name})"
+
             send_email = bool(body.get("send_email", False))
             send_in_app = bool(body.get("send_in_app", True))
             send_push = bool(body.get("send_push", True))
@@ -4047,10 +4060,18 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 if uid:
                     name_by_id[uid] = fullname
 
+            def _is_exempt_from_broadcast(e):
+                if not isinstance(e, dict):
+                    return False
+                r = str(e.get("role", "")).strip().lower()
+                if r in ("admin", "manager") or e.get("is_admin") is True:
+                    return True
+                return is_management_account(e)
+
             is_everyone = target in ("everyone", "all", "*")
             recipients = []
             if is_everyone:
-                recipients = [e for e in engineers if e.get("status") != "Resigned"]
+                recipients = [e for e in engineers if e.get("status") != "Resigned" and not _is_exempt_from_broadcast(e)]
             elif isinstance(target, list):
                 target_norm = [str(t).strip().lower() for t in target if t]
                 def _matches_target(e):
@@ -4061,7 +4082,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     ekey = 'eng_' + re.sub(r'[^a-z0-9]', '', (enm or efn))
                     return (eid and eid in target_norm) or (eun and eun in target_norm) or (enm and enm in target_norm) or (efn and efn in target_norm) or (ekey in target_norm)
 
-                recipients = [e for e in engineers if _matches_target(e)]
+                recipients = [e for e in engineers if _matches_target(e) and not _is_exempt_from_broadcast(e)]
             elif isinstance(target, str):
                 t_val = target.strip().lower()
                 def _matches_str(e):
@@ -4072,10 +4093,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     ekey = 'eng_' + re.sub(r'[^a-z0-9]', '', (enm or efn))
                     return eid == t_val or eun == t_val or enm == t_val or efn == t_val or ekey == t_val
 
-                recipients = [e for e in engineers if _matches_str(e)]
+                recipients = [e for e in engineers if _matches_str(e) and not _is_exempt_from_broadcast(e)]
 
             if not recipients:
-                recipients = [e for e in engineers if e.get("status") != "Resigned"]
+                recipients = [e for e in engineers if e.get("status") != "Resigned" and not _is_exempt_from_broadcast(e)]
 
             emails_sent = 0
             for eng in recipients:
