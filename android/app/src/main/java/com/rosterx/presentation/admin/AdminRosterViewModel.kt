@@ -31,7 +31,8 @@ import java.util.Locale
 import com.rosterx.domain.repository.RosterBackup
 
 import javax.inject.Inject
-
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.rosterx.presentation.portal.getRosterForEngineer
 
 
@@ -89,7 +90,8 @@ data class AdminRosterState(
 class AdminRosterViewModel @Inject constructor(
     private val repository: RosterRepository,
     private val sessionManager: UserSessionManager,
-    val analyticsManager: com.rosterx.analytics.AnalyticsManager
+    val analyticsManager: com.rosterx.analytics.AnalyticsManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AdminRosterState())
@@ -256,6 +258,28 @@ class AdminRosterViewModel @Inject constructor(
                 roster = if (rosterResult.isSuccess) rosterMap else emptyMap(),
                 constraints = loadedConstraints
             )
+
+            // 4. Sync Operations Radar Widget for Admin
+            if (rosterResult.isSuccess && engineers.isNotEmpty()) {
+                val fullStringRoster = mutableMapOf<String, Map<String, String>>()
+                val rawRoster = rosterResult.getOrNull() ?: emptyMap()
+                rawRoster.forEach { (engId, daysMap) ->
+                    fullStringRoster[engId] = daysMap
+                }
+                val currentAdmin = sessionManager.currentUser.value
+                val adminName = currentAdmin?.fullName?.takeIf { it.isNotBlank() }
+                    ?: currentAdmin?.name
+                    ?: "Operations Administrator"
+
+                com.rosterx.widget.RosterXAppWidgetProvider.syncManagerOrAdminRoster(
+                    context = context,
+                    managerName = adminName,
+                    engineers = engineers,
+                    roster = fullStringRoster,
+                    monthKey = monthKey
+                )
+            }
+
             loadBackups()
         }
     }

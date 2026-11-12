@@ -9,6 +9,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,6 +71,60 @@ fun LoginScreen(
     var isIdentifierError by remember { mutableStateOf(false) }
     var localErrorMsg by remember { mutableStateOf<String?>(null) }
 
+    val identifierInteractionSource = remember { MutableInteractionSource() }
+    val passwordInteractionSource = remember { MutableInteractionSource() }
+
+    var isAutoLoggingIn by remember { mutableStateOf(false) }
+    var lastGpmPromptTimestamp by remember { mutableLongStateOf(0L) }
+
+    fun requestGooglePasswordManager(force: Boolean = false) {
+        if (activity == null || isAutoLoggingIn || state.isLoading) return
+        val now = System.currentTimeMillis()
+        if (!force && now - lastGpmPromptTimestamp < 1200L) return
+        lastGpmPromptTimestamp = now
+
+        coroutineScope.launch {
+            viewModel.googlePasswordManager.getSavedCredentials(activity) { savedUser, savedPass ->
+                if (savedUser.isNotBlank()) {
+                    identifier = savedUser
+                    localErrorMsg = null
+                    isIdentifierError = false
+                }
+                if (savedPass.isNotBlank()) {
+                    password = savedPass
+                    localErrorMsg = null
+                }
+                if (savedUser.isNotBlank() && savedPass.isNotBlank()) {
+                    isAutoLoggingIn = true
+                    keyboardController?.hide()
+                    viewModel.login(savedUser, savedPass)
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(state.isLoading, state.errorMessage) {
+        if (!state.isLoading && state.errorMessage != null) {
+            isAutoLoggingIn = false
+        }
+    }
+
+    LaunchedEffect(identifierInteractionSource) {
+        identifierInteractionSource.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Release) {
+                requestGooglePasswordManager()
+            }
+        }
+    }
+
+    LaunchedEffect(passwordInteractionSource) {
+        passwordInteractionSource.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Release) {
+                requestGooglePasswordManager()
+            }
+        }
+    }
+
     // 1-Tap Google Password Manager sheet prompt on screen launch & state cleanup
     var hasAttemptedCredentialFetch by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -77,10 +133,7 @@ fun LoginScreen(
         }
         if (!hasAttemptedCredentialFetch && activity != null && identifier.isBlank()) {
             hasAttemptedCredentialFetch = true
-            viewModel.googlePasswordManager.getSavedCredentials(activity) { savedUser, savedPass ->
-                identifier = savedUser
-                password = savedPass
-            }
+            requestGooglePasswordManager(force = true)
         }
     }
 
@@ -421,12 +474,32 @@ fun LoginScreen(
                         ) 
                     },
                     trailingIcon = {
-                        if (identifier.isNotEmpty()) {
-                            IconButton(onClick = { identifier = ""; localErrorMsg = null }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear text")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            IconButton(
+                                onClick = { requestGooglePasswordManager(force = true) },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Key,
+                                    contentDescription = "Autofill from Google Password Manager",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            if (identifier.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { identifier = ""; localErrorMsg = null },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear text", modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
                     },
+                    interactionSource = identifierInteractionSource,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
@@ -464,14 +537,35 @@ fun LoginScreen(
                         ) 
                     },
                     trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = "Toggle password visibility"
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            IconButton(
+                                onClick = { requestGooglePasswordManager(force = true) },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Key,
+                                    contentDescription = "Autofill from Google Password Manager",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { passwordVisible = !passwordVisible },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = "Toggle password visibility",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    interactionSource = passwordInteractionSource,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
