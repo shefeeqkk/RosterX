@@ -287,6 +287,38 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        fun syncManagerOrAdminRoster(
+            context: Context,
+            managerName: String,
+            engineers: List<Engineer>,
+            roster: Map<String, Map<String, String>>,
+            yesterdayRoster: Map<String, Map<String, String>>? = null,
+            monthKey: String? = null
+        ) {
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val editor = prefs.edit()
+                    .putBoolean(KEY_IS_LOGGED_OUT, false)
+                    .putBoolean(KEY_IS_MANAGER, true)
+                    .putString(KEY_ENGINEER_NAME, managerName)
+                    .putString(KEY_FULL_ROSTER_JSON, gson.toJson(roster))
+                    .putString(KEY_ENGINEERS_JSON, gson.toJson(engineers))
+
+                if (yesterdayRoster != null) {
+                    editor.putString(KEY_YESTERDAY_ROSTER_JSON, gson.toJson(yesterdayRoster))
+                }
+                if (monthKey != null) {
+                    editor.putString(KEY_ROSTER_MONTH_KEY, monthKey)
+                }
+                editor.apply()
+
+                recomputeManagerDutyList(context)
+                updateAllWidgets(context)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to syncManagerOrAdminRoster", e)
+            }
+        }
+
         fun recomputeManagerDutyList(
             context: Context,
             targetDate: LocalDate = LocalDate.now(),
@@ -599,8 +631,8 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 return
             }
 
-            // B. OPERATIONS RADAR WIDGET VIEW: Strictly for Managers/Admins with duty list
-            if (isManager && !dutyListJson.isNullOrBlank()) {
+            // B. OPERATIONS RADAR WIDGET VIEW: Strictly for Managers/Admins
+            if (isManager) {
                 val managerViews = RemoteViews(context.packageName, R.layout.widget_rosterx_manager)
 
                 // Launch MainActivity on widget tap
@@ -609,10 +641,15 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 // Dynamically recompute today's duty roster for current date & time
                 val today = LocalDate.now()
                 val todayFmt = today.format(DateTimeFormatter.ofPattern("EEE, MMM dd"))
-                recomputeManagerDutyList(context, today, LocalTime.now())
+                val recomputed = recomputeManagerDutyList(context, today, LocalTime.now())
 
                 val dateStr = prefs.getString(KEY_MANAGER_DATE_STR, todayFmt) ?: todayFmt
-                val summaryStr = prefs.getString(KEY_MANAGER_SUMMARY_STR, "Today's Coverage: Active Duty") ?: "Today's Coverage: Active Duty"
+                val updatedDutyJson = prefs.getString(KEY_MANAGER_DUTY_LIST_JSON, null)
+                val summaryStr = if (updatedDutyJson.isNullOrBlank()) {
+                    "NOC Operations Radar • Supervisory Desk Access"
+                } else {
+                    prefs.getString(KEY_MANAGER_SUMMARY_STR, "Today's Coverage: Active Duty") ?: "Today's Coverage: Active Duty"
+                }
 
                 managerViews.setTextViewText(R.id.widget_manager_date, dateStr)
                 managerViews.setTextViewText(R.id.widget_manager_summary, summaryStr)
