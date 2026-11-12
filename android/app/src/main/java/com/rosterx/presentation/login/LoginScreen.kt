@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.view.autofill.AutofillManager
+import android.view.autofill.AutofillValue
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -47,9 +48,11 @@ import androidx.compose.ui.platform.LocalAutofill
 import androidx.compose.ui.platform.LocalAutofillTree
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -77,12 +80,18 @@ fun LoginScreen(
     val identifierFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
     val context = LocalContext.current
+    val currentView = LocalView.current
     val activity = context as? Activity
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
 
     val autofill = LocalAutofill.current
     val autofillTree = LocalAutofillTree.current
+    val autofillManager = remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.getSystemService(AutofillManager::class.java)
+        } else null
+    }
 
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -99,12 +108,25 @@ fun LoginScreen(
     var isAutoLoggingIn by remember { mutableStateOf(false) }
     var lastGpmPromptTimestamp by remember { mutableLongStateOf(0L) }
 
+    val triggerAutoLoginIfReady: (String, String) -> Unit = { user, pass ->
+        if (user.isNotBlank() && pass.isNotBlank() && !isAutoLoggingIn && !state.isLoading) {
+            isAutoLoggingIn = true
+            keyboardController?.hide()
+            viewModel.login(user, pass)
+        }
+    }
+
     val identifierAutofillNode = remember {
         AutofillNode(
-            onFill = { 
-                identifier = it
+            onFill = { filledUser ->
+                identifier = filledUser
                 localErrorMsg = null
                 isIdentifierError = false
+                if (password.isNotBlank()) {
+                    triggerAutoLoginIfReady(filledUser, password)
+                } else {
+                    passwordFocusRequester.requestFocus()
+                }
             },
             autofillTypes = listOf(AutofillType.Username, AutofillType.EmailAddress)
         )
@@ -112,9 +134,10 @@ fun LoginScreen(
 
     val passwordAutofillNode = remember {
         AutofillNode(
-            onFill = { 
-                password = it
+            onFill = { filledPass ->
+                password = filledPass
                 localErrorMsg = null
+                triggerAutoLoginIfReady(identifier, filledPass)
             },
             autofillTypes = listOf(AutofillType.Password)
         )
@@ -544,6 +567,15 @@ fun LoginScreen(
                         if (isIdentifierError && it.isNotBlank()) {
                             isIdentifierError = false
                         }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            try {
+                                autofillManager?.notifyValueChanged(
+                                    currentView,
+                                    identifierAutofillNode.id,
+                                    AutofillValue.forText(it)
+                                )
+                            } catch (_: Throwable) {}
+                        }
                     },
                     label = { Text("Username or Email") },
                     leadingIcon = { 
@@ -581,7 +613,9 @@ fun LoginScreen(
                     },
                     interactionSource = identifierInteractionSource,
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
+                        capitalization = KeyboardCapitalization.None,
+                        autoCorrect = false,
+                        keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Next
                     ),
                     keyboardActions = KeyboardActions(
@@ -622,7 +656,19 @@ fun LoginScreen(
                 // Password Input Field with Google Password Manager
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it; localErrorMsg = null },
+                    onValueChange = { 
+                        password = it
+                        localErrorMsg = null
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            try {
+                                autofillManager?.notifyValueChanged(
+                                    currentView,
+                                    passwordAutofillNode.id,
+                                    AutofillValue.forText(it)
+                                )
+                            } catch (_: Throwable) {}
+                        }
+                    },
                     label = { Text("Password") },
                     leadingIcon = { 
                         Icon(

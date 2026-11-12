@@ -1,21 +1,21 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Briefing from Vijayan & Dasan:* **2026-11-12 19:25 IST** 🕵️‍♂️🔍🕵️✨
+> *Last Briefing from Vijayan & Dasan:* **2026-11-12 21:25 IST** 🕵️‍♂️🔍🕵️✨
 
 ---
 
 ## 📢 🕵️ Dasan & Vijayan Joint Field Dispatch:
-> *"Vijayan: 'Dasa! Shefeeq paranja Google Password Manager dismissal issue nammal smooth aayi fix cheythu! User password manager prompt dismiss/close cheythaal appol thanne software keyboard auto-popup aavum, cursor tapped field-il (Username/Password) focus aayi ready aayittirikkum! Pinne typing cheyyumbol cursor move cheyyan tap cheythaal GPM prompt keri block cheyyilla — dedicated Key icon click cheythal mathrame veendum pop varullu!'*  
-> *Dasan: 'Athe Vijaya! Koode inline keyboard autofill chips-um koodi koduthu (`AutofillType.Username` & `AutofillType.Password`). Gboard-inte suggestion strip-il thanne saved accounts chip aayi kaanikkum. Build 103 clean aayi ready aakki!' "*
+> *"Vijayan: 'Dasa! Shefeeq choicha Gboard inline username recommendation chip nammal kramikarithu! Username field-il `keyboardType = KeyboardType.Email` aayirunnathu maatti `KeyboardType.Text` + `autoCorrect = false` aakki. Ennitt keystroke oro thavanayum type cheyyumbol Android `AutofillManager.notifyValueChanged` vazhi Google Autofill-lekku filter signal ayachu! Ippo 'shef' enn type cheythaal Gboard suggestion strip-il thanne 'shefeeqkk' chip recommend aavum!'*  
+> *Dasan: 'Athu mathramalla Vijaya! Aa Gboard suggestion chip tap cheytha udane username-um password-um autofill aayi automatic instant login dispatch cheyyum — user-inu manual button click cheyyenda aavasyame illa! Build 104 clean aayi assemble cheythu landing ready aakki!' "*
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.24.12`** (Android `versionCode: 103`, Server `SERVER_VERSION = "1.24.12"`)
-- **Previous Versions**: `1.24.11` (Build 102), `1.24.10` (Build 101), `1.24.9` (Build 100)
+- **Semantic Version**: **`1.24.13`** (Android `versionCode: 104`, Server `SERVER_VERSION = "1.24.13"`)
+- **Previous Versions**: `1.24.12` (Build 103), `1.24.11` (Build 102), `1.24.10` (Build 101)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online` (Render origin: `rosterx-vc30.onrender.com`)  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
@@ -24,16 +24,13 @@
 
 ---
 
-## 🚀 Accomplished in v1.24.12 (Build 103)
+## 🚀 Accomplished in v1.24.13 (Build 104)
 
-### 1. ⌨️ Seamless Auto-Keyboard Fallback on GPM Dismissal (`LoginScreen.kt` & `GooglePasswordManagerHelper.kt`)
-- **Dismissal Callback**: `GooglePasswordManagerHelper.getSavedCredentials()` now accepts an `onDismissed` handler triggered upon `GetCredentialCancellationException`, no-credential available, or dismissal.
-- **Instant Keyboard Popup**: When dismissed, `showKeyboard(targetField)` immediately requests focus on the tapped field (`identifierFocusRequester` or `passwordFocusRequester`) and calls both `keyboardController?.show()` and native `InputMethodManager.showSoftInput`, popping the soft keyboard instantly with zero lag or missing focus.
+### 1. ⌨️ Gboard Inline Username Autofill Chips (`LoginScreen.kt`)
+- **Resolved Email Suppression**: Replaced `KeyboardType.Email` with `KeyboardType.Text` (`autoCorrect = false`, `capitalization = KeyboardCapitalization.None`). This prevents Gboard from forcing email dictionary completions (e.g. `shefee...ail.com`) and unlocks account username suggestions.
+- **Dynamic Keystroke Autofill Sync**: Added `autofillManager.notifyValueChanged(currentView, identifierAutofillNode.id, AutofillValue.forText(it))` on every keystroke. As the user types `"shef"`, Google Autofill dynamically filters and pushes the matching `shefeeqkk` credential chip to Gboard's suggestion strip.
 
-### 2. 🎯 Smart Context Focus & Typing Flow (`LoginScreen.kt`)
-- **Unobstructed Typing**: While the user is already focused on a field and typing/editing, tapping to position the cursor does **not** re-invoke the GPM bottom sheet.
-- **On-Demand Key Icon**: A prominent Key icon (`Icons.Default.Key`) in both fields remains active at all times to invoke Google Password Manager on demand whenever requested.
-
-### 3. 🏷️ Inline Keyboard Autofill Chips (`LoginScreen.kt`)
-- Added standard Compose Autofill nodes (`AutofillType.Username`, `AutofillType.EmailAddress`, `AutofillType.Password`) with `onGloballyPositioned` bounds and `onFocusChanged` lifecycle events.
-- Enables Gboard and Samsung Keyboard to display saved credential quick-chips in the keyboard suggestion strip above the keys.
+### 2. ⚡ 1-Tap Auto-Login on Gboard Chip Tap (`LoginScreen.kt`)
+- Updated `identifierAutofillNode.onFill` and `passwordAutofillNode.onFill`:
+  - When the Gboard suggestion chip is tapped, Autofill supplies the credentials.
+  - As soon as both are received, the app dismisses the soft keyboard and triggers `viewModel.login(user, pass)` immediately.
