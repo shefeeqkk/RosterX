@@ -99,9 +99,13 @@ class GooglePasswordManagerHelper @Inject constructor(
      */
     suspend fun getSavedCredentials(
         activity: Activity,
+        onDismissed: () -> Unit = {},
         onCredentialsRetrieved: (username: String, password: String) -> Unit
     ): Boolean = withContext(Dispatchers.Main) {
-        if (!isGooglePasswordManagerEnabled()) return@withContext false
+        if (!isGooglePasswordManagerEnabled()) {
+            onDismissed()
+            return@withContext false
+        }
         try {
             val credentialManager = CredentialManager.create(activity)
             val passwordOption = GetPasswordOption()
@@ -116,16 +120,20 @@ class GooglePasswordManagerHelper @Inject constructor(
                 onCredentialsRetrieved(username, password)
                 return@withContext true
             }
+            onDismissed()
             false
         } catch (e: GetCredentialCancellationException) {
-            // User dismissed the 1-tap sheet - continue normally
+            // User dismissed the 1-tap sheet - continue normally and signal caller
             Log.d(TAG, "Google Password Manager: 1-Tap retrieval dismissed by user.")
+            onDismissed()
             false
         } catch (e: GetCredentialException) {
             Log.d(TAG, "Google Password Manager: No saved credentials found or unavailable: ${e.message}")
+            onDismissed()
             false
         } catch (e: Throwable) {
             Log.w(TAG, "Google Password Manager: Error during credential retrieval: ${e.message}")
+            onDismissed()
             false
         }
     }

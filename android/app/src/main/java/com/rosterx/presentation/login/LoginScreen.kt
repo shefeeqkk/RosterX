@@ -1,8 +1,10 @@
 package com.rosterx.presentation.login
 
 import android.app.Activity
+import android.content.Context
 import android.os.Build
 import android.view.autofill.AutofillManager
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -32,10 +34,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.AutofillNode
+import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalAutofill
+import androidx.compose.ui.platform.LocalAutofillTree
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -51,6 +60,12 @@ import com.rosterx.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private enum class TargetField {
+    NONE,
+    USERNAME,
+    PASSWORD
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun LoginScreen(
@@ -59,11 +74,15 @@ fun LoginScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
+    val identifierFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
     val context = LocalContext.current
     val activity = context as? Activity
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
+
+    val autofill = LocalAutofill.current
+    val autofillTree = LocalAutofillTree.current
 
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -71,20 +90,73 @@ fun LoginScreen(
     var isIdentifierError by remember { mutableStateOf(false) }
     var localErrorMsg by remember { mutableStateOf<String?>(null) }
 
+    var isIdentifierFocused by remember { mutableStateOf(false) }
+    var isPasswordFocused by remember { mutableStateOf(false) }
+
     val identifierInteractionSource = remember { MutableInteractionSource() }
     val passwordInteractionSource = remember { MutableInteractionSource() }
 
     var isAutoLoggingIn by remember { mutableStateOf(false) }
     var lastGpmPromptTimestamp by remember { mutableLongStateOf(0L) }
 
-    fun requestGooglePasswordManager(force: Boolean = false) {
+    val identifierAutofillNode = remember {
+        AutofillNode(
+            onFill = { 
+                identifier = it
+                localErrorMsg = null
+                isIdentifierError = false
+            },
+            autofillTypes = listOf(AutofillType.Username, AutofillType.EmailAddress)
+        )
+    }
+
+    val passwordAutofillNode = remember {
+        AutofillNode(
+            onFill = { 
+                password = it
+                localErrorMsg = null
+            },
+            autofillTypes = listOf(AutofillType.Password)
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        autofillTree += identifierAutofillNode
+        autofillTree += passwordAutofillNode
+    }
+
+    fun showKeyboard(target: TargetField) {
+        coroutineScope.launch {
+            when (target) {
+                TargetField.USERNAME -> identifierFocusRequester.requestFocus()
+                TargetField.PASSWORD -> passwordFocusRequester.requestFocus()
+                TargetField.NONE -> return@launch
+            }
+            delay(100)
+            keyboardController?.show()
+            try {
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                val currentView = activity?.currentFocus ?: activity?.window?.decorView
+                if (currentView != null) {
+                    imm?.showSoftInput(currentView, InputMethodManager.SHOW_IMPLICIT)
+                }
+            } catch (_: Throwable) {}
+        }
+    }
+
+    fun requestGooglePasswordManager(targetField: TargetField = TargetField.NONE, force: Boolean = false) {
         if (activity == null || isAutoLoggingIn || state.isLoading) return
         val now = System.currentTimeMillis()
         if (!force && now - lastGpmPromptTimestamp < 1200L) return
         lastGpmPromptTimestamp = now
 
         coroutineScope.launch {
-            viewModel.googlePasswordManager.getSavedCredentials(activity) { savedUser, savedPass ->
+            viewModel.googlePasswordManager.getSavedCredentials(
+                activity = activity,
+                onDismissed = {
+                    showKeyboard(targetField)
+                }
+            ) { savedUser, savedPass ->
                 if (savedUser.isNotBlank()) {
                     identifier = savedUser
                     localErrorMsg = null
@@ -112,7 +184,11 @@ fun LoginScreen(
     LaunchedEffect(identifierInteractionSource) {
         identifierInteractionSource.interactions.collect { interaction ->
             if (interaction is PressInteraction.Release) {
-                requestGooglePasswordManager()
+                if (!isIdentifierFocused) {
+                    requestGooglePasswordManager(targetField = TargetField.USERNAME)
+                } else {
+                    keyboardController?.show()
+                }
             }
         }
     }
@@ -120,7 +196,11 @@ fun LoginScreen(
     LaunchedEffect(passwordInteractionSource) {
         passwordInteractionSource.interactions.collect { interaction ->
             if (interaction is PressInteraction.Release) {
-                requestGooglePasswordManager()
+                if (!isPasswordFocused) {
+                    requestGooglePasswordManager(targetField = TargetField.PASSWORD)
+                } else {
+                    keyboardController?.show()
+                }
             }
         }
     }
@@ -133,7 +213,7 @@ fun LoginScreen(
         }
         if (!hasAttemptedCredentialFetch && activity != null && identifier.isBlank()) {
             hasAttemptedCredentialFetch = true
-            requestGooglePasswordManager(force = true)
+            requestGooglePasswordManager(targetField = TargetField.NONE, force = true)
         }
     }
 
@@ -479,7 +559,7 @@ fun LoginScreen(
                             modifier = Modifier.padding(end = 4.dp)
                         ) {
                             IconButton(
-                                onClick = { requestGooglePasswordManager(force = true) },
+                                onClick = { requestGooglePasswordManager(targetField = TargetField.USERNAME, force = true) },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
@@ -517,7 +597,22 @@ fun LoginScreen(
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(identifierFocusRequester)
+                        .onGloballyPositioned { coordinates ->
+                            identifierAutofillNode.boundingBox = coordinates.boundsInWindow()
+                        }
+                        .onFocusChanged { focusState ->
+                            isIdentifierFocused = focusState.isFocused
+                            autofill?.let {
+                                if (focusState.isFocused) {
+                                    it.requestAutofillForNode(identifierAutofillNode)
+                                } else {
+                                    it.cancelAutofillForNode(identifierAutofillNode)
+                                }
+                            }
+                        },
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
@@ -542,7 +637,7 @@ fun LoginScreen(
                             modifier = Modifier.padding(end = 4.dp)
                         ) {
                             IconButton(
-                                onClick = { requestGooglePasswordManager(force = true) },
+                                onClick = { requestGooglePasswordManager(targetField = TargetField.PASSWORD, force = true) },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
@@ -580,7 +675,20 @@ fun LoginScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(passwordFocusRequester),
+                        .focusRequester(passwordFocusRequester)
+                        .onGloballyPositioned { coordinates ->
+                            passwordAutofillNode.boundingBox = coordinates.boundsInWindow()
+                        }
+                        .onFocusChanged { focusState ->
+                            isPasswordFocused = focusState.isFocused
+                            autofill?.let {
+                                if (focusState.isFocused) {
+                                    it.requestAutofillForNode(passwordAutofillNode)
+                                } else {
+                                    it.cancelAutofillForNode(passwordAutofillNode)
+                                }
+                            }
+                        },
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
