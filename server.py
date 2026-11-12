@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.24.9"
+SERVER_VERSION = "1.24.10"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -943,7 +943,7 @@ def check_and_trigger_celebrations(force=False):
 
         for eng in engineers:
             uname = str(eng.get("username") or "").strip().lower()
-            if not uname or uname in ("admin", "manager", "sysadmin"):
+            if not uname or uname in ("admin", "sysadmin", "system"):
                 continue
             full_name = str(eng.get("fullName") or eng.get("full_name") or eng.get("name") or uname).strip()
             full_name = to_proper_name(full_name)

@@ -88,6 +88,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import android.graphics.BlurMaskFilter
 
 import androidx.compose.ui.graphics.Brush
 
@@ -3074,14 +3079,27 @@ fun MyCalendarView(
 ) {
 
     val yearMonth = YearMonth.of(state.gridYear, state.gridMonth)
-
     val daysInMonth = yearMonth.lengthOfMonth()
-
     val firstDayOfWeek = yearMonth.atDay(1).dayOfWeek.value
-
     val engineer = state.loggedInEngineer
-
     val roster = getRosterForEngineer(state.gridRoster, engineer)
+
+    val today = LocalDate.now()
+    val themeAccent = LocalThemeAccent.current
+
+    // Infinite breathing transition for Current Day glow & animated border
+    val infiniteTransition = rememberInfiniteTransition(label = "TodayGlow")
+    val glowProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowProgress"
+    )
+    val glowAlpha = 0.35f + 0.60f * glowProgress
+    val glowRadius = (3.0f + 5.0f * glowProgress).dp
 
 
 
@@ -3206,97 +3224,101 @@ fun MyCalendarView(
 
 
                     items((1..currentDaysCount).toList()) { day ->
-
                         val date = LocalDate.of(currentYM.year, currentYM.monthValue, day)
-
+                        val isToday = (currentYM.year == today.year && currentYM.monthValue == today.monthValue && day == today.dayOfMonth)
                         val shift = roster[day.toString()]
-
                         val isSelected = state.selectedDate == date
-
                         val isWeekend = date.dayOfWeek.value >= 6
 
-
-
                         val cellBgColor = when {
-
                             shift != null -> Color(parseColor(shift.bgColorHex))
-
                             isWeekend -> WeekendLightOrange
-
                             isSelected -> NeumorphicTokens.AccentSalmon.copy(alpha = 0.25f)
-
                             else -> NeumorphicTokens.SurfaceContrast
-
                         }
-
-
 
                         Box(
-
                             modifier = Modifier
-
                                 .aspectRatio(1f)
-
+                                .then(
+                                    if (isToday) {
+                                        Modifier.drawBehind {
+                                            val blurPx = glowRadius.toPx()
+                                            drawIntoCanvas { canvas ->
+                                                val paint = android.graphics.Paint().apply {
+                                                    isAntiAlias = true
+                                                    color = themeAccent.copy(alpha = glowAlpha * 0.5f).toArgb()
+                                                    maskFilter = BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL)
+                                                }
+                                                canvas.nativeCanvas.drawRoundRect(
+                                                    -blurPx * 0.3f,
+                                                    -blurPx * 0.3f,
+                                                    size.width + blurPx * 0.3f,
+                                                    size.height + blurPx * 0.3f,
+                                                    10.dp.toPx(),
+                                                    10.dp.toPx(),
+                                                    paint
+                                                )
+                                            }
+                                        }
+                                    } else Modifier
+                                )
                                 .clip(RoundedCornerShape(8.dp))
-
                                 .background(cellBgColor)
-
                                 .border(
-
-                                    1.5.dp,
-
-                                    if (isSelected) NeumorphicTokens.AccentSalmon else Color.Transparent,
-
-                                    RoundedCornerShape(8.dp)
-
+                                    width = when {
+                                        isToday -> 2.5.dp
+                                        isSelected -> 1.8.dp
+                                        else -> 0.dp
+                                    },
+                                    color = when {
+                                        isToday -> themeAccent.copy(alpha = glowAlpha)
+                                        isSelected -> NeumorphicTokens.AccentSalmon
+                                        else -> Color.Transparent
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
                                 )
-
                                 .clickable {
-
                                     onDateSelected(date)
-
                                     onNavigateToTeam()
-
                                 },
-
                             contentAlignment = Alignment.Center
-
                         ) {
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-                                Text(
-
-                                    text = day.toString(),
-
-                                    fontWeight = FontWeight.ExtraBold,
-
-                                    fontSize = 13.sp,
-
-                                    color = if (shift != null) Color(parseColor(shift.textColorHex)) else NeumorphicTokens.TextMain
-
-                                )
-
-                                if (shift != null) {
-
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
                                     Text(
-
-                                        text = shift.code,
-
-                                        fontSize = 10.sp,
-
-                                        color = Color(parseColor(shift.textColorHex)),
-
-                                        fontWeight = FontWeight.ExtraBold
-
+                                        text = day.toString(),
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = if (isToday) 14.sp else 13.sp,
+                                        color = if (shift != null) Color(parseColor(shift.textColorHex)) else NeumorphicTokens.TextMain
                                     )
-
+                                    if (isToday) {
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(5.dp)
+                                                .clip(CircleShape)
+                                                .background(themeAccent.copy(alpha = glowAlpha))
+                                        )
+                                    }
                                 }
 
+                                if (shift != null) {
+                                    Text(
+                                        text = shift.code,
+                                        fontSize = 10.sp,
+                                        color = Color(parseColor(shift.textColorHex)),
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
                             }
-
                         }
-
                     }
 
                 }
