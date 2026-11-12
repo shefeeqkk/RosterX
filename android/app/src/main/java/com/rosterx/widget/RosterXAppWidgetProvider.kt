@@ -151,14 +151,20 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                 val isManager = (user.role == EngineerRole.MANAGER || user.role == EngineerRole.ADMIN)
                 val displayName = user.fullName.takeIf { it.isNotBlank() } ?: user.name
 
+                val oldName = prefs.getString(KEY_ENGINEER_NAME, null)
+                val isUserChanged = oldName != null && !oldName.equals(displayName, ignoreCase = true)
+
                 val editor = prefs.edit()
                     .putBoolean(KEY_IS_LOGGED_OUT, false)
                     .putBoolean(KEY_IS_MANAGER, isManager)
                     .putString(KEY_ENGINEER_NAME, displayName)
 
-                if (!isManager) {
+                if (isUserChanged) {
+                    // Only purge cached schedule when switching accounts to a completely different user
                     editor.remove(KEY_MANAGER_DUTY_LIST_JSON)
                     editor.remove(KEY_SHIFTS_JSON)
+                } else if (!isManager) {
+                    editor.remove(KEY_MANAGER_DUTY_LIST_JSON)
                 }
                 editor.apply()
 

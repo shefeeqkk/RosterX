@@ -580,13 +580,10 @@ fun EngineerPortalScreen(
 
     val pullRefreshState = rememberPullToRefreshState()
     if (pullRefreshState.isRefreshing) {
-        LaunchedEffect(true) {
-            viewModel.loadData()
-        }
-    }
-    LaunchedEffect(state.isLoading) {
-        if (!state.isLoading) {
-            pullRefreshState.endRefresh()
+        LaunchedEffect(Unit) {
+            viewModel.refreshAllData {
+                pullRefreshState.endRefresh()
+            }
         }
     }
 

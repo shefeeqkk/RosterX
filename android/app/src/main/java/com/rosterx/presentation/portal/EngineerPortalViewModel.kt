@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 import java.time.LocalDate
 
@@ -205,24 +207,37 @@ class EngineerPortalViewModel @Inject constructor(
 
 
 
-    fun loadData(silent: Boolean = false) {
+    fun refreshAllData(onComplete: (() -> Unit)? = null) {
+        loadData(silent = true, forceRefresh = true, onComplete = onComplete)
+    }
+
+    fun loadData(
+        silent: Boolean = false,
+        forceRefresh: Boolean = false,
+        onComplete: (() -> Unit)? = null
+    ) {
         viewModelScope.launch {
-            val selected = _state.value.selectedDate
-            val liveMonthKey = String.format(Locale.US, "%d-%02d", selected.year, selected.monthValue)
-            val gridMonthKey = String.format(Locale.US, "%d-%02d", _state.value.gridYear, _state.value.gridMonth)
+            try {
+                if (forceRefresh) {
+                    rosterCache.clear()
+                }
 
-            val cachedLive = rosterCache[liveMonthKey]
-            val cachedGrid = rosterCache[gridMonthKey]
+                val selected = _state.value.selectedDate
+                val liveMonthKey = String.format(Locale.US, "%d-%02d", selected.year, selected.monthValue)
+                val gridMonthKey = String.format(Locale.US, "%d-%02d", _state.value.gridYear, _state.value.gridMonth)
 
-            if (cachedLive != null && _state.value.engineers.isNotEmpty()) {
-                _state.value = _state.value.copy(
-                    liveRoster = cachedLive,
-                    gridRoster = cachedGrid ?: cachedLive,
-                    isLoading = false
-                )
-            } else if (!silent) {
-                _state.value = _state.value.copy(isLoading = true, errorMessage = null)
-            }
+                val cachedLive = if (forceRefresh) null else rosterCache[liveMonthKey]
+                val cachedGrid = if (forceRefresh) null else rosterCache[gridMonthKey]
+
+                if (cachedLive != null && _state.value.engineers.isNotEmpty()) {
+                    _state.value = _state.value.copy(
+                        liveRoster = cachedLive,
+                        gridRoster = cachedGrid ?: cachedLive,
+                        isLoading = false
+                    )
+                } else if (!silent) {
+                    _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+                }
 
             val engineersResult = repository.getEngineers()
 
@@ -578,6 +593,12 @@ class EngineerPortalViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     errorMessage = engineersResult.exceptionOrNull()?.message ?: "Failed to load data. Please check connection."
                 )
+            }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    _state.value = _state.value.copy(isLoading = false)
+                    onComplete?.invoke()
+                }
             }
         }
     }

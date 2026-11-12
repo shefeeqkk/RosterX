@@ -1,56 +1,44 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Briefing from Vijayan & Dasan:* **2026-11-11 13:15 IST** 🕵️‍♂️🔍🕵️✨
+> *Last Briefing from Vijayan & Dasan:* **2026-11-12 08:35 IST** 🕵️‍♂️🔍🕵️✨
 
 ---
 
 ## 📢 🕵️ Dasan & Vijayan Joint Field Dispatch:
-> *"Vijayan: 'Dasa! Nammal paranja pole work segregate cheythu — nee backend `server.py`-il delivery telemetry-yum dynamic signature acceptance-um set aakki, njan frontend Web-ilum Android Compose-ilum clean-up-um delivery audit cards-um pidippichu!'*  
-> *Dasan: 'Athe Vijaya! Appozhekkum swipe-down-to-refresh pull gesture-um koodi nammal full app-il pidippichu kazhinju! Build 99 adichu ketti, device-il install aayi! Shefeeq chodicha ellam full clear! Render-lekku oru `git push` koodi koduthaal live web portal-lum fresh aayi maarum!' "*
+> *"Vijayan: 'Dasa! Nammal aah rendu annoying issues-um koodi theerumanichu! First, widget open/close cheyyumbo 'Syncing...' aayi kidakkunna prashnam — `onUserLoggedIn`-il `KEY_SHIFTS_JSON` delete aayirunnu, athu nammal permanent caching aakki maatti! Iniyippo widget eppozhum live shifts smooth aayi kaanikkum!'*  
+> *Dasan: 'Athe Vijaya! Pinne pull-to-refresh spinner infinite aayi karangunna case — `loadData` asynchronous aayirunnu, `state.isLoading` toggle aakathathu kondu `endRefresh` call aayilla. Ippo `refreshAllData` vazhi network force-fetch cheythu `finally` block-il clean aayi spinner dismiss aavum! Build 100 successful aayi assemble cheythu!' "*
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.24.8`** (Android `versionCode: 99`, Server `SERVER_VERSION = "1.24.8"`)
-- **Previous Versions**: `1.24.7` (Build 98), `1.24.6` (Build 97), `1.24.5` (Build 96)
+- **Semantic Version**: **`1.24.9`** (Android `versionCode: 100`, Server `SERVER_VERSION = "1.24.9"`)
+- **Previous Versions**: `1.24.8` (Build 99), `1.24.7` (Build 98), `1.24.6` (Build 97)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online` (Render origin: `rosterx-vc30.onrender.com`)  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`)
-- **Target Device (Tailscale IP)**: `100.71.241.36:5555` (Connected, Installed & Verified Build 99)
+- **Target Device (Tailscale IP)**: `100.71.241.36:5555`
 
 ---
 
-## 🚀 Accomplished in v1.24.8 (Build 99)
+## 🚀 Accomplished in v1.24.9 (Build 100)
 
-### 1. ✍️ Robust Dynamic Sender Signature Enforcement
-- **Backend (`server.py`)**:
-  - `POST /api/notifications/send` now respects explicit client sender payloads (`Manager (<Name>)` / `Admin (<Name>)`) and falls back to claims metadata.
-- **Web Console (`broadcastController.js`)**:
-  - Automatically injects `sender = "Manager (<Name>)"` or `"Admin (<Name>)"` into the broadcast request payload.
-- **Android App (`AdminRosterViewModel.kt` & `EngineerPortalViewModel.kt`)**:
-  - Derives role and full name to pass `sender = "Manager (<Name>)"` / `"Admin (<Name>)"` in `sendNotification()`.
+### 1. 🛡️ Permanent Widget Shift Caching (Zero Flickering / No Stale Sync Placeholders)
+- **Root Cause Eliminated (`RosterXAppWidgetProvider.kt`)**:
+  - `onUserLoggedIn` previously wiped `KEY_SHIFTS_JSON` on every app launch and resume when `UserSessionManager.setCurrentUser()` was triggered.
+  - Now, `KEY_SHIFTS_JSON` is preserved across app open/close cycles unless the user identity explicitly changes to a different account.
+  - The home screen widget displays the verified schedule permanently, refreshing silently in the background when new data arrives without ever flashing into the `"Syncing Schedule..."` placeholder.
 
-### 2. 🧹 Quick Mentions Toolbar Cleanup
-- **Web (`index.html` & `broadcastController.js`)**:
-  - Removed `{username}` and `+ Urgent Action`.
-  - Retained `{name}`, `@all`, and added interactive `@mention` button.
-- **Android (`NotificationsTab.kt`)**:
-  - Cleaned suggestions chips to only `{name}`, `@all`, and `@ Mention...`.
-
-### 3. 📊 3-Channel Multi-Delivery Audit Report (FCM, In-App, Email)
-- **Backend Schema (`server.py`)**:
-  - Notifications store and return structured `fcm_delivery`, `inapp_delivery`, and `email_delivery` telemetry objects with status, target counts, and dispatch metrics.
-- **Web Audit Modal (`index.html` & `broadcastController.js`)**:
-  - Added dedicated 3-card panel in `#broadcastDetailsModal` breaking down **FCM Push**, **In-App Feed**, and **Email Broadcast** with colored status pills.
-- **Android History Details (`NotificationsTab.kt`)**:
-  - Added 3-card delivery audit cards in the expanded details view of `NotificationHistoryCard`.
-
-### 4. 🔄 Universal Swipe-Down-to-Refresh (Pull-to-Refresh)
-- **Android Compose (`EngineerPortalScreen.kt`)**:
-  - Integrated `PullToRefreshContainer` with `rememberPullToRefreshState()` and `nestedScroll`.
-  - Swiping down anywhere on Dashboard, Team Shifts, and Month Roster triggers full reactive refresh via `viewModel.loadData()`.
-  - Preserves existing UI while showing the smooth Material 3 top refresh indicator.
+### 2. 🔄 Guaranteed Dismissal of Pull-to-Refresh Spinner (No Infinite Spin)
+- **Network Force-Fetch Pipeline (`EngineerPortalViewModel.kt`)**:
+  - Created `refreshAllData(onComplete: (() -> Unit)?)`:
+    - Clears in-memory `rosterCache` to guarantee a live network fetch from the backend.
+    - Encapsulates network operations inside `try ... finally`.
+    - Always executes `onComplete?.invoke()` in the `finally` block on the main dispatcher regardless of whether the call succeeds or catches an error.
+- **Compose PullToRefresh Lifecycle Binding (`EngineerPortalScreen.kt`)**:
+  - Bound `pullRefreshState.isRefreshing` directly to `viewModel.refreshAllData { pullRefreshState.endRefresh() }`.
+  - Removed faulty `LaunchedEffect(state.isLoading)` dependency.
+  - When swiped down, the spinner immediately and smoothly collapses the instant network operations finish.
