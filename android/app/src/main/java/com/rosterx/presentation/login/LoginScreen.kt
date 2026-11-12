@@ -69,7 +69,7 @@ private enum class TargetField {
     PASSWORD
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
@@ -99,6 +99,9 @@ fun LoginScreen(
     var isIdentifierError by remember { mutableStateOf(false) }
     var localErrorMsg by remember { mutableStateOf<String?>(null) }
 
+    val isImeVisible = WindowInsets.isImeVisible
+    val currentIsImeVisible by rememberUpdatedState(isImeVisible)
+
     var isIdentifierFocused by remember { mutableStateOf(false) }
     var isPasswordFocused by remember { mutableStateOf(false) }
 
@@ -116,13 +119,19 @@ fun LoginScreen(
         }
     }
 
+    var lastAutofillUser by remember { mutableStateOf("") }
+    var lastAutofillPass by remember { mutableStateOf("") }
+
     val identifierAutofillNode = remember {
         AutofillNode(
             onFill = { filledUser ->
                 identifier = filledUser
+                lastAutofillUser = filledUser
                 localErrorMsg = null
                 isIdentifierError = false
-                if (password.isNotBlank()) {
+                if (lastAutofillPass.isNotBlank()) {
+                    triggerAutoLoginIfReady(filledUser, lastAutofillPass)
+                } else if (password.isNotBlank()) {
                     triggerAutoLoginIfReady(filledUser, password)
                 } else {
                     passwordFocusRequester.requestFocus()
@@ -136,8 +145,12 @@ fun LoginScreen(
         AutofillNode(
             onFill = { filledPass ->
                 password = filledPass
+                lastAutofillPass = filledPass
                 localErrorMsg = null
-                triggerAutoLoginIfReady(identifier, filledPass)
+                val activeUser = if (lastAutofillUser.isNotBlank()) lastAutofillUser else identifier
+                if (activeUser.isNotBlank()) {
+                    triggerAutoLoginIfReady(activeUser, filledPass)
+                }
             },
             autofillTypes = listOf(AutofillType.Password)
         )
@@ -155,13 +168,13 @@ fun LoginScreen(
                 TargetField.PASSWORD -> passwordFocusRequester.requestFocus()
                 TargetField.NONE -> return@launch
             }
-            delay(100)
+            delay(150)
             keyboardController?.show()
             try {
                 val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                val currentView = activity?.currentFocus ?: activity?.window?.decorView
-                if (currentView != null) {
-                    imm?.showSoftInput(currentView, InputMethodManager.SHOW_IMPLICIT)
+                val currentFocusedView = activity?.currentFocus ?: activity?.window?.decorView
+                if (currentFocusedView != null) {
+                    imm?.showSoftInput(currentFocusedView, InputMethodManager.SHOW_IMPLICIT)
                 }
             } catch (_: Throwable) {}
         }
@@ -177,6 +190,7 @@ fun LoginScreen(
             viewModel.googlePasswordManager.getSavedCredentials(
                 activity = activity,
                 onDismissed = {
+                    lastGpmPromptTimestamp = System.currentTimeMillis()
                     showKeyboard(targetField)
                 }
             ) { savedUser, savedPass ->
@@ -207,7 +221,7 @@ fun LoginScreen(
     LaunchedEffect(identifierInteractionSource) {
         identifierInteractionSource.interactions.collect { interaction ->
             if (interaction is PressInteraction.Release) {
-                if (!isIdentifierFocused) {
+                if (!currentIsImeVisible) {
                     requestGooglePasswordManager(targetField = TargetField.USERNAME)
                 } else {
                     keyboardController?.show()
@@ -219,7 +233,7 @@ fun LoginScreen(
     LaunchedEffect(passwordInteractionSource) {
         passwordInteractionSource.interactions.collect { interaction ->
             if (interaction is PressInteraction.Release) {
-                if (!isPasswordFocused) {
+                if (!currentIsImeVisible) {
                     requestGooglePasswordManager(targetField = TargetField.PASSWORD)
                 } else {
                     keyboardController?.show()
@@ -650,6 +664,7 @@ fun LoginScreen(
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
+
 
                 Spacer(modifier = Modifier.height(20.dp))
 
