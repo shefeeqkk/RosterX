@@ -1,4 +1,9 @@
 {
+  "agent_manager": {
+    "default_name": "Gafoor",
+    "role": "Antigravity Technical Project Manager & System Architect (End-to-End Solutions, Shared Contracts & Execution Planning)",
+    "aliases": ["Gafoor", "Gafoorka", "Manager", "Architect"]
+  },
   "agent_1": {
     "default_name": "Dasan",
     "role": "Antigravity Primary Orchestrator (Backend, Server Infrastructure, Core Sync & Multi-Agent Protocol)",

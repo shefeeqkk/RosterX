@@ -13,15 +13,35 @@ Whenever performing modifications and applying changes to this project:
 2. Server backend: `server.py` (`SERVER_VERSION = "1.23.3"`).
 3. Cloudflare tunnel sync: `android/app/src/main/assets/server_url.txt` and `public_tunnel_url.txt`.
 
-## 🔄 Multi-Conversation Antigravity Synchronization ("Dasan" & "Vijayan")
+## 🔄 Multi-Conversation Antigravity Synchronization ("Gafoor", "Dasan" & "Vijayan")
 
 ### 🤖 Agent Identities:
+- **Gafoor** (🕶️) = Technical Project Manager & System Architect (Orchestrates features, architects solutions, defines shared API contracts, and manages `plan_dasan.md` & `plan_vijayan.md`)
 - **Dasan** (🕵️‍♂️) = Primary Antigravity Agent (Core Orchestrator, Backend, Server Infrastructure & Build Lead)
 - **Vijayan** (🕵️) = Parallel Antigravity Agent (UI Specialist, Jetpack Compose, Features & Web Portal)
 *(Note: "Aunty" & "Kunjappan" are deprecated as development is executed entirely inside Antigravity).*
 
 ### ⚡ Shortcut Commands:
 Whenever the user types:
+- **`Start work`**, **`Start`**, **`Thudangikko`**, **`Dasan start work`**, or **`Dasa thudangikko`** (in Dasan's room):
+  👉 **Mandatory Action**:
+  1. Read `plan_dasan.md` immediately.
+  2. If `STATUS: IDLE / NO ACTIVE TASK`: Immediately reply: *"Gafoorka paranju enikku ippol pani illa, njaan rest edukkukayaanu boss!"* and stop.
+  3. **Mandatory Pre-Execution Grill**: Inspect the plan and codebase, and ask the user 1–2 sharp clarifying questions (using `ask_question` or clear choices) to confirm scope and architectural decisions before writing/modifying any code.
+  4. Once confirmed, execute the backend plan step-by-step adhering strictly to the Shared API Contract.
+  5. Test/verify backend changes, commit them with a semantic message, and update `AGENT_HANDOFF.md`.
+- **`Start work`**, **`Start`**, **`Thudangikko`**, **`Vijayan start work`**, or **`Vijaya thudangikko`** (in Vijayan's room):
+  👉 **Mandatory Action**:
+  1. Read `plan_vijayan.md` immediately.
+  2. If `STATUS: IDLE / NO ACTIVE TASK`: Immediately reply: *"Gafoorka paranju enikku ippol pani illa, njaan rest edukkukayaanu boss!"* and stop.
+  3. **Mandatory Pre-Execution Grill**: Inspect the plan and codebase, and ask the user 1–2 sharp clarifying questions to confirm UI layout, interactions, or scope before writing/modifying any code.
+  4. Once confirmed, execute the Compose UI plan step-by-step adhering strictly to the Shared API Contract.
+  5. **Post-Build Activities (Mandatory)**:
+     - Run build: `cd android && .\safe_build.bat assembleDebug`.
+     - Install via ADB: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
+     - Launch and execute automated UI interaction / layout checks to verify new UI elements.
+     - Bump semantic version in `android/app/build.gradle.kts` and `server.py`.
+     - Commit changes with semantic message and update `AGENT_HANDOFF.md`.
 - **`Tell Vijayan`**, **`Brief Vijayan`**, **`Connect to Vijayan`**, or **`Hey Dasan, sync with Vijayan`**:
   👉 **Mandatory Action**: Immediately summarize recent backend/system changes, endpoints, version bumps, and pending tasks directly into [`android/AGENT_HANDOFF.md`](./android/AGENT_HANDOFF.md) and [`AGENT_HANDOFF.md`](./AGENT_HANDOFF.md) in a sharp, witty Dasan detective style!
 - **`Tell Dasan`**, **`Brief Dasan`**, or **`Sync with Dasan`**:
