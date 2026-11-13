@@ -1,7 +1,6 @@
 package com.rosterx.presentation.portal
 
-
-
+import androidx.activity.compose.BackHandler
 import android.graphics.Color.parseColor
 
 import android.widget.Toast
@@ -577,11 +576,18 @@ fun EngineerPortalScreen(
     val state by viewModel.state.collectAsState()
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var isViewingSettings by rememberSaveable { mutableStateOf(false) }
+    var previousTab by rememberSaveable { mutableIntStateOf(0) }
     var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
     var showQuickNotificationsSheet by rememberSaveable { mutableStateOf(false) }
     var showCelebrationDialog by rememberSaveable { mutableStateOf(false) }
     var activeCelebrationType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
     var activeCelebrationYears by rememberSaveable { mutableIntStateOf(1) }
+
+    BackHandler(enabled = isViewingSettings) {
+        isViewingSettings = false
+        selectedTab = previousTab
+    }
 
     val pullRefreshState = rememberPullToRefreshState()
     if (pullRefreshState.isRefreshing) {
@@ -644,14 +650,15 @@ fun EngineerPortalScreen(
     val isManager = state.loggedInEngineer?.role == EngineerRole.MANAGER
     val isFullScreenRoster = isLandscape && ((isManager && selectedTab == 2) || (!isManager && selectedTab == 3))
 
-    LaunchedEffect(selectedTab, isManager) {
-        val screenName = if (isManager) {
+    LaunchedEffect(selectedTab, isViewingSettings, isManager) {
+        val screenName = if (isViewingSettings) {
+            "Profile & Settings"
+        } else if (isManager) {
             when (selectedTab) {
                 0 -> "Manager Dashboard"
                 1 -> "Team Shifts"
                 2 -> "Month Roster"
                 3 -> "Broadcast Console"
-                4 -> "Settings"
                 else -> "Manager Dashboard"
             }
         } else {
@@ -660,7 +667,6 @@ fun EngineerPortalScreen(
                 1 -> "Team Shifts"
                 2 -> "My Calendar"
                 3 -> "Month Roster"
-                4 -> "Settings"
                 else -> "Dashboard"
             }
         }
@@ -680,45 +686,52 @@ fun EngineerPortalScreen(
             if (!isFullScreenRoster) {
 
                 TopAppBar(
-
-                title = { 
-
-                    Row(
-
-                        verticalAlignment = Alignment.CenterVertically,
-
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-
-                    ) {
-
-                        Image(
-
-                            painter = painterResource(id = R.drawable.ic_rosterx_logo),
-
-                            contentDescription = "RosterX Logo",
-
-                            modifier = Modifier.size(32.dp)
-
-                        )
-
-                        Text(
-
-                            text = "RosterX",
-
-                            fontWeight = FontWeight.ExtraBold,
-
-                            fontSize = 20.sp,
-
-                            color = NeumorphicTokens.AccentSalmon
-
-                        )
-
+                navigationIcon = {
+                    if (isViewingSettings) {
+                        IconButton(
+                            onClick = {
+                                isViewingSettings = false
+                                selectedTab = previousTab
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back to Tabs",
+                                tint = NeumorphicTokens.AccentSalmon
+                            )
+                        }
                     }
-
+                },
+                title = { 
+                    if (isViewingSettings) {
+                        Text(
+                            text = "Profile & Settings",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            color = NeumorphicTokens.AccentSalmon
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_rosterx_logo),
+                                contentDescription = "RosterX Logo",
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Text(
+                                text = "RosterX",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 20.sp,
+                                color = NeumorphicTokens.AccentSalmon
+                            )
+                        }
+                    }
                 },
 
                 actions = {
-                    val settingsTabIndex = 4
+                    if (!isViewingSettings) {
                     val isManagementAccountUser = state.loggedInEngineer?.isManagementAccount == true ||
                         state.loggedInEngineer?.role == EngineerRole.ADMIN ||
                         state.loggedInEngineer?.role == EngineerRole.MANAGER
@@ -831,11 +844,14 @@ fun EngineerPortalScreen(
                         }
                     }
 
-                    if (state.loggedInEngineer != null && selectedTab != settingsTabIndex) {
+                    if (state.loggedInEngineer != null) {
                         NeumorphicCard(
                             modifier = Modifier
                                 .padding(end = 12.dp)
-                                .clickable { selectedTab = settingsTabIndex },
+                                .clickable {
+                                    previousTab = selectedTab
+                                    isViewingSettings = true
+                                },
                             shape = CircleShape,
                             style = NeumorphicElevationStyle.RaisedSubtle,
                             surfaceColor = NeumorphicTokens.Surface,
@@ -865,6 +881,7 @@ fun EngineerPortalScreen(
                             }
                         }
                     }
+                    } // end if (!isViewingSettings)
                 },
 
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -883,7 +900,7 @@ fun EngineerPortalScreen(
 
         floatingActionButton = {
 
-            if (selectedTab == 1 && state.selectedDate != LocalDate.now()) {
+            if (!isViewingSettings && selectedTab == 1 && state.selectedDate != LocalDate.now()) {
 
                 Box(
 
@@ -935,21 +952,19 @@ fun EngineerPortalScreen(
                         NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
                         NavTabItem(1, "Team Shifts", Icons.Default.Group),
                         NavTabItem(2, "Month Roster", Icons.Default.GridView),
-                        NavTabItem(3, "Broadcast", Icons.Default.Campaign),
-                        NavTabItem(4, "Settings", Icons.Default.Settings)
+                        NavTabItem(3, "Broadcast", Icons.Default.Campaign)
                     )
                 } else {
                     listOf(
                         NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
                         NavTabItem(1, "Team Shifts", Icons.Default.Group),
                         NavTabItem(2, "My Calendar", Icons.Default.CalendarMonth),
-                        NavTabItem(3, "Month Roster", Icons.Default.GridView),
-                        NavTabItem(4, "Settings", Icons.Default.Settings)
+                        NavTabItem(3, "Month Roster", Icons.Default.GridView)
                     )
                 }
             }
 
-            if (!isFullScreenRoster) {
+            if (!isFullScreenRoster && !isViewingSettings) {
                 FluidNeumorphicBottomNav(
                     items = portalNavItems,
                     selectedIndex = selectedTab,
@@ -1007,91 +1022,98 @@ fun EngineerPortalScreen(
             } else {
 
                 AnimatedContent(
-                    targetState = selectedTab,
+                    targetState = isViewingSettings,
                     transitionSpec = {
-                        if (targetState > initialState) {
-                            slideInHorizontally(animationSpec = tween(250)) { it } + fadeIn() togetherWith
-                                    slideOutHorizontally(animationSpec = tween(250)) { -it } + fadeOut()
+                        if (targetState) {
+                            slideInHorizontally(animationSpec = tween(300)) { it } + fadeIn(animationSpec = tween(300)) togetherWith
+                                    slideOutHorizontally(animationSpec = tween(300)) { -it / 3 } + fadeOut(animationSpec = tween(200))
                         } else {
-                            slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn() togetherWith
-                                    slideOutHorizontally(animationSpec = tween(250)) { it } + fadeOut()
+                            slideInHorizontally(animationSpec = tween(300)) { -it / 3 } + fadeIn(animationSpec = tween(200)) togetherWith
+                                    slideOutHorizontally(animationSpec = tween(300)) { it } + fadeOut(animationSpec = tween(300))
                         }
                     },
-                    label = "TabTransition"
-                ) { tab ->
-                    if (isManager) {
-                        when (tab) {
-                            0 -> DashboardView(
-                                state = state,
-                                onDismissNotification = viewModel::dismissNotification,
-                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                onOpenCelebrationWishes = { showCelebrationDialog = true }
-                            )
-                            1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
-                            2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
-                            3 -> NotificationsTab(
-                                state = AdminRosterState(
-                                    engineers = state.engineers,
-                                    broadcastTemplates = state.broadcastTemplates,
-                                    isSendingNotification = state.isSendingBroadcast,
-                                    notifications = state.broadcastHistory
-                                ),
-                                onSendNotification = { title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete ->
-                                    viewModel.sendBroadcast(title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete)
-                                },
-                                onRetractNotification = { notifId, onComplete ->
-                                    viewModel.retractBroadcast(notifId, onComplete)
-                                },
-                                onRefreshNotifications = viewModel::loadBroadcastHistory
-                            )
-                            4 -> AccountView(
-                                state = state,
-                                onOpenEditProfile = { showUnifiedEditProfileDialog = true },
-                                onLogout = viewModel::logout,
-                                onSaveBaseUrl = viewModel::saveBaseUrl,
-                                onTestConnection = viewModel::checkConnection,
-                                onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId,
-                                onOpenCelebrationWishes = { showCelebrationDialog = true }
-                            )
-                            else -> DashboardView(
-                                state = state,
-                                onDismissNotification = viewModel::dismissNotification,
-                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                onOpenCelebrationWishes = { showCelebrationDialog = true }
-                            )
-                        }
+                    label = "SettingsTransition"
+                ) { inSettings ->
+                    if (inSettings) {
+                        AccountView(
+                            state = state,
+                            onOpenEditProfile = { showUnifiedEditProfileDialog = true },
+                            onLogout = viewModel::logout,
+                            onSaveBaseUrl = viewModel::saveBaseUrl,
+                            onTestConnection = viewModel::checkConnection,
+                            onSetThemeMode = viewModel::setThemeMode,
+                            onSetThemePalette = viewModel::setThemePaletteId,
+                            onOpenCelebrationWishes = { showCelebrationDialog = true }
+                        )
                     } else {
-                        when (tab) {
-                            0 -> DashboardView(
-                                state = state,
-                                onDismissNotification = viewModel::dismissNotification,
-                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                onOpenCelebrationWishes = { showCelebrationDialog = true }
-                            )
-                            1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
-                            2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
-                            3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
-                            4 -> AccountView(
-                                state = state,
-                                onOpenEditProfile = { showUnifiedEditProfileDialog = true },
-                                onLogout = viewModel::logout,
-                                onSaveBaseUrl = viewModel::saveBaseUrl,
-                                onTestConnection = viewModel::checkConnection,
-                                onSetThemeMode = viewModel::setThemeMode,
-                                onSetThemePalette = viewModel::setThemePaletteId,
-                                onOpenCelebrationWishes = { showCelebrationDialog = true }
-                            )
-                            else -> DashboardView(
-                                state = state,
-                                onDismissNotification = viewModel::dismissNotification,
-                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                onOpenCelebrationWishes = { showCelebrationDialog = true }
-                            )
+                        AnimatedContent(
+                            targetState = selectedTab,
+                            transitionSpec = {
+                                if (targetState > initialState) {
+                                    slideInHorizontally(animationSpec = tween(250)) { it } + fadeIn() togetherWith
+                                            slideOutHorizontally(animationSpec = tween(250)) { -it } + fadeOut()
+                                } else {
+                                    slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn() togetherWith
+                                            slideOutHorizontally(animationSpec = tween(250)) { it } + fadeOut()
+                                }
+                            },
+                            label = "TabTransition"
+                        ) { tab ->
+                            if (isManager) {
+                                when (tab) {
+                                    0 -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                    )
+                                    1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
+                                    2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
+                                    3 -> NotificationsTab(
+                                        state = AdminRosterState(
+                                            engineers = state.engineers,
+                                            broadcastTemplates = state.broadcastTemplates,
+                                            isSendingNotification = state.isSendingBroadcast,
+                                            notifications = state.broadcastHistory
+                                        ),
+                                        onSendNotification = { title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete ->
+                                            viewModel.sendBroadcast(title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete)
+                                        },
+                                        onRetractNotification = { notifId, onComplete ->
+                                            viewModel.retractBroadcast(notifId, onComplete)
+                                        },
+                                        onRefreshNotifications = viewModel::loadBroadcastHistory
+                                    )
+                                    else -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                    )
+                                }
+                            } else {
+                                when (tab) {
+                                    0 -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                    )
+                                    1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
+                                    2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
+                                    3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
+                                    else -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1103,7 +1125,7 @@ fun EngineerPortalScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (!isFullScreenRoster) {
+            if (!isFullScreenRoster && !isViewingSettings) {
                 com.rosterx.presentation.components.FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
                     modifier = Modifier
