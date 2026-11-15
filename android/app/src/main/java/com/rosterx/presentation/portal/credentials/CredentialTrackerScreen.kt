@@ -882,7 +882,7 @@ private fun ServerGroupCard(
                                         )
                                         .background(NeumorphicTokens.Surface, RoundedCornerShape(20.dp))
                                         .border(
-                                            BorderStroke(1.2.dp, Color(0xFF059669).copy(alpha = 0.45f)),
+                                            BorderStroke(1.2.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.45f)),
                                             RoundedCornerShape(20.dp)
                                         )
                                         .clip(RoundedCornerShape(20.dp))
@@ -896,7 +896,7 @@ private fun ServerGroupCard(
                                         Icon(
                                             imageVector = Icons.Default.EditCalendar,
                                             contentDescription = null,
-                                            tint = Color(0xFF059669),
+                                            tint = NeumorphicTokens.AccentSalmon,
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Spacer(modifier = Modifier.width(5.dp))
@@ -904,7 +904,7 @@ private fun ServerGroupCard(
                                             text = "Update Date",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = Color(0xFF059669)
+                                            color = NeumorphicTokens.AccentSalmon
                                         )
                                     }
                                 }
