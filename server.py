@@ -30,6 +30,7 @@ import collections
 import hmac
 import hashlib
 import secrets
+import uuid
 import base64
 import urllib.request
 import urllib.error
@@ -42,7 +43,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.24.15"
+SERVER_VERSION = "1.25.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -167,6 +168,8 @@ def get_ist_time_str(format_12h: bool = True) -> str:
 # Global Live Server Log Ring Buffer (Available for Authenticated Admin Terminal Log Viewer)
 SERVER_LOGS = collections.deque(maxlen=500)
 SERVER_NOTIFICATIONS = collections.deque(maxlen=100)
+SERVER_CREDENTIAL_TRACKERS = []  # In-memory fallback if Atlas DB is disconnected
+LAST_CREDENTIAL_ALERT_DATE = {}  # { tracker_id: "YYYY-MM-DD" } to prevent duplicate alerts on same day
 
 def log_server(msg: str):
     """Log to stdout and append timestamped entry to circular SERVER_LOGS buffer in Indian Standard Time (IST)."""
@@ -583,6 +586,14 @@ def init_atlas_connection(env):
         # Ensure TTL index on password_resets collection (expires after 600 seconds)
         try:
             ATLAS_DB.password_resets.create_index("created_at", expireAfterSeconds=600)
+        except Exception:
+            pass
+
+        # Ensure indexes on credential_trackers collection
+        try:
+            ATLAS_DB.credential_trackers.create_index("id", unique=True)
+            ATLAS_DB.credential_trackers.create_index("server_name")
+            ATLAS_DB.credential_trackers.create_index("expiry_date")
         except Exception:
             pass
 
@@ -1035,6 +1046,334 @@ def check_and_trigger_celebrations(force=False):
         print(f"  [CELEBRATIONS CHECK ERROR] {e}")
 
     return triggered_events
+
+# ==============================================================================
+# SERVER CREDENTIAL TRACKER & EXPIRY ALERT ENGINE
+# ==============================================================================
+
+def compute_credential_status(last_updated_date_str: str, validity_days: int) -> dict:
+    """
+    Given last_updated_date ('YYYY-MM-DD') and validity_days (int),
+    calculates expiry_date ('YYYY-MM-DD'), days_remaining (int), and status (str).
+    All calculations based on current date in Indian Standard Time (IST, UTC+05:30).
+    """
+    today_ist = get_ist_now().date()
+
+    try:
+        updated_date = datetime.strptime(str(last_updated_date_str).strip(), "%Y-%m-%d").date()
+    except Exception:
+        updated_date = today_ist
+
+    try:
+        validity = max(1, int(validity_days))
+    except Exception:
+        validity = 30
+
+    expiry_date = updated_date + timedelta(days=validity)
+    days_remaining = (expiry_date - today_ist).days
+
+    if days_remaining > 5:
+        status = "HEALTHY"
+    elif days_remaining > 0:
+        status = "EXPIRING_SOON"
+    elif days_remaining == 0:
+        status = "EXPIRES_TODAY"
+    else:
+        status = "EXPIRED"
+
+    return {
+        "expiry_date": expiry_date.strftime("%Y-%m-%d"),
+        "days_remaining": days_remaining,
+        "status": status
+    }
+
+def get_all_credential_trackers_from_db():
+    """Retrieve all credential trackers from Atlas DB or in-memory fallback, computing live status."""
+    trackers = []
+    if ATLAS_DB is not None:
+        try:
+            docs = list(ATLAS_DB.credential_trackers.find({}, {"_id": 0}))
+            trackers = docs
+        except Exception as e:
+            log_server(f"[CREDENTIAL-TRACKER] Error fetching from Atlas: {e}")
+            trackers = list(SERVER_CREDENTIAL_TRACKERS)
+    else:
+        trackers = list(SERVER_CREDENTIAL_TRACKERS)
+
+    computed = []
+    for t in trackers:
+        calc = compute_credential_status(t.get("last_updated_date", ""), t.get("validity_days", 30))
+        item = dict(t)
+        item["expiry_date"] = calc["expiry_date"]
+        item["days_remaining"] = calc["days_remaining"]
+        item["status"] = calc["status"]
+        computed.append(item)
+
+    status_order = {"EXPIRED": 0, "EXPIRES_TODAY": 1, "EXPIRING_SOON": 2, "HEALTHY": 3}
+    computed.sort(key=lambda x: (status_order.get(x.get("status"), 4), x.get("days_remaining", 0)))
+    return computed
+
+def save_credential_tracker_to_db(tracker_dict):
+    """Save or update a credential tracker in Atlas DB and in-memory list."""
+    tid = tracker_dict["id"]
+    if ATLAS_DB is not None:
+        try:
+            ATLAS_DB.credential_trackers.update_one(
+                {"id": tid},
+                {"$set": {k: v for k, v in tracker_dict.items() if k != "_id"}},
+                upsert=True
+            )
+        except Exception as e:
+            log_server(f"[CREDENTIAL-TRACKER] Error saving to Atlas: {e}")
+
+    found = False
+    for i, t in enumerate(SERVER_CREDENTIAL_TRACKERS):
+        if t.get("id") == tid:
+            SERVER_CREDENTIAL_TRACKERS[i] = dict(tracker_dict)
+            found = True
+            break
+    if not found:
+        SERVER_CREDENTIAL_TRACKERS.append(dict(tracker_dict))
+
+def delete_credential_tracker_from_db(tracker_id):
+    """Delete a credential tracker by id."""
+    deleted = False
+    if ATLAS_DB is not None:
+        try:
+            res = ATLAS_DB.credential_trackers.delete_one({"id": tracker_id})
+            deleted = res.deleted_count > 0
+        except Exception as e:
+            log_server(f"[CREDENTIAL-TRACKER] Error deleting from Atlas: {e}")
+
+    global SERVER_CREDENTIAL_TRACKERS
+    SERVER_CREDENTIAL_TRACKERS = [t for t in SERVER_CREDENTIAL_TRACKERS if t.get("id") != tracker_id]
+    return deleted
+
+def get_credential_tracker_by_id(tracker_id: str):
+    """Retrieve a single credential tracker by ID with computed status, or None."""
+    if not tracker_id:
+        return None
+    raw = None
+    if ATLAS_DB is not None:
+        try:
+            raw = ATLAS_DB.credential_trackers.find_one({"id": tracker_id}, {"_id": 0})
+        except Exception as e:
+            log_server(f"[CREDENTIAL-TRACKER] Error fetching by id from Atlas: {e}")
+    if raw is None:
+        for t in SERVER_CREDENTIAL_TRACKERS:
+            if t.get("id") == tracker_id:
+                raw = dict(t)
+                break
+    if not raw:
+        return None
+
+    calc = compute_credential_status(raw.get("last_updated_date", ""), raw.get("validity_days", 30))
+    item = dict(raw)
+    item["expiry_date"] = calc["expiry_date"]
+    item["days_remaining"] = calc["days_remaining"]
+    item["status"] = calc["status"]
+    return item
+
+def check_and_dispatch_credential_alerts(force=False):
+    """
+    Check all credential trackers where days_remaining <= 5.
+    Dispatches:
+      1. Email to spokesperson_emails
+      2. FCM push to spokespersons + all Admins & Managers
+      3. In-app notification to ATLAS_DB.notifications
+    """
+    global LAST_CREDENTIAL_ALERT_DATE
+    today_str = get_ist_now().strftime("%Y-%m-%d")
+
+    trackers = get_all_credential_trackers_from_db()
+    alert_trackers = [t for t in trackers if t["days_remaining"] <= 5 and t["days_remaining"] >= -14]
+
+    if not alert_trackers:
+        log_server("[CREDENTIAL-ALERT] No expiring or recently expired credentials found.")
+        return []
+
+    dispatched = []
+
+    admin_tokens = set()
+    eng_by_email = {}
+    if ATLAS_DB is not None:
+        try:
+            all_engs = list(ATLAS_DB.engineers.find({}, {"_id": 0}))
+            for e in all_engs:
+                role = str(e.get("role", "")).lower()
+                is_admin = role in ("admin", "manager") or e.get("is_admin") is True
+                toks = e.get("fcm_tokens", [])
+                tok_list = []
+                if isinstance(toks, list):
+                    tok_list = [str(tok).strip() for tok in toks if tok and str(tok).strip()]
+                elif isinstance(toks, str) and toks.strip():
+                    tok_list = [toks.strip()]
+
+                if is_admin:
+                    for tok in tok_list:
+                        admin_tokens.add(tok)
+
+                em = str(e.get("email", "")).strip().lower()
+                if em:
+                    eng_by_email[em] = {
+                        "name": str(e.get("fullName") or e.get("name") or e.get("username") or "Engineer"),
+                        "username": str(e.get("username", "")),
+                        "tokens": tok_list
+                    }
+        except Exception as e:
+            log_server(f"[CREDENTIAL-ALERT] Error gathering engineers: {e}")
+
+    for t in alert_trackers:
+        tid = t["id"]
+        if not force and LAST_CREDENTIAL_ALERT_DATE.get(tid) == today_str:
+            continue
+
+        days = t["days_remaining"]
+        server_name = t["server_name"]
+        username = t["username"]
+        expiry_date = t["expiry_date"]
+        status = t["status"]
+        spokespersons = t.get("spokesperson_emails", [])
+
+        if days > 0:
+            urgency_str = f"expires in {days} day{'s' if days > 1 else ''}"
+            badge_color = "#F59E0B"
+            priority = "warning"
+        elif days == 0:
+            urgency_str = "expires TODAY!"
+            badge_color = "#EF4444"
+            priority = "urgent"
+        else:
+            urgency_str = f"EXPIRED {abs(days)} day{'s' if abs(days) > 1 else ''} ago!"
+            badge_color = "#DC2626"
+            priority = "urgent"
+
+        title = f"⚠️ Server Credential Alert: {server_name}"
+        message = f"Password for {username}@{server_name} {urgency_str} (Expiry: {expiry_date}). Please renew immediately."
+
+        # 1. In-App Notification
+        notif_id = f"notif_cred_{tid}_{int(time.time())}"
+        notif_doc = {
+            "id": notif_id,
+            "title": title,
+            "raw_message": message,
+            "target": "all_admins_and_spokespersons",
+            "target_type": "specific",
+            "recipients_count": len(spokespersons) + len(admin_tokens),
+            "recipients": spokespersons,
+            "priority": priority,
+            "sender": "System Security Monitor",
+            "send_email": bool(spokespersons),
+            "send_in_app": True,
+            "send_push": True,
+            "category": "credential_expiry",
+            "tracker_id": tid,
+            "is_retracted": False,
+            "retracted_at": None,
+            "created_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "timestamp": time.time()
+        }
+        SERVER_NOTIFICATIONS.appendleft(notif_doc)
+        if ATLAS_DB is not None:
+            try:
+                ATLAS_DB.notifications.insert_one({**notif_doc, "_id": notif_id})
+            except Exception as e:
+                log_server(f"[CREDENTIAL-ALERT] Error saving notification: {e}")
+
+        # 2. Email Dispatch
+        email_sent_count = 0
+        if spokespersons:
+            html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px; color: #1E293B;">
+  <div style="max-width: 580px; margin: 0 auto; background: #FFFFFF; border-radius: 14px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.06);">
+    <div style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%); padding: 24px; text-align: center; color: #FFFFFF;">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">🔐 Server Credential Expiry Alert</h1>
+      <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">RosterX Infrastructure Security Monitor</p>
+    </div>
+    <div style="padding: 24px;">
+      <div style="background: {badge_color}15; border-left: 4px solid {badge_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 20px;">
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: {badge_color};">
+          Credential for <strong>{username}@{server_name}</strong> {urgency_str}
+        </p>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;">
+        <tr style="border-bottom: 1px solid #F1F5F9;">
+          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Server / Cluster</td>
+          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{server_name}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #F1F5F9;">
+          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Username / Account</td>
+          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{username}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #F1F5F9;">
+          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Validity Period</td>
+          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{t['validity_days']} days</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #F1F5F9;">
+          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Last Updated</td>
+          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{t['last_updated_date']}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #F1F5F9;">
+          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Expiry Date</td>
+          <td style="padding: 10px 0; color: {badge_color}; font-weight: 700; text-align: right;">{expiry_date}</td>
+        </tr>
+      </table>
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="https://rosterx.online" style="display: inline-block; background-color: #2563EB; color: #FFFFFF; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none; box-shadow: 0 2px 6px rgba(37,99,235,0.3);">
+          Open RosterX & Renew Credential
+        </a>
+      </div>
+      <p style="margin: 24px 0 0; font-size: 12px; color: #94A3B8; text-align: center;">
+        You received this automated notification because you are listed as a designated spokesperson for this credential.
+      </p>
+    </div>
+  </div>
+</body>
+</html>"""
+            for em in spokespersons:
+                try:
+                    send_resend_email(em, f"⚠️ [ALERT] Credential for {username}@{server_name} {urgency_str}", html_body)
+                    email_sent_count += 1
+                except Exception as ex:
+                    log_server(f"[CREDENTIAL-ALERT] Email send error to {em}: {ex}")
+
+        # 3. FCM Push
+        target_tokens = set(admin_tokens)
+        for em in spokespersons:
+            eng_info = eng_by_email.get(em.strip().lower())
+            if eng_info:
+                for tok in eng_info.get("tokens", []):
+                    target_tokens.add(tok)
+
+        push_sent_count = 0
+        if target_tokens:
+            try:
+                push_sent_count = send_fcm_push(
+                    list(target_tokens),
+                    f"⚠️ Password Expiry: {server_name}",
+                    f"{username}@{server_name} {urgency_str}. Tap to review.",
+                    priority=priority,
+                    notif_id=notif_id,
+                    extra_data={"type": "credential_expiry", "tracker_id": tid}
+                )
+            except Exception as ex:
+                log_server(f"[CREDENTIAL-ALERT] FCM push error: {ex}")
+
+        LAST_CREDENTIAL_ALERT_DATE[tid] = today_str
+        dispatched.append({
+            "tracker_id": tid,
+            "server_name": server_name,
+            "username": username,
+            "days_remaining": days,
+            "status": status,
+            "emails_sent": email_sent_count,
+            "push_sent": push_sent_count
+        })
+
+    log_server(f"[CREDENTIAL-ALERT] Dispatched alerts for {len(dispatched)} tracker(s).")
+    return dispatched
 
 def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> bool:
     """
@@ -2433,6 +2772,41 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "user": response_user
             })
             return
+
+        # 1.55 GET /api/credentials/trackers (List all tracked server credentials with computed expiry status)
+        if clean_path in ("/api/credentials/trackers", "/api/credentials/trackers/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            trackers = get_all_credential_trackers_from_db()
+            total_count = len(trackers)
+            expiring_soon_count = sum(1 for t in trackers if t.get("status") in ("EXPIRING_SOON", "EXPIRES_TODAY"))
+            expired_count = sum(1 for t in trackers if t.get("status") == "EXPIRED")
+
+            self.send_json_response({
+                "success": True,
+                "data": {
+                    "trackers": trackers,
+                    "total_count": total_count,
+                    "expiring_soon_count": expiring_soon_count,
+                    "expired_count": expired_count
+                }
+            })
+            return
+
+        if clean_path.startswith("/api/credentials/trackers/"):
+            tracker_id = clean_path[len("/api/credentials/trackers/"):].strip().strip("/")
+            if tracker_id:
+                claims = self.require_auth()
+                if not claims:
+                    return
+                tracker = get_credential_tracker_by_id(tracker_id)
+                if not tracker:
+                    self.send_json_response({"success": False, "message": f"Credential tracker '{tracker_id}' not found."}, 404)
+                    return
+                self.send_json_response({"success": True, "data": tracker})
+                return
 
         # 1.6 GET /api/users/<username>/avatar (Binary image streaming with caching headers)
         if clean_path.startswith("/api/users/") and clean_path.endswith("/avatar"):
@@ -3876,6 +4250,45 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
+        # 3.76 POST /api/credentials/trackers/test-check (Manual trigger for 9:00 AM IST credential expiry alert check)
+        if clean_path in ("/api/credentials/trackers/test-check", "/api/credentials/trackers/test-check/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+            dispatched = check_and_dispatch_credential_alerts(force=True)
+            self.send_json_response({
+                "success": True,
+                "message": f"Credential expiry check completed ({len(dispatched)} alerts dispatched).",
+                "dispatched": dispatched
+            })
+            return
+
+        # 3.77 POST /api/credentials/trackers/<tracker_id>/renew (1-Tap quick renew)
+        if clean_path.startswith("/api/credentials/trackers/") and clean_path.endswith("/renew"):
+            tracker_id = clean_path[len("/api/credentials/trackers/"): -len("/renew")].strip().strip("/")
+            self._handle_renew_credential_tracker(tracker_id)
+            return
+
+        # 3.78 POST /api/credentials/trackers/<tracker_id>/delete or POST /api/credentials/trackers/delete
+        if clean_path in ("/api/credentials/trackers/delete", "/api/credentials/trackers/delete/"):
+            self._handle_delete_credential_tracker("", body)
+            return
+        if clean_path.startswith("/api/credentials/trackers/") and clean_path.endswith("/delete"):
+            tracker_id = clean_path[len("/api/credentials/trackers/"): -len("/delete")].strip().strip("/")
+            self._handle_delete_credential_tracker(tracker_id, body)
+            return
+
+        # 3.79 POST /api/credentials/trackers (Create)
+        if clean_path in ("/api/credentials/trackers", "/api/credentials/trackers/"):
+            self._handle_create_credential_tracker(body)
+            return
+
+        # 3.80 POST /api/credentials/trackers/<tracker_id> (Update fallback for clients sending POST)
+        if clean_path.startswith("/api/credentials/trackers/"):
+            tracker_id = clean_path[len("/api/credentials/trackers/"):].strip().strip("/")
+            self._handle_update_credential_tracker(tracker_id, body)
+            return
+
         # 3.8 POST /api/users/fcm-token (Register FCM Device Push Token - Exclusive Binding)
         if clean_path in ("/api/users/fcm-token", "/api/users/fcm-token/"):
             claims = self.require_auth()
@@ -4292,13 +4705,278 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "message": f"Endpoint POST {clean_path} not found"
         }, 404)
 
+    def _handle_create_credential_tracker(self, body: dict):
+        claims = self.require_auth(["admin", "manager"])
+        if not claims:
+            return
+
+        server_name = str(body.get("server_name", "")).strip()
+        username = str(body.get("username", "")).strip()
+        last_updated_date = str(body.get("last_updated_date", "")).strip()
+
+        if not server_name:
+            self.send_json_response({"success": False, "message": "Server/Service name is required."}, 400)
+            return
+
+        if not username:
+            self.send_json_response({"success": False, "message": "Username / Account name is required."}, 400)
+            return
+
+        try:
+            validity_days = int(body.get("validity_days", 30))
+            if validity_days < 1:
+                validity_days = 30
+        except Exception:
+            validity_days = 30
+
+        today_ist_str = get_ist_now().strftime("%Y-%m-%d")
+        if not last_updated_date:
+            last_updated_date = today_ist_str
+        else:
+            try:
+                datetime.strptime(last_updated_date, "%Y-%m-%d")
+            except Exception:
+                self.send_json_response({"success": False, "message": "Invalid date format for last_updated_date. Must be YYYY-MM-DD."}, 400)
+                return
+
+        spokespersons = body.get("spokesperson_emails", [])
+        if isinstance(spokespersons, str):
+            spokespersons = [s.strip() for s in spokespersons.split(",") if s.strip()]
+        elif isinstance(spokespersons, list):
+            spokespersons = [str(s).strip() for s in spokespersons if str(s).strip()]
+        else:
+            spokespersons = []
+
+        tracker_id = f"cred_tracker_{uuid.uuid4().hex[:12]}"
+        calc = compute_credential_status(last_updated_date, validity_days)
+
+        new_tracker = {
+            "id": tracker_id,
+            "server_name": server_name,
+            "username": username,
+            "last_updated_date": last_updated_date,
+            "validity_days": validity_days,
+            "expiry_date": calc["expiry_date"],
+            "days_remaining": calc["days_remaining"],
+            "status": calc["status"],
+            "spokesperson_emails": spokespersons,
+            "created_by": claims.get("username", "admin"),
+            "created_at": int(time.time()),
+            "updated_at": int(time.time()),
+            "updated_by": claims.get("username", "admin")
+        }
+
+        save_credential_tracker_to_db(new_tracker)
+        log_server(f"[CREDENTIAL-TRACKER] Created tracker '{tracker_id}' for {server_name} ({username}) by '{claims.get('username')}'")
+        self.send_json_response({
+            "success": True,
+            "message": f"Credential tracker for '{server_name}' created successfully.",
+            "tracker": new_tracker
+        }, 201)
+
+    def _handle_update_credential_tracker(self, tracker_id: str, body: dict):
+        claims = self.require_auth(["admin", "manager"])
+        if not claims:
+            return
+
+        existing = get_credential_tracker_by_id(tracker_id)
+        if not existing:
+            self.send_json_response({"success": False, "message": f"Credential tracker '{tracker_id}' not found."}, 404)
+            return
+
+        server_name = str(body.get("server_name", existing.get("server_name", ""))).strip()
+        username = str(body.get("username", existing.get("username", ""))).strip()
+        last_updated_date = str(body.get("last_updated_date", existing.get("last_updated_date", ""))).strip()
+
+        try:
+            validity_days = int(body.get("validity_days", existing.get("validity_days", 30)))
+            if validity_days < 1:
+                validity_days = 30
+        except Exception:
+            validity_days = existing.get("validity_days", 30)
+
+        spokespersons = body.get("spokesperson_emails", existing.get("spokesperson_emails", []))
+        if isinstance(spokespersons, str):
+            spokespersons = [s.strip() for s in spokespersons.split(",") if s.strip()]
+        elif isinstance(spokespersons, list):
+            spokespersons = [str(s).strip() for s in spokespersons if str(s).strip()]
+        else:
+            spokespersons = existing.get("spokesperson_emails", [])
+
+        if last_updated_date:
+            try:
+                datetime.strptime(last_updated_date, "%Y-%m-%d")
+            except Exception:
+                self.send_json_response({"success": False, "message": "Invalid date format for last_updated_date. Must be YYYY-MM-DD."}, 400)
+                return
+        else:
+            last_updated_date = existing.get("last_updated_date", "")
+
+        calc = compute_credential_status(last_updated_date, validity_days)
+
+        updated_tracker = dict(existing)
+        updated_tracker.update({
+            "server_name": server_name,
+            "username": username,
+            "last_updated_date": last_updated_date,
+            "validity_days": validity_days,
+            "expiry_date": calc["expiry_date"],
+            "days_remaining": calc["days_remaining"],
+            "status": calc["status"],
+            "spokesperson_emails": spokespersons,
+            "updated_at": int(time.time()),
+            "updated_by": claims.get("username", "admin")
+        })
+
+        save_credential_tracker_to_db(updated_tracker)
+        log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' updated by '{claims.get('username')}': {server_name} ({username})")
+        self.send_json_response({
+            "success": True,
+            "message": f"Credential tracker for '{server_name}' updated successfully.",
+            "tracker": updated_tracker
+        })
+
+    def _handle_renew_credential_tracker(self, tracker_id: str):
+        claims = self.require_auth()
+        if not claims:
+            return
+
+        tracker = get_credential_tracker_by_id(tracker_id)
+        if not tracker:
+            self.send_json_response({"success": False, "message": f"Credential tracker '{tracker_id}' not found."}, 404)
+            return
+
+        user_role = str(claims.get("role", "")).strip().lower()
+        is_admin = claims.get("is_admin", False) or user_role in ("admin", "manager")
+        current_username = str(claims.get("username", "")).strip().lower()
+        current_email = str(claims.get("email", "")).strip().lower()
+
+        if not current_email and ATLAS_DB is not None and current_username:
+            try:
+                eng = ATLAS_DB.engineers.find_one({"username": current_username})
+                if eng:
+                    current_email = str(eng.get("email", "")).strip().lower()
+            except Exception:
+                pass
+
+        spokespersons = [s.strip().lower() for s in tracker.get("spokesperson_emails", [])]
+        is_spokesperson = (current_email in spokespersons) or (current_username in spokespersons)
+
+        if not (is_admin or is_spokesperson):
+            self.send_json_response({
+                "success": False,
+                "message": "Permission denied: Only Admins, Managers, or designated Spokespersons can renew this credential tracker."
+            }, 403)
+            return
+
+        today_ist_str = get_ist_now().strftime("%Y-%m-%d")
+        validity_days = tracker.get("validity_days", 30)
+
+        calc = compute_credential_status(today_ist_str, validity_days)
+
+        tracker["last_updated_date"] = today_ist_str
+        tracker["expiry_date"] = calc["expiry_date"]
+        tracker["days_remaining"] = calc["days_remaining"]
+        tracker["status"] = calc["status"]
+        tracker["updated_at"] = int(time.time())
+        tracker["updated_by"] = claims.get("username", "admin")
+
+        save_credential_tracker_to_db(tracker)
+        log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' renewed to {today_ist_str} by '{claims.get('username')}'")
+
+        self.send_json_response({
+            "success": True,
+            "message": f"Credential tracker '{tracker.get('server_name')}' renewed successfully to {today_ist_str}.",
+            "tracker": tracker
+        })
+
+    def _handle_delete_credential_tracker(self, tracker_id: str, body: dict = None):
+        claims = self.require_auth(["admin", "manager"])
+        if not claims:
+            return
+
+        if not tracker_id and body:
+            tracker_id = str(body.get("id") or body.get("tracker_id") or "").strip()
+
+        if not tracker_id:
+            self.send_json_response({"success": False, "message": "Tracker ID is required."}, 400)
+            return
+
+        existing = get_credential_tracker_by_id(tracker_id)
+        if not existing:
+            self.send_json_response({"success": False, "message": f"Credential tracker '{tracker_id}' not found."}, 404)
+            return
+
+        server_name = existing.get("server_name", tracker_id)
+        delete_credential_tracker_from_db(tracker_id)
+        log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' ({server_name}) deleted by '{claims.get('username')}'")
+        self.send_json_response({
+            "success": True,
+            "message": f"Credential tracker '{server_name}' deleted successfully."
+        })
+
+    def do_PUT(self):
+        clean_path = self.path.split("?")[0].strip()
+        norm_path = clean_path.rstrip("/")
+        while norm_path.startswith("/api/api/"):
+            norm_path = "/api" + norm_path[8:]
+        if norm_path.startswith("/credentials/trackers"):
+            norm_path = "/api" + norm_path
+
+        if norm_path.startswith("/api/"):
+            self.handle_api_put(norm_path)
+            return
+
+        self.send_error(405, "Method Not Allowed")
+
+    def handle_api_put(self, clean_path):
+        """Router for PUT /api/* requests with strict authorization."""
+        content_length = int(self.headers.get("Content-Length", 0))
+        body_bytes = self.rfile.read(content_length) if content_length > 0 else b"{}"
+
+        try:
+            body = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+        except Exception as e:
+            self.send_json_response({"success": False, "message": f"Malformed JSON: {e}"}, 400)
+            return
+
+        # PUT /api/credentials/trackers/<tracker_id>
+        if clean_path.startswith("/api/credentials/trackers/"):
+            tracker_id = clean_path[len("/api/credentials/trackers/"):].strip().strip("/")
+            self._handle_update_credential_tracker(tracker_id, body)
+            return
+
+        self.send_json_response({"success": False, "message": f"Endpoint PUT {clean_path} not found"}, 404)
+
     def do_DELETE(self):
         clean_path = self.path.split("?")[0].strip()
         norm_path = clean_path.rstrip("/")
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/broadcast/templates", "/notifications"):
+        if norm_path in ("/broadcast/templates", "/notifications", "/credentials/trackers") or norm_path.startswith("/credentials/trackers/"):
             norm_path = "/api" + norm_path
+
+        if norm_path.startswith("/api/credentials/trackers"):
+            tracker_id = ""
+            if norm_path.startswith("/api/credentials/trackers/"):
+                tracker_id = norm_path[len("/api/credentials/trackers/"):].strip().strip("/")
+
+            if not tracker_id and "id=" in self.path:
+                match = re.search(r"[?&]id=([^&]+)", self.path)
+                if match:
+                    tracker_id = urllib.parse.unquote(match.group(1).strip())
+
+            body_data = {}
+            if not tracker_id:
+                content_length = int(self.headers.get("Content-Length", 0))
+                if content_length > 0:
+                    try:
+                        body_data = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                    except Exception:
+                        pass
+
+            self._handle_delete_credential_tracker(tracker_id, body_data)
+            return
 
         if norm_path.startswith("/api/broadcast/templates"):
             claims = self.require_auth(["admin", "manager"])
@@ -4473,6 +5151,41 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     t_cron = threading.Thread(target=_daily_celebration_cron, daemon=True)
     t_cron.start()
     log_server("[CRON] Daily birthday/anniversary cron thread started (fires at 08:30 IST).")
+
+    # ── Daily Credential Expiry Notification Cron Thread ────────────────────
+    # Fires at 09:00 IST every day to inspect server credential validity and
+    # dispatch HTML email + FCM alerts for credentials expiring in <= 5 days.
+    # Also performs an initial check 15 seconds after server startup.
+    def _daily_credential_expiry_cron():
+        # Initial boot check after DB connection settles
+        time.sleep(15)
+        try:
+            dispatched = check_and_dispatch_credential_alerts()
+            log_server(f"[CRON] Startup credential expiry check complete ({len(dispatched)} alerts dispatched).")
+        except Exception as _e:
+            log_server(f"[CRON] Startup credential check error: {_e}")
+
+        while True:
+            now_ist = get_ist_now()
+            # Next 09:00 IST
+            target = now_ist.replace(hour=9, minute=0, second=0, microsecond=0)
+            if now_ist >= target:
+                target += timedelta(days=1)
+            sleep_secs = (target - now_ist).total_seconds()
+            log_server(f"[CRON] Next credential expiry check in {int(sleep_secs//3600)}h {int((sleep_secs%3600)//60)}m (at 09:00 IST).")
+            time.sleep(max(sleep_secs, 1))
+            try:
+                dispatched = check_and_dispatch_credential_alerts(force=True)
+                if dispatched:
+                    log_server(f"[CRON] 09:00 credential expiry cron fired — {len(dispatched)} alert(s) dispatched.")
+                else:
+                    log_server("[CRON] 09:00 credential expiry cron fired — all credentials healthy.")
+            except Exception as _ce:
+                log_server(f"[CRON] Credential expiry cron error: {_ce}")
+
+    t_cred_cron = threading.Thread(target=_daily_credential_expiry_cron, daemon=True)
+    t_cred_cron.start()
+    log_server("[CRON] Daily credential expiry cron thread started (fires at 09:00 IST).")
     # ────────────────────────────────────────────────────────────────────────
 
     border = "=" * 68

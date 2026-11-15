@@ -1,74 +1,109 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED`
+**Status:** `ACTIVE / READY TO EXECUTE`
 
 ---
 
 ## 1. Shared API & Data Contract
-* **Endpoints**: No API modifications. Zero backend changes.
-* **Component Target**: `com.rosterx.presentation.portal.EngineerPortalScreen.kt`
-* **Target Version Bump**: `1.24.15` (Build 106)
+
+### 🔐 Endpoints & HTTP Methods
+* `GET api/credentials/trackers` -> Returns `{ success: true, data: { trackers: [...], total_count, expiring_soon_count, expired_count } }`
+* `POST api/credentials/trackers` -> Create new tracker (body: `server_name`, `username`, `last_updated_date`, `validity_days`, `spokesperson_emails`)
+* `PUT api/credentials/trackers/{id}` -> Update tracker
+* `POST api/credentials/trackers/{id}/renew` -> 1-Tap reset `last_updated_date` to today
+* `DELETE api/credentials/trackers/{id}` -> Remove tracker
+
+### 📄 DTO Schema (`CredentialTrackerDto`)
+```kotlin
+data class CredentialTrackerDto(
+    val id: String,
+    val serverName: String,
+    val username: String,
+    val lastUpdatedDate: String, // "YYYY-MM-DD"
+    val validityDays: Int,
+    val expiryDate: String, // "YYYY-MM-DD"
+    val daysRemaining: Int,
+    val status: String, // "HEALTHY", "EXPIRING_SOON", "EXPIRES_TODAY", "EXPIRED"
+    val spokespersonEmails: List<String>,
+    val createdBy: String? = null,
+    val updatedAt: Long? = null
+)
+```
 
 ---
 
-## 2. Technical Blueprint: Streamlined 4-Tab Bottom Nav & TopBar Profile Navigation
+## 2. Technical Blueprint for Vijayan
 
-### 🎯 Objective:
-Remove redundant "Settings" tab (Tab 4) from the bottom navigation bar in `EngineerPortalScreen.kt`. Consolidate Profile and Settings into a unified fullscreen view accessed exclusively through the TopBar Profile Pill, featuring a dedicated TopBar Back arrow, system `BackHandler`, and hidden bottom bar while viewing Settings.
+### 📁 Primary Files to Modify / Create:
+1. `android/app/src/main/java/com/rosterx/data/remote/RosterApiService.kt` (Add Retrofit endpoints & DTOs)
+2. `android/app/src/main/java/com/rosterx/domain/repository/RosterRepository.kt` & `RosterRepositoryImpl.kt` (Data layer)
+3. `android/app/src/main/java/com/rosterx/presentation/portal/EngineerPortalViewModel.kt` (State management)
+4. `android/app/src/main/java/com/rosterx/presentation/portal/EngineerPortalScreen.kt` (Bottom Nav Tab 4: "More")
+5. `android/app/src/main/java/com/rosterx/presentation/portal/more/MoreHubView.kt` (NEW - Feature launcher hub)
+6. `android/app/src/main/java/com/rosterx/presentation/portal/credentials/CredentialTrackerScreen.kt` (NEW - Full tracker UI & Dialogs)
 
-### 📁 Primary File to Modify:
-* `android/app/src/main/java/com/rosterx/presentation/portal/EngineerPortalScreen.kt`
+### 🛠️ Step-by-Step UI Implementation Tasks:
 
-### 🛠️ Step-by-Step Implementation Details:
-
-1. **Remove Tab 4 from `portalNavItems`**:
-   - In `EngineerPortalScreen.kt` (around lines 932–950):
-     - **For Managers**: Reduce to exactly 4 tabs:
-       - `0`: Dashboard (`Icons.Default.Dashboard`)
-       - `1`: Team Shifts (`Icons.Default.Group`)
-       - `2`: Month Roster (`Icons.Default.GridView`)
-       - `3`: Broadcast (`Icons.Default.Campaign`)
-     - **For Duty Engineers**: Reduce to exactly 4 tabs:
+1. **Bottom Navigation Bar: Add Tab 4 "More" (`portalNavItems`)**:
+   - In `EngineerPortalScreen.kt`:
+     - **For Duty Engineers**:
        - `0`: Dashboard (`Icons.Default.Dashboard`)
        - `1`: Team Shifts (`Icons.Default.Group`)
        - `2`: My Calendar (`Icons.Default.CalendarMonth`)
        - `3`: Month Roster (`Icons.Default.GridView`)
+       - `4`: More (`Icons.Default.MoreHoriz`)
+     - **For Managers**:
+       - `0`: Dashboard (`Icons.Default.Dashboard`)
+       - `1`: Team Shifts (`Icons.Default.Group`)
+       - `2`: Month Roster (`Icons.Default.GridView`)
+       - `3`: Broadcast (`Icons.Default.Campaign`)
+       - `4`: More (`Icons.Default.MoreHoriz`)
+   - Tab 4 renders `MoreHubView`.
+   - Settings remains accessible from the TopBar Profile Pill.
 
-2. **Manage Settings Fullscreen Navigation State**:
-   - Add state: `var isViewingSettings by rememberSaveable { mutableStateOf(false) }` and `var previousTab by rememberSaveable { mutableIntStateOf(0) }`.
-   - When user taps the TopBar Profile Pill:
-     ```kotlin
-     previousTab = selectedTab
-     isViewingSettings = true
-     ```
+2. **Build `MoreHubView.kt`**:
+   - Clean Neumorphic feature launcher dashboard.
+   - Header with title "Operations Hub" or "Extra Features".
+   - Feature Card: **"Server Credential Tracker"**:
+     - Icon: `Icons.Default.VpnKey` or `Icons.Default.Password`.
+     - Description: "Track server password validity & automated 9 AM expiry alerts".
+     - Badges: Live count badge (e.g. `2 Expiring Soon` in warning orange, or `All Healthy` in green).
+     - Clicking the card opens `CredentialTrackerScreen`.
+   - Placeholder Card: "Operations Toolkit" (labeled "Upcoming").
 
-3. **TopBar Adaptation for Profile & Settings**:
-   - When `isViewingSettings == true`:
-     - TopBar shows a Back Navigation Icon (`Icons.AutoMirrored.Filled.ArrowBack` or `Icons.Default.ArrowBack`) on the left to exit back to `previousTab`.
-     - TopBar title displays "Profile & Settings" (styled with `NeumorphicTokens.AccentSalmon`, ExtraBold).
-     - The Profile Pill in the TopBar actions is hidden.
-   - When `isViewingSettings == false`:
-     - Standard TopBar with RosterX logo, title, Notification Bell, and Profile Pill is displayed.
+3. **Build `CredentialTrackerScreen.kt`**:
+   - **Header & Stats**:
+     - TopBar with Back navigation to More Hub, title "Credential Tracker", and "+ Add Tracker" action.
+     - Summary KPI Bar: Total Trackers | Expiring Soon (Orange) | Expired (Red).
+   - **Search & Filter**: Filter by server name, username, or status chips (All, Expiring Soon, Expired, Healthy).
+   - **Credential Cards (`CredentialTrackerCard`)**:
+     - Server Name (Bold, Neumorphic heading) & Username.
+     - Expiry Status Badge:
+       - Expired: Red pulsing pill (`Expired Xd ago`).
+       - Expires Today: Red pill (`Expires Today!`).
+       - Expiring Soon: Amber pill (`Expires in X days`).
+       - Healthy: Soft green pill (`X days remaining`).
+     - Dates: Last Updated (`YYYY-MM-DD`), Validity period (`X days`), Expiry Date (`YYYY-MM-DD`).
+     - Spokesperson Email Chips (rendered cleanly as flow row).
+     - **1-Tap Quick Renewal Action**:
+       - Button: "Renewed Today" (`Icons.Default.CheckCircle`).
+       - Tapping prompts quick confirmation and calls `viewModel.renewCredentialTracker(id)`.
+     - Overflow / Action Menu: Edit and Delete.
 
-4. **Bottom Navigation Bar Visibility**:
-   - Update `bottomBar` composable condition:
-     - `if (!isFullScreenRoster && !isViewingSettings)` -> Render `FluidNeumorphicBottomNav`.
-     - When `isViewingSettings == true`, the bottom nav is completely hidden, providing a clean fullscreen layout for `AccountView`.
+4. **Build "Add / Edit Credential Tracker Dialog"**:
+   - Neumorphic modal dialog.
+   - Text fields for:
+     - Server Name (e.g. `prod-db-01`)
+     - Username (e.g. `svc_analytics`)
+     - Last Updated Date (Date picker dialog or formatted date field, defaulting to today)
+     - Validity Days (Preset quick-select chips: 30d, 60d, 90d, 180d, plus custom input)
+     - Spokesperson Emails: dynamic chip-adder where user types email, taps "+", and chips appear with (X) remove button.
+   - Save button with loading indicator and validation checks.
 
-5. **Screen Content Switching & Hardware Back Press**:
-   - Inside the main content `Box`:
-     - If `isViewingSettings == true`, render `AccountView` directly with standard padding.
-     - Else, render the standard animated 4-tab content (`AnimatedContent(targetState = selectedTab)`).
-   - Add system `BackHandler`:
-     ```kotlin
-     BackHandler(enabled = isViewingSettings) {
-         isViewingSettings = false
-         selectedTab = previousTab
-     }
-     ```
-
-6. **Screen View Analytics**:
-   - Update `LaunchedEffect(selectedTab, isViewingSettings)` to log screen view `"Profile & Settings"` when `isViewingSettings == true`.
+5. **Connect State in `EngineerPortalViewModel.kt`**:
+   - `credentialTrackers: List<CredentialTrackerDto>`
+   - `isLoadingCredentials: Boolean`
+   - Methods: `loadCredentialTrackers()`, `createCredentialTracker(...)`, `updateCredentialTracker(...)`, `renewCredentialTracker(id)`, `deleteCredentialTracker(id)`.
 
 ---
 
@@ -82,21 +117,20 @@ Remove redundant "Settings" tab (Tab 4) from the bottom navigation bar in `Engin
    adb install -r app/build/outputs/apk/debug/app-debug.apk
    ```
 3. **Automated UI Interaction & Layout Verification**:
-   - Launch app:
-     ```powershell
-     adb shell am start -n com.rosterx/.MainActivity
-     ```
+   - Launch app: `adb shell am start -n com.rosterx/.MainActivity`.
    - Verify:
-     - Bottom navigation bar displays exactly 4 tabs.
-     - Tap the TopBar profile pill -> navigates to fullscreen Profile & Settings with TopBar Back arrow.
-     - Tap TopBar back arrow (or system back) -> returns smoothly to previous active tab with bottom bar restored.
+     - Bottom navigation bar displays 5 tabs with "More" (`...`) as the 5th tab.
+     - Tapping "More" opens `MoreHubView`.
+     - Tapping "Server Credential Tracker" opens `CredentialTrackerScreen`.
+     - Tap "+ Add Tracker", create a test entry, verify it appears in the list with calculated status.
+     - Test "Renewed Today" 1-tap action.
 4. **Version Bump & Git Commit**:
-   - Bump version to **`1.24.15` (Build 106)** in:
-     - `android/app/build.gradle.kts` (`versionCode = 106`, `versionName = "1.24.15"`)
-     - `server.py` (`SERVER_VERSION = "1.24.15"`)
+   - Minor feature release -> Bump to **`1.25.0` (Build 107)** in:
+     - `android/app/build.gradle.kts` (`versionCode = 107`, `versionName = "1.25.0"`)
+     - `server.py` (`SERVER_VERSION = "1.25.0"`)
    - Commit changes:
      ```powershell
-     git add android/app/src/main/java/com/rosterx/presentation/portal/EngineerPortalScreen.kt android/app/build.gradle.kts server.py AGENT_HANDOFF.md plan_vijayan.md
-     git commit -m "feat(navigation): v1.24.15 (Build 106) - consolidate settings into topbar profile pill and streamline 4-tab bottom nav"
+     git add android/ server.py AGENT_HANDOFF.md plan_vijayan.md
+     git commit -m "feat(credentials): v1.25.0 (Build 107) - add More tab feature hub and server credential tracker with 1-tap renewal"
      ```
-5. **Update `AGENT_HANDOFF.md`** with verification summary and Build 106 milestone.
+5. **Update `AGENT_HANDOFF.md`** with Build 107 verification details.
