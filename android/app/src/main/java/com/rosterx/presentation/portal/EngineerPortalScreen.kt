@@ -2,6 +2,7 @@ package com.rosterx.presentation.portal
 
 import com.rosterx.presentation.portal.credentials.CredentialTrackerScreen
 import com.rosterx.presentation.portal.more.MoreHubView
+import com.rosterx.presentation.portal.more.MyTeamView
 import androidx.activity.compose.BackHandler
 import android.graphics.Color.parseColor
 
@@ -580,6 +581,7 @@ fun EngineerPortalScreen(
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
     var isViewingCredentialTracker by rememberSaveable { mutableStateOf(false) }
+    var isViewingMyTeam by rememberSaveable { mutableStateOf(false) }
     var previousTab by rememberSaveable { mutableIntStateOf(0) }
     var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
     var showQuickNotificationsSheet by rememberSaveable { mutableStateOf(false) }
@@ -587,9 +589,11 @@ fun EngineerPortalScreen(
     var activeCelebrationType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
     var activeCelebrationYears by rememberSaveable { mutableIntStateOf(1) }
 
-    BackHandler(enabled = isViewingCredentialTracker || isViewingSettings) {
+    BackHandler(enabled = isViewingCredentialTracker || isViewingMyTeam || isViewingSettings) {
         if (isViewingCredentialTracker) {
             isViewingCredentialTracker = false
+        } else if (isViewingMyTeam) {
+            isViewingMyTeam = false
         } else if (isViewingSettings) {
             isViewingSettings = false
             selectedTab = previousTab
@@ -657,9 +661,11 @@ fun EngineerPortalScreen(
     val isManager = state.loggedInEngineer?.role == EngineerRole.MANAGER
     val isFullScreenRoster = isLandscape && ((isManager && selectedTab == 2) || (!isManager && selectedTab == 3))
 
-    LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isManager) {
+    LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingMyTeam, isManager) {
         val screenName = if (isViewingCredentialTracker) {
             "Credential Tracker"
+        } else if (isViewingMyTeam) {
+            "My Team Directory"
         } else if (isViewingSettings) {
             "Profile & Settings"
         } else if (isManager) {
@@ -977,7 +983,7 @@ fun EngineerPortalScreen(
                 }
             }
 
-            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker) {
+            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingMyTeam) {
                 FluidNeumorphicBottomNav(
                     items = portalNavItems,
                     selectedIndex = selectedTab,
@@ -1034,26 +1040,35 @@ fun EngineerPortalScreen(
 
             } else {
 
+                val activeSubView = if (isViewingCredentialTracker) 1 else if (isViewingMyTeam) 2 else if (isViewingSettings) 3 else 0
+
                 AnimatedContent(
-                    targetState = Pair(isViewingCredentialTracker, isViewingSettings),
+                    targetState = activeSubView,
                     transitionSpec = {
-                        if (targetState.first || targetState.second) {
+                        if (targetState != 0 && initialState == 0) {
                             slideInHorizontally(animationSpec = tween(300)) { it } + fadeIn(animationSpec = tween(300)) togetherWith
                                     slideOutHorizontally(animationSpec = tween(300)) { -it / 3 } + fadeOut(animationSpec = tween(200))
-                        } else {
+                        } else if (targetState == 0 && initialState != 0) {
                             slideInHorizontally(animationSpec = tween(300)) { -it / 3 } + fadeIn(animationSpec = tween(200)) togetherWith
                                     slideOutHorizontally(animationSpec = tween(300)) { it } + fadeOut(animationSpec = tween(300))
+                        } else {
+                            fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
                         }
                     },
                     label = "ScreenTransition"
-                ) { (inCreds, inSettings) ->
-                    if (inCreds) {
+                ) { subView ->
+                    if (subView == 1) {
                         CredentialTrackerScreen(
                             state = state,
                             viewModel = viewModel,
                             onBackClick = { isViewingCredentialTracker = false }
                         )
-                    } else if (inSettings) {
+                    } else if (subView == 2) {
+                        MyTeamView(
+                            engineers = state.engineers,
+                            onBackClick = { isViewingMyTeam = false }
+                        )
+                    } else if (subView == 3) {
                         AccountView(
                             state = state,
                             onOpenEditProfile = { showUnifiedEditProfileDialog = true },
@@ -1106,7 +1121,9 @@ fun EngineerPortalScreen(
                                     )
                                     4 -> MoreHubView(
                                         state = state,
-                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true }
+                                        isAdmin = false,
+                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
+                                        onNavigateToMyTeam = { isViewingMyTeam = true }
                                     )
                                     else -> DashboardView(
                                         state = state,
@@ -1130,7 +1147,9 @@ fun EngineerPortalScreen(
                                     3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
                                     4 -> MoreHubView(
                                         state = state,
-                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true }
+                                        isAdmin = false,
+                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
+                                        onNavigateToMyTeam = { isViewingMyTeam = true }
                                     )
                                     else -> DashboardView(
                                         state = state,
@@ -1152,7 +1171,7 @@ fun EngineerPortalScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker) {
+            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingMyTeam) {
                 com.rosterx.presentation.components.FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
                     modifier = Modifier

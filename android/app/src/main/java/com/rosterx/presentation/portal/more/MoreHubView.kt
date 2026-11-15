@@ -14,7 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.presentation.portal.PortalState
 import com.rosterx.ui.neumorphic.*
 
@@ -30,6 +31,9 @@ import com.rosterx.ui.neumorphic.*
 fun MoreHubView(
     state: PortalState,
     onNavigateToCredentialTracker: () -> Unit,
+    isAdmin: Boolean = false,
+    onNavigateToServerManagement: (() -> Unit)? = null,
+    onNavigateToMyTeam: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -51,7 +55,7 @@ fun MoreHubView(
                 color = NeumorphicTokens.TextMain
             )
             Text(
-                text = "Extended duty utilities & automated server monitors",
+                text = if (isAdmin) "Server controls & infrastructure credentials" else "Extended duty utilities & automated server monitors",
                 fontSize = 13.sp,
                 color = NeumorphicTokens.TextMuted,
                 modifier = Modifier.padding(top = 2.dp)
@@ -123,30 +127,63 @@ fun MoreHubView(
             onClick = onNavigateToCredentialTracker
         )
 
-        // Feature 2: Operations Handover Toolkit (Placeholder for upcoming rota features)
-        MoreHubFeatureCard(
-            title = "Duty Handover Notes",
-            description = "Collaborative shift logs & end-of-shift debriefing summaries across 24/7 rotations.",
-            icon = Icons.AutoMirrored.Filled.Assignment,
-            iconTint = Color(0xFF8B5CF6),
-            badge = {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = NeumorphicTokens.TextMuted.copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.3f))
-                ) {
-                    Text(
-                        text = "Coming Soon",
-                        color = NeumorphicTokens.TextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-            },
-            enabled = false,
-            onClick = {}
-        )
+        // Feature 2: Admin -> Server Management Card
+        if (isAdmin && onNavigateToServerManagement != null) {
+            MoreHubFeatureCard(
+                title = "Server Management",
+                description = "Configure backend server URL, inspect MongoDB Atlas diagnostics, and review live server logs.",
+                icon = Icons.Default.Dns,
+                iconTint = Color(0xFF3B82F6),
+                badge = {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF3B82F6).copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Color(0xFF3B82F6).copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            text = "Diagnostics & Logs",
+                            color = Color(0xFF2563EB),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                },
+                enabled = true,
+                onClick = onNavigateToServerManagement
+            )
+        }
+
+        // Feature 2: Non-Admin -> My Team Directory Card
+        if (!isAdmin && onNavigateToMyTeam != null) {
+            val activeMembersCount = remember(state.engineers) {
+                state.engineers.count { it.status != EngineerStatus.RESIGNED }
+            }
+
+            MoreHubFeatureCard(
+                title = "My Team",
+                description = "Team directory, hierarchy, and direct contact options.",
+                icon = Icons.Default.Groups,
+                iconTint = Color(0xFF6366F1),
+                badge = {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF6366F1).copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Color(0xFF6366F1).copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            text = if (activeMembersCount > 0) "$activeMembersCount Active Members" else "Team Directory",
+                            color = Color(0xFF4F46E5),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                },
+                enabled = true,
+                onClick = onNavigateToMyTeam
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
     }

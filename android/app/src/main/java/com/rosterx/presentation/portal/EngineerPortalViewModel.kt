@@ -1159,6 +1159,7 @@ class EngineerPortalViewModel @Inject constructor(
         lastUpdatedDate: String,
         validityDays: Int,
         spokespersonEmails: List<String>,
+        alertThresholdDays: Int? = 5,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -1168,6 +1169,7 @@ class EngineerPortalViewModel @Inject constructor(
                 username = username.trim(),
                 lastUpdatedDate = lastUpdatedDate.trim(),
                 validityDays = validityDays,
+                alertThresholdDays = alertThresholdDays,
                 spokespersonEmails = spokespersonEmails
             )
             val res = repository.createCredentialTracker(req)
@@ -1187,6 +1189,7 @@ class EngineerPortalViewModel @Inject constructor(
         lastUpdatedDate: String?,
         validityDays: Int?,
         spokespersonEmails: List<String>?,
+        alertThresholdDays: Int? = null,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -1196,6 +1199,7 @@ class EngineerPortalViewModel @Inject constructor(
                 username = username?.trim(),
                 lastUpdatedDate = lastUpdatedDate?.trim(),
                 validityDays = validityDays,
+                alertThresholdDays = alertThresholdDays,
                 spokespersonEmails = spokespersonEmails
             )
             val res = repository.updateCredentialTracker(id, req)

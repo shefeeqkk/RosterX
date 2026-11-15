@@ -47,6 +47,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalAutofill
 import androidx.compose.ui.platform.LocalAutofillTree
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -83,6 +84,7 @@ fun LoginScreen(
     val currentView = LocalView.current
     val activity = context as? Activity
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
 
     val autofill = LocalAutofill.current
@@ -728,6 +730,8 @@ fun LoginScreen(
                     ),
                     keyboardActions = KeyboardActions(
                         onDone = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
                             if (identifier.isNotBlank() && password.isNotBlank()) {
                                 localErrorMsg = null
                                 viewModel.login(identifier, password)

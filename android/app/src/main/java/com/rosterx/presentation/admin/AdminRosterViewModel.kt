@@ -754,4 +754,40 @@ class AdminRosterViewModel @Inject constructor(
             }
         }
     }
+
+    fun setThemeMode(mode: com.rosterx.data.local.AppThemeMode) = sessionManager.setThemeMode(mode)
+    fun setThemePaletteId(id: String) = sessionManager.setThemePaletteId(id)
+
+    fun updateUserProfile(
+        name: String,
+        phone: String,
+        email: String,
+        joinDate: String,
+        birthday: String,
+        profilePicture: String?,
+        currentPassword: String?,
+        newPassword: String?,
+        targetUsername: String? = null,
+        onResult: ((Boolean, String?) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val res = repository.updateUserProfile(
+                name = name.takeIf { it.isNotBlank() },
+                phone = phone.takeIf { it.isNotBlank() },
+                email = email.takeIf { it.isNotBlank() },
+                joinDate = joinDate.takeIf { it.isNotBlank() },
+                birthday = birthday.takeIf { it.isNotBlank() },
+                profilePicture = profilePicture,
+                currentPassword = currentPassword?.takeIf { it.isNotBlank() },
+                newPassword = newPassword?.takeIf { it.isNotBlank() },
+                username = targetUsername ?: currentUser.value?.username
+            )
+            if (res.isSuccess) {
+                loadData()
+                onResult?.invoke(true, null)
+            } else {
+                onResult?.invoke(false, res.exceptionOrNull()?.message ?: "Failed to update profile")
+            }
+        }
+    }
 }

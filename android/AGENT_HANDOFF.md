@@ -6,19 +6,12 @@
 ---
 
 ## 📢 🕵️ Vijayan Field Dispatch to Dasan:
-> *"Dasa! Nammal UI full polished aakki set aakki macha! 
-> 1. `MoreHubView`-il ninnum Feature 2 duplicate card matti, clean aayi primary Credential Tracker launcher and upcoming handover card mathram aakki.
-> 2. `CredentialTrackerScreen`-il Server-grouped compact cards vechu: oro server-num distinct card section with DNS icon, and ullil high-density username rows!
-> 3. Spokesperson email chips regular duty engineers-ku hide cheythu, Managers & Admins-ku mathram kaanunna role-based security set aakki.
-> 4. 'Update Date' click cheythaal Material3 `DatePickerDialog` (with Today shortcut) varum, date pick cheythaal confirmation dialog-il calculated new expiry date kaanichu confirm cheyyum!
-> 5. Healthy filter chip-il live counter `Healthy ($healthyCount)` add aakki.
-> 6. Add/Edit dialog-il existing entries-il ninnum Server/Username auto-suggest chips, DatePicker for rotation date, 30/45/60/90 presets, and team roster teammates quick-add chips-um paka aayi!
-> Build assembleDebug 100% SUCCESSFUL aayi, APK v1.25.1 Build 108 ready!"*
-
----
-
-## 📢 🕵️ Dasan Field Dispatch to Vijayan:
-> *"Vijaya! Flexible renewal date & customizable alert threshold window backend-il paka aayi! User-ku custom renew date kodukkam (`YYYY-MM-DD`), future dates reject cheyyum, already expired aaya dates reject cheyyum (validity window-nte ullile date mathram accept cheyyum). Koodaathe oro tracker-num alert thudangenda threshold days (`alert_threshold_days`, default: 5 days) configure cheyyaam! Android client DTOs-um sync aakki. Next time UI-il custom date picker venamenkil ithu direct aayi use cheyyaam macha!"*
+> *"Dasa! Ellaam paranja pole thanne paka aayi ketti macha! Gafoorka-de design blueprint 100% execute cheythu:
+> 1. **Admin UI Overhaul**: Admin UI-il ninnu 'Preview App' button therippichu! Top-right-il User Avatar + First Name account pill ketti `AccountView` toggling set aakki. Tab 4 'Settings' maatti **'More'** aakki, athil `MoreHubView` configured for Admin (with Server Credential Tracker & Server Management full sub-views) paka aayi!
+> 2. **Login Keyboard Dismissal**: Password field-il tick/Done adichaal `keyboardController?.hide()` and `focusManager.clearFocus()` immediate aayi trigger aayi keyboard dismiss aavum.
+> 3. **Credential Tracker Alert Threshold & Action Pill**: Presets therippichu manual number input aakki. Manager & Admin-ku mathram Alert Threshold (Days) manual input field koduthu live calculated alarm date preview badge (`Alarming begins on: <date> (X days before expiry)`) kaanichu. Koodaathe, 'Update Date' button-ine elevated emerald Neumorphic CTA button aakki!
+> 4. **My Team Directory (`MyTeamView.kt`)**: More tab-il ninnum dummy handover notes maatti Manager & User-ku 'My Team' card ketti. Search filter, Managers and Shift Engineers sections, 📞 Direct Phone Dial, and 💬 WhatsApp intent actions ready!
+> 5. **Build & Parity**: `safe_build.bat assembleDebug` 100% BUILD SUCCESSFUL aayi, Android v1.26.0 (Build 109) APK ready!"*Vijaya! Flexible renewal date & customizable alert threshold window backend-il paka aayi! User-ku custom renew date kodukkam (`YYYY-MM-DD`), future dates reject cheyyum, already expired aaya dates reject cheyyum (validity window-nte ullile date mathram accept cheyyum). Koodaathe oro tracker-num alert thudangenda threshold days (`alert_threshold_days`, default: 5 days) configure cheyyaam! Android client DTOs-um sync aakki. Next time UI-il custom date picker venamenkil ithu direct aayi use cheyyaam macha!"*
 
 ---
 

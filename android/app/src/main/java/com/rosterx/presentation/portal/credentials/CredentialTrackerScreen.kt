@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -507,8 +508,9 @@ fun CredentialTrackerScreen(
             existingTracker = trackerToEdit,
             allTrackers = state.credentialTrackers,
             rosterEngineers = state.engineers,
+            isManagerOrAdmin = isManagerOrAdmin,
             onDismiss = { showAddEditDialog = false },
-            onSave = { serverName, username, lastUpdatedDate, validityDays, spokespersons ->
+            onSave = { serverName, username, lastUpdatedDate, validityDays, spokespersons, alertThresholdDays ->
                 if (trackerToEdit == null) {
                     viewModel.createCredentialTracker(
                         serverName = serverName,
@@ -516,6 +518,7 @@ fun CredentialTrackerScreen(
                         lastUpdatedDate = lastUpdatedDate,
                         validityDays = validityDays,
                         spokespersonEmails = spokespersons,
+                        alertThresholdDays = alertThresholdDays,
                         onSuccess = {
                             showAddEditDialog = false
                             Toast.makeText(context, "Tracker added for $serverName", Toast.LENGTH_SHORT).show()
@@ -532,6 +535,7 @@ fun CredentialTrackerScreen(
                         lastUpdatedDate = lastUpdatedDate,
                         validityDays = validityDays,
                         spokespersonEmails = spokespersons,
+                        alertThresholdDays = alertThresholdDays,
                         onSuccess = {
                             showAddEditDialog = false
                             Toast.makeText(context, "Tracker updated for $serverName", Toast.LENGTH_SHORT).show()
@@ -870,27 +874,36 @@ private fun ServerGroupCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (canRenew) {
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFF059669).copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, Color(0xFF059669).copy(alpha = 0.35f)),
-                                    modifier = Modifier.clickable { onUpdateDateClick(tracker) }
+                                Box(
+                                    modifier = Modifier
+                                        .neumorphicRaised(
+                                            shape = RoundedCornerShape(20.dp),
+                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                        )
+                                        .background(NeumorphicTokens.Surface, RoundedCornerShape(20.dp))
+                                        .border(
+                                            BorderStroke(1.2.dp, Color(0xFF059669).copy(alpha = 0.45f)),
+                                            RoundedCornerShape(20.dp)
+                                        )
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .clickable { onUpdateDateClick(tracker) }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.EditCalendar,
                                             contentDescription = null,
                                             tint = Color(0xFF059669),
-                                            modifier = Modifier.size(13.dp)
+                                            modifier = Modifier.size(14.dp)
                                         )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(5.dp))
                                         Text(
                                             text = "Update Date",
                                             fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = FontWeight.ExtraBold,
                                             color = Color(0xFF059669)
                                         )
                                     }
@@ -942,8 +955,9 @@ fun AddEditCredentialTrackerDialog(
     existingTracker: CredentialTrackerDto?,
     allTrackers: List<CredentialTrackerDto>,
     rosterEngineers: List<com.rosterx.domain.model.Engineer>,
+    isManagerOrAdmin: Boolean = true,
     onDismiss: () -> Unit,
-    onSave: (serverName: String, username: String, lastUpdatedDate: String, validityDays: Int, spokespersons: List<String>) -> Unit
+    onSave: (serverName: String, username: String, lastUpdatedDate: String, validityDays: Int, spokespersons: List<String>, alertThresholdDays: Int?) -> Unit
 ) {
     var serverName by remember { mutableStateOf(existingTracker?.serverName ?: "") }
     var username by remember { mutableStateOf(existingTracker?.username ?: "") }
@@ -952,11 +966,9 @@ fun AddEditCredentialTrackerDialog(
     var spokespersons by remember { mutableStateOf(existingTracker?.spokespersonEmails ?: emptyList()) }
     var customEmailInput by remember { mutableStateOf("") }
     var customValidityInput by remember { mutableStateOf(existingTracker?.validityDays?.toString() ?: "30") }
+    var alertThresholdInput by remember { mutableStateOf((existingTracker?.alertThresholdDays ?: 5).toString()) }
 
     var showDatePicker by remember { mutableStateOf(false) }
-
-    // Pre-made validity presets: 30, 45, 60, 90 days as per plan
-    val validityPresets = listOf(30, 45, 60, 90)
 
     // Autocomplete distinct servers & usernames from existing trackers
     val existingServerNames = remember(allTrackers) {
@@ -1184,43 +1196,9 @@ fun AddEditCredentialTrackerDialog(
                     }
                 }
 
-                // Validity Days Presets (30d, 45d, 60d, 90d) + Custom
+                // Validity Cycle (Days) - Clean Manual Number Input
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Validity Cycle (Days):", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        validityPresets.forEach { preset ->
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (validityDays == preset) NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f) else NeumorphicTokens.Surface,
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (validityDays == preset) NeumorphicTokens.AccentSalmon else NeumorphicTokens.TextMuted.copy(alpha = 0.2f)
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable {
-                                        validityDays = preset
-                                        customValidityInput = preset.toString()
-                                    }
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                ) {
-                                    Text(
-                                        text = "${preset}d",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (validityDays == preset) NeumorphicTokens.AccentSalmon else NeumorphicTokens.TextMain
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     OutlinedTextField(
                         value = customValidityInput,
                         onValueChange = {
@@ -1230,11 +1208,64 @@ fun AddEditCredentialTrackerDialog(
                                 validityDays = parsed
                             }
                         },
-                        label = { Text("Custom Validity Days") },
+                        placeholder = { Text("e.g. 30, 45, 60, 90") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+
+                // Manager/Admin Alert Threshold Setting
+                if (isManagerOrAdmin) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Alert Threshold (Days before expiry):", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                        OutlinedTextField(
+                            value = alertThresholdInput,
+                            onValueChange = { alertThresholdInput = it },
+                            placeholder = { Text("e.g. 5") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        val expiryLocalDate = remember(lastUpdatedDate, validityDays) {
+                            try {
+                                LocalDate.parse(lastUpdatedDate).plusDays(validityDays.toLong())
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                        val thresholdVal = alertThresholdInput.toIntOrNull() ?: 5
+                        val alarmStartDate = expiryLocalDate?.minusDays(thresholdVal.toLong())
+
+                        if (alarmStartDate != null) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.NotificationsActive,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Alarming begins on: $alarmStartDate ($thresholdVal days before expiry)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFFD97706)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Designated Spokespersons (Email Alerts)
@@ -1363,7 +1394,8 @@ fun AddEditCredentialTrackerDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(serverName, username, lastUpdatedDate, validityDays, spokespersons)
+                    val alertDays = if (isManagerOrAdmin) alertThresholdInput.toIntOrNull() ?: 5 else null
+                    onSave(serverName, username, lastUpdatedDate, validityDays, spokespersons, alertDays)
                 },
                 enabled = serverName.isNotBlank() && username.isNotBlank() && lastUpdatedDate.isNotBlank(),
                 shape = RoundedCornerShape(10.dp),

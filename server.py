@@ -192,19 +192,19 @@ RESEND_API_KEY = DEFAULT_RESEND_API_KEY
 RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>").strip().strip("'\"")
 
 # Gmail SMTP Configuration for Native Password Recovery OTP
-# Configured with fail-safe defaults so Render free-tier and cloud deploys work out-of-the-box
-DEFAULT_SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "kkshefeeq005@gmail.com")
-DEFAULT_SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "eskzhgckwazgrpjo")
+# Credentials MUST be set via environment variables or .env — no hardcoded fallbacks.
+DEFAULT_SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "").strip()
+DEFAULT_SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "").strip()
 SMTP_EMAIL = DEFAULT_SMTP_EMAIL
 SMTP_PASSWORD = DEFAULT_SMTP_PASSWORD
 
 def get_smtp_credentials():
-    """Retrieve verified Gmail SMTP credentials from environment or .env with fail-safe defaults."""
+    """Retrieve verified Gmail SMTP credentials from environment or .env file. No hardcoded fallbacks."""
     global SMTP_EMAIL, SMTP_PASSWORD
     if not SMTP_EMAIL or not SMTP_PASSWORD:
         env = load_env_variables()
-        SMTP_EMAIL = env.get("SMTP_EMAIL", "").strip() or os.environ.get("SMTP_EMAIL", "").strip() or "kkshefeeq005@gmail.com"
-        raw_pass = env.get("SMTP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip() or "eskzhgckwazgrpjo"
+        SMTP_EMAIL = env.get("SMTP_EMAIL", "").strip() or os.environ.get("SMTP_EMAIL", "").strip()
+        raw_pass = env.get("SMTP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip()
         SMTP_PASSWORD = raw_pass.replace(" ", "")
     if not SMTP_EMAIL or not SMTP_PASSWORD:
         log_server("[SMTP CONFIG] Warning: SMTP_EMAIL or SMTP_PASSWORD not configured. OTP dispatch will fail.")
@@ -659,7 +659,7 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
     raw_from = env.get("RESEND_FROM", "").strip() or os.environ.get("RESEND_FROM", "").strip() or (RESEND_FROM or "").strip()
     from_sender = raw_from.strip("'\"").strip() or "RosterX Operations <notify@rosterx.online>"
 
-    primary_sandbox_email = (env.get("ALERT_EMAIL", "") or os.environ.get("ALERT_EMAIL", "") or "kkshefeeq005@gmail.com").strip().strip("'\"")
+    primary_sandbox_email = (env.get("ALERT_EMAIL", "") or os.environ.get("ALERT_EMAIL", "") or DEFAULT_ALERT_EMAIL or "").strip().strip("'\"")
 
     payload = {
         "from": from_sender,
@@ -703,7 +703,7 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
         if allow_sandbox_redirect and e.code == 403 and ("only send testing emails to your own email address" in err_body or "validation_error" in err_body):
             match = re.search(r"\(([^)]+@[^)]+)\)", err_body)
             extracted_email = match.group(1).strip() if match else None
-            fallback_email = extracted_email or primary_sandbox_email or "kkshefeeq005@gmail.com"
+            fallback_email = extracted_email or primary_sandbox_email or ""
 
             if fallback_email and fallback_email.lower() != to_email.lower():
                 log_server(f"[RESEND AUDIT] Sandbox Restriction Detected: Recipient '{to_email}' is not verified under free-tier Resend.")
@@ -1408,7 +1408,7 @@ def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> b
     if not smtp_user or not smtp_pass:
         log_server(f"[SMTP ERROR] Cannot send OTP to {recipient_email}: Missing SMTP credentials.")
         # Attempt direct HTTPS REST API fallback
-        smtp_user = "kkshefeeq005@gmail.com"
+        smtp_user = SMTP_EMAIL or ""  # Loaded from env; no hardcoded fallback
 
     display_name = engineer_name or "Engineer"
     subject = f"🔐 {otp_code} is your RosterX verification code"
