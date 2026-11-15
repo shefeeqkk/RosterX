@@ -1,25 +1,49 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Briefing from Dasan to Vijayan:* **2026-11-15 13:25 IST** 🕵️‍♂️🔍🕵️✨
+> *Last Briefing from Dasan to Vijayan:* **2026-11-15 19:15 IST** 🕵️‍♂️🔍🕵️✨
 
 ---
 
 ## 📢 🕵️ Dasan Field Dispatch to Vijayan:
-> *"Vijaya! Gafoorka thന്ന plan vechu server credential tracker-nte complete backend engine njaan finish aakki! Server passwords, service account keys, SSL certificates expire aakunnathu track cheyyaan full REST suite ready aayi! Daily 09:00 AM IST-il auto-alert cron engine odum — credentials expire aavan 5 days-il thaazhe aakumbol spokesperson-maarkkum Admins/Managers-num sharp HTML emails-um high-priority FCM push notifications-um pokum! Koodaathe 1-tap quick renew endpoint-um ready! Ini ninte room-il poyi `plan_vijayan.md` nokki Jetpack Compose UI katti aakku macha!"*
+> *"Vijaya! Flexible renewal date & customizable alert threshold window backend-il paka aayi! User-ku custom renew date kodukkam (`YYYY-MM-DD`), future dates reject cheyyum, already expired aaya dates reject cheyyum (validity window-nte ullile date mathram accept cheyyum). Koodaathe oro tracker-num alert thudangenda threshold days (`alert_threshold_days`, default: 5 days) configure cheyyaam! Android client DTOs-um sync aakki. Next time UI-il custom date picker venamenkil ithu direct aayi use cheyyaam macha!"*
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.25.0`** (Android `versionCode: 107`, Server `SERVER_VERSION = "1.25.0"`)
-- **Previous Versions**: `1.24.15` (Build 106), `1.24.14` (Build 105), `1.24.13` (Build 104)
+- **Semantic Version**: **`1.25.1`** (Android `versionCode: 108`, Server `SERVER_VERSION = "1.25.1"`)
+- **Previous Versions**: `1.25.0` (Build 107), `1.24.15` (Build 106)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online` (Render origin: `rosterx-vc30.onrender.com`)  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collection: `credential_trackers`)
-- **Target Device (Tailscale IP)**: `100.71.241.36:5555`
+- **Target Device**: `192.168.1.7:5555`
+
+---
+
+## 🚀 Accomplished in v1.25.1 (Build 108) by Dasan
+
+### 1. 🔄 Flexible Renewal Date & Strict Validation (`server.py`)
+- **`POST /api/credentials/trackers/<id>/renew`**:
+  - Accepts optional body: `{"renew_date": "YYYY-MM-DD", "alert_threshold_days": 7}`.
+  - If omitted, defaults to today's date in IST (`get_ist_now().strftime("%Y-%m-%d")`).
+  - **Rule 1 (No Future Dates)**: Rejects `renew_date > today_ist` with 400 Bad Request.
+  - **Rule 2 (Active Validity Window Only)**: Rejects past dates where `days_remaining < 0` with 400 Bad Request, preventing renewal to an already-expired state.
+
+### 2. 🔔 Customizable Alert Threshold Days (`alert_threshold_days`)
+- Stored per tracker (default: `5` days).
+- Status calculation:
+  - `days_remaining > alert_threshold_days` -> `HEALTHY`
+  - `0 < days_remaining <= alert_threshold_days` -> `EXPIRING_SOON`
+  - `days_remaining == 0` -> `EXPIRES_TODAY`
+  - `days_remaining < 0` -> `EXPIRED`
+- Both `_daily_credential_expiry_cron()` and `check_and_dispatch_credential_alerts()` use the tracker's specific alert threshold window.
+
+### 3. 📱 Android Data Layer Parity
+- `RosterApiService.kt`: Updated `CredentialTrackerDto`, `CreateCredentialTrackerRequest`, `UpdateCredentialTrackerRequest`, and `RenewCredentialTrackerRequest` with `alertThresholdDays`.
+- `RosterRepositoryImpl.kt` & `EngineerPortalViewModel.kt`: Updated `renewCredentialTracker` with optional `renewDate` and `alertThresholdDays` parameters (with default `null` values preserving backward compatibility).
 
 ---
 

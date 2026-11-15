@@ -43,7 +43,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.25.0"
+SERVER_VERSION = "1.25.1"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1051,9 +1051,9 @@ def check_and_trigger_celebrations(force=False):
 # SERVER CREDENTIAL TRACKER & EXPIRY ALERT ENGINE
 # ==============================================================================
 
-def compute_credential_status(last_updated_date_str: str, validity_days: int) -> dict:
+def compute_credential_status(last_updated_date_str: str, validity_days: int, alert_threshold_days: int = 5) -> dict:
     """
-    Given last_updated_date ('YYYY-MM-DD') and validity_days (int),
+    Given last_updated_date ('YYYY-MM-DD'), validity_days (int), and alert_threshold_days (int),
     calculates expiry_date ('YYYY-MM-DD'), days_remaining (int), and status (str).
     All calculations based on current date in Indian Standard Time (IST, UTC+05:30).
     """
@@ -1069,10 +1069,15 @@ def compute_credential_status(last_updated_date_str: str, validity_days: int) ->
     except Exception:
         validity = 30
 
+    try:
+        threshold = max(1, int(alert_threshold_days))
+    except Exception:
+        threshold = 5
+
     expiry_date = updated_date + timedelta(days=validity)
     days_remaining = (expiry_date - today_ist).days
 
-    if days_remaining > 5:
+    if days_remaining > threshold:
         status = "HEALTHY"
     elif days_remaining > 0:
         status = "EXPIRING_SOON"
@@ -1084,7 +1089,8 @@ def compute_credential_status(last_updated_date_str: str, validity_days: int) ->
     return {
         "expiry_date": expiry_date.strftime("%Y-%m-%d"),
         "days_remaining": days_remaining,
-        "status": status
+        "status": status,
+        "alert_threshold_days": threshold
     }
 
 def get_all_credential_trackers_from_db():
@@ -1102,11 +1108,16 @@ def get_all_credential_trackers_from_db():
 
     computed = []
     for t in trackers:
-        calc = compute_credential_status(t.get("last_updated_date", ""), t.get("validity_days", 30))
+        calc = compute_credential_status(
+            t.get("last_updated_date", ""),
+            t.get("validity_days", 30),
+            t.get("alert_threshold_days", 5)
+        )
         item = dict(t)
         item["expiry_date"] = calc["expiry_date"]
         item["days_remaining"] = calc["days_remaining"]
         item["status"] = calc["status"]
+        item["alert_threshold_days"] = calc["alert_threshold_days"]
         computed.append(item)
 
     status_order = {"EXPIRED": 0, "EXPIRES_TODAY": 1, "EXPIRING_SOON": 2, "HEALTHY": 3}
@@ -1167,16 +1178,21 @@ def get_credential_tracker_by_id(tracker_id: str):
     if not raw:
         return None
 
-    calc = compute_credential_status(raw.get("last_updated_date", ""), raw.get("validity_days", 30))
+    calc = compute_credential_status(
+        raw.get("last_updated_date", ""),
+        raw.get("validity_days", 30),
+        raw.get("alert_threshold_days", 5)
+    )
     item = dict(raw)
     item["expiry_date"] = calc["expiry_date"]
     item["days_remaining"] = calc["days_remaining"]
     item["status"] = calc["status"]
+    item["alert_threshold_days"] = calc["alert_threshold_days"]
     return item
 
 def check_and_dispatch_credential_alerts(force=False):
     """
-    Check all credential trackers where days_remaining <= 5.
+    Check all credential trackers where days_remaining <= alert_threshold_days.
     Dispatches:
       1. Email to spokesperson_emails
       2. FCM push to spokespersons + all Admins & Managers
@@ -1186,7 +1202,10 @@ def check_and_dispatch_credential_alerts(force=False):
     today_str = get_ist_now().strftime("%Y-%m-%d")
 
     trackers = get_all_credential_trackers_from_db()
-    alert_trackers = [t for t in trackers if t["days_remaining"] <= 5 and t["days_remaining"] >= -14]
+    alert_trackers = [
+        t for t in trackers
+        if t["days_remaining"] <= t.get("alert_threshold_days", 5) and t["days_remaining"] >= -14
+    ]
 
     if not alert_trackers:
         log_server("[CREDENTIAL-ALERT] No expiring or recently expired credentials found.")
@@ -4263,10 +4282,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
-        # 3.77 POST /api/credentials/trackers/<tracker_id>/renew (1-Tap quick renew)
+        # 3.77 POST /api/credentials/trackers/<tracker_id>/renew (1-Tap quick renew or flexible last_updated_date)
         if clean_path.startswith("/api/credentials/trackers/") and clean_path.endswith("/renew"):
             tracker_id = clean_path[len("/api/credentials/trackers/"): -len("/renew")].strip().strip("/")
-            self._handle_renew_credential_tracker(tracker_id)
+            self._handle_renew_credential_tracker(tracker_id, body)
             return
 
         # 3.78 POST /api/credentials/trackers/<tracker_id>/delete or POST /api/credentials/trackers/delete
@@ -4747,8 +4766,15 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         else:
             spokespersons = []
 
+        try:
+            alert_threshold_days = int(body.get("alert_threshold_days", 5))
+            if alert_threshold_days < 1:
+                alert_threshold_days = 5
+        except Exception:
+            alert_threshold_days = 5
+
         tracker_id = f"cred_tracker_{uuid.uuid4().hex[:12]}"
-        calc = compute_credential_status(last_updated_date, validity_days)
+        calc = compute_credential_status(last_updated_date, validity_days, alert_threshold_days)
 
         new_tracker = {
             "id": tracker_id,
@@ -4756,6 +4782,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "username": username,
             "last_updated_date": last_updated_date,
             "validity_days": validity_days,
+            "alert_threshold_days": alert_threshold_days,
             "expiry_date": calc["expiry_date"],
             "days_remaining": calc["days_remaining"],
             "status": calc["status"],
@@ -4795,6 +4822,13 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         except Exception:
             validity_days = existing.get("validity_days", 30)
 
+        try:
+            alert_threshold_days = int(body.get("alert_threshold_days", existing.get("alert_threshold_days", 5)))
+            if alert_threshold_days < 1:
+                alert_threshold_days = 5
+        except Exception:
+            alert_threshold_days = existing.get("alert_threshold_days", 5)
+
         spokespersons = body.get("spokesperson_emails", existing.get("spokesperson_emails", []))
         if isinstance(spokespersons, str):
             spokespersons = [s.strip() for s in spokespersons.split(",") if s.strip()]
@@ -4812,7 +4846,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         else:
             last_updated_date = existing.get("last_updated_date", "")
 
-        calc = compute_credential_status(last_updated_date, validity_days)
+        calc = compute_credential_status(last_updated_date, validity_days, alert_threshold_days)
 
         updated_tracker = dict(existing)
         updated_tracker.update({
@@ -4820,6 +4854,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "username": username,
             "last_updated_date": last_updated_date,
             "validity_days": validity_days,
+            "alert_threshold_days": alert_threshold_days,
             "expiry_date": calc["expiry_date"],
             "days_remaining": calc["days_remaining"],
             "status": calc["status"],
@@ -4836,7 +4871,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "tracker": updated_tracker
         })
 
-    def _handle_renew_credential_tracker(self, tracker_id: str):
+    def _handle_renew_credential_tracker(self, tracker_id: str, body: dict = None):
         claims = self.require_auth()
         if not claims:
             return
@@ -4869,12 +4904,56 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             }, 403)
             return
 
-        today_ist_str = get_ist_now().strftime("%Y-%m-%d")
+        today_ist = get_ist_now().date()
+        today_ist_str = today_ist.strftime("%Y-%m-%d")
         validity_days = tracker.get("validity_days", 30)
+        alert_threshold_days = tracker.get("alert_threshold_days", 5)
 
-        calc = compute_credential_status(today_ist_str, validity_days)
+        target_date_str = today_ist_str
+        if body and isinstance(body, dict):
+            custom_date = str(body.get("last_updated_date") or "").strip()
+            if custom_date:
+                try:
+                    parsed_date = datetime.strptime(custom_date, "%Y-%m-%d").date()
+                except Exception:
+                    self.send_json_response({
+                        "success": False,
+                        "message": "Invalid date format for renewal date. Must be 'YYYY-MM-DD'."
+                    }, 400)
+                    return
 
-        tracker["last_updated_date"] = today_ist_str
+                # Rule 1: Restrict renewal dates to today or past dates (reject future dates)
+                if parsed_date > today_ist:
+                    self.send_json_response({
+                        "success": False,
+                        "message": f"Renewal date cannot be in the future. Selected date ({custom_date}) is after today ({today_ist_str})."
+                    }, 400)
+                    return
+
+                # Rule 2: Only accept date which is coming inside expiry days (cannot already be expired)
+                calc_temp = compute_credential_status(custom_date, validity_days, alert_threshold_days)
+                if calc_temp["days_remaining"] < 0:
+                    self.send_json_response({
+                        "success": False,
+                        "message": f"Renewal date '{custom_date}' with validity of {validity_days} days expired on {calc_temp['expiry_date']} ({abs(calc_temp['days_remaining'])} days ago). Please select a date within the active validity window."
+                    }, 400)
+                    return
+
+                target_date_str = custom_date
+
+            # Allow updating alert_threshold_days during renewal if provided
+            if "alert_threshold_days" in body:
+                try:
+                    ath = int(body["alert_threshold_days"])
+                    if 1 <= ath <= validity_days:
+                        alert_threshold_days = ath
+                except Exception:
+                    pass
+
+        calc = compute_credential_status(target_date_str, validity_days, alert_threshold_days)
+
+        tracker["last_updated_date"] = target_date_str
+        tracker["alert_threshold_days"] = alert_threshold_days
         tracker["expiry_date"] = calc["expiry_date"]
         tracker["days_remaining"] = calc["days_remaining"]
         tracker["status"] = calc["status"]
@@ -4882,11 +4961,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         tracker["updated_by"] = claims.get("username", "admin")
 
         save_credential_tracker_to_db(tracker)
-        log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' renewed to {today_ist_str} by '{claims.get('username')}'")
+        log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' renewed to {target_date_str} (alert at <= {alert_threshold_days}d) by '{claims.get('username')}'")
 
         self.send_json_response({
             "success": True,
-            "message": f"Credential tracker '{tracker.get('server_name')}' renewed successfully to {today_ist_str}.",
+            "message": f"Credential tracker '{tracker.get('server_name')}' renewed successfully to {target_date_str}.",
             "tracker": tracker
         })
 

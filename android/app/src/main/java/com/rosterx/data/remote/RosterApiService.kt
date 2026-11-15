@@ -313,7 +313,10 @@ interface RosterApiService {
     ): CredentialTrackerOperationResponse
 
     @POST("api/credentials/trackers/{id}/renew")
-    suspend fun renewCredentialTracker(@Path("id") id: String): CredentialTrackerOperationResponse
+    suspend fun renewCredentialTracker(
+        @Path("id") id: String,
+        @Body request: RenewCredentialTrackerRequest = RenewCredentialTrackerRequest()
+    ): CredentialTrackerOperationResponse
 
     @POST("api/credentials/trackers/{id}/delete")
     suspend fun deleteCredentialTracker(@Path("id") id: String): CredentialTrackerOperationResponse
@@ -475,6 +478,7 @@ data class CredentialTrackerDto(
     val username: String,
     @SerializedName("last_updated_date") val lastUpdatedDate: String,
     @SerializedName("validity_days") val validityDays: Int,
+    @SerializedName("alert_threshold_days") val alertThresholdDays: Int? = 5,
     @SerializedName("expiry_date") val expiryDate: String,
     @SerializedName("days_remaining") val daysRemaining: Int,
     val status: String, // "HEALTHY", "EXPIRING_SOON", "EXPIRES_TODAY", "EXPIRED"
@@ -503,6 +507,7 @@ data class CreateCredentialTrackerRequest(
     val username: String,
     @SerializedName("last_updated_date") val lastUpdatedDate: String,
     @SerializedName("validity_days") val validityDays: Int,
+    @SerializedName("alert_threshold_days") val alertThresholdDays: Int? = 5,
     @SerializedName("spokesperson_emails") val spokespersonEmails: List<String>
 )
 
@@ -511,7 +516,13 @@ data class UpdateCredentialTrackerRequest(
     val username: String? = null,
     @SerializedName("last_updated_date") val lastUpdatedDate: String? = null,
     @SerializedName("validity_days") val validityDays: Int? = null,
+    @SerializedName("alert_threshold_days") val alertThresholdDays: Int? = null,
     @SerializedName("spokesperson_emails") val spokespersonEmails: List<String>? = null
+)
+
+data class RenewCredentialTrackerRequest(
+    @SerializedName("renew_date") val renewDate: String? = null,
+    @SerializedName("alert_threshold_days") val alertThresholdDays: Int? = null
 )
 
 data class CredentialTrackerOperationResponse(
