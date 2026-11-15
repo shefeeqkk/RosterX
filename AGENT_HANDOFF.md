@@ -1,7 +1,19 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Briefing from Dasan to Vijayan:* **2026-11-15 19:15 IST** 🕵️‍♂️🔍🕵️✨
+> *Last Briefing from Vijayan to Dasan:* **2026-11-15 20:25 IST** 🕵️✨🔍🕵️‍♂️
+
+---
+
+## 📢 🕵️ Vijayan Field Dispatch to Dasan:
+> *"Dasa! Nammal UI full polished aakki set aakki macha! 
+> 1. `MoreHubView`-il ninnum Feature 2 duplicate card matti, clean aayi primary Credential Tracker launcher and upcoming handover card mathram aakki.
+> 2. `CredentialTrackerScreen`-il Server-grouped compact cards vechu: oro server-num distinct card section with DNS icon, and ullil high-density username rows!
+> 3. Spokesperson email chips regular duty engineers-ku hide cheythu, Managers & Admins-ku mathram kaanunna role-based security set aakki.
+> 4. 'Update Date' click cheythaal Material3 `DatePickerDialog` (with Today shortcut) varum, date pick cheythaal confirmation dialog-il calculated new expiry date kaanichu confirm cheyyum!
+> 5. Healthy filter chip-il live counter `Healthy ($healthyCount)` add aakki.
+> 6. Add/Edit dialog-il existing entries-il ninnum Server/Username auto-suggest chips, DatePicker for rotation date, 30/45/60/90 presets, and team roster teammates quick-add chips-um paka aayi!
+> Build assembleDebug 100% SUCCESSFUL aayi, APK v1.25.1 Build 108 ready!"*
 
 ---
 
@@ -19,7 +31,36 @@
   🌐 `https://rosterx.online` & `https://api.rosterx.online` (Render origin: `rosterx-vc30.onrender.com`)  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`
 - **Database Engine**: MongoDB Atlas `Cluster0` (Database: `rosterx`, Collection: `credential_trackers`)
-- **Target Device**: `192.168.1.7:5555`
+- **Target Device**: `192.168.1.7` (Wireless Debugging / USB)
+
+---
+
+## 🚀 Accomplished in v1.25.1 (Build 108) by Vijayan (Compose UI Lead)
+
+### 1. 🗂️ Server-Grouped High-Density Layout (`CredentialTrackerScreen.kt`)
+- Grouped trackers by `serverName` into dedicated server card sections.
+- Server header features DNS icon, bold server title, and account count pill.
+- Nested accounts displayed in compact, sleek rows with user icon, status pill, rotation/expiry dates, and action buttons.
+
+### 2. 🛡️ Role-Based Spokesperson Visibility
+- Designated spokesperson alert chips are hidden for standard duty engineers to reduce clutter.
+- Visible exclusively to Admins and Managers.
+
+### 3. 📅 Interactive Calendar DatePicker & Expiry Preview
+- "Update Date" button opens Material3 `DatePickerDialog` restricted to current or past dates, with a dedicated "Today" shortcut.
+- Selecting a date triggers a quick confirmation modal showing the chosen rotation date, validity cycle, and freshly calculated expiry date before dispatching renewal.
+
+### 4. 🏷️ Dynamic Healthy Filter Counter
+- Status filter chips now display live count for all states including `Healthy ($healthyCount)`.
+
+### 5. ⚡ Enhanced Add/Edit Tracker Dialog
+- Auto-suggest chips for Server Name and Username derived from existing trackers.
+- Clickable DatePicker field with "Today" quick button for Last Rotated Date.
+- Updated preset buttons: `30d`, `45d`, `60d`, `90d` + custom input.
+- Teammates quick-add chips from team roster (`rosterEngineers`).
+
+### 6. 🧹 Streamlined Operations Hub (`MoreHubView.kt`)
+- Cleaned redundant expiry alert card. Operations Hub cleanly hosts the primary Server Credential Tracker launcher and the upcoming Handover Notes card.
 
 ---
 
