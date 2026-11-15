@@ -34,10 +34,7 @@ import uuid
 import base64
 import urllib.request
 import urllib.error
-import smtplib
-import ssl
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -191,25 +188,6 @@ DEFAULT_ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "").strip().strip("'\"")
 RESEND_API_KEY = DEFAULT_RESEND_API_KEY
 RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>").strip().strip("'\"")
 
-# Gmail SMTP Configuration for Native Password Recovery OTP
-# Credentials MUST be set via environment variables or .env — no hardcoded fallbacks.
-DEFAULT_SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "").strip()
-DEFAULT_SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "").strip()
-SMTP_EMAIL = DEFAULT_SMTP_EMAIL
-SMTP_PASSWORD = DEFAULT_SMTP_PASSWORD
-
-def get_smtp_credentials():
-    """Retrieve verified Gmail SMTP credentials from environment or .env file. No hardcoded fallbacks."""
-    global SMTP_EMAIL, SMTP_PASSWORD
-    if not SMTP_EMAIL or not SMTP_PASSWORD:
-        env = load_env_variables()
-        SMTP_EMAIL = env.get("SMTP_EMAIL", "").strip() or os.environ.get("SMTP_EMAIL", "").strip()
-        raw_pass = env.get("SMTP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip()
-        SMTP_PASSWORD = raw_pass.replace(" ", "")
-    if not SMTP_EMAIL or not SMTP_PASSWORD:
-        log_server("[SMTP CONFIG] Warning: SMTP_EMAIL or SMTP_PASSWORD not configured. OTP dispatch will fail.")
-        return None, None
-    return SMTP_EMAIL, SMTP_PASSWORD
 
 # Official Team Directory
 DEFAULT_SERVER_ENGINEERS = [
@@ -1400,16 +1378,9 @@ def check_and_dispatch_credential_alerts(force=False):
 
 def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> bool:
     """
-    Transmit styled HTML body conforming to Neumorphic Soft UI design tokens.
-    Primary channel: Native Gmail SMTP via SSL (465) / TLS (587).
-    Automatic Fail-Safe fallback: HTTPS REST API (Port 443 via Resend) if cloud host blocks raw SMTP ports.
+    Transmit styled HTML OTP email via Resend API (sole channel).
+    Returns True on successful delivery, False otherwise.
     """
-    smtp_user, smtp_pass = get_smtp_credentials()
-    if not smtp_user or not smtp_pass:
-        log_server(f"[SMTP ERROR] Cannot send OTP to {recipient_email}: Missing SMTP credentials.")
-        # Attempt direct HTTPS REST API fallback
-        smtp_user = SMTP_EMAIL or ""  # Loaded from env; no hardcoded fallback
-
     display_name = engineer_name or "Engineer"
     subject = f"🔐 {otp_code} is your RosterX verification code"
 
@@ -1469,16 +1440,7 @@ def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> b
 </body>
 </html>"""
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"RosterX Security <{smtp_user}>"
-    msg["To"] = recipient_email
-    msg.attach(MIMEText(html_content, "html"))
-
     log_server(f"[DISPATCH] Initiating OTP verification dispatch to: {recipient_email} (User: {display_name})")
-
-    # Strategy 1: High-Speed Primary HTTPS REST API (Port 443 via Resend with verified notify@rosterx.online)
-    # Delivered in ~300ms, completely immune to cloud host socket/port restrictions
     log_server(f"[DISPATCH] Transmitting OTP verification code via Resend HTTPS REST API to '{recipient_email}'...")
     try:
         resend_result = send_resend_email(recipient_email, subject, html_content, allow_sandbox_redirect=False)
@@ -1488,34 +1450,11 @@ def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> b
             return True
         else:
             err = resend_result.get("error", "Unknown Resend error") if resend_result else "No response"
-            log_server(f"[DISPATCH WARNING] Resend API failed ({err}). Attempting secondary Gmail SMTP...")
-    except Exception as fb_err:
-        log_server(f"[DISPATCH WARNING] Resend API exception ({fb_err}). Attempting secondary Gmail SMTP...")
+            log_server(f"[DISPATCH ERROR] Resend delivery failed: {err}")
+    except Exception as ex:
+        log_server(f"[DISPATCH ERROR] Resend exception: {ex}")
 
-    # Strategy 2: Secondary Fail-Safe Gmail SMTP over Port 465 SSL
-    try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=3.5) as server:
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, [recipient_email], msg.as_string())
-        log_server(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via SSL (Port 465).")
-        return True
-    except Exception as ssl_err:
-        log_server(f"[SMTP WARNING] Port 465 SSL failed ({ssl_err}). Attempting Port 587 STARTTLS...")
-
-    # Strategy 3: Direct SMTP with STARTTLS over Port 587 (timeout=3.5s)
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=3.5) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, [recipient_email], msg.as_string())
-        log_server(f"[SMTP DISPATCH] ✅ Successfully delivered OTP email to '{recipient_email}' via STARTTLS (Port 587).")
-        return True
-    except Exception as tls_err:
-        log_server(f"[SMTP WARNING] Port 587 STARTTLS failed ({tls_err}). Cloud firewall blocks raw outbound SMTP ports.")
-
+    log_server(f"[DISPATCH] ❌ OTP email delivery failed for '{recipient_email}'.")
     return False
 
 def send_startup_link_email(public_url, lan_ip, port, to_email=None):
@@ -3390,7 +3329,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             
 
-        # 1.2 POST /api/auth/forgot-password & /api/auth/send-otp (Native Gmail SMTP OTP Dispatch)
+        # 1.2 POST /api/auth/forgot-password & /api/auth/send-otp (Resend OTP Dispatch)
         if clean_path in ("/api/auth/forgot-password", "/api/auth/forgot-password/", "/api/auth/send-otp", "/api/auth/send-otp/"):
             username = str(body.get("username", "") or body.get("identifier", "")).strip()
             if not username:
@@ -3476,7 +3415,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     pass
 
-            # 3. Send email to the engineer's registered address via native Gmail SMTP or HTTPS Fallback
+            # 3. Send email to the engineer's registered address via Resend
             sent = send_otp_email(recipient_email, engineer_name, otp_code)
             if sent:
                 log_server(f"[AUTH] ✅ Password reset OTP dispatched successfully to '{recipient_email}'.")
@@ -3490,7 +3429,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({
                     "success": False,
                     "error": "Failed to dispatch verification email. Please check server logs.",
-                    "message": "Failed to dispatch verification email via Gmail SMTP or HTTPS fallback."
+                    "message": "Failed to dispatch verification email via Resend."
                 }, 500)
             return
 
