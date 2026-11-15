@@ -5,6 +5,51 @@
 
 ---
 
+## 🚨 SYSTEM ALERT — Gafoor Security Directive (2026-11-15 22:54 IST) — v1.26.1 (Build 110)
+
+> *"Dasa! Vijaya! Sharikkum sharikkum important! Randu security changes enforce cheythu — ningal randupeerum ithinte impact ariyaanam!"*
+
+### 🔴 1. SMTP Fallback — Completely Removed (Backend Breaking Change)
+
+`send_otp_email()` ippol **Resend API mathram** aanu OTP email dispatch cheyyunnathu. Gmail SMTP fallback (Port 465 SSL + Port 587 STARTTLS) **purthaayi therippichu**. Ithine depend cheyyunna yethoru logic-um upadheyam aavanilla.
+
+**Removed from `server.py` (do NOT re-add):**
+- `import smtplib` ❌
+- `import ssl` ❌
+- `from email.mime.multipart import MIMEMultipart` ❌
+- `from email.mime.text import MIMEText` ❌
+- `get_smtp_credentials()` function ❌
+- `DEFAULT_SMTP_EMAIL` / `DEFAULT_SMTP_PASSWORD` globals ❌
+- Strategy 2 (SMTP SSL 465) & Strategy 3 (STARTTLS 587) in `send_otp_email()` ❌
+
+**`send_otp_email()` now:** Calls `send_resend_email()` directly → returns `True`/`False`. No fallback. No SMTP.
+
+**`.env` impact:** `SMTP_EMAIL` and `SMTP_PASSWORD` vars are now **unused** by the server. They can be removed from the `.env` file. `.env.example` still documents them as a note, but the server ignores them.
+
+### 🔴 2. Hardcoded SMTP Credentials — Purged from Git History
+
+A Gmail App Password was previously hardcoded as an `os.environ.get(...)` default fallback. It has been **fully removed from all code paths**. The credential `eskzhgckwazgrpjo` is **compromised and must be rotated** at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
+
+### ✅ Resend API — Single Source of Truth for All Email
+
+| Channel | Status |
+|---|---|
+| `send_resend_email()` | ✅ Active — OTP emails, credential alerts, startup link emails |
+| `send_otp_email()` | ✅ Resend-only now |
+| Gmail SMTP (smtplib) | ❌ Removed permanently |
+
+**Vijayan — Android/UI Impact:** Zero. `POST /api/auth/forgot-password` and `POST /api/auth/send-otp` endpoints behave identically from the client side — same request, same response contract. If Resend fails, the API returns `{"success": false, "error": "..."}` — no silent SMTP retry behind the scenes anymore.
+
+### 📦 Version Bumped
+- `SERVER_VERSION`: `1.26.0` → **`1.26.1`**
+- `versionCode`: `109` → **`110`**
+- `versionName`: `1.26.0` → **`1.26.1`**
+- Commit: `a61e976`
+
+---
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.26.0 - Build 109):
 > *"Dasa, Vijaya! Gafoorka ivide blueprint varachu vechittundu. Ippol namukku 4 major tasks aanu theerkkaanullathu:
 > 1. **Admin UI Overhaul**: Admin UI-il ninnu 'Preview App' button therippichu! Top right-il User/Manager pole Account Avatar pill varum. Bottom-il ninnum Settings tab maatti, Manager/User pole **'More'** tab aakkum. Admin-te 'More' tab-il Credential Tracker-um Server Management-um card aayi varum.
@@ -35,7 +80,7 @@
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.26.0`** (Android `versionCode: 109`, Server `SERVER_VERSION = "1.26.0"`)
+- **Semantic Version**: **`1.26.1`** (Android `versionCode: 110`, Server `SERVER_VERSION = "1.26.1"`)
 - **Previous Versions**: `1.25.1` (Build 108), `1.25.0` (Build 107), `1.24.15` (Build 106)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online` (Render origin: `rosterx-vc30.onrender.com`)  
