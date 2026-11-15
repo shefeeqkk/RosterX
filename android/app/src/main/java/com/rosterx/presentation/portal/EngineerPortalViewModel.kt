@@ -101,8 +101,14 @@ data class PortalState(
 
     val assistantMessages: List<com.rosterx.presentation.components.AssistantChatMessage> = emptyList(),
 
-    val serverVersion: String = ""
+    val serverVersion: String = "",
 
+    val credentialTrackers: List<com.rosterx.data.remote.CredentialTrackerDto> = emptyList(),
+    val isLoadingCredentials: Boolean = false,
+    val credentialsExpiringSoonCount: Int = 0,
+    val credentialsExpiredCount: Int = 0,
+    val credentialsTotalCount: Int = 0,
+    val credentialsActionError: String? = null
 )
 
 
@@ -400,6 +406,8 @@ class EngineerPortalViewModel @Inject constructor(
             if (isManagementUser && _state.value.broadcastTemplates.isEmpty()) {
                 loadBroadcastTemplates()
             }
+
+            loadCredentialTrackers(silent = true)
 
             // Auto-sync Home Screen App Widget with latest duty assignments for ALL users
             val currentEng = _state.value.loggedInEngineer
@@ -1118,6 +1126,118 @@ class EngineerPortalViewModel @Inject constructor(
         if (role == EngineerRole.MANAGER) return false
         if (uname in setOf("admin", "manager", "sysadmin", "system_admin", "administrator") || n.contains("system admin")) return false
         return status != EngineerStatus.RESIGNED
+    }
+
+    fun loadCredentialTrackers(silent: Boolean = false, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            if (!silent) {
+                _state.value = _state.value.copy(isLoadingCredentials = true, credentialsActionError = null)
+            }
+            val res = repository.getCredentialTrackers()
+            res.onSuccess { data ->
+                _state.value = _state.value.copy(
+                    credentialTrackers = data.trackers,
+                    credentialsTotalCount = data.totalCount,
+                    credentialsExpiringSoonCount = data.expiringSoonCount,
+                    credentialsExpiredCount = data.expiredCount,
+                    isLoadingCredentials = false,
+                    credentialsActionError = null
+                )
+            }.onFailure { err ->
+                _state.value = _state.value.copy(
+                    isLoadingCredentials = false,
+                    credentialsActionError = err.message
+                )
+            }
+            onComplete?.invoke()
+        }
+    }
+
+    fun createCredentialTracker(
+        serverName: String,
+        username: String,
+        lastUpdatedDate: String,
+        validityDays: Int,
+        spokespersonEmails: List<String>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val req = com.rosterx.data.remote.CreateCredentialTrackerRequest(
+                serverName = serverName.trim(),
+                username = username.trim(),
+                lastUpdatedDate = lastUpdatedDate.trim(),
+                validityDays = validityDays,
+                spokespersonEmails = spokespersonEmails
+            )
+            val res = repository.createCredentialTracker(req)
+            res.onSuccess {
+                loadCredentialTrackers(silent = true)
+                onSuccess()
+            }.onFailure { err ->
+                onError(err.message ?: "Failed to create credential tracker")
+            }
+        }
+    }
+
+    fun updateCredentialTracker(
+        id: String,
+        serverName: String?,
+        username: String?,
+        lastUpdatedDate: String?,
+        validityDays: Int?,
+        spokespersonEmails: List<String>?,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val req = com.rosterx.data.remote.UpdateCredentialTrackerRequest(
+                serverName = serverName?.trim(),
+                username = username?.trim(),
+                lastUpdatedDate = lastUpdatedDate?.trim(),
+                validityDays = validityDays,
+                spokespersonEmails = spokespersonEmails
+            )
+            val res = repository.updateCredentialTracker(id, req)
+            res.onSuccess {
+                loadCredentialTrackers(silent = true)
+                onSuccess()
+            }.onFailure { err ->
+                onError(err.message ?: "Failed to update credential tracker")
+            }
+        }
+    }
+
+    fun renewCredentialTracker(
+        id: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.renewCredentialTracker(id)
+            res.onSuccess {
+                loadCredentialTrackers(silent = true)
+                onSuccess()
+            }.onFailure { err ->
+                onError(err.message ?: "Failed to renew credential tracker")
+            }
+        }
+    }
+
+    fun deleteCredentialTracker(
+        id: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.deleteCredentialTracker(id)
+            res.onSuccess {
+                loadCredentialTrackers(silent = true)
+                onSuccess()
+            }.onFailure { err ->
+                onError(err.message ?: "Failed to delete credential tracker")
+            }
+        }
     }
 }
 

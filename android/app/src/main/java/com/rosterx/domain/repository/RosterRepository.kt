@@ -79,6 +79,12 @@ interface RosterRepository {
     ): Result<Engineer>
     suspend fun registerFcmToken(token: String): Result<Unit>
     suspend fun unregisterFcmToken(token: String): Result<Unit>
+
+    suspend fun getCredentialTrackers(): Result<com.rosterx.data.remote.CredentialTrackersDataDto>
+    suspend fun createCredentialTracker(request: com.rosterx.data.remote.CreateCredentialTrackerRequest): Result<com.rosterx.data.remote.CredentialTrackerDto>
+    suspend fun updateCredentialTracker(id: String, request: com.rosterx.data.remote.UpdateCredentialTrackerRequest): Result<com.rosterx.data.remote.CredentialTrackerDto>
+    suspend fun renewCredentialTracker(id: String): Result<com.rosterx.data.remote.CredentialTrackerDto>
+    suspend fun deleteCredentialTracker(id: String): Result<Unit>
 }
 
 

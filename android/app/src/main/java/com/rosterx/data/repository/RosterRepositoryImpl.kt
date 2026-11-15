@@ -1033,4 +1033,79 @@ class RosterRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun getCredentialTrackers(): Result<com.rosterx.data.remote.CredentialTrackersDataDto> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getCredentialTrackers()
+            if (res.success && res.data != null) {
+                Result.success(res.data)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to load credential trackers"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun createCredentialTracker(request: com.rosterx.data.remote.CreateCredentialTrackerRequest): Result<com.rosterx.data.remote.CredentialTrackerDto> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.createCredentialTracker(request)
+            if (res.success && res.tracker != null) {
+                Result.success(res.tracker)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to create credential tracker"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateCredentialTracker(id: String, request: com.rosterx.data.remote.UpdateCredentialTrackerRequest): Result<com.rosterx.data.remote.CredentialTrackerDto> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.updateCredentialTracker(id, request)
+            if (res.success && res.tracker != null) {
+                Result.success(res.tracker)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to update credential tracker"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun renewCredentialTracker(id: String): Result<com.rosterx.data.remote.CredentialTrackerDto> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.renewCredentialTracker(id)
+            if (res.success && res.tracker != null) {
+                Result.success(res.tracker)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to renew credential tracker"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteCredentialTracker(id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.deleteCredentialTracker(id)
+            if (res.success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to delete credential tracker"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

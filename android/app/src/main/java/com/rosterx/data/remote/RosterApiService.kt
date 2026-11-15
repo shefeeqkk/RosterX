@@ -299,6 +299,24 @@ interface RosterApiService {
 
     @POST("api/notifications/retract")
     suspend fun retractNotification(@Body body: Map<String, String>): PingResponse
+
+    @GET("api/credentials/trackers")
+    suspend fun getCredentialTrackers(): CredentialTrackersResponse
+
+    @POST("api/credentials/trackers")
+    suspend fun createCredentialTracker(@Body request: CreateCredentialTrackerRequest): CredentialTrackerOperationResponse
+
+    @POST("api/credentials/trackers/{id}")
+    suspend fun updateCredentialTracker(
+        @Path("id") id: String,
+        @Body request: UpdateCredentialTrackerRequest
+    ): CredentialTrackerOperationResponse
+
+    @POST("api/credentials/trackers/{id}/renew")
+    suspend fun renewCredentialTracker(@Path("id") id: String): CredentialTrackerOperationResponse
+
+    @POST("api/credentials/trackers/{id}/delete")
+    suspend fun deleteCredentialTracker(@Path("id") id: String): CredentialTrackerOperationResponse
 }
 
 data class UpdateProfilePictureRequest(
@@ -448,4 +466,56 @@ data class AssistantChatResponse(
     val model: String? = null,
     @SerializedName("grounded_time") val groundedTime: String? = null,
     val message: String? = null
+)
+
+// --- Credential Tracker DTOs ---
+data class CredentialTrackerDto(
+    val id: String,
+    @SerializedName("server_name") val serverName: String,
+    val username: String,
+    @SerializedName("last_updated_date") val lastUpdatedDate: String,
+    @SerializedName("validity_days") val validityDays: Int,
+    @SerializedName("expiry_date") val expiryDate: String,
+    @SerializedName("days_remaining") val daysRemaining: Int,
+    val status: String, // "HEALTHY", "EXPIRING_SOON", "EXPIRES_TODAY", "EXPIRED"
+    @SerializedName("spokesperson_emails") val spokespersonEmails: List<String> = emptyList(),
+    @SerializedName("created_by") val createdBy: String? = null,
+    @SerializedName("created_at") val createdAt: Long? = null,
+    @SerializedName("updated_at") val updatedAt: Long? = null,
+    @SerializedName("updated_by") val updatedBy: String? = null
+)
+
+data class CredentialTrackersDataDto(
+    val trackers: List<CredentialTrackerDto> = emptyList(),
+    @SerializedName("total_count") val totalCount: Int = 0,
+    @SerializedName("expiring_soon_count") val expiringSoonCount: Int = 0,
+    @SerializedName("expired_count") val expiredCount: Int = 0
+)
+
+data class CredentialTrackersResponse(
+    val success: Boolean,
+    val data: CredentialTrackersDataDto? = null,
+    val message: String? = null
+)
+
+data class CreateCredentialTrackerRequest(
+    @SerializedName("server_name") val serverName: String,
+    val username: String,
+    @SerializedName("last_updated_date") val lastUpdatedDate: String,
+    @SerializedName("validity_days") val validityDays: Int,
+    @SerializedName("spokesperson_emails") val spokespersonEmails: List<String>
+)
+
+data class UpdateCredentialTrackerRequest(
+    @SerializedName("server_name") val serverName: String? = null,
+    val username: String? = null,
+    @SerializedName("last_updated_date") val lastUpdatedDate: String? = null,
+    @SerializedName("validity_days") val validityDays: Int? = null,
+    @SerializedName("spokesperson_emails") val spokespersonEmails: List<String>? = null
+)
+
+data class CredentialTrackerOperationResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val tracker: CredentialTrackerDto? = null
 )

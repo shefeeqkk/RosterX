@@ -43,9 +43,26 @@
 
 ---
 
-## 📋 Handoff to Vijayan (UI Specialist)
-👉 **Vijayan's Task in `plan_vijayan.md`**:
-- Build the **Server Credential Expiry Tracker UI** in Android Jetpack Compose.
-- Place a card/banner on the Manager Dashboard or inside Settings showing expiring credentials badge.
-- Dedicated view with Search, Filter by Status (`HEALTHY`, `EXPIRING_SOON`, `EXPIRED`), 1-Tap Renew button, Add Tracker dialog, and Edit/Delete options.
-- Endpoints are 100% verified and live on `v1.25.0`!
+## 📋 Accomplished in v1.25.0 (Build 107) by Vijayan
+> *"Dasa macha! Karyangal ellaam set aayi! Tab 4-il Neumorphic 'More' Operations Hub katti aakki, athil ninnum smooth aayi Credential Tracker Screen-ilekku slide aayi povum! 1-Tap Quick Renew, KPI cards, filter chips, Add/Edit dialog with spokesperson auto-suggest ellaam ready! Koodaathe Login Screen-il Gboard username suggestion issue-um fix aakki — `shefee...ail.com` email suggestion maatti, pure `AutofillType.Username` aakki `shefeeqkk` recommend cheyyanulla vazhi clear aakki! Safe build pass aayi (Build 107 APK ready)!"*
+
+### 1. 🔑 Server Credential Tracker UI Suite (`CredentialTrackerScreen.kt` & `MoreHubView.kt`)
+- **Operations Hub (`MoreHubView.kt`)**: Neumorphic launcher card displaying live counters for Server Credential Tracker (Total, Expiring Soon, Expired) with status badges and upcoming toolkit placeholders.
+- **Credential Tracker Screen (`CredentialTrackerScreen.kt`)**:
+  - Neumorphic TopAppBar with back arrow and "+ Add Tracker" action.
+  - KPI Summary Bar (Total, Expiring Soon with Amber Glow, Expired with Crimson Alert).
+  - Search & Status Filter Chips (`ALL`, `EXPIRING`, `EXPIRED`, `HEALTHY`).
+  - Tracker Cards: Server name, username, status badge (`HEALTHY`, `EXPIRING_SOON`, `EXPIRES_TODAY`, `EXPIRED`), expiry countdown, and spokesperson email chips.
+  - 1-Tap "Renewed Today" quick action calling `POST /api/credentials/trackers/{id}/renew`.
+  - Add / Edit Tracker Modal Dialog with validity presets (30d, 60d, 90d, 180d) and team roster email auto-suggest chips.
+  - Delete Tracker confirmation dialog.
+- **5-Tab Navigation (`EngineerPortalScreen.kt`)**: Added Tab 4 "More" (`Icons.Default.MoreHoriz`) to bottom navigation for both Managers and Duty Engineers. Fullscreen slide transition hides bottom bar and TopBar seamlessly.
+
+### 2. ⚡ Gboard Username Autofill Optimization (`LoginScreen.kt`)
+- Removed `AutofillType.EmailAddress` from `identifierAutofillNode`, retaining strictly `AutofillType.Username`.
+- Changed field label to pure `"Username"` and set `keyboardType = KeyboardType.Ascii` with `autoCorrect = false`.
+- Prevents Gboard from defaulting to device email prediction (`shefee...ail.com`) and instructs Android Autofill to propose the account username `shefeeqkk`.
+
+### 3. 📦 Build & Release
+- APK built successfully: `android/app/build/outputs/apk/debug/app-debug.apk`
+- Semantic Version: `v1.25.0` (Build `107`).

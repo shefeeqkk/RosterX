@@ -137,7 +137,7 @@ fun LoginScreen(
                     passwordFocusRequester.requestFocus()
                 }
             },
-            autofillTypes = listOf(AutofillType.Username, AutofillType.EmailAddress)
+            autofillTypes = listOf(AutofillType.Username)
         )
     }
 
@@ -591,7 +591,7 @@ fun LoginScreen(
                             } catch (_: Throwable) {}
                         }
                     },
-                    label = { Text("Username or Email") },
+                    label = { Text("Username") },
                     leadingIcon = { 
                         Icon(
                             Icons.Default.Person, 
@@ -629,7 +629,7 @@ fun LoginScreen(
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,
                         autoCorrect = false,
-                        keyboardType = KeyboardType.Text,
+                        keyboardType = KeyboardType.Ascii,
                         imeAction = ImeAction.Next
                     ),
                     keyboardActions = KeyboardActions(
@@ -639,7 +639,7 @@ fun LoginScreen(
                     supportingText = {
                         if (isIdentifierError) {
                             Text(
-                                "Please enter your username or email",
+                                "Please enter your username",
                                 color = MaterialTheme.colorScheme.error,
                                 fontSize = 11.sp
                             )

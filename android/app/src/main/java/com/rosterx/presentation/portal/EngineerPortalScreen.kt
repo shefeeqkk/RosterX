@@ -1,5 +1,7 @@
 package com.rosterx.presentation.portal
 
+import com.rosterx.presentation.portal.credentials.CredentialTrackerScreen
+import com.rosterx.presentation.portal.more.MoreHubView
 import androidx.activity.compose.BackHandler
 import android.graphics.Color.parseColor
 
@@ -577,6 +579,7 @@ fun EngineerPortalScreen(
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
+    var isViewingCredentialTracker by rememberSaveable { mutableStateOf(false) }
     var previousTab by rememberSaveable { mutableIntStateOf(0) }
     var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
     var showQuickNotificationsSheet by rememberSaveable { mutableStateOf(false) }
@@ -584,9 +587,13 @@ fun EngineerPortalScreen(
     var activeCelebrationType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
     var activeCelebrationYears by rememberSaveable { mutableIntStateOf(1) }
 
-    BackHandler(enabled = isViewingSettings) {
-        isViewingSettings = false
-        selectedTab = previousTab
+    BackHandler(enabled = isViewingCredentialTracker || isViewingSettings) {
+        if (isViewingCredentialTracker) {
+            isViewingCredentialTracker = false
+        } else if (isViewingSettings) {
+            isViewingSettings = false
+            selectedTab = previousTab
+        }
     }
 
     val pullRefreshState = rememberPullToRefreshState()
@@ -650,8 +657,10 @@ fun EngineerPortalScreen(
     val isManager = state.loggedInEngineer?.role == EngineerRole.MANAGER
     val isFullScreenRoster = isLandscape && ((isManager && selectedTab == 2) || (!isManager && selectedTab == 3))
 
-    LaunchedEffect(selectedTab, isViewingSettings, isManager) {
-        val screenName = if (isViewingSettings) {
+    LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isManager) {
+        val screenName = if (isViewingCredentialTracker) {
+            "Credential Tracker"
+        } else if (isViewingSettings) {
             "Profile & Settings"
         } else if (isManager) {
             when (selectedTab) {
@@ -659,6 +668,7 @@ fun EngineerPortalScreen(
                 1 -> "Team Shifts"
                 2 -> "Month Roster"
                 3 -> "Broadcast Console"
+                4 -> "Operations Hub"
                 else -> "Manager Dashboard"
             }
         } else {
@@ -667,6 +677,7 @@ fun EngineerPortalScreen(
                 1 -> "Team Shifts"
                 2 -> "My Calendar"
                 3 -> "Month Roster"
+                4 -> "Operations Hub"
                 else -> "Dashboard"
             }
         }
@@ -683,7 +694,7 @@ fun EngineerPortalScreen(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
 
-            if (!isFullScreenRoster) {
+            if (!isFullScreenRoster && !isViewingCredentialTracker) {
 
                 TopAppBar(
                 navigationIcon = {
@@ -952,19 +963,21 @@ fun EngineerPortalScreen(
                         NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
                         NavTabItem(1, "Team Shifts", Icons.Default.Group),
                         NavTabItem(2, "Month Roster", Icons.Default.GridView),
-                        NavTabItem(3, "Broadcast", Icons.Default.Campaign)
+                        NavTabItem(3, "Broadcast", Icons.Default.Campaign),
+                        NavTabItem(4, "More", Icons.Default.MoreHoriz)
                     )
                 } else {
                     listOf(
                         NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
                         NavTabItem(1, "Team Shifts", Icons.Default.Group),
                         NavTabItem(2, "My Calendar", Icons.Default.CalendarMonth),
-                        NavTabItem(3, "Month Roster", Icons.Default.GridView)
+                        NavTabItem(3, "Month Roster", Icons.Default.GridView),
+                        NavTabItem(4, "More", Icons.Default.MoreHoriz)
                     )
                 }
             }
 
-            if (!isFullScreenRoster && !isViewingSettings) {
+            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker) {
                 FluidNeumorphicBottomNav(
                     items = portalNavItems,
                     selectedIndex = selectedTab,
@@ -983,7 +996,7 @@ fun EngineerPortalScreen(
         Box(modifier = Modifier
             .fillMaxSize()
             .padding(
-                top = if (!isFullScreenRoster) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
+                top = if (!isFullScreenRoster && !isViewingCredentialTracker) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
             )
             .background(NeumorphicTokens.Canvas)
             .nestedScroll(pullRefreshState.nestedScrollConnection)
@@ -1022,9 +1035,9 @@ fun EngineerPortalScreen(
             } else {
 
                 AnimatedContent(
-                    targetState = isViewingSettings,
+                    targetState = Pair(isViewingCredentialTracker, isViewingSettings),
                     transitionSpec = {
-                        if (targetState) {
+                        if (targetState.first || targetState.second) {
                             slideInHorizontally(animationSpec = tween(300)) { it } + fadeIn(animationSpec = tween(300)) togetherWith
                                     slideOutHorizontally(animationSpec = tween(300)) { -it / 3 } + fadeOut(animationSpec = tween(200))
                         } else {
@@ -1032,9 +1045,15 @@ fun EngineerPortalScreen(
                                     slideOutHorizontally(animationSpec = tween(300)) { it } + fadeOut(animationSpec = tween(300))
                         }
                     },
-                    label = "SettingsTransition"
-                ) { inSettings ->
-                    if (inSettings) {
+                    label = "ScreenTransition"
+                ) { (inCreds, inSettings) ->
+                    if (inCreds) {
+                        CredentialTrackerScreen(
+                            state = state,
+                            viewModel = viewModel,
+                            onBackClick = { isViewingCredentialTracker = false }
+                        )
+                    } else if (inSettings) {
                         AccountView(
                             state = state,
                             onOpenEditProfile = { showUnifiedEditProfileDialog = true },
@@ -1085,6 +1104,10 @@ fun EngineerPortalScreen(
                                         },
                                         onRefreshNotifications = viewModel::loadBroadcastHistory
                                     )
+                                    4 -> MoreHubView(
+                                        state = state,
+                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true }
+                                    )
                                     else -> DashboardView(
                                         state = state,
                                         onDismissNotification = viewModel::dismissNotification,
@@ -1105,6 +1128,10 @@ fun EngineerPortalScreen(
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
                                     3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
+                                    4 -> MoreHubView(
+                                        state = state,
+                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true }
+                                    )
                                     else -> DashboardView(
                                         state = state,
                                         onDismissNotification = viewModel::dismissNotification,
@@ -1125,7 +1152,7 @@ fun EngineerPortalScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (!isFullScreenRoster && !isViewingSettings) {
+            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker) {
                 com.rosterx.presentation.components.FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
                     modifier = Modifier
