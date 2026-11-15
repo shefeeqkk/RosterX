@@ -521,7 +521,7 @@ data class UpdateCredentialTrackerRequest(
 )
 
 data class RenewCredentialTrackerRequest(
-    @SerializedName("renew_date") val renewDate: String? = null,
+    @SerializedName("last_updated_date") val lastUpdatedDate: String? = null,
     @SerializedName("alert_threshold_days") val alertThresholdDays: Int? = null
 )
 

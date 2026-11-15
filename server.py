@@ -4911,7 +4911,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         target_date_str = today_ist_str
         if body and isinstance(body, dict):
-            custom_date = str(body.get("last_updated_date") or "").strip()
+            custom_date = str(body.get("last_updated_date") or body.get("renew_date") or "").strip()
             if custom_date:
                 try:
                     parsed_date = datetime.strptime(custom_date, "%Y-%m-%d").date()

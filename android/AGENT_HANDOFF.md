@@ -27,9 +27,9 @@
 
 ### 1. 🔄 Flexible Renewal Date & Strict Validation (`server.py`)
 - **`POST /api/credentials/trackers/<id>/renew`**:
-  - Accepts optional body: `{"renew_date": "YYYY-MM-DD", "alert_threshold_days": 7}`.
+  - Accepts optional body: `{"last_updated_date": "YYYY-MM-DD", "alert_threshold_days": 7}`.
   - If omitted, defaults to today's date in IST (`get_ist_now().strftime("%Y-%m-%d")`).
-  - **Rule 1 (No Future Dates)**: Rejects `renew_date > today_ist` with 400 Bad Request.
+  - **Rule 1 (No Future Dates)**: Rejects `last_updated_date > today_ist` with 400 Bad Request.
   - **Rule 2 (Active Validity Window Only)**: Rejects past dates where `days_remaining < 0` with 400 Bad Request, preventing renewal to an already-expired state.
 
 ### 2. 🔔 Customizable Alert Threshold Days (`alert_threshold_days`)

@@ -1210,13 +1210,13 @@ class EngineerPortalViewModel @Inject constructor(
 
     fun renewCredentialTracker(
         id: String,
-        renewDate: String? = null,
+        lastUpdatedDate: String? = null,
         alertThresholdDays: Int? = null,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
-            val res = repository.renewCredentialTracker(id, renewDate, alertThresholdDays)
+            val res = repository.renewCredentialTracker(id, lastUpdatedDate, alertThresholdDays)
             res.onSuccess {
                 loadCredentialTrackers(silent = true)
                 onSuccess()

@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -122,35 +123,11 @@ fun MoreHubView(
             onClick = onNavigateToCredentialTracker
         )
 
-        // Feature 2: Automated Alert Diagnostics
-        MoreHubFeatureCard(
-            title = "Automated Expiry Alerts",
-            description = "Daily 9:00 AM IST cron dispatches email warnings to designated server spokespersons when validity reaches 5 days or less.",
-            icon = Icons.Default.NotificationsActive,
-            iconTint = Color(0xFF3B82F6),
-            badge = {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF3B82F6).copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, Color(0xFF3B82F6).copy(alpha = 0.3f))
-                ) {
-                    Text(
-                        text = "9:00 AM IST Daily",
-                        color = Color(0xFF2563EB),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-            },
-            onClick = onNavigateToCredentialTracker
-        )
-
-        // Feature 3: Operations Handover Toolkit (Placeholder for upcoming rota features)
+        // Feature 2: Operations Handover Toolkit (Placeholder for upcoming rota features)
         MoreHubFeatureCard(
             title = "Duty Handover Notes",
             description = "Collaborative shift logs & end-of-shift debriefing summaries across 24/7 rotations.",
-            icon = Icons.Default.Assignment,
+            icon = Icons.AutoMirrored.Filled.Assignment,
             iconTint = Color(0xFF8B5CF6),
             badge = {
                 Surface(

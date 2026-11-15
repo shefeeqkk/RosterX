@@ -33,7 +33,10 @@ import com.rosterx.domain.model.EngineerRole
 import com.rosterx.presentation.portal.EngineerPortalViewModel
 import com.rosterx.presentation.portal.PortalState
 import com.rosterx.ui.neumorphic.*
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,8 +52,9 @@ fun CredentialTrackerScreen(
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var trackerToEdit by remember { mutableStateOf<CredentialTrackerDto?>(null) }
-    var trackerToRenew by remember { mutableStateOf<CredentialTrackerDto?>(null) }
     var trackerToDelete by remember { mutableStateOf<CredentialTrackerDto?>(null) }
+    var trackerToPickDateFor by remember { mutableStateOf<CredentialTrackerDto?>(null) }
+    var pendingRenewalConfirmation by remember { mutableStateOf<Pair<CredentialTrackerDto, String>?>(null) }
 
     val isManagerOrAdmin = state.loggedInEngineer?.role == EngineerRole.ADMIN ||
             state.loggedInEngineer?.role == EngineerRole.MANAGER
@@ -217,7 +221,8 @@ fun CredentialTrackerScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Status Filter Chips Row
+                // Status Filter Chips Row with Live Counter for Healthy
+                val healthyCount = state.credentialTrackers.count { it.status == "HEALTHY" }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -242,7 +247,7 @@ fun CredentialTrackerScreen(
                         onClick = { selectedFilter = "EXPIRED" }
                     )
                     FilterChipItem(
-                        label = "Healthy",
+                        label = "Healthy ($healthyCount)",
                         isSelected = selectedFilter == "HEALTHY",
                         selectedColor = Color(0xFF059669),
                         onClick = { selectedFilter = "HEALTHY" }
@@ -314,31 +319,38 @@ fun CredentialTrackerScreen(
                     }
                 }
             } else {
+                // Server-Grouped Compact Tracker List (Always expanded static sections as requested)
+                val groupedTrackers = remember(filteredTrackers) {
+                    filteredTrackers.groupBy { it.serverName }
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .weight(1f),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(filteredTrackers, key = { it.id }) { tracker ->
-                        val isSpokesperson = tracker.spokespersonEmails.any {
-                            val lower = it.trim().lowercase()
-                            lower == currentUserEmail || lower == currentUsername
+                    groupedTrackers.forEach { (serverName, trackersForServer) ->
+                        item(key = serverName) {
+                            ServerGroupCard(
+                                serverName = serverName,
+                                trackers = trackersForServer,
+                                isManagerOrAdmin = isManagerOrAdmin,
+                                currentUserEmail = currentUserEmail,
+                                currentUsername = currentUsername,
+                                onUpdateDateClick = { tracker ->
+                                    trackerToPickDateFor = tracker
+                                },
+                                onEditClick = { tracker ->
+                                    trackerToEdit = tracker
+                                    showAddEditDialog = true
+                                },
+                                onDeleteClick = { tracker ->
+                                    trackerToDelete = tracker
+                                }
+                            )
                         }
-                        val canRenew = isManagerOrAdmin || isSpokesperson
-
-                        CredentialTrackerCard(
-                            tracker = tracker,
-                            canRenew = canRenew,
-                            canManage = isManagerOrAdmin,
-                            onRenewClick = { trackerToRenew = tracker },
-                            onEditClick = {
-                                trackerToEdit = tracker
-                                showAddEditDialog = true
-                            },
-                            onDeleteClick = { trackerToDelete = tracker }
-                        )
                     }
                     item {
                         Spacer(modifier = Modifier.height(24.dp))
@@ -348,10 +360,152 @@ fun CredentialTrackerScreen(
         }
     }
 
+    // Material3 DatePickerDialog for Updating Rotation Date
+    if (trackerToPickDateFor != null) {
+        val tracker = trackerToPickDateFor!!
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    // Restrict renewal dates to today or past dates (no future dates)
+                    return utcTimeMillis <= System.currentTimeMillis() + 86400000L
+                }
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { trackerToPickDateFor = null },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                        val selectedDate = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneId.of("UTC"))
+                            .toLocalDate()
+
+                        val today = LocalDate.now()
+                        if (selectedDate.isAfter(today)) {
+                            Toast.makeText(context, "Renewal date cannot be in the future", Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
+
+                        val selectedDateStr = selectedDate.toString()
+                        trackerToPickDateFor = null
+                        pendingRenewalConfirmation = Pair(tracker, selectedDateStr)
+                    }
+                ) {
+                    Text("Select Date", fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon)
+                }
+            },
+            dismissButton = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = {
+                            val todayStr = LocalDate.now().toString()
+                            trackerToPickDateFor = null
+                            pendingRenewalConfirmation = Pair(tracker, todayStr)
+                        }
+                    ) {
+                        Text("Today", fontWeight = FontWeight.Bold, color = Color(0xFF059669))
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TextButton(onClick = { trackerToPickDateFor = null }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                title = {
+                    Text(
+                        text = "Rotate '${tracker.serverName}' (${tracker.username})",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = NeumorphicTokens.TextMain
+                    )
+                }
+            )
+        }
+    }
+
+    // Quick Confirmation Dialog (Option A2 from Pre-Execution Grill)
+    if (pendingRenewalConfirmation != null) {
+        val (tracker, selectedDateStr) = pendingRenewalConfirmation!!
+        val parsedDate = try { LocalDate.parse(selectedDateStr) } catch (_: Throwable) { LocalDate.now() }
+        val newExpiry = parsedDate.plusDays(tracker.validityDays.toLong()).toString()
+        val daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), parsedDate.plusDays(tracker.validityDays.toLong()))
+
+        AlertDialog(
+            onDismissRequest = { pendingRenewalConfirmation = null },
+            icon = { Icon(Icons.Default.EventAvailable, contentDescription = null, tint = Color(0xFF059669)) },
+            title = { Text("Confirm Credential Rotation", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Update credential rotation date for server '${tracker.serverName}' (${tracker.username})?",
+                        fontSize = 13.sp,
+                        color = NeumorphicTokens.TextMuted
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = NeumorphicTokens.Canvas,
+                        border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.15f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("New Rotation Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                                Text(selectedDateStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Validity Cycle:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                                Text("${tracker.validityDays} Days", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Calculated Expiry:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                                Text(newExpiry, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (daysUntilExpiry > 5) Color(0xFF059669) else Color(0xFFD97706))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val tId = tracker.id
+                        pendingRenewalConfirmation = null
+                        viewModel.renewCredentialTracker(
+                            id = tId,
+                            lastUpdatedDate = selectedDateStr,
+                            onSuccess = {
+                                Toast.makeText(context, "Rotated '${tracker.serverName}' credentials to $selectedDateStr!", Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { err ->
+                                Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                            }
+                        )
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
+                ) {
+                    Text("Confirm & Save", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRenewalConfirmation = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     // Add / Edit Dialog
     if (showAddEditDialog) {
         AddEditCredentialTrackerDialog(
             existingTracker = trackerToEdit,
+            allTrackers = state.credentialTrackers,
             rosterEngineers = state.engineers,
             onDismiss = { showAddEditDialog = false },
             onSave = { serverName, username, lastUpdatedDate, validityDays, spokespersons ->
@@ -391,50 +545,6 @@ fun CredentialTrackerScreen(
         )
     }
 
-    // 1-Tap Quick Renew Confirmation Dialog
-    if (trackerToRenew != null) {
-        val tracker = trackerToRenew!!
-        AlertDialog(
-            onDismissRequest = { trackerToRenew = null },
-            icon = { Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF059669)) },
-            title = { Text("Confirm Credential Renewal", fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    "Have you updated/rotated the credentials for '${tracker.serverName}' (${tracker.username})?\n\n" +
-                            "This will reset the last updated date to today (${LocalDate.now()}) and extend validity by ${tracker.validityDays} days.",
-                    fontSize = 13.sp,
-                    color = NeumorphicTokens.TextMuted
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val tId = tracker.id
-                        trackerToRenew = null
-                        viewModel.renewCredentialTracker(
-                            id = tId,
-                            onSuccess = {
-                                Toast.makeText(context, "Renewed '${tracker.serverName}' credentials to today!", Toast.LENGTH_SHORT).show()
-                            },
-                            onError = { err ->
-                                Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                            }
-                        )
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
-                ) {
-                    Text("Yes, Renewed Today", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { trackerToRenew = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     // Delete Confirmation Dialog
     if (trackerToDelete != null) {
         val tracker = trackerToDelete!!
@@ -457,7 +567,7 @@ fun CredentialTrackerScreen(
                         viewModel.deleteCredentialTracker(
                             id = tId,
                             onSuccess = {
-                                Toast.makeText(context, "Tracker removed", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Deleted tracker for ${tracker.serverName}", Toast.LENGTH_SHORT).show()
                             },
                             onError = { err ->
                                 Toast.makeText(context, err, Toast.LENGTH_LONG).show()
@@ -541,29 +651,20 @@ private fun FilterChipItem(
     }
 }
 
+/**
+ * Server-Grouped Compact Card (Always Expanded static section)
+ */
 @Composable
-private fun CredentialTrackerCard(
-    tracker: CredentialTrackerDto,
-    canRenew: Boolean,
-    canManage: Boolean,
-    onRenewClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
+private fun ServerGroupCard(
+    serverName: String,
+    trackers: List<CredentialTrackerDto>,
+    isManagerOrAdmin: Boolean,
+    currentUserEmail: String,
+    currentUsername: String,
+    onUpdateDateClick: (CredentialTrackerDto) -> Unit,
+    onEditClick: (CredentialTrackerDto) -> Unit,
+    onDeleteClick: (CredentialTrackerDto) -> Unit
 ) {
-    val statusColor = when (tracker.status) {
-        "EXPIRED" -> Color(0xFFDC2626)
-        "EXPIRES_TODAY" -> Color(0xFFDC2626)
-        "EXPIRING_SOON" -> Color(0xFFD97706)
-        else -> Color(0xFF059669)
-    }
-
-    val statusText = when (tracker.status) {
-        "EXPIRED" -> "Expired ${-tracker.daysRemaining}d ago"
-        "EXPIRES_TODAY" -> "Expires Today!"
-        "EXPIRING_SOON" -> "Expires in ${tracker.daysRemaining} days"
-        else -> "${tracker.daysRemaining} days remaining"
-    }
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -575,61 +676,51 @@ private fun CredentialTrackerCard(
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Header Row: Server & Username + Status Badge
+            // Server Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Dns,
+                            contentDescription = null,
+                            tint = NeumorphicTokens.AccentSalmon,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     Text(
-                        text = tracker.serverName,
-                        fontSize = 17.sp,
+                        text = serverName,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = NeumorphicTokens.TextMain
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.AccountCircle,
-                            contentDescription = null,
-                            tint = NeumorphicTokens.AccentSalmon,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = tracker.username,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = NeumorphicTokens.TextMuted
-                        )
-                    }
                 }
 
-                // Expiry Badge
+                // Account count badge
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = statusColor.copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f))
+                    shape = RoundedCornerShape(10.dp),
+                    color = NeumorphicTokens.Canvas,
+                    border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.2f))
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(statusColor)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = statusText,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = statusColor
-                        )
-                    }
+                    Text(
+                        text = "${trackers.size} Account${if (trackers.size > 1) "s" else ""}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NeumorphicTokens.TextMuted,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
                 }
             }
 
@@ -638,129 +729,205 @@ private fun CredentialTrackerCard(
                 thickness = 1.dp
             )
 
-            // Timeline & Dates Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("Last Rotated", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
-                    Text(tracker.lastUpdatedDate, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
-                }
-                Column {
-                    Text("Validity Cycle", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
-                    Text("${tracker.validityDays} Days", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Expiry Date", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
-                    Text(tracker.expiryDate, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = statusColor)
-                }
-            }
+            // High-density Accounts List
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                trackers.forEachIndexed { index, tracker ->
+                    if (index > 0) {
+                        HorizontalDivider(
+                            color = NeumorphicTokens.TextMuted.copy(alpha = 0.06f),
+                            thickness = 1.dp
+                        )
+                    }
 
-            // Spokesperson Email Chips
-            if (tracker.spokespersonEmails.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Designated Spokespersons (Email Alerts):", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        tracker.spokespersonEmails.forEach { email ->
+                    val isSpokesperson = tracker.spokespersonEmails.any {
+                        val lower = it.trim().lowercase()
+                        lower == currentUserEmail || lower == currentUsername
+                    }
+                    val canRenew = isManagerOrAdmin || isSpokesperson
+
+                    val statusColor = when (tracker.status) {
+                        "EXPIRED" -> Color(0xFFDC2626)
+                        "EXPIRES_TODAY" -> Color(0xFFDC2626)
+                        "EXPIRING_SOON" -> Color(0xFFD97706)
+                        else -> Color(0xFF059669)
+                    }
+
+                    val statusText = when (tracker.status) {
+                        "EXPIRED" -> "Expired ${-tracker.daysRemaining}d ago"
+                        "EXPIRES_TODAY" -> "Expires Today!"
+                        "EXPIRING_SOON" -> "Expires in ${tracker.daysRemaining}d"
+                        else -> "${tracker.daysRemaining}d remaining"
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Username with User Icon
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = null,
+                                    tint = NeumorphicTokens.AccentSalmon,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = tracker.username,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeumorphicTokens.TextMain
+                                )
+                            }
+
+                            // Status Pill
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = NeumorphicTokens.Canvas,
-                                border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.15f))
+                                color = statusColor.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f))
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.MailOutline,
-                                        contentDescription = null,
-                                        tint = NeumorphicTokens.TextMuted,
-                                        modifier = Modifier.size(12.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .clip(CircleShape)
+                                            .background(statusColor)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = email,
+                                        text = statusText,
                                         fontSize = 11.sp,
-                                        color = NeumorphicTokens.TextMuted,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Bold,
+                                        color = statusColor
                                     )
                                 }
                             }
                         }
-                    }
-                }
-            }
 
-            // Bottom Actions Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 1-Tap Quick Renewal Button
-                if (canRenew) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF059669).copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, Color(0xFF059669).copy(alpha = 0.35f)),
-                        modifier = Modifier.clickable(onClick = onRenewClick)
-                    ) {
+                        // Dates Line
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Color(0xFF059669),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Renewed Today",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF059669)
+                                text = "Rotated: ${tracker.lastUpdatedDate} (${tracker.validityDays}d cycle)",
+                                fontSize = 11.sp,
+                                color = NeumorphicTokens.TextMuted
+                            )
+                            Text(
+                                text = "Expires: ${tracker.expiryDate}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = statusColor
                             )
                         }
-                    }
-                } else {
-                    Spacer(modifier = Modifier.width(1.dp))
-                }
 
-                // Edit & Delete Icons (Managers & Admins only)
-                if (canManage) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = onEditClick,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = "Edit",
-                                tint = NeumorphicTokens.TextMuted,
-                                modifier = Modifier.size(16.dp)
-                            )
+                        // Designated Spokesperson Emails (Shown ONLY if isManagerOrAdmin == true)
+                        if (isManagerOrAdmin && tracker.spokespersonEmails.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Alerts:",
+                                    fontSize = 10.sp,
+                                    color = NeumorphicTokens.TextMuted,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                tracker.spokespersonEmails.forEach { email ->
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = NeumorphicTokens.Canvas,
+                                        border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.15f))
+                                    ) {
+                                        Text(
+                                            text = email,
+                                            fontSize = 10.sp,
+                                            color = NeumorphicTokens.TextMuted,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
-                        IconButton(
-                            onClick = onDeleteClick,
-                            modifier = Modifier.size(32.dp)
+
+                        // Actions Row for this account
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.DeleteOutline,
-                                contentDescription = "Delete",
-                                tint = Color(0xFFDC2626).copy(alpha = 0.8f),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            if (canRenew) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFF059669).copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, Color(0xFF059669).copy(alpha = 0.35f)),
+                                    modifier = Modifier.clickable { onUpdateDateClick(tracker) }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.EditCalendar,
+                                            contentDescription = null,
+                                            tint = Color(0xFF059669),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Update Date",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF059669)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.width(1.dp))
+                            }
+
+                            if (isManagerOrAdmin) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { onEditClick(tracker) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = NeumorphicTokens.TextMuted,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { onDeleteClick(tracker) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete",
+                                            tint = Color(0xFFDC2626).copy(alpha = 0.8f),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -769,9 +936,11 @@ private fun CredentialTrackerCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditCredentialTrackerDialog(
     existingTracker: CredentialTrackerDto?,
+    allTrackers: List<CredentialTrackerDto>,
     rosterEngineers: List<com.rosterx.domain.model.Engineer>,
     onDismiss: () -> Unit,
     onSave: (serverName: String, username: String, lastUpdatedDate: String, validityDays: Int, spokespersons: List<String>) -> Unit
@@ -784,14 +953,94 @@ fun AddEditCredentialTrackerDialog(
     var customEmailInput by remember { mutableStateOf("") }
     var customValidityInput by remember { mutableStateOf(existingTracker?.validityDays?.toString() ?: "30") }
 
-    val validityPresets = listOf(30, 60, 90, 180)
+    var showDatePicker by remember { mutableStateOf(false) }
 
-    // Filter available team roster suggestions (excluding ones already added)
-    val availableTeamEmails = remember(rosterEngineers, spokespersons) {
+    // Pre-made validity presets: 30, 45, 60, 90 days as per plan
+    val validityPresets = listOf(30, 45, 60, 90)
+
+    // Autocomplete distinct servers & usernames from existing trackers
+    val existingServerNames = remember(allTrackers) {
+        allTrackers.map { it.serverName.trim() }.filter { it.isNotBlank() }.distinct()
+    }
+    val existingUsernames = remember(allTrackers) {
+        allTrackers.map { it.username.trim() }.filter { it.isNotBlank() }.distinct()
+    }
+
+    // Matching suggestions
+    val matchingServers = remember(serverName, existingServerNames) {
+        if (serverName.isBlank()) emptyList()
+        else existingServerNames.filter { it.contains(serverName, ignoreCase = true) && !it.equals(serverName, ignoreCase = true) }.take(3)
+    }
+    val matchingUsernames = remember(username, existingUsernames) {
+        if (username.isBlank()) emptyList()
+        else existingUsernames.filter { it.contains(username, ignoreCase = true) && !it.equals(username, ignoreCase = true) }.take(3)
+    }
+
+    // Available team roster suggestions
+    val availableEngineers = remember(rosterEngineers, spokespersons) {
         rosterEngineers
-            .map { it.email.trim().lowercase() }
-            .filter { it.isNotBlank() && it !in spokespersons.map { s -> s.trim().lowercase() } }
-            .distinct()
+            .filter {
+                val emailLower = it.email.trim().lowercase()
+                emailLower.isNotBlank() && emailLower !in spokespersons.map { s -> s.trim().lowercase() }
+            }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    return utcTimeMillis <= System.currentTimeMillis() + 86400000L
+                }
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                        val selected = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneId.of("UTC"))
+                            .toLocalDate()
+                        lastUpdatedDate = selected.toString()
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Select", fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon)
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(
+                        onClick = {
+                            lastUpdatedDate = LocalDate.now().toString()
+                            showDatePicker = false
+                        }
+                    ) {
+                        Text("Today", fontWeight = FontWeight.Bold, color = Color(0xFF059669))
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                title = {
+                    Text(
+                        text = "Select Rotation Date",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = NeumorphicTokens.TextMain
+                    )
+                }
+            )
+        }
     }
 
     AlertDialog(
@@ -810,56 +1059,134 @@ fun AddEditCredentialTrackerDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Server Name
-                OutlinedTextField(
-                    value = serverName,
-                    onValueChange = { serverName = it },
-                    label = { Text("Server / Service Name") },
-                    placeholder = { Text("e.g. prod-db-01, root-jumphost") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Username / Account
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("Username / Account Name") },
-                    placeholder = { Text("e.g. root, svc_analytics, admin") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Last Updated Date
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                // Server Name with Auto-Suggest Chips
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     OutlinedTextField(
-                        value = lastUpdatedDate,
-                        onValueChange = { lastUpdatedDate = it },
-                        label = { Text("Last Rotated Date") },
-                        placeholder = { Text("YYYY-MM-DD") },
+                        value = serverName,
+                        onValueChange = { serverName = it },
+                        label = { Text("Server / Service Name") },
+                        placeholder = { Text("e.g. prod-db-01, jump-host-02") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Button(
-                        onClick = { lastUpdatedDate = LocalDate.now().toString() },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.Surface)
-                    ) {
-                        Text("Today", color = NeumorphicTokens.AccentSalmon, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    if (matchingServers.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Suggested:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted, modifier = Modifier.align(Alignment.CenterVertically))
+                            matchingServers.forEach { sug ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.35f)),
+                                    modifier = Modifier.clickable { serverName = sug }
+                                ) {
+                                    Text(
+                                        text = sug,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = NeumorphicTokens.AccentSalmon,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
-                // Validity Days Presets + Custom
+                // Username / Account with Auto-Suggest Chips
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Validity Cycle (Days):", fontSize = 12.sp, color = NeumorphicTokens.TextMuted)
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text("Username / Account Name") },
+                        placeholder = { Text("e.g. root, svc_analytics, admin") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (matchingUsernames.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Suggested:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted, modifier = Modifier.align(Alignment.CenterVertically))
+                            matchingUsernames.forEach { sug ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.35f)),
+                                    modifier = Modifier.clickable { username = sug }
+                                ) {
+                                    Text(
+                                        text = sug,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = NeumorphicTokens.AccentSalmon,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Last Rotated Date (DatePicker field + Today quick button)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Last Rotated Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = NeumorphicTokens.Canvas,
+                            border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { showDatePicker = true }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Pick Date",
+                                    tint = NeumorphicTokens.AccentSalmon,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = lastUpdatedDate,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeumorphicTokens.TextMain
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { lastUpdatedDate = LocalDate.now().toString() },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669).copy(alpha = 0.15f))
+                        ) {
+                            Text("Today", color = Color(0xFF059669), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // Validity Days Presets (30d, 45d, 60d, 90d) + Custom
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Validity Cycle (Days):", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -893,6 +1220,7 @@ fun AddEditCredentialTrackerDialog(
                             }
                         }
                     }
+
                     OutlinedTextField(
                         value = customValidityInput,
                         onValueChange = {
@@ -909,9 +1237,9 @@ fun AddEditCredentialTrackerDialog(
                     )
                 }
 
-                // Designated Spokespersons
+                // Designated Spokespersons (Email Alerts)
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Designated Spokespersons (9 AM Alerts):", fontSize = 12.sp, color = NeumorphicTokens.TextMuted)
+                    Text("Designated Spokespersons (9 AM Alerts):", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
 
                     // Selected Spokesperson Chips
                     if (spokespersons.isNotEmpty()) {
@@ -954,23 +1282,25 @@ fun AddEditCredentialTrackerDialog(
                         }
                     }
 
-                    // Team Roster Quick-Suggest Chips (Confirmed in Q2)
-                    if (availableTeamEmails.isNotEmpty()) {
-                        Text("Quick Add Teammate:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                    // Teammates Dropdown / Quick Add from Roster
+                    if (availableEngineers.isNotEmpty()) {
+                        Text("Add Teammate as Spokesperson:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            availableTeamEmails.take(6).forEach { teamEmail ->
+                            availableEngineers.take(8).forEach { eng ->
+                                val engEmail = eng.email.trim().lowercase()
+                                val engName = eng.name.ifBlank { eng.username }
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = NeumorphicTokens.Surface,
                                     border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.2f)),
                                     modifier = Modifier.clickable {
-                                        if (teamEmail !in spokespersons) {
-                                            spokespersons = spokespersons + teamEmail
+                                        if (engEmail !in spokespersons) {
+                                            spokespersons = spokespersons + engEmail
                                         }
                                     }
                                 ) {
@@ -986,7 +1316,7 @@ fun AddEditCredentialTrackerDialog(
                                         )
                                         Spacer(modifier = Modifier.width(3.dp))
                                         Text(
-                                            text = teamEmail.substringBefore("@"),
+                                            text = engName,
                                             fontSize = 11.sp,
                                             color = NeumorphicTokens.TextMain,
                                             fontWeight = FontWeight.Medium
@@ -1006,7 +1336,7 @@ fun AddEditCredentialTrackerDialog(
                         OutlinedTextField(
                             value = customEmailInput,
                             onValueChange = { customEmailInput = it },
-                            placeholder = { Text("Add custom email...", fontSize = 12.sp) },
+                            placeholder = { Text("Add custom external email...", fontSize = 12.sp) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)

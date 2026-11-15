@@ -48,5 +48,7 @@ android/**/outputs/
 android/**/tmp/
 android/.kotlin/
 .kotlin/
+*.lock
+android/build.lock
 # Scratch scripts
 scratch/

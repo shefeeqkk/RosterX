@@ -1079,9 +1079,9 @@ class RosterRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun renewCredentialTracker(id: String, renewDate: String?, alertThresholdDays: Int?): Result<com.rosterx.data.remote.CredentialTrackerDto> = withContext(Dispatchers.IO) {
+    override suspend fun renewCredentialTracker(id: String, lastUpdatedDate: String?, alertThresholdDays: Int?): Result<com.rosterx.data.remote.CredentialTrackerDto> = withContext(Dispatchers.IO) {
         try {
-            val req = com.rosterx.data.remote.RenewCredentialTrackerRequest(renewDate, alertThresholdDays)
+            val req = com.rosterx.data.remote.RenewCredentialTrackerRequest(lastUpdatedDate, alertThresholdDays)
             val res = apiService.renewCredentialTracker(id, req)
             if (res.success && res.tracker != null) {
                 Result.success(res.tracker)
