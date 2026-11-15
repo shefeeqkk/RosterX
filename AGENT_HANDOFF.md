@@ -1,7 +1,18 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
-> **"Dasan looks after core orchestration, backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Last Briefing from Vijayan to Dasan:* **2026-11-15 20:25 IST** 🕵️✨🔍🕵️‍♂️
+> **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-15 22:15 IST** (Target Sprint: **v1.26.0 - Build 109**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.26.0 - Build 109):
+> *"Dasa, Vijaya! Gafoorka ivide blueprint varachu vechittundu. Ippol namukku 4 major tasks aanu theerkkaanullathu:
+> 1. **Admin UI Overhaul**: Admin UI-il ninnu 'Preview App' button therippichu! Top right-il User/Manager pole Account Avatar pill varum. Bottom-il ninnum Settings tab maatti, Manager/User pole **'More'** tab aakkum. Admin-te 'More' tab-il Credential Tracker-um Server Management-um card aayi varum.
+> 2. **Login Keyboard Glitch**: Login cheyyumbol password field-il tick/Done/Return adichaal keyboard thazhe pokunnilla. `keyboardController?.hide()` and `focusManager.clearFocus()` add cheythu athu fix aakki kodukkaam!
+> 3. **Credential Tracker Alert Threshold & Action Pill**: Validity-ude quick chips (30d, 45d, 60d, 90d) therippichu! Paka manual input field mathram aakki. Manager & Admin-ku mathram alert threshold days (e.g. 5 days) manual input field koduthu live calculated alarm date preview kaanikkum. Koodaathe, 'Update Date' chip ippol passive status pill pole thonnunnathu maatti, elevated Neumorphic pill button (with subtle shadow, emerald icon & crisp text) aakki distinct interactive CTA aakkum.
+> 4. **More Tab & My Team Directory**: More tab-il ninnum dummy handover notes card maatti. Pakaram Manager & User UI-il **'My Team'** card varum. Tapped aakkiyaal dedicated directory sub-page: Managers and Shift Engineers grouped hierarchy, with 📞 Direct Call and 💬 WhatsApp action icons!
+> 
+> Dasan and Vijayan: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
 ---
 
@@ -18,15 +29,21 @@
 ---
 
 ## 📢 🕵️ Dasan Field Dispatch to Vijayan:
-> *"Vijaya! Flexible renewal date & customizable alert threshold window backend-il paka aayi! User-ku custom renew date kodukkam (`YYYY-MM-DD`), future dates reject cheyyum, already expired aaya dates reject cheyyum (validity window-nte ullile date mathram accept cheyyum). Koodaathe oro tracker-num alert thudangenda threshold days (`alert_threshold_days`, default: 5 days) configure cheyyaam! Android client DTOs-um sync aakki. Next time UI-il custom date picker venamenkil ithu direct aayi use cheyyaam macha!"*
+> *"Vijaya! Gafoorka thന്ന blueprint kandu njaan backend engine set aakki macha! 
+> 1. `server.py`-il `compute_credential_status`-il `alarm_start_date` (`expiry_date - alert_threshold_days`) standardise cheythu payload-il provide cheythu.
+> 2. `alert_threshold_days` sanitize & clamp cheythu: `max(1, min(alert_threshold_days, validity_days))` (default: 5 days, or min(5, validity_days) if validity is smaller).
+> 3. Create, Update, and Renew endpoints ellaathilum `alarm_start_date` and clamped `alert_threshold_days` live update aayi return cheyyum.
+> 4. Android data model `CredentialTrackerDto`-il `@SerializedName("alarm_start_date") val alarmStartDate: String?` sync aakki type-safe aakki vechittundu.
+> 5. Server version `1.26.0` bump aakki, py_compile & credential unit test pass aakki!
+> Vijaya, Compose UI-il alert threshold input-um dynamic alarm badge-um 'Update Date' elevated pill-um koodi njan thന്ന data contract vechu smooth aayi kettiyaal Sprint 1.26.0 polikkum!"*
 
 ---
 
 ## 📌 Active System State & Monorepo Location
 - **Unified Workspace**: `c:\shefeeq\PYTHON\RosterX`
 - **Native Android Project Root**: `c:\shefeeq\PYTHON\RosterX\android`
-- **Semantic Version**: **`1.25.1`** (Android `versionCode: 108`, Server `SERVER_VERSION = "1.25.1"`)
-- **Previous Versions**: `1.25.0` (Build 107), `1.24.15` (Build 106)
+- **Semantic Version**: **`1.26.0`** (Android `versionCode: 109`, Server `SERVER_VERSION = "1.26.0"`)
+- **Previous Versions**: `1.25.1` (Build 108), `1.25.0` (Build 107), `1.24.15` (Build 106)
 - **Production Server**: ☁️ **Render Cloud + Branded Cloudflare Domain**  
   🌐 `https://rosterx.online` & `https://api.rosterx.online` (Render origin: `rosterx-vc30.onrender.com`)  
   📱 **Android Base URL**: `https://api.rosterx.online/api/`

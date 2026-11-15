@@ -43,7 +43,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.25.1"
+SERVER_VERSION = "1.26.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1054,7 +1054,7 @@ def check_and_trigger_celebrations(force=False):
 def compute_credential_status(last_updated_date_str: str, validity_days: int, alert_threshold_days: int = 5) -> dict:
     """
     Given last_updated_date ('YYYY-MM-DD'), validity_days (int), and alert_threshold_days (int),
-    calculates expiry_date ('YYYY-MM-DD'), days_remaining (int), and status (str).
+    calculates expiry_date ('YYYY-MM-DD'), alarm_start_date ('YYYY-MM-DD'), days_remaining (int), and status (str).
     All calculations based on current date in Indian Standard Time (IST, UTC+05:30).
     """
     today_ist = get_ist_now().date()
@@ -1070,11 +1070,12 @@ def compute_credential_status(last_updated_date_str: str, validity_days: int, al
         validity = 30
 
     try:
-        threshold = max(1, int(alert_threshold_days))
+        threshold = max(1, min(int(alert_threshold_days), validity))
     except Exception:
-        threshold = 5
+        threshold = min(5, validity)
 
     expiry_date = updated_date + timedelta(days=validity)
+    alarm_start_date = expiry_date - timedelta(days=threshold)
     days_remaining = (expiry_date - today_ist).days
 
     if days_remaining > threshold:
@@ -1088,6 +1089,7 @@ def compute_credential_status(last_updated_date_str: str, validity_days: int, al
 
     return {
         "expiry_date": expiry_date.strftime("%Y-%m-%d"),
+        "alarm_start_date": alarm_start_date.strftime("%Y-%m-%d"),
         "days_remaining": days_remaining,
         "status": status,
         "alert_threshold_days": threshold
@@ -1115,6 +1117,7 @@ def get_all_credential_trackers_from_db():
         )
         item = dict(t)
         item["expiry_date"] = calc["expiry_date"]
+        item["alarm_start_date"] = calc["alarm_start_date"]
         item["days_remaining"] = calc["days_remaining"]
         item["status"] = calc["status"]
         item["alert_threshold_days"] = calc["alert_threshold_days"]
@@ -1185,6 +1188,7 @@ def get_credential_tracker_by_id(tracker_id: str):
     )
     item = dict(raw)
     item["expiry_date"] = calc["expiry_date"]
+    item["alarm_start_date"] = calc["alarm_start_date"]
     item["days_remaining"] = calc["days_remaining"]
     item["status"] = calc["status"]
     item["alert_threshold_days"] = calc["alert_threshold_days"]
@@ -4768,10 +4772,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         try:
             alert_threshold_days = int(body.get("alert_threshold_days", 5))
-            if alert_threshold_days < 1:
-                alert_threshold_days = 5
+            alert_threshold_days = max(1, min(alert_threshold_days, validity_days))
         except Exception:
-            alert_threshold_days = 5
+            alert_threshold_days = min(5, validity_days)
 
         tracker_id = f"cred_tracker_{uuid.uuid4().hex[:12]}"
         calc = compute_credential_status(last_updated_date, validity_days, alert_threshold_days)
@@ -4784,6 +4787,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "validity_days": validity_days,
             "alert_threshold_days": alert_threshold_days,
             "expiry_date": calc["expiry_date"],
+            "alarm_start_date": calc["alarm_start_date"],
             "days_remaining": calc["days_remaining"],
             "status": calc["status"],
             "spokesperson_emails": spokespersons,
@@ -4824,10 +4828,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         try:
             alert_threshold_days = int(body.get("alert_threshold_days", existing.get("alert_threshold_days", 5)))
-            if alert_threshold_days < 1:
-                alert_threshold_days = 5
+            alert_threshold_days = max(1, min(alert_threshold_days, validity_days))
         except Exception:
-            alert_threshold_days = existing.get("alert_threshold_days", 5)
+            alert_threshold_days = min(existing.get("alert_threshold_days", 5), validity_days)
 
         spokespersons = body.get("spokesperson_emails", existing.get("spokesperson_emails", []))
         if isinstance(spokespersons, str):
@@ -4856,6 +4859,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "validity_days": validity_days,
             "alert_threshold_days": alert_threshold_days,
             "expiry_date": calc["expiry_date"],
+            "alarm_start_date": calc["alarm_start_date"],
             "days_remaining": calc["days_remaining"],
             "status": calc["status"],
             "spokesperson_emails": spokespersons,
@@ -4945,8 +4949,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if "alert_threshold_days" in body:
                 try:
                     ath = int(body["alert_threshold_days"])
-                    if 1 <= ath <= validity_days:
-                        alert_threshold_days = ath
+                    alert_threshold_days = max(1, min(ath, validity_days))
                 except Exception:
                     pass
 
@@ -4955,6 +4958,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         tracker["last_updated_date"] = target_date_str
         tracker["alert_threshold_days"] = alert_threshold_days
         tracker["expiry_date"] = calc["expiry_date"]
+        tracker["alarm_start_date"] = calc["alarm_start_date"]
         tracker["days_remaining"] = calc["days_remaining"]
         tracker["status"] = calc["status"]
         tracker["updated_at"] = int(time.time())

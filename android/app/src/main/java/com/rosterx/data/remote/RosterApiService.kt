@@ -480,6 +480,7 @@ data class CredentialTrackerDto(
     @SerializedName("validity_days") val validityDays: Int,
     @SerializedName("alert_threshold_days") val alertThresholdDays: Int? = 5,
     @SerializedName("expiry_date") val expiryDate: String,
+    @SerializedName("alarm_start_date") val alarmStartDate: String? = null,
     @SerializedName("days_remaining") val daysRemaining: Int,
     val status: String, // "HEALTHY", "EXPIRING_SOON", "EXPIRES_TODAY", "EXPIRED"
     @SerializedName("spokesperson_emails") val spokespersonEmails: List<String> = emptyList(),
