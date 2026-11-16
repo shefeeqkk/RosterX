@@ -1,75 +1,50 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED` (Sprint v1.26.0 - Build 109)
+**Status:** `READY FOR VIJAYAN` (Sprint v1.27.0 - Build 113)
 
 ---
 
-## 1. Architectural Mandates from Gafoor (All Executed & Verified)
+## 1. Architectural Mandates from Gafoor
 
-Vijaya, Gafoorka layout clear aakki thannittundu. Client UI and Admin UI require surgical enhancements. Follow the Neumorphic design tokens and Jetpack Compose best practices strictly.
+Vijaya, Gafoorka client UI-ude full layout and interactive enhancements architect cheythu vechittundu. Follow Neumorphic design tokens and Jetpack Compose standards strictly.
 
-### 🎯 Scope of Work:
-1. **Admin UI Overhaul (`AdminMainScreen.kt`)**:
-   - **Remove Preview Mode**:
-     - Remove `previewAsEngineer` state, the top-bar "Preview App" button, and the floating "Switch to Admin" button.
-   - **Top-Right Account Pill**:
-     - Place the User Avatar + First Name pill on the top-right of `AdminMainScreen` (identical to `EngineerPortalScreen`).
-     - Tapping this toggles `AccountView` / `isViewingSettings` (Profile picture, name edit, theme toggle, logout).
-   - **Bottom Navigation**:
-     - Change tab 4 from "Settings" (`Icons.Default.Settings`) to "More" (`Icons.Default.MoreHoriz`).
-     - Tabs: `[0: Dashboard, 1: Register, 2: Rosters, 3: Broadcast, 4: More]`.
-   - **Admin More Tab**:
-     - Render `MoreHubView` configured for Admin:
-       - **Server Credential Tracker** card (navigates to `CredentialTrackerScreen` with Admin powers).
-       - **Server Management** card (opens the `ServerManagementTab` view with Backend URL, Atlas diagnostics, and Server logs).
-       - *Note: "My Team" card is excluded for Admin because Admin already has the Register/Manage Team tab.*
+### 🎯 Scope of Work for Vijayan:
 
-2. **Login Screen Soft Keyboard Fix (`LoginScreen.kt`)**:
-   - In the password `OutlinedTextField`:
-     - Inside `keyboardActions = KeyboardActions(onDone = { ... })`:
-       - Add `keyboardController?.hide()` and `focusManager.clearFocus()` immediately before `viewModel.login(...)`.
-     - Ensure the IME soft keyboard reliably closes when clicking the tick/Done/Return action on the virtual keyboard.
+1. **My Team Enhancements (`MyTeamView.kt`)**:
+   - **WhatsApp Vector Icon**:
+     - Add `ic_whatsapp.xml` to `android/app/src/main/res/drawable/`.
+     - In `TeamMemberCard`, replace `Icons.Default.Chat` with the authentic WhatsApp icon (`painterResource(R.drawable.ic_whatsapp)`).
+   - **Accurate Active Member Count**:
+     - Exclude `role == EngineerRole.ADMIN` and username `"admin"` from `activeEngineers` count.
+     - Filter strictly: `it.status != EngineerStatus.RESIGNED && it.role in listOf(EngineerRole.MANAGER, EngineerRole.ENGINEER, EngineerRole.APPRENTICE) && !it.username.equals("admin", ignoreCase = true)`.
+     - Verify description text matches exact count of shown members (e.g. 10 Active Members = 1 Manager + 9 Engineers).
 
-3. **Credential Tracker Threshold, Validity & Action Pill Styling (`CredentialTrackerScreen.kt`)**:
-   - **Remove Validity Quick Chips**:
-     - Remove the `30d, 45d, 60d, 90d` preset chips from `AddEditCredentialTrackerDialog`.
-     - Keep only the clean manual number input: "Validity Cycle (Days)".
-   - **Manager/Admin Alert Threshold Setting**:
-     - Add "Alert Threshold (Days before expiry)" manual number input (visible ONLY when `isManagerOrAdmin == true`, default 5).
-     - Display a dynamic calculation badge:
-       `"Alarming begins on: <expiry_date - threshold_days> (X days before expiry)"`.
-     - Update `onSave` lambda, `EngineerPortalViewModel.createCredentialTracker`, and `updateCredentialTracker` to pass `alertThresholdDays`.
-   - **Redesign 'Update Date' Action Pill**:
-     - Currently looks identical to the passive status pill ("28d remaining").
-     - Redesign as an **Elevated Neumorphic Action Pill**:
-       - Full stadium / pill shape (`RoundedCornerShape(20.dp)` or `CircleShape`).
-       - Subtle shadow elevation (`3.dp` or `NeumorphicElevationStyle.RaisedSubtle`) with Neumorphic Surface color.
-       - Emerald action accent: Emerald calendar icon (`Icons.Default.EditCalendar`), crisp bold text `"Update Date"`, and subtle emerald border highlight.
-       - Visually distinct as an interactive CTA button rather than a flat status tag.
+2. **Credential Tracker Terminology Refinement (`CredentialTrackerScreen.kt`)**:
+   - Replace the word `"Rotated"` with `"Updated"` (e.g. `"Updated: ${tracker.lastUpdatedDate} (${tracker.validityDays}d cycle)"`).
+   - Replace any other instances of `"Rotate"` with `"Update"`.
 
-4. **More Tab & "My Team" Directory (`MoreHubView.kt` & `MyTeamView.kt`)**:
-   - **Remove Dummy Card**: Remove "Duty Handover Notes" card from `MoreHubView.kt`.
-   - **Add "My Team" Card** (visible in Manager and User More tabs):
-     - Title: "My Team"
-     - Description: "Team directory, hierarchy, and direct contact options."
-     - Icon: `Icons.Default.Groups`
-     - Badge: e.g. "X Active Members"
-     - Tapping opens the dedicated full sub-page `MyTeamView`.
-   - **`MyTeamView.kt` Specifications**:
-     - Top bar with Back button (returns to More Hub).
-     - Search bar for quick filtering by name or designation.
-     - Section 1: **"Management / Managers"** (Engineers with `role == EngineerRole.MANAGER`).
-     - Section 2: **"Shift Engineers / Team"** (Engineers with `role == EngineerRole.ENGINEER || role == EngineerRole.APPRENTICE`, excluding `status == EngineerStatus.RESIGNED`).
-     - Member Item Card:
-       - Neumorphic surface card with Avatar, Full Name, Designation/Role, and Phone Number.
-       - **Call Button**: `Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanPhone"))`. Grayed out/disabled if phone is empty with Toast.
-       - **WhatsApp Button**: `Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$waPhone"))`. Grayed out/disabled if phone is empty with Toast.
-       - Phone normalizer: Strips spaces/dashes; ensures country prefix (+91 for 10-digit numbers).
+3. **Notification Animations (`ProfileComponents.kt` - `QuickNotificationsBottomSheet`)**:
+   - **Smooth Item Dismiss & Clear All**:
+     - Wrap notification items in `AnimatedVisibility` with:
+       `exit = fadeOut(tween(250)) + slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(280)) + shrinkVertically(animationSpec = tween(250))`
+     - Ensure item height collapses smoothly so remaining items slide up naturally without abrupt jumps or gaps.
+     - On "Clear All", apply staggered dismissal so all items animate out fluidly before clearing state.
+
+4. **Interactive Notifications & Professional Redirection**:
+   - **Deep-Linking / Contextual Redirection**:
+     - When tapping a notification card:
+       - Credential Alert (`category == "credential_expiry"` or title contains "Credential"): Dismiss sheet and navigate to **Credential Tracker** (`isViewingCredentialTracker = true`).
+       - Shift / Roster Alert (`priority == "shift_update"` or title/body contains "Roster" / "Shift"): Dismiss sheet and navigate to **Month Roster** tab (`selectedTab = 2` or `selectedTab = 3`).
+       - Celebration (`isCelebrationNotif == true`): Dismiss sheet and open **Celebration Wishes Dialog**.
+       - General Broadcast: Open detailed announcement view or expand full message.
+   - **Professional Content Styling**:
+     - Topic / Category Badge: `[SECURITY]`, `[ROSTER UPDATE]`, `[OPERATIONS]`, `[ANNOUNCEMENT]` with category-specific icon.
+     - Enhanced `@username` Mention: Format `@username` and `{Their name}` mentions with a distinct, stylish accent chip/pill.
 
 5. **Post-Build Activities (Mandatory)**:
    - Version bump in `android/app/build.gradle.kts`:
-     - `versionName = "1.26.0"`
-     - `versionCode = 109`
+     - `versionName = "1.27.0"`
+     - `versionCode = 113`
    - Build: `cd android && .\safe_build.bat assembleDebug`.
    - ADB Install: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
    - Verify UI on emulator/device.

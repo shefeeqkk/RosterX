@@ -40,7 +40,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.26.3"
+SERVER_VERSION = "1.27.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1182,9 +1182,9 @@ def check_and_dispatch_credential_alerts(force=False):
     """
     Check all credential trackers where days_remaining <= alert_threshold_days.
     Dispatches:
-      1. Email to spokesperson_emails
-      2. FCM push to spokespersons + all Admins & Managers
-      3. In-app notification to ATLAS_DB.notifications
+      1. Single consolidated security digest email to unique spokesperson_emails across all alerted trackers
+      2. Single consolidated FCM push to spokespersons + all Admins & Managers
+      3. Single consolidated in-app notification to ATLAS_DB.notifications
     """
     global LAST_CREDENTIAL_ALERT_DATE
     today_str = get_ist_now().strftime("%Y-%m-%d")
@@ -1199,7 +1199,16 @@ def check_and_dispatch_credential_alerts(force=False):
         log_server("[CREDENTIAL-ALERT] No expiring or recently expired credentials found.")
         return []
 
-    dispatched = []
+    trackers_to_alert = []
+    for t in alert_trackers:
+        tid = t["id"]
+        if not force and LAST_CREDENTIAL_ALERT_DATE.get(tid) == today_str:
+            continue
+        trackers_to_alert.append(t)
+
+    if not trackers_to_alert:
+        log_server("[CREDENTIAL-ALERT] All pending alerts have already been dispatched today.")
+        return []
 
     admin_tokens = set()
     eng_by_email = {}
@@ -1230,156 +1239,192 @@ def check_and_dispatch_credential_alerts(force=False):
         except Exception as e:
             log_server(f"[CREDENTIAL-ALERT] Error gathering engineers: {e}")
 
-    for t in alert_trackers:
-        tid = t["id"]
-        if not force and LAST_CREDENTIAL_ALERT_DATE.get(tid) == today_str:
-            continue
+    # Gather unique spokespersons across all alerted trackers
+    all_spokespersons = set()
+    for t in trackers_to_alert:
+        for em in t.get("spokesperson_emails", []):
+            em_clean = str(em).strip().lower()
+            if em_clean and "@" in em_clean:
+                all_spokespersons.add(em_clean)
 
+    # Determine highest urgency / priority among alerted trackers
+    has_expired = any(t["days_remaining"] < 0 for t in trackers_to_alert)
+    has_expires_today = any(t["days_remaining"] == 0 for t in trackers_to_alert)
+    if has_expired or has_expires_today:
+        priority = "urgent"
+    else:
+        priority = "warning"
+
+    count = len(trackers_to_alert)
+    if count == 1:
+        t = trackers_to_alert[0]
         days = t["days_remaining"]
-        server_name = t["server_name"]
-        username = t["username"]
-        expiry_date = t["expiry_date"]
-        status = t["status"]
-        spokespersons = t.get("spokesperson_emails", [])
-
+        sname = t["server_name"]
+        uname = t["username"]
         if days > 0:
             urgency_str = f"expires in {days} day{'s' if days > 1 else ''}"
-            badge_color = "#F59E0B"
-            priority = "warning"
         elif days == 0:
             urgency_str = "expires TODAY!"
-            badge_color = "#EF4444"
-            priority = "urgent"
         else:
             urgency_str = f"EXPIRED {abs(days)} day{'s' if abs(days) > 1 else ''} ago!"
+        email_subject = f"⚠️ [ALERT] Credential for {uname}@{sname} {urgency_str}"
+        notif_title = f"⚠️ Server Credential Alert: {sname}"
+        notif_message = f"Password for {uname}@{sname} {urgency_str} (Expiry: {t['expiry_date']}). Please update immediately."
+        push_title = f"⚠️ Password Expiry: {sname}"
+        push_body = f"{uname}@{sname} {urgency_str}. Tap to review."
+    else:
+        email_subject = f"⚠️ [ALERT] {count} Server Credentials Require Password Update"
+        notif_title = f"⚠️ {count} Server Credentials Require Password Update"
+        notif_message = f"{count} server accounts have reached their password update deadline. Please update them immediately."
+        push_title = f"⚠️ Credential Alert: {count} Accounts"
+        push_body = f"{count} server accounts require password update. Tap to review."
+
+    # Build consolidated HTML table rows
+    table_rows = []
+    for t in trackers_to_alert:
+        days = t["days_remaining"]
+        if days > 0:
+            urgency_tag = f"Expires in {days}d"
+            badge_color = "#F59E0B"
+            badge_bg = "#FEF3C7"
+        elif days == 0:
+            urgency_tag = "Expires TODAY"
+            badge_color = "#EF4444"
+            badge_bg = "#FEE2E2"
+        else:
+            urgency_tag = f"EXPIRED ({abs(days)}d ago)"
             badge_color = "#DC2626"
-            priority = "urgent"
+            badge_bg = "#FEE2E2"
 
-        title = f"⚠️ Server Credential Alert: {server_name}"
-        message = f"Password for {username}@{server_name} {urgency_str} (Expiry: {expiry_date}). Please renew immediately."
+        row_html = f"""
+        <tr style="border-bottom: 1px solid #E2E8F0;">
+          <td style="padding: 12px 10px; font-weight: 600; color: #0F172A; font-size: 14px;">{t['server_name']}</td>
+          <td style="padding: 12px 10px; font-family: monospace; color: #334155; font-size: 13px;">{t['username']}</td>
+          <td style="padding: 12px 10px; color: #64748B; font-size: 13px;">{t.get('validity_days', 30)}d</td>
+          <td style="padding: 12px 10px; color: #64748B; font-size: 13px;">{t.get('last_updated_date', '')}</td>
+          <td style="padding: 12px 10px; font-weight: 700; color: {badge_color}; font-size: 13px;">{t['expiry_date']}</td>
+          <td style="padding: 12px 10px; text-align: right;">
+            <span style="display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background-color: {badge_bg}; color: {badge_color};">
+              {urgency_tag}
+            </span>
+          </td>
+        </tr>"""
+        table_rows.append(row_html)
 
-        # 1. In-App Notification
-        notif_id = f"notif_cred_{tid}_{int(time.time())}"
-        notif_doc = {
-            "id": notif_id,
-            "title": title,
-            "raw_message": message,
-            "target": "all_admins_and_spokespersons",
-            "target_type": "specific",
-            "recipients_count": len(spokespersons) + len(admin_tokens),
-            "recipients": spokespersons,
-            "priority": priority,
-            "sender": "System Security Monitor",
-            "send_email": bool(spokespersons),
-            "send_in_app": True,
-            "send_push": True,
-            "category": "credential_expiry",
-            "tracker_id": tid,
-            "is_retracted": False,
-            "retracted_at": None,
-            "created_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
-            "timestamp": time.time()
-        }
-        SERVER_NOTIFICATIONS.appendleft(notif_doc)
-        if ATLAS_DB is not None:
-            try:
-                ATLAS_DB.notifications.insert_one({**notif_doc, "_id": notif_id})
-            except Exception as e:
-                log_server(f"[CREDENTIAL-ALERT] Error saving notification: {e}")
+    table_rows_str = "\n".join(table_rows)
 
-        # 2. Email Dispatch
-        email_sent_count = 0
-        if spokespersons:
-            html_body = f"""<!DOCTYPE html>
+    banner_text = f"Attention: <strong>{count} server credential{'s' if count > 1 else ''}</strong> require{'s' if count == 1 else ''} password update." if count > 1 else f"Credential for <strong>{trackers_to_alert[0]['username']}@{trackers_to_alert[0]['server_name']}</strong> {urgency_str}"
+
+    html_body = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px; color: #1E293B;">
-  <div style="max-width: 580px; margin: 0 auto; background: #FFFFFF; border-radius: 14px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.06);">
+  <div style="max-width: 640px; margin: 0 auto; background: #FFFFFF; border-radius: 14px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.06);">
     <div style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%); padding: 24px; text-align: center; color: #FFFFFF;">
-      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">🔐 Server Credential Expiry Alert</h1>
+      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">🔐 Server Credential Expiry Digest</h1>
       <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">RosterX Infrastructure Security Monitor</p>
     </div>
     <div style="padding: 24px;">
-      <div style="background: {badge_color}15; border-left: 4px solid {badge_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 20px;">
-        <p style="margin: 0; font-size: 14px; font-weight: 600; color: {badge_color};">
-          Credential for <strong>{username}@{server_name}</strong> {urgency_str}
+      <div style="background: #FEF2F2; border-left: 4px solid #DC2626; padding: 14px 18px; border-radius: 6px; margin-bottom: 20px;">
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #991B1B;">
+          {banner_text}
         </p>
       </div>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;">
-        <tr style="border-bottom: 1px solid #F1F5F9;">
-          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Server / Cluster</td>
-          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{server_name}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #F1F5F9;">
-          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Username / Account</td>
-          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{username}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #F1F5F9;">
-          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Validity Period</td>
-          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{t['validity_days']} days</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #F1F5F9;">
-          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Last Updated</td>
-          <td style="padding: 10px 0; color: #0F172A; font-weight: 600; text-align: right;">{t['last_updated_date']}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #F1F5F9;">
-          <td style="padding: 10px 0; color: #64748B; font-weight: 500;">Expiry Date</td>
-          <td style="padding: 10px 0; color: {badge_color}; font-weight: 700; text-align: right;">{expiry_date}</td>
-        </tr>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="border-bottom: 2px solid #CBD5E1; text-align: left;">
+            <th style="padding: 8px 10px; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase;">Server</th>
+            <th style="padding: 8px 10px; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase;">Username</th>
+            <th style="padding: 8px 10px; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase;">Cycle</th>
+            <th style="padding: 8px 10px; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase;">Updated</th>
+            <th style="padding: 8px 10px; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase;">Expiry</th>
+            <th style="padding: 8px 10px; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase; text-align: right;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {table_rows_str}
+        </tbody>
       </table>
-      <div style="text-align: center; margin-top: 24px;">
-        <a href="https://rosterx.online" style="display: inline-block; background-color: #2563EB; color: #FFFFFF; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none; box-shadow: 0 2px 6px rgba(37,99,235,0.3);">
-          Open RosterX & Renew Credential
-        </a>
-      </div>
-      <p style="margin: 24px 0 0; font-size: 12px; color: #94A3B8; text-align: center;">
-        You received this automated notification because you are listed as a designated spokesperson for this credential.
+      <p style="margin: 20px 0 0; font-size: 12px; color: #94A3B8; text-align: center;">
+        You received this automated security notification because you are designated as a spokesperson or administrator for these credentials.
       </p>
     </div>
   </div>
 </body>
 </html>"""
-            for em in spokespersons:
-                try:
-                    send_resend_email(em, f"⚠️ [ALERT] Credential for {username}@{server_name} {urgency_str}", html_body)
-                    email_sent_count += 1
-                except Exception as ex:
-                    log_server(f"[CREDENTIAL-ALERT] Email send error to {em}: {ex}")
 
-        # 3. FCM Push
-        target_tokens = set(admin_tokens)
-        for em in spokespersons:
-            eng_info = eng_by_email.get(em.strip().lower())
-            if eng_info:
-                for tok in eng_info.get("tokens", []):
-                    target_tokens.add(tok)
+    # 1. In-App Notification (1 consolidated doc)
+    notif_id = f"notif_cred_digest_{int(time.time())}"
+    notif_doc = {
+        "id": notif_id,
+        "title": notif_title,
+        "raw_message": notif_message,
+        "target": "all_admins_and_spokespersons",
+        "target_type": "specific",
+        "recipients_count": len(all_spokespersons) + len(admin_tokens),
+        "recipients": list(all_spokespersons),
+        "priority": priority,
+        "sender": "System Security Monitor",
+        "send_email": bool(all_spokespersons),
+        "send_in_app": True,
+        "send_push": True,
+        "category": "credential_expiry",
+        "tracker_ids": [t["id"] for t in trackers_to_alert],
+        "is_retracted": False,
+        "retracted_at": None,
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        "timestamp": time.time()
+    }
+    SERVER_NOTIFICATIONS.appendleft(notif_doc)
+    if ATLAS_DB is not None:
+        try:
+            ATLAS_DB.notifications.insert_one({**notif_doc, "_id": notif_id})
+        except Exception as e:
+            log_server(f"[CREDENTIAL-ALERT] Error saving notification: {e}")
 
-        push_sent_count = 0
-        if target_tokens:
-            try:
-                push_sent_count = send_fcm_push(
-                    list(target_tokens),
-                    f"⚠️ Password Expiry: {server_name}",
-                    f"{username}@{server_name} {urgency_str}. Tap to review.",
-                    priority=priority,
-                    notif_id=notif_id,
-                    extra_data={"type": "credential_expiry", "tracker_id": tid}
-                )
-            except Exception as ex:
-                log_server(f"[CREDENTIAL-ALERT] FCM push error: {ex}")
+    # 2. Email Dispatch
+    email_sent_count = 0
+    for em in all_spokespersons:
+        try:
+            send_resend_email(em, email_subject, html_body)
+            email_sent_count += 1
+        except Exception as ex:
+            log_server(f"[CREDENTIAL-ALERT] Email send error to {em}: {ex}")
 
-        LAST_CREDENTIAL_ALERT_DATE[tid] = today_str
-        dispatched.append({
-            "tracker_id": tid,
-            "server_name": server_name,
-            "username": username,
-            "days_remaining": days,
-            "status": status,
-            "emails_sent": email_sent_count,
-            "push_sent": push_sent_count
-        })
+    # 3. FCM Push
+    target_tokens = set(admin_tokens)
+    for em in all_spokespersons:
+        eng_info = eng_by_email.get(em)
+        if eng_info:
+            for tok in eng_info.get("tokens", []):
+                target_tokens.add(tok)
 
-    log_server(f"[CREDENTIAL-ALERT] Dispatched alerts for {len(dispatched)} tracker(s).")
+    push_sent_count = 0
+    if target_tokens:
+        try:
+            push_sent_count = send_fcm_push(
+                list(target_tokens),
+                push_title,
+                push_body,
+                priority=priority,
+                notif_id=notif_id,
+                extra_data={"type": "credential_expiry", "tracker_count": str(count)}
+            )
+        except Exception as ex:
+            log_server(f"[CREDENTIAL-ALERT] FCM push error: {ex}")
+
+    for t in trackers_to_alert:
+        LAST_CREDENTIAL_ALERT_DATE[t["id"]] = today_str
+
+    dispatched = [{
+        "tracker_id": t["id"],
+        "server_name": t["server_name"],
+        "username": t["username"],
+        "days_remaining": t["days_remaining"],
+        "status": t["status"]
+    } for t in trackers_to_alert]
+
+    log_server(f"[CREDENTIAL-ALERT] Dispatched consolidated digest for {count} tracker(s) (emails: {email_sent_count}, push: {push_sent_count}).")
     return dispatched
 
 def send_otp_email(recipient_email: str, engineer_name: str, otp_code: str) -> bool:
@@ -2942,27 +2987,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     item["full_name"] = to_proper_name(item["full_name"])
                 if not item.get("username") and item.get("email") and "@" in item["email"]:
                     item["username"] = item["email"].split("@")[0].strip().lower()
-                caller_user = str(claims.get("username") or "").strip().lower()
-                caller_id = str(claims.get("id") or claims.get("sub") or "").strip().lower().replace("eng_", "")
-                caller_role = str(claims.get("role") or "").strip().lower()
-                caller_email = str(claims.get("email") or "").strip().lower()
-                caller_name = str(claims.get("name") or "").strip().lower()
-
-                item_user = str(item.get("username") or "").strip().lower()
-                item_email = str(item.get("email") or "").strip().lower()
-                item_name = str(item.get("name") or "").strip().lower()
-                item_fullname = str(item.get("full_name") or "").strip().lower()
-
-                is_own_profile = (
-                    (caller_user and item_user == caller_user) or
-                    (caller_id and item_user == caller_id) or
-                    (caller_email and item_email == caller_email) or
-                    (caller_name and (item_name == caller_name or item_fullname == caller_name))
-                )
-                can_view_phone = is_admin or (caller_role == "manager") or is_own_profile
-                if not can_view_phone and item.get("phone"):
-                    p = str(item["phone"])
-                    item["phone"] = p[:len(p)-4] + "****" if len(p) >= 4 else "****"
                 sanitized_docs.append(item)
 
             self.send_json_response({

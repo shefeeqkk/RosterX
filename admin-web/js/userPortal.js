@@ -3214,10 +3214,6 @@ export class UserPortalController {
     }
 
     // --- Dynamic Upcoming Rest Day Calculation (Item 5) ---
-    const restNoticeLabelEl = document.getElementById('restDayNoticeLabel');
-    const restNoticeValEl = document.getElementById('restDayNoticeValue');
-    const cardRestDayEl = document.getElementById('cardUpcomingRestDay');
-
     const todayShiftCode = (shifts[todayNum - 1] || '').trim().toUpperCase();
     let restLabel = 'Next Rest Day:';
     let restValue = 'Scheduled Next Cycle';
