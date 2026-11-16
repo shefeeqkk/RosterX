@@ -1102,7 +1102,8 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onDismissCelebration = viewModel::dismissCelebration
                                     )
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
@@ -1132,7 +1133,8 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onDismissCelebration = viewModel::dismissCelebration
                                     )
                                 }
                             } else {
@@ -1142,7 +1144,8 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onDismissCelebration = viewModel::dismissCelebration
                                     )
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
@@ -1158,7 +1161,8 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true }
+                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onDismissCelebration = viewModel::dismissCelebration
                                     )
                                 }
                             }
@@ -2097,7 +2101,8 @@ fun ManagerDashboardView(
     onDismissNotification: (String) -> Unit = {},
     onClearAllNotifications: () -> Unit = {},
     onRefreshDiagnostics: () -> Unit = {},
-    onOpenCelebrationWishes: () -> Unit = {}
+    onOpenCelebrationWishes: () -> Unit = {},
+    onDismissCelebration: (String) -> Unit = {}
 ) {
     val engineer = state.loggedInEngineer
     val today = LocalDate.now()
@@ -2118,6 +2123,12 @@ fun ManagerDashboardView(
                 }
             }
         } catch (_: Exception) {}
+    }
+
+    val activeTeamCelebrations = remember(state.todayCelebrations, state.dismissedCelebrationIds, engineer?.username) {
+        state.todayCelebrations.filter { celeb ->
+            celeb.username != engineer?.username && !state.dismissedCelebrationIds.contains(celeb.username)
+        }
     }
 
     LazyColumn(
@@ -2224,6 +2235,16 @@ fun ManagerDashboardView(
             }
         }
 
+        // Team Celebrations Section (Colleagues Celebrating Today)
+        if (activeTeamCelebrations.isNotEmpty()) {
+            item(key = "manager_team_celebrations_section") {
+                com.rosterx.presentation.components.TeamCelebrationsSection(
+                    celebrations = activeTeamCelebrations,
+                    onDismiss = onDismissCelebration
+                )
+            }
+        }
+
         // 2. Today's Shift Radar (FIRST!)
         item {
             ManagerRadarSection(
@@ -2248,7 +2269,8 @@ fun DashboardView(
     onDismissNotification: (String) -> Unit = {},
     onClearAllNotifications: () -> Unit = {},
     onRefreshDiagnostics: () -> Unit = {},
-    onOpenCelebrationWishes: () -> Unit = {}
+    onOpenCelebrationWishes: () -> Unit = {},
+    onDismissCelebration: (String) -> Unit = {}
 ) {
     if (state.loggedInEngineer?.role == EngineerRole.MANAGER) {
         ManagerDashboardView(
@@ -2256,7 +2278,8 @@ fun DashboardView(
             onDismissNotification = onDismissNotification,
             onClearAllNotifications = onClearAllNotifications,
             onRefreshDiagnostics = onRefreshDiagnostics,
-            onOpenCelebrationWishes = onOpenCelebrationWishes
+            onOpenCelebrationWishes = onOpenCelebrationWishes,
+            onDismissCelebration = onDismissCelebration
         )
         return
     }
@@ -2316,6 +2339,12 @@ fun DashboardView(
             is ShiftCode.OFF -> restDaysCount++
             is ShiftCode.L -> restDaysCount++
             else -> if (shift.code.startsWith("SW")) restDaysCount++ else dayShiftsCount++
+        }
+    }
+
+    val activeTeamCelebrations = remember(state.todayCelebrations, state.dismissedCelebrationIds, engineer?.username) {
+        state.todayCelebrations.filter { celeb ->
+            celeb.username != engineer?.username && !state.dismissedCelebrationIds.contains(celeb.username)
         }
     }
 
@@ -2495,6 +2524,16 @@ fun DashboardView(
                         )
                     }
                 }
+            }
+        }
+
+        // Team Celebrations Section (Colleagues Celebrating Today)
+        if (activeTeamCelebrations.isNotEmpty()) {
+            item(key = "team_celebrations_section") {
+                com.rosterx.presentation.components.TeamCelebrationsSection(
+                    celebrations = activeTeamCelebrations,
+                    onDismiss = onDismissCelebration
+                )
             }
         }
 

@@ -108,7 +108,9 @@ data class PortalState(
     val credentialsExpiringSoonCount: Int = 0,
     val credentialsExpiredCount: Int = 0,
     val credentialsTotalCount: Int = 0,
-    val credentialsActionError: String? = null
+    val credentialsActionError: String? = null,
+    val todayCelebrations: List<com.rosterx.data.remote.TodayCelebrationDto> = emptyList(),
+    val dismissedCelebrationIds: Set<String> = emptySet()
 )
 
 
@@ -408,6 +410,7 @@ class EngineerPortalViewModel @Inject constructor(
             }
 
             loadCredentialTrackers(silent = true)
+            loadTodayCelebrations()
 
             // Auto-sync Home Screen App Widget with latest duty assignments for ALL users
             val currentEng = _state.value.loggedInEngineer
@@ -1244,6 +1247,23 @@ class EngineerPortalViewModel @Inject constructor(
                 onError(err.message ?: "Failed to delete credential tracker")
             }
         }
+    }
+
+    fun loadTodayCelebrations(silent: Boolean = true) {
+        viewModelScope.launch {
+            val res = repository.getTodayCelebrations()
+            res.onSuccess { list ->
+                _state.value = _state.value.copy(todayCelebrations = list)
+            }.onFailure { err ->
+                android.util.Log.e("EngineerPortalVM", "Failed to load celebrations: ${err.message}")
+            }
+        }
+    }
+
+    fun dismissCelebration(username: String) {
+        val current = _state.value.dismissedCelebrationIds.toMutableSet()
+        current.add(username)
+        _state.value = _state.value.copy(dismissedCelebrationIds = current)
     }
 }
 

@@ -328,7 +328,10 @@ fun AdminMainScreen(
                                             }
                                             selectedTab = 2
                                         },
-                                        onSaveConstraints = viewModel::saveConstraints
+                                        onSaveConstraints = viewModel::saveConstraints,
+                                        todayCelebrations = portalState.todayCelebrations,
+                                        dismissedCelebrationIds = portalState.dismissedCelebrationIds,
+                                        onDismissCelebration = portalViewModel::dismissCelebration
                                     )
                                     1 -> ManageTeamTab(
                                         state = state,

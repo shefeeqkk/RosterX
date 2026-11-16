@@ -44,7 +44,10 @@ fun AdminDashboardTab(
     state: AdminRosterState,
     onRefreshDiagnostics: () -> Unit,
     onNavigateToMonthRoster: (String?) -> Unit = {},
-    onSaveConstraints: (com.rosterx.domain.model.OperationalConstraints) -> Unit = {}
+    onSaveConstraints: (com.rosterx.domain.model.OperationalConstraints) -> Unit = {},
+    todayCelebrations: List<com.rosterx.data.remote.TodayCelebrationDto> = emptyList(),
+    dismissedCelebrationIds: Set<String> = emptySet(),
+    onDismissCelebration: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -62,6 +65,17 @@ fun AdminDashboardTab(
         contentPadding = PaddingValues(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Team Celebrations Banner
+        val activeCelebrations = todayCelebrations.filter { !dismissedCelebrationIds.contains(it.username) }
+        if (activeCelebrations.isNotEmpty()) {
+            item(key = "admin_team_celebrations") {
+                com.rosterx.presentation.components.TeamCelebrationsSection(
+                    celebrations = activeCelebrations,
+                    onDismiss = onDismissCelebration
+                )
+            }
+        }
+
         // ==========================================
         // 1. SERVER & CLOUD RUNTIME HEALTH CARD
         // ==========================================

@@ -1109,4 +1109,19 @@ class RosterRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun getTodayCelebrations(): Result<List<com.rosterx.data.remote.TodayCelebrationDto>> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getTodayCelebrations()
+            if (res.success) {
+                Result.success(res.celebrations)
+            } else {
+                Result.failure(Exception("Failed to load today's celebrations"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

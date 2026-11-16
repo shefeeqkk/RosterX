@@ -85,6 +85,8 @@ interface RosterRepository {
     suspend fun updateCredentialTracker(id: String, request: com.rosterx.data.remote.UpdateCredentialTrackerRequest): Result<com.rosterx.data.remote.CredentialTrackerDto>
     suspend fun renewCredentialTracker(id: String, lastUpdatedDate: String? = null, alertThresholdDays: Int? = null): Result<com.rosterx.data.remote.CredentialTrackerDto>
     suspend fun deleteCredentialTracker(id: String): Result<Unit>
+
+    suspend fun getTodayCelebrations(): Result<List<com.rosterx.data.remote.TodayCelebrationDto>>
 }
 
 
