@@ -40,7 +40,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.26.1"
+SERVER_VERSION = "1.26.2"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -215,7 +215,13 @@ def get_auth_secret():
         env = load_env_variables()
         AUTH_SECRET_KEY = env.get("AUTH_SECRET_KEY", "").strip() or os.environ.get("AUTH_SECRET_KEY", "").strip()
     if not AUTH_SECRET_KEY:
-        AUTH_SECRET_KEY = "rosterx_enterprise_sec_key_e8f2a1b94d76c3e508a1d7f6c9e2b4a8"
+        raise RuntimeError(
+            "\n[FATAL] AUTH_SECRET_KEY is not set in the environment.\n"
+            "  → Set it in your .env file or Render dashboard under Environment Variables.\n"
+            "  → Generate a secure key with:\n"
+            "       python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+            "  → Never use a hardcoded fallback — it makes all JWT tokens forgeable.\n"
+        )
     return AUTH_SECRET_KEY
 
 def create_jwt(payload: dict) -> str:
