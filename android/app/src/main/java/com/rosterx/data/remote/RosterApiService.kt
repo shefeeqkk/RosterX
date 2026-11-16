@@ -320,6 +320,9 @@ interface RosterApiService {
 
     @POST("api/credentials/trackers/{id}/delete")
     suspend fun deleteCredentialTracker(@Path("id") id: String): CredentialTrackerOperationResponse
+
+    @GET("api/celebrations/today")
+    suspend fun getTodayCelebrations(): TodayCelebrationsResponse
 }
 
 data class UpdateProfilePictureRequest(
@@ -531,4 +534,22 @@ data class CredentialTrackerOperationResponse(
     val success: Boolean,
     val message: String? = null,
     val tracker: CredentialTrackerDto? = null
+)
+
+data class TodayCelebrationDto(
+    val username: String,
+    val name: String,
+    val type: String, // "birthday", "anniversary", "both"
+    val years: Int = 0,
+    val photo: String? = null,
+    val phone: String? = null,
+    val title: String,
+    @SerializedName("greeting_text") val greetingText: String
+)
+
+data class TodayCelebrationsResponse(
+    val success: Boolean,
+    val today: String? = null,
+    val celebrations: List<TodayCelebrationDto> = emptyList(),
+    val count: Int = 0
 )

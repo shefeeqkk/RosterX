@@ -34,13 +34,14 @@ import uuid
 import base64
 import urllib.request
 import urllib.error
+import random
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.27.5"
+SERVER_VERSION = "1.28.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -880,27 +881,138 @@ def send_fcm_push(tokens, title, body, priority="info", notif_id="", extra_data=
 LAST_CELEBRATION_CHECK_DATE = None
 LAST_CELEBRATION_CHECK_TIME = 0.0
 
+def ordinal(n: int) -> str:
+    """Return ordinal representation of integer n (e.g. 1st, 2nd, 3rd, 4th)."""
+    if 11 <= (n % 100) <= 13:
+        return f"{n}th"
+    rem = n % 10
+    if rem == 1:
+        return f"{n}st"
+    elif rem == 2:
+        return f"{n}nd"
+    elif rem == 3:
+        return f"{n}rd"
+    return f"{n}th"
+
+def parse_celebration_date(raw_date_str: str, now_ist: datetime) -> tuple:
+    """
+    Intelligently parses birthday or join date string across diverse formats:
+      - YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD
+      - DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY
+      - MM-DD, DD-MM
+    Returns:
+      (is_match_today: bool, years_completed: int, parsed_year: int | None)
+    """
+    if not raw_date_str:
+        return (False, 0, None)
+
+    cleaned = str(raw_date_str).strip().replace("/", "-").replace(".", "-")
+    parts = [p.strip() for p in cleaned.split("-") if p.strip()]
+
+    target_m = now_ist.month
+    target_d = now_ist.day
+
+    year = None
+    month = None
+    day = None
+
+    if len(parts) == 3:
+        p0, p1, p2 = parts[0], parts[1], parts[2]
+        if len(p0) == 4 and p0.isdigit():
+            # YYYY-MM-DD
+            try:
+                year = int(p0)
+                month = int(p1)
+                day = int(p2)
+            except Exception:
+                pass
+        elif len(p2) == 4 and p2.isdigit():
+            # DD-MM-YYYY or MM-DD-YYYY
+            try:
+                year = int(p2)
+                v0 = int(p0)
+                v1 = int(p1)
+                if v0 > 12:
+                    day = v0
+                    month = v1
+                elif v1 > 12:
+                    month = v0
+                    day = v1
+                else:
+                    if v0 == target_d and v1 == target_m:
+                        day = v0
+                        month = v1
+                    elif v0 == target_m and v1 == target_d:
+                        month = v0
+                        day = v1
+                    else:
+                        day = v0
+                        month = v1
+            except Exception:
+                pass
+        else:
+            # Fallback 2-digit year
+            try:
+                if len(p0) == 2 and int(p0) > 31:
+                    year = 1900 + int(p0) if int(p0) > 50 else 2000 + int(p0)
+                    month = int(p1)
+                    day = int(p2)
+                elif len(p2) == 2 and int(p2) > 31:
+                    year = 1900 + int(p2) if int(p2) > 50 else 2000 + int(p2)
+                    day = int(p0)
+                    month = int(p1)
+            except Exception:
+                pass
+    elif len(parts) == 2:
+        # MM-DD or DD-MM
+        try:
+            v0 = int(parts[0])
+            v1 = int(parts[1])
+            if v0 > 12:
+                day = v0
+                month = v1
+            elif v1 > 12:
+                month = v0
+                day = v1
+            else:
+                if v0 == target_d and v1 == target_m:
+                    day = v0
+                    month = v1
+                elif v0 == target_m and v1 == target_d:
+                    month = v0
+                    day = v1
+                else:
+                    month = v0
+                    day = v1
+        except Exception:
+            pass
+
+    if month is None or day is None:
+        return (False, 0, None)
+
+    is_today = (month == target_m and day == target_d)
+    years = 0
+    if year is not None and is_today:
+        years = max(0, now_ist.year - year)
+
+    return (is_today, years, year)
+
 def check_and_trigger_celebrations(force=False):
     """
     Automated Daily Celebration Engine:
     Detects birthdays and work anniversaries for all team members (in IST, UTC+05:30).
-    When an event matches today's date (MM-DD):
+    When an event matches today's date:
       1. Generates celebratory broadcast notification for the entire team in ATLAS_DB.notifications
          and SERVER_NOTIFICATIONS.
       2. Dispatches FCM push notifications to all team members so everyone gets notified of the event.
     Guarantees idempotency via unique celebration_id check per day.
     """
     global LAST_CELEBRATION_CHECK_DATE, LAST_CELEBRATION_CHECK_TIME, ATLAS_DB, SERVER_NOTIFICATIONS
-    if ATLAS_DB is None:
-        return []
-    
-    import datetime
+
     now_time = time.time()
-    # Indian Standard Time (UTC+05:30)
-    ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-    now_ist = datetime.datetime.now(ist_tz)
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist_tz)
     today_str = now_ist.strftime("%Y-%m-%d")
-    today_md = now_ist.strftime("%m-%d")
 
     # Throttle: Check at most once every 15 minutes unless date changed or force=True
     if not force and LAST_CELEBRATION_CHECK_DATE == today_str and (now_time - LAST_CELEBRATION_CHECK_TIME < 900):
@@ -911,9 +1023,14 @@ def check_and_trigger_celebrations(force=False):
 
     triggered_events = []
     try:
-        engineers = list(ATLAS_DB.engineers.find({}, {"_id": 0}))
+        engineers = []
+        if ATLAS_DB is not None:
+            try:
+                engineers = list(ATLAS_DB.engineers.find({}, {"_id": 0}))
+            except Exception as e:
+                log_server(f"[CELEBRATION] Error fetching engineers from Atlas: {e}")
         if not engineers:
-            return []
+            engineers = [dict(e) for e in DEFAULT_SERVER_ENGINEERS]
 
         all_fcm_tokens = []
         for eng in engineers:
@@ -924,59 +1041,44 @@ def check_and_trigger_celebrations(force=False):
                 all_fcm_tokens.append(toks.strip())
         all_fcm_tokens = list(set(all_fcm_tokens))
 
-        def ordinal(n: int) -> str:
-            if 11 <= (n % 100) <= 13:
-                return f"{n}th"
-            rem = n % 10
-            if rem == 1:
-                return f"{n}st"
-            elif rem == 2:
-                return f"{n}nd"
-            elif rem == 3:
-                return f"{n}rd"
-            return f"{n}th"
-
         for eng in engineers:
             uname = str(eng.get("username") or "").strip().lower()
             if not uname or uname in ("admin", "sysadmin", "system"):
                 continue
+            if str(eng.get("status", "")).strip().lower() in ("resigned", "inactive"):
+                continue
+
             full_name = str(eng.get("fullName") or eng.get("full_name") or eng.get("name") or uname).strip()
             full_name = to_proper_name(full_name)
 
-            bday_raw = str(eng.get("birthday") or "").strip().replace("/", "-")
-            jdate_raw = str(eng.get("join_date") or eng.get("joinDate") or "").strip().replace("/", "-")
+            bday_raw = str(eng.get("birthday") or "").strip()
+            jdate_raw = str(eng.get("join_date") or eng.get("joinDate") or "").strip()
 
-            # 1. Birthday Check
-            is_birthday = False
-            if bday_raw and (bday_raw.endswith(f"-{today_md}") or bday_raw == today_md or (len(bday_raw) >= 5 and bday_raw[-5:] == today_md)):
-                is_birthday = True
-
-            # 2. Work Anniversary Check
-            is_anniversary = False
-            anniversary_years = 0
-            if jdate_raw and (jdate_raw.endswith(f"-{today_md}") or jdate_raw == today_md or (len(jdate_raw) >= 5 and jdate_raw[-5:] == today_md)):
-                try:
-                    if len(jdate_raw) >= 4 and jdate_raw[:4].isdigit():
-                        join_year = int(jdate_raw[:4])
-                        years = now_ist.year - join_year
-                        if years >= 1:
-                            is_anniversary = True
-                            anniversary_years = years
-                except Exception:
-                    pass
+            is_bday_match, _, _ = parse_celebration_date(bday_raw, now_ist)
+            is_jdate_match, anniv_years, _ = parse_celebration_date(jdate_raw, now_ist)
+            is_anniversary = is_jdate_match and (anniv_years >= 1)
 
             events = []
-            if is_birthday and is_anniversary:
-                events.append(("both", anniversary_years))
-            elif is_birthday:
+            if is_bday_match and is_anniversary:
+                events.append(("both", anniv_years))
+            elif is_bday_match:
                 events.append(("birthday", 0))
             elif is_anniversary:
-                events.append(("anniversary", anniversary_years))
+                events.append(("anniversary", anniv_years))
 
             for event_type, yr in events:
                 cid = f"celeb_{today_str}_{uname}_{event_type}"
-                existing = ATLAS_DB.notifications.find_one({"celebration_id": cid})
-                if existing:
+
+                already_triggered = False
+                if ATLAS_DB is not None:
+                    try:
+                        already_triggered = ATLAS_DB.notifications.find_one({"celebration_id": cid}) is not None
+                    except Exception:
+                        pass
+                if not already_triggered:
+                    already_triggered = any(n.get("celebration_id") == cid for n in SERVER_NOTIFICATIONS)
+
+                if already_triggered:
                     continue
 
                 notif_id = f"notif_celeb_{int(now_time*1000)}_{random.randint(100, 999)}"
@@ -1004,6 +1106,7 @@ def check_and_trigger_celebrations(force=False):
                     "target": "everyone",
                     "target_type": "everyone",
                     "priority": "high",
+                    "category": "celebration",
                     "sender": "RosterX Celebrations Desk",
                     "send_email": False,
                     "send_in_app": True,
@@ -1013,18 +1116,31 @@ def check_and_trigger_celebrations(force=False):
                     "timestamp": now_time
                 }
 
-                try:
-                    ATLAS_DB.notifications.insert_one(notif_doc)
-                    clean_doc = dict(notif_doc)
-                    clean_doc.pop("_id", None)
-                    SERVER_NOTIFICATIONS.appendleft(clean_doc)
-                    triggered_events.append({"user": uname, "name": full_name, "type": event_type, "title": title})
-                    log_server(f"[CELEBRATION] Triggered {event_type} announcement for '{full_name}' ({uname}).")
-                    if all_fcm_tokens:
-                        sent = send_fcm_push(all_fcm_tokens, title, msg, priority="high", notif_id=notif_id, extra_data={"target_user": "everyone"})
+                if ATLAS_DB is not None:
+                    try:
+                        ATLAS_DB.notifications.insert_one(dict(notif_doc))
+                    except Exception as ins_err:
+                        print(f"  [CELEBRATION ERROR] Failed to record notification: {ins_err}")
+
+                clean_doc = dict(notif_doc)
+                clean_doc.pop("_id", None)
+                SERVER_NOTIFICATIONS.appendleft(clean_doc)
+                triggered_events.append({"user": uname, "name": full_name, "type": event_type, "title": title})
+                log_server(f"[CELEBRATION] Triggered {event_type} announcement for '{full_name}' ({uname}).")
+
+                if all_fcm_tokens:
+                    try:
+                        sent = send_fcm_push(
+                            all_fcm_tokens,
+                            title,
+                            msg,
+                            priority="high",
+                            notif_id=notif_id,
+                            extra_data={"target_user": "everyone", "type": "celebration"}
+                        )
                         log_server(f"[CELEBRATION] FCM push delivered to {sent} devices for {full_name}.")
-                except Exception as ins_err:
-                    print(f"  [CELEBRATION ERROR] Failed to record notification: {ins_err}")
+                    except Exception as fcm_err:
+                        log_server(f"[CELEBRATION] FCM push error: {fcm_err}")
 
     except Exception as e:
         print(f"  [CELEBRATIONS CHECK ERROR] {e}")
@@ -2497,7 +2613,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/"):
+        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/"):
             norm_path = "/api" + norm_path
 
         # REST API Endpoints (/api/*)
@@ -3049,6 +3165,91 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.send_json_response({
                 "success": True,
                 "constraints": constraints
+            })
+            return
+
+        # 6.9 GET /api/celebrations/today (AUTHENTICATED - Today's Birthdays & Work Anniversaries)
+        if clean_path in ("/api/celebrations/today", "/api/celebrations/today/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            try:
+                check_and_trigger_celebrations()
+            except Exception:
+                pass
+
+            ist_tz = timezone(timedelta(hours=5, minutes=30))
+            now_ist = datetime.now(ist_tz)
+            today_str = now_ist.strftime("%Y-%m-%d")
+
+            engineers = []
+            if ATLAS_DB is not None:
+                try:
+                    engineers = list(ATLAS_DB.engineers.find({}, {"_id": 0}))
+                except Exception as e:
+                    log_server(f"[CELEBRATION] Error fetching engineers from Atlas: {e}")
+            if not engineers:
+                engineers = [dict(e) for e in DEFAULT_SERVER_ENGINEERS]
+
+            celebrations = []
+            for eng in engineers:
+                uname = str(eng.get("username") or "").strip().lower()
+                if not uname or uname in ("admin", "sysadmin", "system"):
+                    continue
+                if str(eng.get("status", "")).strip().lower() in ("resigned", "inactive"):
+                    continue
+
+                full_name = str(eng.get("fullName") or eng.get("full_name") or eng.get("name") or uname).strip()
+                full_name = to_proper_name(full_name)
+
+                bday_raw = str(eng.get("birthday") or "").strip()
+                jdate_raw = str(eng.get("join_date") or eng.get("joinDate") or "").strip()
+
+                is_bday_match, _, _ = parse_celebration_date(bday_raw, now_ist)
+                is_jdate_match, anniv_years, _ = parse_celebration_date(jdate_raw, now_ist)
+                is_anniversary = is_jdate_match and (anniv_years >= 1)
+
+                event_types = []
+                if is_bday_match and is_anniversary:
+                    event_types.append(("both", anniv_years))
+                elif is_bday_match:
+                    event_types.append(("birthday", 0))
+                elif is_anniversary:
+                    event_types.append(("anniversary", anniv_years))
+
+                for etype, yr in event_types:
+                    if etype == "both":
+                        yr_ord = ordinal(yr)
+                        title = f"Birthday & {yr_ord} Work Anniversary"
+                        greeting = f"Happy Birthday & {yr_ord} Work Anniversary, {full_name}! 🎂🏆 Double congratulations!"
+                    elif etype == "birthday":
+                        title = "Birthday Celebration"
+                        greeting = f"Happy Birthday, {full_name}! 🎂 Wishing you a fantastic year ahead!"
+                    else:
+                        yr_ord = ordinal(yr)
+                        title = f"{yr_ord} Work Anniversary"
+                        greeting = f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆 Thank you for your dedication to the team!"
+
+                    photo = eng.get("profile_picture") or eng.get("profilePicture") or ""
+                    phone = str(eng.get("phone") or "").strip()
+
+                    celebrations.append({
+                        "username": uname,
+                        "name": full_name,
+                        "type": etype,
+                        "years": yr,
+                        "photo": photo,
+                        "phone": phone,
+                        "title": title,
+                        "greeting_text": greeting
+                    })
+
+            self.send_json_response({
+                "success": True,
+                "today": today_str,
+                "celebrations": celebrations,
+                "count": len(celebrations)
             })
             return
 

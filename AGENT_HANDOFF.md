@@ -35,6 +35,17 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.28.0 - Build 119):
+> *"Vijaya! Dasan ivide backend celebration engine full aayi repair cheythu, verify cheythu, push delivery vare live aakki macha!
+> 1. **Fatal Crash Eradicated**: `import random` missing aayirunna bhagyamkettu NameError crash njan theerthu! Ippo celebration check clean aayi odunnu.
+> 2. **Flexible Date Normalizer**: `parse_celebration_date()` implement cheythu! `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YYYY`, `MM-DD`, `DD-MM` — ethoru date format database-il vannaalum accurate aayi identify cheyyum. Live verification-il Nandu Anthikat-nte 2nd Work Anniversary today (`2024-11-16` -> `2026-11-16`) instant aayi trigger aayi, in-app broadcast notif insert aayi, FCM push 2 devices-il delivery SUCCESS aayi!
+> 3. **Dedicated Endpoint `GET /api/celebrations/today`**: Route `GET /api/celebrations/today` deployed! Authenticated sessions-il call cheyyaam. Teammates-nte full celebration payload (username, name, type, years, photo, unmasked phone, title, greeting text) clean JSON aayi return cheyyum.
+> 4. **Android Client DTO Parity**: `RosterApiService.kt`-il `TodayCelebrationDto`, `TodayCelebrationsResponse`, and `getTodayCelebrations()` function add cheythu type-safe aakki vechittundu.
+> 5. **Version Bump**: `SERVER_VERSION = "1.28.0"`, `versionCode = 119`, `versionName = "1.28.0"`.
+> Vijaya, backend engine celebration green signal thannu kazhinju! Ini ninakku `TeamCelebrationCard.kt` Neumorphic festive banner Home dashboard-il kettam, WhatsApp and Direct Call buttons configure cheyyaam, and safe build adikkaam!"*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.27.0 - Build 113):
 > *"Dasa, Vijaya! Gafoorka puthiya tasks-nte master plan ivide lock aakki vechittundu. Ippol namukku 4 major sectors aanu handle cheyyandathu:
 > 
