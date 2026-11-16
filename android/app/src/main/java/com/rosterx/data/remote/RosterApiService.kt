@@ -428,7 +428,8 @@ data class NotificationDto(
     @SerializedName("celebration_user") val celebrationUser: String? = null,
     @SerializedName("celebration_name") val celebrationName: String? = null,
     @SerializedName("celebration_years") val celebrationYears: Int? = null,
-    @SerializedName("celebration_photo") val celebrationPhoto: String? = null
+    @SerializedName("celebration_photo") val celebrationPhoto: String? = null,
+    @SerializedName("celebration_phone") val celebrationPhone: String? = null
 )
 
 data class BroadcastTemplateDto(

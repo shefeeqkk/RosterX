@@ -1082,16 +1082,19 @@ def check_and_trigger_celebrations(force=False):
                     continue
 
                 notif_id = f"notif_celeb_{int(now_time*1000)}_{random.randint(100, 999)}"
+                yr_ord = ordinal(yr)
+                yr_label = f"{yr} years" if yr > 1 else "1 year"
+                celeb_phone = str(eng.get("phone") or eng.get("phoneNumber") or eng.get("contact") or "").strip()
+
                 if event_type == "both":
-                    title = f"Double Celebration: Birthday & {ordinal(yr)} Anniversary for {full_name}! 🎂🏆"
-                    msg = f"Today is doubly special for {full_name}! Join us in wishing them a very Happy Birthday and celebrating their {ordinal(yr)} Work Anniversary with RosterX! 🎉🎈🥂"
+                    title = f"Double Celebration: Birthday & {yr_ord} Anniversary for {full_name}! 🎂🏆"
+                    msg = f"Today is doubly special for {full_name}! Join us in wishing them a very Happy Birthday and celebrating their {yr_ord} Work Anniversary with RosterX! Tap to send wishes! 🎉🎈🥂"
                 elif event_type == "birthday":
                     title = f"Happy Birthday, {full_name}! 🎂"
-                    msg = f"Today is {full_name}'s Birthday! Wishing them immense happiness, great health, and continued success! Join in and send your warm wishes! 🎉🎈🥳"
+                    msg = f"Today is {full_name}'s birthday! Join the entire RosterX team in wishing them joy, vibrant health, and continued success! Tap to send wishes! 🎉🎈🥳"
                 else:
-                    yr_ord = ordinal(yr)
                     title = f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆"
-                    msg = f"Congratulations {full_name} on completing {yr_ord} with our team! Thank you for your continued dedication, teamwork, and operational brilliance! 🥂🎊✨"
+                    msg = f"Today {full_name} completes {yr_label} of operational excellence with our team! Join us in celebrating this milestone and send your warm congratulations! 🥂🎊✨"
 
                 notif_doc = {
                     "id": notif_id,
@@ -1101,6 +1104,7 @@ def check_and_trigger_celebrations(force=False):
                     "celebration_name": full_name,
                     "celebration_years": yr,
                     "celebration_photo": eng.get("profile_picture") or eng.get("profilePicture") or "",
+                    "celebration_phone": celeb_phone,
                     "title": title,
                     "raw_message": msg,
                     "target": "everyone",
@@ -3219,17 +3223,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     event_types.append(("anniversary", anniv_years))
 
                 for etype, yr in event_types:
+                    yr_ord = ordinal(yr)
+                    yr_label = f"{yr} years" if yr > 1 else "1 year"
                     if etype == "both":
-                        yr_ord = ordinal(yr)
                         title = f"Birthday & {yr_ord} Work Anniversary"
-                        greeting = f"Happy Birthday & {yr_ord} Work Anniversary, {full_name}! 🎂🏆 Double congratulations!"
+                        greeting = f"Happy Birthday and Happy {yr_ord} Work Anniversary, {full_name}! 🎂🏆 Wishing you the very best!"
                     elif etype == "birthday":
                         title = "Birthday Celebration"
-                        greeting = f"Happy Birthday, {full_name}! 🎂 Wishing you a fantastic year ahead!"
+                        greeting = f"Happy Birthday, {full_name}! 🎉🎂 Wishing you a fantastic year ahead filled with joy and success!"
                     else:
-                        yr_ord = ordinal(yr)
                         title = f"{yr_ord} Work Anniversary"
-                        greeting = f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆 Thank you for your dedication to the team!"
+                        greeting = f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆✨ Congratulations on completing {yr_label} with our team!"
 
                     photo = eng.get("profile_picture") or eng.get("profilePicture") or ""
                     phone = str(eng.get("phone") or "").strip()
