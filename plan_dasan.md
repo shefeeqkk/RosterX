@@ -41,7 +41,11 @@ Dasa! Nammude team celebrations (Birthdays & Work Anniversaries) delivery engine
   - Send high-priority FCM push with `{"target_user": "everyone", "type": "celebration"}`.
 
 ### 4. Dedicated Endpoint: `GET /api/celebrations/today`
-- Returns today's active team celebrations with unmasked phone number, photo, celebration type, name, username, years, and 3rd-person greeting text template.
+- Returns today's active team celebrations with unmasked phone number, photo, celebration type, name, username, years, and clean 3rd-person greeting text template.
+- **IMPORTANT**: Ensure `greeting_text` contains NO sender signature (do NOT append `"- From [Name]"` or `"- From RosterX"`). E.g.
+  - Anniversary: `f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆✨ Congratulations on completing {yr_label} with our team!"`
+  - Birthday: `f"Happy Birthday, {full_name}! 🎉🎂 Wishing you a fantastic year ahead filled with joy and success!"`
+  - Both: `f"Happy Birthday and Happy {yr_ord} Work Anniversary, {full_name}! 🎂🏆 Wishing you the very best!"`
 
 ### 5. Patch Existing Today's Celebration Notification in MongoDB
 - Update existing notification for `nandua` (`celeb_2026-11-16_nandua_anniversary`) with:

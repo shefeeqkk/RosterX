@@ -27,6 +27,7 @@
 > 2. **Vijayan (Compose UI)**:
 >    - Enhance `CelebrationWishesDialog.kt` to support `isSelf: Boolean` (1st person vs 3rd person colleague milestone).
 >    - For teammates (`!isSelf`): Displays colleague's name, trophy/cake badge, 3rd-person congratulatory text, **"🎉 Wish on WhatsApp"** button (`R.drawable.ic_whatsapp`, `#25D366`), and **"Call"** button!
+   - **No Sender Signature Rule**: In pre-filled WhatsApp wishes for both birthdays and anniversaries, do NOT append `"- From [Name]"` or `"- From RosterX"`. Keep it direct, personal, and clean (e.g. `"Happy 2nd Work Anniversary Nandu! 🏆✨ Congratulations on completing 2 years with our team!"`).
 >    - Update `QuickNotificationsBottomSheet`: pass `celebrationType`, `celebrantUser`, `celebrantName`, `celebrantYears`, and `celebrantPhone` to `onOpenCelebrationWishes(...)`.
 >    - In `EngineerPortalScreen.kt`: wire up target celebrant state and pass into `CelebrationWishesDialog`.
 >    - Version bump to `versionName = "1.28.0"`, `versionCode = 119`, and safe build (`cd android && .\safe_build.bat assembleDebug`).

@@ -65,6 +65,12 @@ Vijaya! User report cheytha bug-inte root cause Gafoorka screen inspect cheythu 
       - Primary Button: **"🎉 Wish on WhatsApp"**
         - Styled with `#25D366` background, white text, and `R.drawable.ic_whatsapp` icon.
         - Tapping launches WhatsApp via `Intent.ACTION_VIEW` (`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedGreeting}`).
+        - **IMPORTANT: Clean Greeting Text (NO SIGNATURE)**:
+          - Do NOT append `"- From [Name]"` or `"- From RosterX"`! The sender is sending from their own personal WhatsApp, so a signature is redundant and awkward.
+          - Pre-filled message templates:
+            - **Anniversary**: `"Happy $yrStr Work Anniversary, $properName! 🏆✨ Congratulations on completing $yrLabel with our team!"`
+            - **Birthday**: `"Happy Birthday, $properName! 🎉🎂 Wishing you a fantastic year ahead filled with joy and success!"`
+            - **Both**: `"Happy Birthday and Happy $yrStr Work Anniversary, $properName! 🎂🏆 Wishing you the very best!"`
       - Secondary Button / Icon: **"Call"** button with `Icons.Default.Phone` launching `Intent.ACTION_DIAL` (`tel:${phone}`).
       - Close button to dismiss.
   - **If `isSelf` (Direct perspective)**:
