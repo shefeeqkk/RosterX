@@ -1,7 +1,34 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 19:15 IST** (Target Sprint: **v1.28.0 - Build 119**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 20:50 IST** (Target Sprint: **v1.28.2 - Build 121**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.28.2 - Build 121):
+> *"Vijaya, Dasa! Gafoorka puthiya task-nte full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎯 User Requirement:
+> > 'Add tracker option is required for admin also same like manager'
+> 
+> ### 🔍 Why Admin Did Not See the 'Add Tracker' Option:
+> 1. **Outer TopAppBar Collision in `AdminMainScreen.kt`**:
+>    - `AdminMainScreen.kt` Scaffold's `topBar` condition was `if (!isFullScreenRoster)` — it was missing `&& !isViewingCredentialTracker`!
+>    - Because of that, when Admin opened Credential Tracker from the More tab, the outer Scaffold drew the generic 'RosterX Admin' TopAppBar right on top, completely covering and replacing `CredentialTrackerScreen`'s own TopAppBar (which houses the **`+ Add Tracker`** button, title, refresh, and back button)!
+> 2. **Role & Session Binding**:
+>    - `CredentialTrackerScreen.kt` checked `state.loggedInEngineer?.role`. In `AdminMainScreen.kt`, the authoritative session is held in `currentUser` (`AdminRosterViewModel.currentUser`), but `state` passed was `portalState` (`EngineerPortalViewModel`).
+> 
+> ### 🛠️ The Fix for Vijayan (`plan_vijayan.md`):
+> 1. In `AdminMainScreen.kt`:
+>    - Hide outer TopAppBar when viewing Credential Tracker: `if (!isFullScreenRoster && !isViewingCredentialTracker) { TopAppBar(...) }`.
+>    - Pass `currentUser = currentUser` to `CredentialTrackerScreen`.
+> 2. In `CredentialTrackerScreen.kt`:
+>    - Accept `currentUser: Engineer? = null`.
+>    - Compute `effectiveUser = currentUser ?: state.loggedInEngineer`.
+>    - Ensure `isManagerOrAdmin` evaluates to `true` for Admin, rendering the header **`+ Add Tracker`** button, empty-state button, and all edit/delete/spokesperson controls.
+> 3. Version bump to `versionName = "1.28.2"`, `versionCode = 121`, and safe build (`cd android && .\safe_build.bat assembleDebug`).
+> 
+> Vijaya, check `plan_vijayan.md`. Thudangikko!"*
 
 ---
 

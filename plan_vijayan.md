@@ -1,130 +1,98 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED` (Sprint v1.28.1 - Build 120)
+**Status:** `READY FOR VIJAYAN` (Sprint v1.28.2 - Build 121)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Vijaya! User report cheytha bug-inte root cause Gafoorka screen inspect cheythu kandu pidichu:
-1. Notifications bottom sheet-il Nandu Anthikat-nte Work Anniversary notification-il "Tap to open wishes ✨" click cheythaal, currently `EngineerPortalScreen.kt` ONLY checks `state.loggedInEngineer` (Shefeeq), and opens dialog saying:
-   `"Happy Birthday, Shefeeq K K!"`!
-   - Root cause: `onOpenCelebrationWishes: () -> Unit` had no parameters, and `CelebrationWishesDialog` hardcoded `state.loggedInEngineer!!` and defaulted `activeCelebrationType` to `BIRTHDAY`!
-2. Teammates must receive the notification & dialog **in 3rd person**!
-   - When viewing a colleague's celebration, the dialog must say:
-     - Title: `"Happy 2nd Work Anniversary, Nandu Anthikat! 🏆"` (or Birthday)
-     - Subtitle: `"MILESTONE ACHIEVED 🌟"` / `"TEAM MEMBER BIRTHDAY 🎂"`
-     - Body: Celebratory team message honoring Nandu's milestone.
-     - Action buttons:
-       - **"🎉 Wish on WhatsApp"** (signature WhatsApp green `#25D366` + `R.drawable.ic_whatsapp` icon) -> Launches WhatsApp with pre-filled message:
-         - Anniversary: `"Happy 2nd Work Anniversary Nandu! 🏆✨ Congratulations on this milestone!"`
-         - Birthday: `"Happy Birthday Nandu! 🎉🎂 Wishing you a wonderful year ahead!"`
-       - **"Call"** button -> Launches phone dialer `Intent.ACTION_DIAL`.
-       - **"Close"** text button.
-   - When viewing one's own celebration (`isSelf = true`), it retains `"CELEBRATING YOUR SPECIAL DAY 🎉"` and `"🎉 Thank You! 🙏"`.
+Vijaya! User report cheytha requirement:
+> *"Add tracker option is required for admin also same like manager"*
+
+Gafoorka codebase deep inspect cheythu root cause 100% catch cheythu vechittundu. Manager-kk `+ Add Tracker` button undaayirunnu, pakshe Admin-kk athu kittathathinte kaaryam:
+
+### 🔍 Root Cause:
+1. **Outer TopAppBar Collision in `AdminMainScreen.kt`**:
+   - In `AdminMainScreen.kt` (line ~96), Scaffold's `topBar` condition was:
+     `if (!isFullScreenRoster)`
+     Notice it was missing `&& !isViewingCredentialTracker`!
+   - In `EngineerPortalScreen.kt` (Manager), line 716 had:
+     `if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam)`
+     So when Manager opened Credential Tracker, the outer TopAppBar was hidden, and `CredentialTrackerScreen`'s own TopAppBar (which houses the **`+ Add Tracker`** button & Back button) took over cleanly!
+   - In `AdminMainScreen.kt`, because `!isViewingCredentialTracker` was missing, the outer "RosterX Admin" TopAppBar remained drawn on top, completely obscuring and replacing `CredentialTrackerScreen`'s top-bar!
+2. **Authority / Role Binding in `CredentialTrackerScreen.kt`**:
+   - `CredentialTrackerScreen.kt` checked:
+     `val isManagerOrAdmin = state.loggedInEngineer?.role == EngineerRole.ADMIN || state.loggedInEngineer?.role == EngineerRole.MANAGER`
+   - `AdminMainScreen.kt` holds the active admin session in `viewModel.currentUser` (`AdminRosterViewModel`), but passes `state = portalState` (`EngineerPortalViewModel`).
+   - If `portalState.loggedInEngineer` was delayed or null, `isManagerOrAdmin` evaluated to `false`!
 
 ---
 
 ## 2. Scope of Work for Vijayan
 
-### 1. Data Layer (`RosterApiService.kt`)
-- In `NotificationDto`:
-  - Add `@SerializedName("celebration_phone") val celebrationPhone: String? = null`
-- In `TodayCelebrationDto` (for `GET /api/celebrations/today`):
-  - Ensure fields: `username`, `name`, `type`, `years`, `photo`, `phone`, `title`, `greeting_text`.
-
-### 2. Overhaul `CelebrationWishesDialog.kt`
-- Add parameters:
+### 1. Fix TopAppBar Collision in `AdminMainScreen.kt`
+- In `AdminMainScreen.kt` line ~96:
+  Change:
   ```kotlin
-  @Composable
-  fun CelebrationWishesDialog(
-      show: Boolean,
-      celebrationType: CelebrationType,
-      userName: String,
-      anniversaryYears: Int = 1,
-      isSelf: Boolean = true,
-      celebrantPhone: String? = null,
-      onDismiss: () -> Unit
+  if (!isFullScreenRoster) {
+  ```
+  to:
+  ```kotlin
+  if (!isFullScreenRoster && !isViewingCredentialTracker) {
+  ```
+  This immediately hides the outer "RosterX Admin" TopAppBar when the Admin enters Credential Tracker, allowing `CredentialTrackerScreen`'s dedicated TopAppBar (with Back arrow, Title, Refresh, and **`+ Add Tracker`**) to render cleanly and prominently — identical to Manager!
+
+- In `AdminMainScreen.kt` subview 1 (line ~276):
+  Pass `currentUser = currentUser`:
+  ```kotlin
+  CredentialTrackerScreen(
+      state = portalState,
+      viewModel = portalViewModel,
+      onBackClick = { isViewingCredentialTracker = false },
+      currentUser = currentUser
   )
   ```
-- Differentiate between `isSelf == true` vs `isSelf == false` (3rd Person):
-  - **If `!isSelf` (Teammate / Manager perspective)**:
-    - Subtitle:
-      - Birthday: `"TEAM MEMBER BIRTHDAY 🎂"`
-      - Anniversary: `"MILESTONE ACHIEVED 🌟"`
-      - Both: `"DOUBLE MILESTONE 🌟"`
-    - Title:
-      - Birthday: `"Happy Birthday, $properName! 🎂"`
-      - Anniversary: `"Happy $yrStr Work Anniversary, $properName! 🏆"`
-      - Both: `"Double Celebration for $properName! 🎂🏆"`
-    - Body:
-      - Birthday: `"Today is $properName's birthday! Join the entire RosterX team in wishing them immense happiness, vibrant health, and continued success! 🎈🥳✨"`
-      - Anniversary: `"Today $properName completes $yrLabel of operational excellence with our team! Let's celebrate their dedication, brilliance, and teamwork! 🥂🎊✨"`
-      - Both: `"Today is doubly special for $properName celebrating their birthday and $yrLabel with RosterX! Send your warmest wishes! 🎈🥂🎉"`
-    - Bottom Actions:
-      - Primary Button: **"🎉 Wish on WhatsApp"**
-        - Styled with `#25D366` background, white text, and `R.drawable.ic_whatsapp` icon.
-        - Tapping launches WhatsApp via `Intent.ACTION_VIEW` (`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedGreeting}`).
-        - **IMPORTANT: Clean Greeting Text (NO SIGNATURE)**:
-          - Do NOT append `"- From [Name]"` or `"- From RosterX"`! The sender is sending from their own personal WhatsApp, so a signature is redundant and awkward.
-          - Pre-filled message templates:
-            - **Anniversary**: `"Happy $yrStr Work Anniversary, $properName! 🏆✨ Congratulations on completing $yrLabel with our team!"`
-            - **Birthday**: `"Happy Birthday, $properName! 🎉🎂 Wishing you a fantastic year ahead filled with joy and success!"`
-            - **Both**: `"Happy Birthday and Happy $yrStr Work Anniversary, $properName! 🎂🏆 Wishing you the very best!"`
-      - Secondary Button / Icon: **"Call"** button with `Icons.Default.Phone` launching `Intent.ACTION_DIAL` (`tel:${phone}`).
-      - Close button to dismiss.
-  - **If `isSelf` (Direct perspective)**:
-    - Retains personal celebratory message with `"🎉 Thank You! 🙏"` button.
 
-### 3. Update `QuickNotificationsBottomSheet` in `ProfileComponents.kt`
-- Update `onOpenCelebrationWishes` callback:
-  ```kotlin
-  onOpenCelebrationWishes: (
-      celebrationType: CelebrationType,
-      celebrantUser: String,
-      celebrantName: String,
-      anniversaryYears: Int,
-      celebrantPhone: String?
-  ) -> Unit = { _, _, _, _, _ -> }
-  ```
-- When tapping a celebration notification:
-  - Parse `celebrationType`: check `notif.celebrationType` ("both" -> BOTH, "anniversary" -> ANNIVERSARY, else -> BIRTHDAY).
-  - Extract `notif.celebrationUser`, `notif.celebrationName`, `notif.celebrationYears`, and `notif.celebrationPhone` (fallback to looking up user in `engineers` list if phone is blank).
-  - Pass all these details into `onOpenCelebrationWishes(...)`.
+### 2. Authoritative Role Binding in `CredentialTrackerScreen.kt`
+- In `CredentialTrackerScreen.kt`:
+  - Update function signature to accept `currentUser`:
+    ```kotlin
+    @Composable
+    fun CredentialTrackerScreen(
+        state: EngineerPortalState,
+        viewModel: EngineerPortalViewModel,
+        onBackClick: () -> Unit,
+        currentUser: Engineer? = null,
+        modifier: Modifier = Modifier
+    )
+    ```
+  - Resolve effective user and permissions:
+    ```kotlin
+    val effectiveUser = currentUser ?: state.loggedInEngineer
+    val isManagerOrAdmin = effectiveUser?.role == EngineerRole.ADMIN ||
+            effectiveUser?.role == EngineerRole.MANAGER
+    val currentUserEmail = effectiveUser?.email?.trim()?.lowercase() ?: ""
+    val currentUsername = effectiveUser?.username?.trim()?.lowercase() ?: ""
+    ```
+- This guarantees:
+  1. Top-bar **`+ Add Tracker`** button renders for Admin.
+  2. Empty state **`Add First Tracker`** button renders for Admin.
+  3. Card actions: Edit, Delete, and Spokesperson management render for Admin.
+  4. Add/Edit dialog: Alert Threshold Days & Teammates dropdown render for Admin.
 
-### 4. Wire Up in `EngineerPortalScreen.kt`
-- Maintain state:
-  ```kotlin
-  var celebrationDialogTargetUser by rememberSaveable { mutableStateOf("") }
-  var celebrationDialogTargetName by rememberSaveable { mutableStateOf("") }
-  var celebrationDialogType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
-  var celebrationDialogYears by rememberSaveable { mutableStateOf(1) }
-  var celebrationDialogPhone by rememberSaveable { mutableStateOf("") }
-  var isCelebrationSelf by rememberSaveable { mutableStateOf(true) }
-  ```
-- In `QuickNotificationsBottomSheet` call:
-  ```kotlin
-  onOpenCelebrationWishes = { type, user, name, years, phone ->
-      showQuickNotificationsSheet = false
-      celebrationDialogTargetUser = user
-      celebrationDialogTargetName = name
-      celebrationDialogType = type
-      celebrationDialogYears = years
-      celebrationDialogPhone = phone ?: ""
-      val myUname = state.loggedInEngineer?.username.orEmpty()
-      isCelebrationSelf = user.equals(myUname, ignoreCase = true)
-      showCelebrationDialog = true
-  }
-  ```
-- Pass `isSelf = isCelebrationSelf`, `userName = celebrationDialogTargetName`, `celebrationType = celebrationDialogType`, `anniversaryYears = celebrationDialogYears`, `celebrantPhone = celebrationDialogPhone` into `CelebrationWishesDialog`.
-
-### 5. Post-Build Activities (Mandatory)
+### 3. Post-Build Activities (Mandatory)
 - Version bump in `android/app/build.gradle.kts`:
-  - `versionName = "1.28.0"`
-  - `versionCode = 119`
+  - `versionName = "1.28.2"`
+  - `versionCode = 121`
+- Version bump in `server.py`:
+  - `SERVER_VERSION = "1.28.2"`
 - Execute safe build:
   - `cd android && .\safe_build.bat assembleDebug`
 - Install on device via ADB:
   - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
-- Test: Open notification drawer, tap Nandu's anniversary notification, verify 3rd-person dialog opens with Nandu's name, trophy icon, and WhatsApp/Call buttons.
+- Verification:
+  - Launch Admin profile on device/emulator.
+  - Navigate to More (Operations Hub) -> Server Credential Tracker.
+  - Verify `CredentialTrackerScreen` TopAppBar renders cleanly with Back button, Title, Refresh, and **`+ Add Tracker`** button.
+  - Tap `+ Add Tracker` and verify dialog opens with all manager/admin privileges.
 - Commit changes and update `AGENT_HANDOFF.md`.
