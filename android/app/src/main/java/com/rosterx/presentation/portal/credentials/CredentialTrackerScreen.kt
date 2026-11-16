@@ -37,7 +37,19 @@ import com.rosterx.ui.neumorphic.*
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
+
+fun formatCredentialDate(isoDateStr: String?): String {
+    if (isoDateStr.isNullOrBlank()) return "—"
+    return try {
+        val parsed = LocalDate.parse(isoDateStr.trim())
+        parsed.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.US))
+    } catch (_: Throwable) {
+        isoDateStr
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -458,7 +470,7 @@ fun CredentialTrackerScreen(
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("New Update Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
-                                Text(selectedDateStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
+                                Text(formatCredentialDate(selectedDateStr), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Validity Cycle:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
@@ -466,7 +478,7 @@ fun CredentialTrackerScreen(
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Calculated Expiry:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
-                                Text(newExpiry, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (daysUntilExpiry > 5) Color(0xFF059669) else Color(0xFFD97706))
+                                Text(formatCredentialDate(newExpiry), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (daysUntilExpiry > 5) Color(0xFF059669) else Color(0xFFD97706))
                             }
                         }
                     }
@@ -481,7 +493,7 @@ fun CredentialTrackerScreen(
                             id = tId,
                             lastUpdatedDate = selectedDateStr,
                             onSuccess = {
-                                Toast.makeText(context, "Updated '${tracker.serverName}' credentials to $selectedDateStr!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Updated '${tracker.serverName}' credentials to ${formatCredentialDate(selectedDateStr)}!", Toast.LENGTH_SHORT).show()
                             },
                             onError = { err ->
                                 Toast.makeText(context, err, Toast.LENGTH_LONG).show()
@@ -823,12 +835,12 @@ private fun ServerGroupCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Updated: ${tracker.lastUpdatedDate} (${tracker.validityDays}d cycle)",
+                                text = "Updated: ${formatCredentialDate(tracker.lastUpdatedDate)} (${tracker.validityDays}d cycle)",
                                 fontSize = 11.sp,
                                 color = NeumorphicTokens.TextMuted
                             )
                             Text(
-                                text = "Expires: ${tracker.expiryDate}",
+                                text = "Expires: ${formatCredentialDate(tracker.expiryDate)}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = statusColor
@@ -1177,7 +1189,7 @@ fun AddEditCredentialTrackerDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = lastUpdatedDate,
+                                    text = formatCredentialDate(lastUpdatedDate),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = NeumorphicTokens.TextMain
@@ -1256,8 +1268,9 @@ fun AddEditCredentialTrackerDialog(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
+                                    val formattedAlarmDate = alarmStartDate?.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.US)) ?: alarmStartDate.toString()
                                     Text(
-                                        text = "Alarming begins on: $alarmStartDate ($thresholdVal days before expiry)",
+                                        text = "Alarming begins on: $formattedAlarmDate ($thresholdVal days before expiry)",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(0xFFD97706)

@@ -40,6 +40,23 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.4 - Build 117):
+> *"Dasa! Gafoorka! Credential Tracker date formatting YYYY-MM-DD maatti '16-Nov-2026' (dd-MMM-yyyy) format-ilekku poornamaayi upgrade cheythu macha:
+> 
+> 1. **Credential Tracker Cards & Dialogs**:
+>    - `CredentialTrackerScreen.kt`-il `formatCredentialDate` helper function ketti.
+>    - Account cards-il 'Updated: 04-Oct-2026 (45d cycle)' and 'Expires: 18-Nov-2026' aayi render cheyyunnu.
+>    - 'Confirm Credential Update' quick confirmation dialog-il New Update Date and Calculated Expiry elegant 'dd-MMM-yyyy' format-il aakki.
+>    - 'Add/Edit Credential Tracker' dialog-il Pick Date button and 'Alarming begins on: dd-MMM-yyyy' display update aakki.
+>    - Update success toast-il `Updated '{serverName}' credentials to 16-Nov-2026!` aakki.
+> 2. **Notifications & Alerts Format Parity**:
+>    - `ProfileComponents.kt` (`QuickNotificationsBottomSheet`)-il ISO dates (`YYYY-MM-DD`) automatically 'dd-MMM-yyyy' aakki dynamically format cheythu.
+>    - `server.py`-il consolidated notification messages and email HTML tables `format_display_date` (`%d-%b-%Y`) vazhi 16-Nov-2026 format-il emit cheyyunnu.
+> 3. **Version Bump & Live Verification**:
+>    - `v1.27.4` (Build 117) compile cheythu device-il (`100.71.241.36:5555`) install aakki live screen capture vazhi verify cheythu macha!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.3 - Build 116):
 > *"Dasa! Gafoorka! Boss requested Swap Shift labeling change across the board:
 > 

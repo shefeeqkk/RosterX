@@ -1667,10 +1667,22 @@ fun QuickNotificationsBottomSheet(
                             else -> Triple("OPERATIONS", Icons.Default.Info, Color(0xFF10B981))
                         }
 
-                        val resolvedMsg = (notif.rawMessage ?: notif.samplePersonalized ?: "")
+                        val rawResolved = (notif.rawMessage ?: notif.samplePersonalized ?: "")
                             .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
                             .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
                             .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+
+                        val dateIsoRegex = Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""")
+                        val resolvedMsg = dateIsoRegex.replace(rawResolved) { m ->
+                            try {
+                                val y = m.groupValues[1].toInt()
+                                val mo = m.groupValues[2].toInt()
+                                val d = m.groupValues[3].toInt()
+                                java.time.LocalDate.of(y, mo, d).format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-yyyy", java.util.Locale.US))
+                            } catch (_: Throwable) {
+                                m.value
+                            }
+                        }
 
                         val formattedMessage = remember(resolvedMsg, engName, engUsername, activeAccent) {
                             buildAnnotatedString {

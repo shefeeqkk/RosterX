@@ -40,7 +40,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.27.3"
+SERVER_VERSION = "1.27.4"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1079,6 +1079,16 @@ def compute_credential_status(last_updated_date_str: str, validity_days: int, al
         "alert_threshold_days": threshold
     }
 
+def format_display_date(date_str):
+    """Format an ISO date string (YYYY-MM-DD) into 'dd-MMM-yyyy' (e.g. 16-Nov-2026)."""
+    if not date_str:
+        return ""
+    try:
+        dt = datetime.strptime(str(date_str).strip(), "%Y-%m-%d")
+        return dt.strftime("%d-%b-%Y")
+    except Exception:
+        return str(date_str)
+
 def get_all_credential_trackers_from_db():
     """Retrieve all credential trackers from Atlas DB or in-memory fallback, computing live status."""
     trackers = []
@@ -1282,7 +1292,7 @@ def check_and_dispatch_credential_alerts(force=False):
             urgency_str = f"EXPIRED {abs(days)} day{'s' if abs(days) > 1 else ''} ago!"
         email_subject = f"⚠️ [ALERT] Credential for {uname}@{sname} {urgency_str}"
         notif_title = f"⚠️ Server Credential Alert: {sname}"
-        notif_message = f"Password for {uname}@{sname} {urgency_str} (Expiry: {t['expiry_date']}). Please update immediately."
+        notif_message = f"Password for {uname}@{sname} {urgency_str} (Expiry: {format_display_date(t['expiry_date'])}). Please update immediately."
         push_title = f"⚠️ Password Expiry: {sname}"
         push_body = f"{uname}@{sname} {urgency_str}. Tap to review."
     else:
@@ -1314,8 +1324,8 @@ def check_and_dispatch_credential_alerts(force=False):
           <td style="padding: 12px 10px; font-weight: 600; color: #0F172A; font-size: 14px;">{t['server_name']}</td>
           <td style="padding: 12px 10px; font-family: monospace; color: #334155; font-size: 13px;">{t['username']}</td>
           <td style="padding: 12px 10px; color: #64748B; font-size: 13px;">{t.get('validity_days', 30)}d</td>
-          <td style="padding: 12px 10px; color: #64748B; font-size: 13px;">{t.get('last_updated_date', '')}</td>
-          <td style="padding: 12px 10px; font-weight: 700; color: {badge_color}; font-size: 13px;">{t['expiry_date']}</td>
+          <td style="padding: 12px 10px; color: #64748B; font-size: 13px;">{format_display_date(t.get('last_updated_date', ''))}</td>
+          <td style="padding: 12px 10px; font-weight: 700; color: {badge_color}; font-size: 13px;">{format_display_date(t['expiry_date'])}</td>
           <td style="padding: 12px 10px; text-align: right;">
             <span style="display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background-color: {badge_bg}; color: {badge_color};">
               {urgency_tag}
@@ -4922,7 +4932,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 if calc_temp["days_remaining"] < 0:
                     self.send_json_response({
                         "success": False,
-                        "message": f"Renewal date '{custom_date}' with validity of {validity_days} days expired on {calc_temp['expiry_date']} ({abs(calc_temp['days_remaining'])} days ago). Please select a date within the active validity window."
+                        "message": f"Renewal date '{format_display_date(custom_date)}' with validity of {validity_days} days expired on {format_display_date(calc_temp['expiry_date'])} ({abs(calc_temp['days_remaining'])} days ago). Please select a date within the active validity window."
                     }, 400)
                     return
 

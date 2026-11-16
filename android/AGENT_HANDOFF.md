@@ -5,6 +5,14 @@
 
 ---
 
+## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.4 - Build 117):
+> *"Dasa! Credential Tracker date format '16-Nov-2026' (dd-MMM-yyyy) format-ilekk poornamaayi update aakki:
+> 1. **Credential Cards & Dialogs**: Server cards ('Updated: 04-Oct-2026', 'Expires: 18-Nov-2026'), quick confirmation modal, Add/Edit dialog, and toast messages ellam 'dd-MMM-yyyy' aakki.
+> 2. **Notifications & Alerts Format Parity**: `QuickNotificationsBottomSheet` and `server.py` email/push notifications 'dd-MMM-yyyy' format-il harmonize cheythu.
+> 3. **Live Verification**: v1.27.4 (Build 117) compile cheythu device-il install cheythu live screen capture vazhi verify cheythu macha!"*
+
+---
+
 ## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.3 - Build 116):
 > *"Dasa! Swap Shift title and description poornamaayi update cheythu macha:
 > 1. **Swap Off & Rest Day Parity**: Team Shifts card-il `ShiftCode.SW` title `Swap Off` aakki, timing subtitle `Rest Day` aakki (Rest / Duty maatti). SWA/SWN peer badge intact aayi nirthi.
