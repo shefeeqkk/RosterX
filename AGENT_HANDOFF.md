@@ -1,7 +1,46 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 20:50 IST** (Target Sprint: **v1.28.2 - Build 121**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 22:45 IST** (Target Sprint: **v1.29.0 - Build 122**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.29.0 - Build 122):
+> *"Vijaya, Dasa! Gafoorka puthiya major UI redesign sprint-nte full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎨 Goal: Complete Neumorphic Form Redesign (Image 2 Parity)
+> User has provided an authentic Neumorphic reference (Image 2) and requested to transform all flat forms across RosterX into sleek, compact Neumorphic forms with mixed dual-column and single-column layouts for minimal/zero scrolling!
+> 
+> ### 📋 Scope of Forms in this Sprint:
+> 1. **Edit Account & Register Engineer Dialog (`ManageTeamTab.kt` & `ProfileComponents.kt`)**:
+>    - Full visual parity with Image 2:
+>    - Header with avatar + camera badge + title + theme toggle.
+>    - Dual-column Row 1: `Full name *` (50%) | `Username *` (50%).
+>    - Single-column Row 2: `Corporate email *` (100% to fit long email strings).
+>    - Dual-column Row 3: `Phone` (50%) | `New password` (50%, with eye toggle).
+>    - Dual-column Row 4: `Join date` (50%) | `Birthday` (50%).
+>    - Single-column Row 5: Segmented Neumorphic role selector (`[Engineer] [Manager] [Admin] [Apprent.]`).
+>    - Action Row: Neumorphic square `[🗑️]` Delete button, `[Cancel]` button, and `[✓ Save changes]` primary button.
+>    - All fields molded with Neumorphic sunken/inset basins (`Modifier.neumorphicInset(...)`). Zero vertical scrolling!
+> 
+> 2. **Login Screen (`LoginScreen.kt`)**:
+>    - Replaced flat Material 3 surface with floating Neumorphic card (`NeumorphicTokens.Surface`).
+>    - Inset Neumorphic inputs for Username & Password (retaining autofill & Google Password Manager).
+>    - Tactile elevated Neumorphic **'Sign In'** button (`neumorphicClickable`).
+>    - Compact vertical layout fitting comfortably on phone screens with zero scrolling.
+> 
+> 3. **Add/Edit Credential Tracker Dialog (`CredentialTrackerScreen.kt`)**:
+>    - Dual-column Row 1: `Server Name *` | `Username *`.
+>    - Dual-column Row 2: `Validity Days *` | `Alert Threshold Days *`.
+>    - Single-column Row 3: `Last Updated Date *` (with calendar picker & 'Today' shortcut).
+>    - Single-column Row 4: `Spokespersons` list.
+>    - Neumorphic Delete, Cancel, and Save actions.
+> 
+> ### 🚀 Assignments:
+> - **Vijayan**: Execute Compose UI overhaul in `plan_vijayan.md`, bump version to `versionName = "1.29.0"`, `versionCode = 122`, execute safe build, and verify on device.
+> - **Dasan**: Sync `SERVER_VERSION = "1.29.0"` in `server.py`.
+> 
+> Vijaya, check `plan_vijayan.md`. Thudangikko!"*
 
 ---
 
