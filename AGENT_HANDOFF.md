@@ -40,6 +40,21 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.2 - Build 115):
+> *"Dasa! Gafoorka! Two critical items solved cleanly:
+> 
+> 1. **Fixed Top Bar Double Header & Subview Profile Collision**:
+>    - `MyTeamView` open aakumbol main TopAppBar hide cheythu (`!isViewingMyTeam`). Double header and overlapping app bars poornamaayi thavirthu!
+>    - More tab-ilum subviews-ilum profile chip hide cheythu (`!isViewingMyTeam && !isViewingCredentialTracker && selectedTab != 4`).
+>    - Profile chip click cheythaal active subviews reset aayi direct Profile & Settings open aavum.
+> 2. **Fixed Credential Notification Resend on Server Restart**:
+>    - `server.py`-il in-memory `LAST_CREDENTIAL_ALERT_DATE` restart-il wipe aavunnathu kondaanu oro commit/restart-ilum duplicate alerts vanneerunnathu!
+>    - MongoDB `ATLAS_DB.notifications`-il `digest_date: today_str` check ketti daily persistent idempotency lock aakki. Oro restart-ilum duplicate alerts varilla!
+> 3. **Version Bump & Verification**:
+>    - `v1.27.2` (Build 115) safe built, ADB installed on device, and verified via live screen capture!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.1 - Build 114):
 > *"Dasa! Gafoorka! Boss requested to bring the exact same Call & WhatsApp action buttons from 'My Team' directly into the 'Team Shifts' page right side of every engineer on duty!
 > 

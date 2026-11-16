@@ -700,7 +700,7 @@ fun EngineerPortalScreen(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
 
-            if (!isFullScreenRoster && !isViewingCredentialTracker) {
+            if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam) {
 
                 TopAppBar(
                 navigationIcon = {
@@ -861,12 +861,14 @@ fun EngineerPortalScreen(
                         }
                     }
 
-                    if (state.loggedInEngineer != null) {
+                    if (state.loggedInEngineer != null && !isViewingMyTeam && !isViewingCredentialTracker && selectedTab != 4) {
                         NeumorphicCard(
                             modifier = Modifier
                                 .padding(end = 12.dp)
                                 .clickable {
                                     previousTab = selectedTab
+                                    isViewingCredentialTracker = false
+                                    isViewingMyTeam = false
                                     isViewingSettings = true
                                 },
                             shape = CircleShape,
@@ -1002,7 +1004,7 @@ fun EngineerPortalScreen(
         Box(modifier = Modifier
             .fillMaxSize()
             .padding(
-                top = if (!isFullScreenRoster && !isViewingCredentialTracker) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
+                top = if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
             )
             .background(NeumorphicTokens.Canvas)
             .nestedScroll(pullRefreshState.nestedScrollConnection)

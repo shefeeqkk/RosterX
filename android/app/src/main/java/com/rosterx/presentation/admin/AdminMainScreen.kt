@@ -165,7 +165,7 @@ fun AdminMainScreen(
                         }
                     },
                     actions = {
-                        if (!isViewingSettings && !isViewingServerManagement) {
+                        if (!isViewingSettings && !isViewingServerManagement && !isViewingCredentialTracker && selectedTab != 4) {
                             if (currentUser != null) {
                                 val displayName = (currentUser!!.fullName?.takeIf { it.isNotBlank() } ?: currentUser!!.name).toProperCase()
                                 val firstName = displayName.split(" ")[0]
@@ -175,6 +175,8 @@ fun AdminMainScreen(
                                         .padding(end = 12.dp)
                                         .clickable {
                                             previousTab = selectedTab
+                                            isViewingCredentialTracker = false
+                                            isViewingServerManagement = false
                                             isViewingSettings = true
                                         },
                                     shape = CircleShape,

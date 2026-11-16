@@ -40,7 +40,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.27.1"
+SERVER_VERSION = "1.27.2"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1199,6 +1199,19 @@ def check_and_dispatch_credential_alerts(force=False):
         log_server("[CREDENTIAL-ALERT] No expiring or recently expired credentials found.")
         return []
 
+    # Database idempotency check: Avoid repeated notifications across server restarts on the same day
+    if not force and ATLAS_DB is not None:
+        try:
+            existing_digest = ATLAS_DB.notifications.find_one({
+                "category": "credential_expiry",
+                "digest_date": today_str
+            })
+            if existing_digest:
+                log_server(f"[CREDENTIAL-ALERT] Credential digest for {today_str} already exists in DB. Skipping duplicate dispatch on restart.")
+                return []
+        except Exception as _ex:
+            log_server(f"[CREDENTIAL-ALERT] Error querying existing credential digest: {_ex}")
+
     trackers_to_alert = []
     for t in alert_trackers:
         tid = t["id"]
@@ -1354,9 +1367,10 @@ def check_and_dispatch_credential_alerts(force=False):
 </html>"""
 
     # 1. In-App Notification (1 consolidated doc)
-    notif_id = f"notif_cred_digest_{int(time.time())}"
+    notif_id = f"notif_cred_digest_{today_str}"
     notif_doc = {
         "id": notif_id,
+        "digest_date": today_str,
         "title": notif_title,
         "raw_message": notif_message,
         "target": "all_admins_and_spokespersons",

@@ -5,6 +5,15 @@
 
 ---
 
+## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.2 - Build 115):
+> *"Dasa! Top bar double header, subview profile chip collision, and server restart-il duplicate credential notification varunnathum 100% fix aakki:
+> 1. **Subview Header Fix**: `isViewingMyTeam` open aakumbol main TopAppBar hide cheythu, double header and Profile chip collision maatti.
+> 2. **More Tab Profile Chip Hide**: More tab-ilum sub-views-ilum Profile chip hide cheythu.
+> 3. **Persistent Credential Alert Idempotency**: `server.py`-il MongoDB-level daily digest check ketti, restarts-il repeat alerts varunnathu thadannju.
+> 4. **Live Verification**: v1.27.2 (Build 115) APK device-il install cheythu live screen capture vazhi verify cheythu macha!"*
+
+---
+
 ## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.1 - Build 114):
 > *"Dasa! Team Shifts page-il oro engineer-nte row-nte right side-ilum 'My Team' tab-ilulla pole thanne Direct Call and authentic WhatsApp action buttons paka aayi ketti!
 > 1. **Team Shifts Action Buttons**: Row-il Avatar-um Name-um kazhinju right side-il 34.dp emerald Call & WhatsApp buttons align cheythu. Native `ACTION_DIAL` and `https://wa.me/` direct launch cheyyum.
