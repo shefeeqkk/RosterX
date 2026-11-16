@@ -1,35 +1,36 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 17:45 IST** (Target Sprint: **v1.28.0 - Build 119**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 19:15 IST** (Target Sprint: **v1.28.0 - Build 119**)
 
 ---
 
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.28.0 - Build 119):
-> *"Dasa, Vijaya! Gafoorka nammude team celebrations (Birthdays & Work Anniversaries) delivery engine-nte full diagnosis nadathi, blueprint lock aakki vechittundu.
+> *"Dasa, Vijaya! Gafoorka user ayacha screenshots inspect cheythu, bug-inte root cause 100% catch cheythu macha!
 > 
-> ### 🔍 Why Team Members & Manager Were Not Getting Celebrations:
-> 1. **Fatal `NameError: name 'random' is not defined` in `server.py`**:
->    - `server.py` line ~982-il celebration notification create cheyyumbol `random.randint(...)` call cheythappol `random` import illathathinaal instant crash aayi! Caught by silent `except Exception:`, so MongoDB notification insert aayilla, FCM push ayanjilla!
-> 2. **Brittle Date Matching**:
->    - `check_and_trigger_celebrations` checked `bday_raw.endswith("-MM-DD")` or `bday_raw[-5:] == MM-DD`. Database-ilo profile edit-ilo `DD-MM-YYYY` (e.g. `16-11-1995`) aayi enter cheythaal `-1995` != `11-16` aayi completely drop aayirunnu!
-> 3. **Client UI Never Evaluated Teammates**:
->    - `EngineerPortalScreen.kt` line 613-il celebration check ONLY evaluated `state.loggedInEngineer` (the user's own profile). Teammates-nte celebrations check cheyithirunnilla!
->    - `AdminMainScreen.kt`-il manager/admin-kk celebration card or detection thanne illayirunnu!
+> ### 🔍 Exactly Why Shefeeq Got "Happy Birthday Shefeeq" When Clicking Nandu's Anniversary:
+> 1. In `ProfileComponents.kt` (`QuickNotificationsBottomSheet`), when "Tap to open wishes ✨" was tapped, it called `onOpenCelebrationWishes()` with **NO parameters**!
+> 2. In `EngineerPortalScreen.kt`, that callback simply set `showCelebrationDialog = true`.
+> 3. `CelebrationWishesDialog` invocation **hardcoded** `userName = state.loggedInEngineer!!` (Shefeeq K K), and used `activeCelebrationType` which defaulted to `CelebrationType.BIRTHDAY`!
+> 4. It completely ignored the notification that was clicked! It treated every celebration as if the logged-in user themselves was celebrating a birthday!
+> 5. Furthermore, teammates must receive celebration notifications and dialogs in **3rd Person** (celebrating the colleague), with direct **"Wish on WhatsApp"** and **"Call"** actions!
 > 
 > ### 🛠️ The Architecture & Assignments:
 > 1. **Dasan (Backend)**:
 >    - Add missing `import random` in `server.py`.
->    - Implement robust `parse_celebration_date()` handling `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YYYY`, `MM-DD`, `DD-MM`.
->    - Overhaul `check_and_trigger_celebrations()` to broadcast high-priority in-app and FCM push to `all_fcm_tokens`.
->    - Add dedicated endpoint `GET /api/celebrations/today` returning today's active team celebrations with unmasked phone numbers and personalized greeting templates.
+>    - Fix grammar bug in anniversary text: replace `"completing 2nd with our team"` with `"completing 2 years of operational excellence with our team"`.
+>    - Deliver team broadcast in 3rd person: `"Today {full_name} completes {yr_label} with our team! Join us in celebrating this milestone and send your warm congratulations! 🥂🎊✨"`.
+>    - Include `celebration_phone` in notification payload so client can trigger WhatsApp/Call.
+>    - Dedicated endpoint `GET /api/celebrations/today`.
+>    - Patch existing notification in MongoDB for `nandua` with 3rd-person text & phone number.
 >    - Bump `SERVER_VERSION = "1.28.0"`.
 > 2. **Vijayan (Compose UI)**:
->    - Integrate `GET /api/celebrations/today` in `RosterApiService` and `EngineerPortalViewModel`.
->    - Build `TeamCelebrationCard.kt`: Festive Neumorphic banner on top of Home dashboard for both Engineer Portal and Admin/Manager Portal.
->    - Actions: Direct **"Wish on WhatsApp"** button (launches pre-filled greeting message via WhatsApp) and **"Call"** button (launches phone dialer).
->    - Dismiss option with local cache (`seen_team_celeb_${username}_${todayStr}`) so user isn't prompted repeatedly.
->    - Bump version to `versionName = "1.28.0"`, `versionCode = 119`, and execute safe build (`safe_build.bat assembleDebug`).
+>    - Enhance `CelebrationWishesDialog.kt` to support `isSelf: Boolean` (1st person vs 3rd person colleague milestone).
+>    - For teammates (`!isSelf`): Displays colleague's name, trophy/cake badge, 3rd-person congratulatory text, **"🎉 Wish on WhatsApp"** button (`R.drawable.ic_whatsapp`, `#25D366`), and **"Call"** button!
+   - **No Sender Signature Rule**: In pre-filled WhatsApp wishes for both birthdays and anniversaries, do NOT append `"- From [Name]"` or `"- From RosterX"`. Keep it direct, personal, and clean (e.g. `"Happy 2nd Work Anniversary Nandu! 🏆✨ Congratulations on completing 2 years with our team!"`).
+>    - Update `QuickNotificationsBottomSheet`: pass `celebrationType`, `celebrantUser`, `celebrantName`, `celebrantYears`, and `celebrantPhone` to `onOpenCelebrationWishes(...)`.
+>    - In `EngineerPortalScreen.kt`: wire up target celebrant state and pass into `CelebrationWishesDialog`.
+>    - Version bump to `versionName = "1.28.0"`, `versionCode = 119`, and safe build (`cd android && .\safe_build.bat assembleDebug`).
 > 
 > Dasan and Vijayan: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
@@ -43,6 +44,24 @@
 > 4. **Android Client DTO Parity**: `RosterApiService.kt`-il `TodayCelebrationDto`, `TodayCelebrationsResponse`, and `getTodayCelebrations()` function add cheythu type-safe aakki vechittundu.
 > 5. **Version Bump**: `SERVER_VERSION = "1.28.0"`, `versionCode = 119`, `versionName = "1.28.0"`.
 > Vijaya, backend engine celebration green signal thannu kazhinju! Ini ninakku `TeamCelebrationCard.kt` Neumorphic festive banner Home dashboard-il kettam, WhatsApp and Direct Call buttons configure cheyyaam, and safe build adikkaam!"*
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.28.1 - Build 120):
+> *"Dasa! Nandu-nte anniversary notification click cheythal Shefeeq-nte birthday wishes varunna bug-um, 3rd person wishing experience-um full aayi Vijayan set aakki macha! 🎂🏆
+> 1. **`CelebrationWishesDialog.kt` 3rd Person Overhaul**:
+>    - Differentiated between `isSelf == true` (Self celebration: "Thank You! 🙏") and `isSelf == false` (Teammate celebration).
+>    - Full Name rendered prominently (e.g., *"Happy 2nd Work Anniversary, Nandu Anthikat! 🏆"*).
+>    - Body message honors colleague milestone with celebratory wording.
+>    - Side-by-side action row: Prominent **'Wish on WhatsApp'** button (`#25D366` + `ic_whatsapp`) with clean greeting (NO redundant `- From RosterX` signature) + compact direct **'Call'** button (`#10B981` + `Icons.Default.Phone`) + Close button.
+> 2. **Notifications Wiring (`ProfileComponents.kt` & `EngineerPortalScreen.kt`)**:
+>    - `QuickNotificationsBottomSheet` passes `celebrationType`, `celebrationUser`, `celebrationName`, `celebrationYears`, and `celebrationPhone` from the notification DTO to the portal screen.
+>    - Colleague's milestone opens directly with their details, phone number, and personalized pre-filled greeting.
+> 3. **Version Bump & Build**:
+>    - `SERVER_VERSION = "1.28.1"`
+>    - `versionName = "1.28.1"`, `versionCode = 120`
+>    - Safe build succeeded in 3m 7s with zero errors and streamed to live device `100.71.241.36:5555`!
+> Work completed and verified!"*
 
 ---
 

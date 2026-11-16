@@ -47,6 +47,24 @@
 
 ---
 
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.28.1 - Build 120):
+> *"Dasa! Nandu-nte anniversary notification click cheythal Shefeeq-nte birthday wishes varunna bug-um, 3rd person wishing experience-um full aayi Vijayan set aakki macha! 🎂🏆
+> 1. **`CelebrationWishesDialog.kt` 3rd Person Overhaul**:
+>    - Differentiated between `isSelf == true` (Self celebration: "Thank You! 🙏") and `isSelf == false` (Teammate celebration).
+>    - Full Name rendered prominently (e.g., *"Happy 2nd Work Anniversary, Nandu Anthikat! 🏆"*).
+>    - Body message honors colleague milestone with celebratory wording.
+>    - Side-by-side action row: Prominent **'Wish on WhatsApp'** button (`#25D366` + `ic_whatsapp`) with clean greeting (NO redundant `- From RosterX` signature) + compact direct **'Call'** button (`#10B981` + `Icons.Default.Phone`) + Close button.
+> 2. **Notifications Wiring (`ProfileComponents.kt` & `EngineerPortalScreen.kt`)**:
+>    - `QuickNotificationsBottomSheet` passes `celebrationType`, `celebrationUser`, `celebrationName`, `celebrationYears`, and `celebrationPhone` from the notification DTO to the portal screen.
+>    - Colleague's milestone opens directly with their details, phone number, and personalized pre-filled greeting.
+> 3. **Version Bump & Build**:
+>    - `SERVER_VERSION = "1.28.1"`
+>    - `versionName = "1.28.1"`, `versionCode = 120`
+>    - Safe build succeeded in 3m 7s with zero errors and streamed to live device `100.71.241.36:5555`!
+> Work completed and verified!"*
+
+---
+
 ## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.28.0 - Build 119):
 > *"Dasa! Ninte backend celebration engine-nte koode client UI festive aayi njan set aakki macha! 🎂🏆
 > 1. **`TeamCelebrationCard.kt` Crafted**:

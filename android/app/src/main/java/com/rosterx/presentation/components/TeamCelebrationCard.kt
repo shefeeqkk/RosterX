@@ -177,9 +177,9 @@ fun TeamCelebrationCard(
                 Button(
                     onClick = {
                         val defaultGreeting = when (celebration.type) {
-                            "both" -> "Happy Birthday & Happy ${celebration.years} Year Work Anniversary, ${celebration.name}! 🎉🎂🏆 Wishing you immense happiness and continued success! - From RosterX"
-                            "birthday" -> "Happy Birthday, ${celebration.name}! 🎉🎂 Wishing you an amazing year ahead filled with joy and success! - From RosterX"
-                            else -> "Happy ${celebration.years} Year Work Anniversary, ${celebration.name}! 🏆✨ Congratulations on this milestone and thank you for being an amazing colleague! - From RosterX"
+                            "both" -> "Happy Birthday and Happy ${celebration.years} Year Work Anniversary, ${celebration.name}! 🎂🏆 Wishing you the very best!"
+                            "birthday" -> "Happy Birthday, ${celebration.name}! 🎉🎂 Wishing you a fantastic year ahead filled with joy and success!"
+                            else -> "Happy ${celebration.years} Year Work Anniversary, ${celebration.name}! 🏆✨ Congratulations on this milestone!"
                         }
                         val greeting = if (celebration.greetingText.isNotBlank()) celebration.greetingText else defaultGreeting
                         val encodedMsg = Uri.encode(greeting)

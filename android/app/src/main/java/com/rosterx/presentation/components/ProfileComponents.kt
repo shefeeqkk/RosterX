@@ -1440,7 +1440,14 @@ fun QuickNotificationsBottomSheet(
     onDismissNotification: (String) -> Unit,
     onClearAllNotifications: () -> Unit,
     loggedInEngineer: com.rosterx.domain.model.Engineer? = null,
-    onOpenCelebrationWishes: () -> Unit = {},
+    engineers: List<com.rosterx.domain.model.Engineer> = emptyList(),
+    onOpenCelebrationWishes: (
+        celebrationType: CelebrationType,
+        celebrantUser: String,
+        celebrantName: String,
+        anniversaryYears: Int,
+        celebrantPhone: String?
+    ) -> Unit = { _, _, _, _, _ -> },
     onNavigateToCredentialTracker: (() -> Unit)? = null,
     onNavigateToMonthRoster: (() -> Unit)? = null
 ) {
@@ -1773,7 +1780,24 @@ fun QuickNotificationsBottomSheet(
                                             }
                                             onDismiss()
                                             if (isCelebrationNotif) {
-                                                onOpenCelebrationWishes()
+                                                val cType = when (notif.celebrationType?.lowercase()) {
+                                                    "both" -> CelebrationType.BOTH
+                                                    "anniversary" -> CelebrationType.ANNIVERSARY
+                                                    else -> {
+                                                        if (notif.title?.contains("Anniversary", ignoreCase = true) == true ||
+                                                            notif.rawMessage?.contains("Anniversary", ignoreCase = true) == true
+                                                        ) CelebrationType.ANNIVERSARY else CelebrationType.BIRTHDAY
+                                                    }
+                                                }
+                                                val cUser = notif.celebrationUser.orEmpty()
+                                                val engObj = engineers.find { it.username.equals(cUser, ignoreCase = true) }
+                                                val cName = notif.celebrationName?.takeIf { it.isNotBlank() }
+                                                    ?: engObj?.fullName?.takeIf { it.isNotBlank() }
+                                                    ?: engObj?.name?.takeIf { it.isNotBlank() }
+                                                    ?: cUser
+                                                val cYears = notif.celebrationYears ?: 1
+                                                val cPhone = notif.celebrationPhone?.takeIf { it.isNotBlank() } ?: engObj?.phone
+                                                onOpenCelebrationWishes(cType, cUser, cName, cYears, cPhone)
                                             } else if (isCredentialAlert && onNavigateToCredentialTracker != null) {
                                                 onNavigateToCredentialTracker()
                                             } else if (isRosterAlert && onNavigateToMonthRoster != null) {

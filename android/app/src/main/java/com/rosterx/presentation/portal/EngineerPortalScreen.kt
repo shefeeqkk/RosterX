@@ -588,6 +588,12 @@ fun EngineerPortalScreen(
     var showCelebrationDialog by rememberSaveable { mutableStateOf(false) }
     var activeCelebrationType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
     var activeCelebrationYears by rememberSaveable { mutableIntStateOf(1) }
+    var celebrationDialogTargetUser by rememberSaveable { mutableStateOf("") }
+    var celebrationDialogTargetName by rememberSaveable { mutableStateOf("") }
+    var celebrationDialogType by rememberSaveable { mutableStateOf(CelebrationType.BIRTHDAY) }
+    var celebrationDialogYears by rememberSaveable { mutableIntStateOf(1) }
+    var celebrationDialogPhone by rememberSaveable { mutableStateOf("") }
+    var isCelebrationSelf by rememberSaveable { mutableStateOf(true) }
 
     BackHandler(enabled = isViewingCredentialTracker || isViewingMyTeam || isViewingSettings) {
         if (isViewingCredentialTracker) {
@@ -650,6 +656,13 @@ fun EngineerPortalScreen(
                 activeCelebrationType = CelebrationType.ANNIVERSARY
                 activeCelebrationYears = years
             }
+            val properName = (eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name).toProperCase()
+            celebrationDialogTargetUser = uname
+            celebrationDialogTargetName = properName
+            celebrationDialogType = activeCelebrationType
+            celebrationDialogYears = activeCelebrationYears
+            celebrationDialogPhone = eng.phone.orEmpty()
+            isCelebrationSelf = true
             if (!alreadySeen) {
                 showCelebrationDialog = true
             }
@@ -1042,6 +1055,19 @@ fun EngineerPortalScreen(
 
             } else {
 
+                val openSelfCelebration = {
+                    val eng = state.loggedInEngineer
+                    val myUname = eng?.username?.ifBlank { eng.email.substringBefore("@") }.orEmpty()
+                    val myName = (eng?.fullName?.takeIf { it.isNotBlank() } ?: eng?.name.orEmpty()).toProperCase()
+                    celebrationDialogTargetUser = myUname
+                    celebrationDialogTargetName = myName
+                    celebrationDialogType = activeCelebrationType
+                    celebrationDialogYears = activeCelebrationYears
+                    celebrationDialogPhone = eng?.phone.orEmpty()
+                    isCelebrationSelf = true
+                    showCelebrationDialog = true
+                }
+
                 val activeSubView = if (isViewingCredentialTracker) 1 else if (isViewingMyTeam) 2 else if (isViewingSettings) 3 else 0
 
                 AnimatedContent(
@@ -1079,7 +1105,7 @@ fun EngineerPortalScreen(
                             onTestConnection = viewModel::checkConnection,
                             onSetThemeMode = viewModel::setThemeMode,
                             onSetThemePalette = viewModel::setThemePaletteId,
-                            onOpenCelebrationWishes = { showCelebrationDialog = true }
+                            onOpenCelebrationWishes = openSelfCelebration
                         )
                     } else {
                         AnimatedContent(
@@ -1102,7 +1128,7 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onOpenCelebrationWishes = openSelfCelebration,
                                         onDismissCelebration = viewModel::dismissCelebration
                                     )
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
@@ -1133,7 +1159,7 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onOpenCelebrationWishes = openSelfCelebration,
                                         onDismissCelebration = viewModel::dismissCelebration
                                     )
                                 }
@@ -1144,7 +1170,7 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onOpenCelebrationWishes = openSelfCelebration,
                                         onDismissCelebration = viewModel::dismissCelebration
                                     )
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
@@ -1161,7 +1187,7 @@ fun EngineerPortalScreen(
                                         onDismissNotification = viewModel::dismissNotification,
                                         onClearAllNotifications = viewModel::clearAllNotifications,
                                         onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                        onOpenCelebrationWishes = { showCelebrationDialog = true },
+                                        onOpenCelebrationWishes = openSelfCelebration,
                                         onDismissCelebration = viewModel::dismissCelebration
                                     )
                                 }
@@ -1241,8 +1267,16 @@ fun EngineerPortalScreen(
             onDismissNotification = viewModel::dismissNotification,
             onClearAllNotifications = viewModel::clearAllNotifications,
             loggedInEngineer = state.loggedInEngineer,
-            onOpenCelebrationWishes = {
+            engineers = state.engineers,
+            onOpenCelebrationWishes = { type, user, name, years, phone ->
                 showQuickNotificationsSheet = false
+                celebrationDialogTargetUser = user
+                celebrationDialogTargetName = name
+                celebrationDialogType = type
+                celebrationDialogYears = years
+                celebrationDialogPhone = phone.orEmpty()
+                val myUname = state.loggedInEngineer?.username.orEmpty()
+                isCelebrationSelf = user.isNotBlank() && user.equals(myUname, ignoreCase = true)
                 showCelebrationDialog = true
             },
             onNavigateToCredentialTracker = {
@@ -1261,19 +1295,27 @@ fun EngineerPortalScreen(
         )
     }
 
-    if (showCelebrationDialog && state.loggedInEngineer != null) {
-        val eng = state.loggedInEngineer!!
-        val properName = (eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name).toProperCase()
+    if (showCelebrationDialog) {
+        val eng = state.loggedInEngineer
+        val targetName = celebrationDialogTargetName.ifBlank {
+            (eng?.fullName?.takeIf { it.isNotBlank() } ?: eng?.name ?: "Engineer").toProperCase()
+        }
+        val targetUser = celebrationDialogTargetUser.ifBlank {
+            eng?.username.orEmpty()
+        }
         CelebrationWishesDialog(
             show = showCelebrationDialog,
-            celebrationType = activeCelebrationType,
-            userName = properName,
-            anniversaryYears = activeCelebrationYears,
+            celebrationType = celebrationDialogType,
+            userName = targetName,
+            anniversaryYears = celebrationDialogYears,
+            isSelf = isCelebrationSelf,
+            celebrantPhone = celebrationDialogPhone,
             onDismiss = {
-                val todayStr = LocalDate.now().toString()
-                val uname = eng.username.ifBlank { eng.email.substringBefore("@") }
-                val prefs = portalContext.getSharedPreferences("rosterx_celebrations", android.content.Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("seen_${uname}_${todayStr}", true).apply()
+                if (targetUser.isNotBlank()) {
+                    val todayStr = LocalDate.now().toString()
+                    val prefs = portalContext.getSharedPreferences("rosterx_celebrations", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().putBoolean("seen_${targetUser}_${todayStr}", true).apply()
+                }
                 showCelebrationDialog = false
             }
         )
