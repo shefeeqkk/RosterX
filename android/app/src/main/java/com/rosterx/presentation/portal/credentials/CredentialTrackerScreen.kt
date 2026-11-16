@@ -29,6 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.rosterx.presentation.components.NeumorphicFormInput
 import com.rosterx.data.remote.CredentialTrackerDto
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
@@ -1077,127 +1080,187 @@ fun AddEditCredentialTrackerDialog(
         }
     }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = if (existingTracker == null) "Add Credential Tracker" else "Edit Credential Tracker",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-        },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .padding(vertical = 12.dp)
+                .neumorphicFloating(shape = RoundedCornerShape(24.dp))
+                .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
+                .padding(horizontal = 18.dp, vertical = 16.dp)
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Server Name with Auto-Suggest Chips
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedTextField(
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VpnKey,
+                            contentDescription = null,
+                            tint = NeumorphicTokens.AccentSalmon,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (existingTracker == null) "Add Credential Tracker" else "Edit Credential Tracker",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 17.sp,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Text(
+                            text = if (existingTracker == null) "Schedule expiration alarms and alert team" else "${serverName.ifBlank { "Server" }} • ${username.ifBlank { "Account" }}",
+                            fontSize = 11.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // Close Button
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .neumorphicRaised(shape = RoundedCornerShape(10.dp))
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = NeumorphicTokens.TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Row 1 (Dual-Column 50/50): Server Name * | Username / Account *
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    NeumorphicFormInput(
                         value = serverName,
                         onValueChange = { serverName = it },
-                        label = { Text("Server / Service Name") },
-                        placeholder = { Text("e.g. prod-db-01, jump-host-02") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        label = "Server / Service *",
+                        placeholder = "e.g. prod-db-01",
+                        modifier = Modifier.weight(1f)
                     )
-                    if (matchingServers.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text("Suggested:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted, modifier = Modifier.align(Alignment.CenterVertically))
-                            matchingServers.forEach { sug ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.35f)),
-                                    modifier = Modifier.clickable { serverName = sug }
-                                ) {
-                                    Text(
-                                        text = sug,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = NeumorphicTokens.AccentSalmon,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
 
-                // Username / Account with Auto-Suggest Chips
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedTextField(
+                    NeumorphicFormInput(
                         value = username,
                         onValueChange = { username = it },
-                        label = { Text("Username / Account Name") },
-                        placeholder = { Text("e.g. root, svc_analytics, admin") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        label = "Username / Account *",
+                        placeholder = "e.g. root",
+                        modifier = Modifier.weight(1f)
                     )
-                    if (matchingUsernames.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text("Suggested:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted, modifier = Modifier.align(Alignment.CenterVertically))
-                            matchingUsernames.forEach { sug ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.35f)),
-                                    modifier = Modifier.clickable { username = sug }
-                                ) {
-                                    Text(
-                                        text = sug,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = NeumorphicTokens.AccentSalmon,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    )
-                                }
+                }
+
+                // Suggestions for Server and Username (if any)
+                if (matchingServers.isNotEmpty() || matchingUsernames.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Suggested:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
+                        matchingServers.forEach { sug ->
+                            Box(
+                                modifier = Modifier
+                                    .neumorphicInset(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                    .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
+                                    .clickable { serverName = sug }
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(text = sug, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.AccentSalmon)
+                            }
+                        }
+                        matchingUsernames.forEach { sug ->
+                            Box(
+                                modifier = Modifier
+                                    .neumorphicInset(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                    .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
+                                    .clickable { username = sug }
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(text = "@$sug", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.AccentSalmon)
                             }
                         }
                     }
                 }
 
-                // Last Updated Date (DatePicker field + Today quick button)
+                // Row 2 (Dual-Column 50/50): Validity Cycle (Days) * | Alert Threshold (Days)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    NeumorphicFormInput(
+                        value = customValidityInput,
+                        onValueChange = {
+                            customValidityInput = it
+                            val parsed = it.toIntOrNull()
+                            if (parsed != null && parsed > 0) {
+                                validityDays = parsed
+                            }
+                        },
+                        label = "Validity (days) *",
+                        placeholder = "e.g. 45",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (isManagerOrAdmin) {
+                        NeumorphicFormInput(
+                            value = alertThresholdInput,
+                            onValueChange = { alertThresholdInput = it },
+                            label = "Alert threshold (days)",
+                            placeholder = "e.g. 5",
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+
+                // Row 3 (Single-Column 100%): Last Updated Date * (with calendar picker & 'Today' button)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Last Updated Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                    Text("Last updated date *", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMuted)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = NeumorphicTokens.Canvas,
-                            border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.25f)),
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
+                                .neumorphicInset(shape = RoundedCornerShape(12.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
                                 .clickable { showDatePicker = true }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.CenterStart
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = "Pick Date",
-                                    tint = NeumorphicTokens.AccentSalmon,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp))
                                 Text(
                                     text = formatCredentialDate(lastUpdatedDate),
                                     fontSize = 13.sp,
@@ -1207,95 +1270,56 @@ fun AddEditCredentialTrackerDialog(
                             }
                         }
 
-                        Button(
-                            onClick = { lastUpdatedDate = LocalDate.now().toString() },
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f))
+                        Box(
+                            modifier = Modifier
+                                .neumorphicRaised(shape = RoundedCornerShape(10.dp))
+                                .clickable { lastUpdatedDate = LocalDate.now().toString() }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text("Today", color = NeumorphicTokens.AccentSalmon, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                // Validity Cycle (Days) - Clean Manual Number Input
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Validity Cycle (Days):", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
-                    OutlinedTextField(
-                        value = customValidityInput,
-                        onValueChange = {
-                            customValidityInput = it
-                            val parsed = it.toIntOrNull()
-                            if (parsed != null && parsed > 0) {
-                                validityDays = parsed
-                            }
-                        },
-                        placeholder = { Text("e.g. 30, 45, 60, 90") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                // Expiry & Alarming summary banner
+                val expiryLocalDate = remember(lastUpdatedDate, validityDays) {
+                    try {
+                        LocalDate.parse(lastUpdatedDate).plusDays(validityDays.toLong())
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
+                val thresholdVal = alertThresholdInput.toIntOrNull() ?: 5
+                val alarmStartDate = expiryLocalDate?.minusDays(thresholdVal.toLong())
 
-                // Manager/Admin Alert Threshold Setting
-                if (isManagerOrAdmin) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Alert Threshold (Days before expiry):", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
-                        OutlinedTextField(
-                            value = alertThresholdInput,
-                            onValueChange = { alertThresholdInput = it },
-                            placeholder = { Text("e.g. 5") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        val expiryLocalDate = remember(lastUpdatedDate, validityDays) {
-                            try {
-                                LocalDate.parse(lastUpdatedDate).plusDays(validityDays.toLong())
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-                        val thresholdVal = alertThresholdInput.toIntOrNull() ?: 5
-                        val alarmStartDate = expiryLocalDate?.minusDays(thresholdVal.toLong())
-
-                        if (alarmStartDate != null) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFF59E0B).copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.NotificationsActive,
-                                        contentDescription = null,
-                                        tint = Color(0xFFD97706),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    val formattedAlarmDate = alarmStartDate?.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.US)) ?: alarmStartDate.toString()
-                                    Text(
-                                        text = "Alarming begins on: $formattedAlarmDate ($thresholdVal days before expiry)",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFD97706)
-                                    )
-                                }
-                            }
+                if (alarmStartDate != null && expiryLocalDate != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .neumorphicInset(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 7.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(14.dp))
+                            val formattedExpiry = expiryLocalDate.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.US))
+                            val formattedAlarm = alarmStartDate.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.US))
+                            Text(
+                                text = "Expires: $formattedExpiry • Alarm starts: $formattedAlarm",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFD97706)
+                            )
                         }
                     }
                 }
 
-                // Designated Spokespersons (Email Alerts)
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Designated Spokespersons (9 AM Alerts):", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                // Row 4: Designated Spokespersons
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Designated spokespersons (9 AM alerts)", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMuted)
 
-                    // Selected Spokesperson Chips
+                    // Chips
                     if (spokespersons.isNotEmpty()) {
                         Row(
                             modifier = Modifier
@@ -1304,31 +1328,21 @@ fun AddEditCredentialTrackerDialog(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             spokespersons.forEach { email ->
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
-                                    border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.4f))
+                                Box(
+                                    modifier = Modifier
+                                        .neumorphicInset(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                        .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(
-                                            text = email,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = NeumorphicTokens.TextMain
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(text = email, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMain)
                                         Icon(
                                             Icons.Default.Close,
                                             contentDescription = "Remove",
                                             tint = NeumorphicTokens.TextMuted,
                                             modifier = Modifier
-                                                .size(14.dp)
-                                                .clickable {
-                                                    spokespersons = spokespersons.filter { it != email }
-                                                }
+                                                .size(13.dp)
+                                                .clickable { spokespersons = spokespersons.filter { it != email } }
                                         )
                                     }
                                 }
@@ -1336,101 +1350,121 @@ fun AddEditCredentialTrackerDialog(
                         }
                     }
 
-                    // Teammates Dropdown / Quick Add from Roster
+                    // Add teammate quick chips
                     if (availableEngineers.isNotEmpty()) {
-                        Text("Add Teammate as Spokesperson:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            availableEngineers.take(8).forEach { eng ->
+                            Text("+ Teammate:", fontSize = 10.sp, color = NeumorphicTokens.TextMuted)
+                            availableEngineers.take(6).forEach { eng ->
                                 val engEmail = eng.email.trim().lowercase()
                                 val engName = eng.name.ifBlank { eng.username }
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = NeumorphicTokens.Surface,
-                                    border = BorderStroke(1.dp, NeumorphicTokens.TextMuted.copy(alpha = 0.2f)),
-                                    modifier = Modifier.clickable {
-                                        if (engEmail !in spokespersons) {
-                                            spokespersons = spokespersons + engEmail
+                                Box(
+                                    modifier = Modifier
+                                        .neumorphicRaised(shape = RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            if (engEmail !in spokespersons) {
+                                                spokespersons = spokespersons + engEmail
+                                            }
                                         }
-                                    }
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Add,
-                                            contentDescription = null,
-                                            tint = NeumorphicTokens.AccentSalmon,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = engName,
-                                            fontSize = 11.sp,
-                                            color = NeumorphicTokens.TextMain,
-                                            fontWeight = FontWeight.Medium
-                                        )
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(11.dp))
+                                        Text(text = engName, fontSize = 10.5.sp, fontWeight = FontWeight.Medium, color = NeumorphicTokens.TextMain)
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Custom Email Input
+                    // Custom external email input
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        OutlinedTextField(
+                        NeumorphicFormInput(
                             value = customEmailInput,
                             onValueChange = { customEmailInput = it },
-                            placeholder = { Text("Add custom external email...", fontSize = 12.sp) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            label = "",
+                            placeholder = "Add custom external email...",
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email),
                             modifier = Modifier.weight(1f)
                         )
-                        Button(
-                            onClick = {
-                                val clean = customEmailInput.trim().lowercase()
-                                if (clean.isNotBlank() && clean !in spokespersons) {
-                                    spokespersons = spokespersons + clean
-                                    customEmailInput = ""
+                        Box(
+                            modifier = Modifier
+                                .neumorphicRaised(shape = RoundedCornerShape(10.dp))
+                                .background(
+                                    if (customEmailInput.contains("@")) NeumorphicTokens.AccentSalmon else NeumorphicTokens.AccentSalmon.copy(alpha = 0.4f),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .clickable(enabled = customEmailInput.contains("@")) {
+                                    val clean = customEmailInput.trim().lowercase()
+                                    if (clean.isNotBlank() && clean !in spokespersons) {
+                                        spokespersons = spokespersons + clean
+                                        customEmailInput = ""
+                                    }
                                 }
-                            },
-                            enabled = customEmailInput.contains("@"),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon)
+                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("Add")
+                            Text("Add", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+
+                // Action Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                            .clickable { onDismiss() }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Cancel", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMuted)
+                    }
+
+                    val canSave = serverName.isNotBlank() && username.isNotBlank() && lastUpdatedDate.isNotBlank()
+                    Box(
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                            .background(
+                                if (canSave) NeumorphicTokens.AccentSalmon else NeumorphicTokens.AccentSalmon.copy(alpha = 0.4f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable(enabled = canSave) {
+                                val alertDays = if (isManagerOrAdmin) alertThresholdInput.toIntOrNull() ?: 5 else null
+                                onSave(serverName, username, lastUpdatedDate, validityDays, spokespersons, alertDays)
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Text(
+                                text = if (existingTracker == null) "Create Tracker" else "Save Tracker",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val alertDays = if (isManagerOrAdmin) alertThresholdInput.toIntOrNull() ?: 5 else null
-                    onSave(serverName, username, lastUpdatedDate, validityDays, spokespersons, alertDays)
-                },
-                enabled = serverName.isNotBlank() && username.isNotBlank() && lastUpdatedDate.isNotBlank(),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon)
-            ) {
-                Text(if (existingTracker == null) "Create Tracker" else "Save Changes", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
         }
-    )
+    }
 }

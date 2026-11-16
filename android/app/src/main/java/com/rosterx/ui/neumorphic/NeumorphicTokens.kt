@@ -165,28 +165,28 @@ object NeumorphicTokens {
 
     val ElevationInset: ElevationSpec
         @Composable get() = ElevationSpec(
-            offsetX = 4.dp,
-            offsetY = 4.dp,
-            blurRadius = 8.dp,
-            darkShadow = ShadowDark,
-            lightShadow = ShadowLight
+            offsetX = 3.dp,
+            offsetY = 3.dp,
+            blurRadius = 6.dp,
+            darkShadow = if (LocalIsDarkTheme.current) DarkShadowDark else Color(0x3894A3B8),
+            lightShadow = if (LocalIsDarkTheme.current) Color(0x14FFFFFF) else Color(0x33FFFFFF)
         )
 
     val ElevationInsetSubtle: ElevationSpec
         @Composable get() = ElevationSpec(
             offsetX = 2.dp,
             offsetY = 2.dp,
-            blurRadius = 5.dp,
-            darkShadow = ShadowDark,
-            lightShadow = ShadowLight
+            blurRadius = 4.dp,
+            darkShadow = if (LocalIsDarkTheme.current) Color(0x990B1120) else Color(0x2894A3B8),
+            lightShadow = if (LocalIsDarkTheme.current) Color(0x0FFFFFFF) else Color(0x26FFFFFF)
         )
 
     val ElevationFloating: ElevationSpec
         @Composable get() = ElevationSpec(
-            offsetX = 14.dp,
-            offsetY = 14.dp,
-            blurRadius = 28.dp,
-            darkShadow = ShadowDark,
-            lightShadow = ShadowLight
+            offsetX = 0.dp,
+            offsetY = 12.dp,
+            blurRadius = 24.dp,
+            darkShadow = if (LocalIsDarkTheme.current) Color(0xDD020617) else Color(0x380F172A),
+            lightShadow = Color.Transparent
         )
 }

@@ -37,6 +37,15 @@ import com.rosterx.presentation.components.compressImageUriToBase64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import android.app.DatePickerDialog
+import java.util.Calendar
+import java.util.Locale
+import com.rosterx.presentation.components.NeumorphicFormInput
+import com.rosterx.ui.neumorphic.neumorphicRaised
+import com.rosterx.ui.neumorphic.neumorphicInset
+import com.rosterx.ui.neumorphic.neumorphicFloating
 import com.rosterx.ui.neumorphic.NeumorphicTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,6 +95,8 @@ fun ManageTeamTab(
         var phoneInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.phone ?: "") }
         var passwordInput by remember(editingEngineer) { mutableStateOf("") }
         var passwordVisible by remember { mutableStateOf(false) }
+        var joinDateInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.joinDate ?: "2026-01-01") }
+        var birthdayInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.birthday ?: "") }
         var roleInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.role ?: EngineerRole.ENGINEER) }
         var statusInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.status ?: EngineerStatus.ACTIVE) }
         var profilePictureInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.profilePicture) }
@@ -105,144 +116,159 @@ fun ManageTeamTab(
             }
         }
 
-        AlertDialog(
+        fun openDatePicker(initialDate: String, onSelect: (String) -> Unit) {
+            val cal = Calendar.getInstance()
+            if (initialDate.isNotBlank()) {
+                try {
+                    val parts = initialDate.split("-")
+                    if (parts.size == 3) {
+                        cal.set(Calendar.YEAR, parts[0].toInt())
+                        cal.set(Calendar.MONTH, parts[1].toInt() - 1)
+                        cal.set(Calendar.DAY_OF_MONTH, parts[2].toInt())
+                    }
+                } catch (_: Exception) {}
+            }
+            DatePickerDialog(
+                context,
+                { _, year, month, dayOfMonth ->
+                    val formatted = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayOfMonth)
+                    onSelect(formatted)
+                },
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH)
+            ).show()
+        }
+
+        Dialog(
             onDismissRequest = {
                 if (!isSaving) {
                     editingEngineer = null
                     showEditDialog = false
                 }
             },
-            containerColor = NeumorphicTokens.Canvas,
-            shape = RoundedCornerShape(24.dp),
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (!profilePictureInput.isNullOrBlank()) {
-                        UserAvatar(
-                            name = nameInput.ifBlank { "User" },
-                            profilePicture = profilePictureInput,
-                            size = 42.dp
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (editingEngineer == null) Icons.Default.PersonAdd else Icons.Default.Edit,
-                                contentDescription = null,
-                                tint = NeumorphicTokens.AccentSalmon,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                    Column {
-                        Text(
-                            text = if (isReadOnly) "Account Profile" else if (editingEngineer == null) "Register New Account" else "Edit Account Details",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 18.sp,
-                            color = NeumorphicTokens.TextMain
-                        )
-                        Text(
-                            text = if (editingEngineer == null) "Create enterprise credentials and system access" else "Update profile, credentials and role permissions",
-                            fontSize = 11.sp,
-                            color = NeumorphicTokens.TextMuted
-                        )
-                    }
-                }
-            },
-            text = {
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .padding(vertical = 12.dp)
+                    .neumorphicFloating(shape = RoundedCornerShape(24.dp))
+                    .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 18.dp, vertical = 16.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Profile Picture Upload Row
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = NeumorphicTokens.Surface,
-                        border = BorderStroke(1.dp, NeumorphicTokens.SurfaceContrast),
-                        modifier = Modifier.fillMaxWidth()
+                    // Header Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                UserAvatar(
-                                    name = nameInput.ifBlank { "U" },
-                                    profilePicture = profilePictureInput,
-                                    size = 40.dp
-                                )
-                                Column {
-                                    Text("Profile Picture", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = NeumorphicTokens.TextMain)
-                                    Text(
-                                        if (profilePictureInput.isNullOrBlank()) "No custom picture" else "Custom picture attached",
-                                        fontSize = 10.sp,
-                                        color = NeumorphicTokens.TextMuted
-                                    )
-                                }
-                            }
+                        // Avatar with camera badge
+                        Box(contentAlignment = Alignment.BottomEnd) {
+                            UserAvatar(
+                                name = nameInput.ifBlank { "User" },
+                                profilePicture = profilePictureInput,
+                                size = 44.dp
+                            )
                             if (!isReadOnly) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(
-                                        onClick = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(NeumorphicTokens.AccentSalmon)
+                                        .clickable {
                                             teamPhotoPickerLauncher.launch(
                                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                             )
                                         },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(if (profilePictureInput.isNullOrBlank()) "Upload" else "Change", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon)
-                                    }
-                                    if (!profilePictureInput.isNullOrBlank()) {
-                                        IconButton(
-                                            onClick = { profilePictureInput = null },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Default.Close, contentDescription = "Remove Picture", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
-                                        }
-                                    }
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoCamera,
+                                        contentDescription = "Change photo",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(11.dp)
+                                    )
                                 }
                             }
                         }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isReadOnly) "Account profile" else if (editingEngineer == null) "Register new account" else "Edit account",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 17.sp,
+                                color = NeumorphicTokens.TextMain
+                            )
+                            Text(
+                                text = if (editingEngineer == null) "Create system access" else (nameInput.ifBlank { "Update credentials" }),
+                                fontSize = 11.sp,
+                                color = NeumorphicTokens.TextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Close button
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .neumorphicRaised(shape = RoundedCornerShape(10.dp))
+                                .clickable {
+                                    if (!isSaving) {
+                                        editingEngineer = null
+                                        showEditDialog = false
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
 
-                    // Full Name
-                    OutlinedTextField(
-                        value = nameInput,
-                        onValueChange = {
-                            nameInput = it
-                            if (editingEngineer == null && usernameInput.isBlank() && emailInput.isBlank()) {
-                                val first = it.trim().split(" ").firstOrNull()?.lowercase() ?: ""
-                                if (first.isNotBlank()) usernameInput = first
-                            }
-                        },
-                        label = { Text("Full Name *", fontSize = 12.sp) },
-                        placeholder = { Text("e.g. John Doe", fontSize = 12.sp) },
+                    // Row 1 (Dual-Column 50/50): Full Name * | Username *
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeumorphicTokens.AccentSalmon,
-                            unfocusedBorderColor = NeumorphicTokens.SurfaceContrast,
-                            focusedContainerColor = NeumorphicTokens.Surface,
-                            unfocusedContainerColor = NeumorphicTokens.Surface
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        NeumorphicFormInput(
+                            value = nameInput,
+                            onValueChange = {
+                                nameInput = it
+                                if (editingEngineer == null && usernameInput.isBlank() && emailInput.isBlank()) {
+                                    val first = it.trim().split(" ").firstOrNull()?.lowercase() ?: ""
+                                    if (first.isNotBlank()) usernameInput = first
+                                }
+                            },
+                            label = "Full name *",
+                            placeholder = "e.g. John Doe",
+                            enabled = !isReadOnly && !isSaving,
+                            modifier = Modifier.weight(1f)
                         )
-                    )
 
-                    // Registered Corporate Email
-                    OutlinedTextField(
+                        NeumorphicFormInput(
+                            value = usernameInput,
+                            onValueChange = { usernameInput = it.lowercase().trim() },
+                            label = "Username *",
+                            placeholder = "e.g. johnd",
+                            enabled = !isReadOnly && !isSaving,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Row 2 (Single-Column 100%): Corporate Email *
+                    NeumorphicFormInput(
                         value = emailInput,
                         onValueChange = {
                             emailInput = it
@@ -250,148 +276,153 @@ fun ManageTeamTab(
                                 usernameInput = it.split("@")[0].trim().lowercase()
                             }
                         },
-                        label = { Text("Corporate Email *", fontSize = 12.sp) },
-                        placeholder = { Text("e.g. user@tejasnetworks.com", fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
+                        label = "Corporate email *",
+                        placeholder = "e.g. user@tejasnetworks.com",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeumorphicTokens.AccentSalmon,
-                            unfocusedBorderColor = NeumorphicTokens.SurfaceContrast,
-                            focusedContainerColor = NeumorphicTokens.Surface,
-                            unfocusedContainerColor = NeumorphicTokens.Surface
-                        )
+                        enabled = !isReadOnly && !isSaving,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Domain Username (Unique Identifier)
-                    OutlinedTextField(
-                        value = usernameInput,
-                        onValueChange = { usernameInput = it.lowercase().trim() },
-                        label = { Text("Domain Username *", fontSize = 12.sp) },
-                        placeholder = { Text("e.g. johnd", fontSize = 12.sp) },
+                    // Row 3 (Dual-Column 50/50): Phone | Password
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeumorphicTokens.AccentSalmon,
-                            unfocusedBorderColor = NeumorphicTokens.SurfaceContrast,
-                            focusedContainerColor = NeumorphicTokens.Surface,
-                            unfocusedContainerColor = NeumorphicTokens.Surface
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        NeumorphicFormInput(
+                            value = phoneInput,
+                            onValueChange = { phoneInput = it },
+                            label = "Phone",
+                            placeholder = "+91 98765 43210",
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            enabled = !isReadOnly && !isSaving,
+                            modifier = Modifier.weight(1f)
                         )
-                    )
 
-                    // Password Field
-                    OutlinedTextField(
-                        value = passwordInput,
-                        onValueChange = { passwordInput = it },
-                        label = {
-                            Text(
-                                text = if (editingEngineer == null) "Initial Password *" else "New Password (Optional)",
-                                fontSize = 12.sp
-                            )
-                        },
-                        placeholder = {
-                            Text(
-                                text = if (editingEngineer == null) "Enter login password" else "Leave blank to keep existing password",
-                                fontSize = 12.sp
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        NeumorphicFormInput(
+                            value = passwordInput,
+                            onValueChange = { passwordInput = it },
+                            label = if (editingEngineer == null) "Password *" else "New password",
+                            placeholder = if (editingEngineer == null) "Required" else "Leave blank",
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            trailingIcon = {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                    contentDescription = "Toggle password",
                                     tint = NeumorphicTokens.TextMuted,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { passwordVisible = !passwordVisible }
                                 )
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeumorphicTokens.AccentSalmon,
-                            unfocusedBorderColor = NeumorphicTokens.SurfaceContrast,
-                            focusedContainerColor = NeumorphicTokens.Surface,
-                            unfocusedContainerColor = NeumorphicTokens.Surface
+                            },
+                            enabled = !isReadOnly && !isSaving,
+                            modifier = Modifier.weight(1f)
                         )
-                    )
+                    }
 
-                    // Contact Phone
-                    OutlinedTextField(
-                        value = phoneInput,
-                        onValueChange = { phoneInput = it },
-                        label = { Text("Contact Phone", fontSize = 12.sp) },
-                        placeholder = { Text("+91 98765 43210", fontSize = 12.sp) },
+                    // Row 4 (Dual-Column 50/50): Join date | Birthday
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeumorphicTokens.AccentSalmon,
-                            unfocusedBorderColor = NeumorphicTokens.SurfaceContrast,
-                            focusedContainerColor = NeumorphicTokens.Surface,
-                            unfocusedContainerColor = NeumorphicTokens.Surface
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        NeumorphicFormInput(
+                            value = joinDateInput,
+                            onValueChange = { joinDateInput = it },
+                            label = "Join date",
+                            placeholder = "YYYY-MM-DD",
+                            readOnly = true,
+                            onClick = if (!isReadOnly && !isSaving) {
+                                { openDatePicker(joinDateInput) { joinDateInput = it } }
+                            } else null,
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.CalendarMonth,
+                                    contentDescription = "Pick Join Date",
+                                    tint = NeumorphicTokens.AccentSalmon,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
                         )
-                    )
 
-                    // Role Selection
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        NeumorphicFormInput(
+                            value = birthdayInput,
+                            onValueChange = { birthdayInput = it },
+                            label = "Birthday",
+                            placeholder = "YYYY-MM-DD",
+                            readOnly = true,
+                            onClick = if (!isReadOnly && !isSaving) {
+                                { openDatePicker(birthdayInput) { birthdayInput = it } }
+                            } else null,
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.Cake,
+                                    contentDescription = "Pick Birthday",
+                                    tint = NeumorphicTokens.AccentSalmon,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Row 5: Role & Access Level (100%)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Account Role & Access Level:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NeumorphicTokens.TextMain
+                            text = "Role & access",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeumorphicTokens.TextMuted
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .neumorphicInset(shape = RoundedCornerShape(12.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             listOf(
-                                EngineerRole.ENGINEER to "ENGINEER",
-                                EngineerRole.MANAGER to "MANAGER",
-                                EngineerRole.ADMIN to "ADMIN",
-                                EngineerRole.APPRENTICE to "APPRENTICE"
+                                EngineerRole.ENGINEER to "Engineer",
+                                EngineerRole.MANAGER to "Manager",
+                                EngineerRole.ADMIN to "Admin",
+                                EngineerRole.APPRENTICE to "Apprent."
                             ).forEach { (roleOption, label) ->
                                 val isSelected = roleInput == roleOption
-                                Surface(
-                                    onClick = { if (!isReadOnly) roleInput = roleOption },
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isSelected) NeumorphicTokens.AccentSalmon else NeumorphicTokens.Surface,
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (isSelected) NeumorphicTokens.AccentSalmon else NeumorphicTokens.SurfaceContrast
-                                    ),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier.padding(vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            text = label,
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = if (isSelected) Color.White else NeumorphicTokens.TextMuted,
-                                            maxLines = 1
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .then(
+                                            if (isSelected) {
+                                                Modifier
+                                                    .neumorphicRaised(shape = RoundedCornerShape(9.dp), elevation = NeumorphicTokens.ElevationRaised)
+                                                    .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(9.dp))
+                                            } else {
+                                                Modifier.clickable { if (!isReadOnly && !isSaving) roleInput = roleOption }
+                                            }
                                         )
-                                    }
+                                        .padding(vertical = 7.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else NeumorphicTokens.TextMuted,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                         }
                     }
 
-                    // Default Weekly Offs (Relevant for Shift Engineers)
+                    // Weekly Offs (if role is Engineer or Apprentice)
                     if (roleInput == EngineerRole.ENGINEER || roleInput == EngineerRole.APPRENTICE) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Default Weekly Offs (2 Days):",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = NeumorphicTokens.AccentSalmon
+                                text = "Weekly offs (2 days)",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -399,226 +430,251 @@ fun ManageTeamTab(
                             ) {
                                 allDays.forEach { day ->
                                     val isSelected = selectedOffs.contains(day)
-                                    Surface(
-                                        onClick = {
-                                            selectedOffs = if (isSelected) selectedOffs - day else selectedOffs + day
-                                        },
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isSelected) NeumorphicTokens.AccentSalmon else NeumorphicTokens.Surface,
-                                        border = BorderStroke(
-                                            1.dp,
-                                            if (isSelected) NeumorphicTokens.AccentSalmon else NeumorphicTokens.SurfaceContrast
-                                        ),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = day.take(3).lowercase().replaceFirstChar { it.uppercase() },
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isSelected) Color.White else NeumorphicTokens.TextMuted,
-                                                maxLines = 1
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .then(
+                                                if (isSelected) {
+                                                    Modifier
+                                                        .neumorphicRaised(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationRaised)
+                                                        .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(8.dp))
+                                                } else {
+                                                    Modifier.neumorphicInset(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                                }
                                             )
-                                        }
+                                            .clickable {
+                                                if (!isReadOnly && !isSaving) {
+                                                    selectedOffs = if (isSelected) selectedOffs - day else selectedOffs + day
+                                                }
+                                            }
+                                            .padding(vertical = 5.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = day.take(3).lowercase().replaceFirstChar { it.uppercase() },
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) Color.White else NeumorphicTokens.TextMuted
+                                        )
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Status Selection
+                    // Employment Status
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Employment Status:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NeumorphicTokens.TextMain
+                            text = "Employment status",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeumorphicTokens.TextMuted
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(EngineerStatus.ACTIVE to "ACTIVE", EngineerStatus.RESIGNED to "RESIGNED").forEach { (statusOption, label) ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(
+                                EngineerStatus.ACTIVE to "Active",
+                                EngineerStatus.RESIGNED to "Resigned"
+                            ).forEach { (statusOption, label) ->
                                 val isSelected = statusInput == statusOption
-                                Surface(
-                                    onClick = { statusInput = statusOption },
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isSelected) {
-                                        if (statusOption == EngineerStatus.ACTIVE) Color(0xFF10B981) else Color(0xFFEF4444)
-                                    } else NeumorphicTokens.Surface,
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (isSelected) Color.Transparent else NeumorphicTokens.SurfaceContrast
-                                    )
+                                val activeColor = if (statusOption == EngineerStatus.ACTIVE) Color(0xFF10B981) else Color(0xFFEF4444)
+                                Box(
+                                    modifier = Modifier
+                                        .then(
+                                            if (isSelected) {
+                                                Modifier
+                                                    .neumorphicRaised(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationRaised)
+                                                    .background(activeColor, RoundedCornerShape(8.dp))
+                                            } else {
+                                                Modifier
+                                                    .neumorphicInset(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                                    .clickable { if (!isReadOnly && !isSaving) statusInput = statusOption }
+                                            }
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = label,
-                                        fontSize = 10.sp,
+                                        fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else NeumorphicTokens.TextMuted,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                        color = if (isSelected) Color.White else NeumorphicTokens.TextMuted
                                     )
                                 }
                             }
                         }
                     }
-                }
-            },
-            confirmButton = {
-                if (isReadOnly) {
-                    TextButton(onClick = {
-                        editingEngineer = null
-                        showEditDialog = false
-                    }) {
-                        Text("Close", fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
-                    }
-                } else {
-                    Button(
-                        onClick = {
-                            val target = editingEngineer
-                            val cleanUsername = if (usernameInput.isNotBlank()) {
-                                usernameInput.trim().lowercase()
-                            } else if (target != null && target.username.isNotBlank()) {
-                                target.username.trim().lowercase()
-                            } else if (emailInput.isNotBlank() && emailInput.contains("@")) {
-                                emailInput.split("@")[0].trim().lowercase()
-                            } else {
-                                nameInput.split(" ").firstOrNull()?.lowercase()?.trim() ?: "user"
-                            }
 
-                            if (target == null && passwordInput.isBlank()) {
-                                Toast.makeText(context, "Please set an initial password for this account", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-
-                            isSaving = true
-                            val origUsername = if (target != null && target.username.isNotBlank() && !target.username.equals(cleanUsername, ignoreCase = true)) {
-                                target.username.trim().lowercase()
-                            } else null
-
-                            val newEng = Engineer(
-                                id = cleanUsername,
-                                name = nameInput.trim(),
-                                fullName = nameInput.trim(),
-                                username = cleanUsername,
-                                email = emailInput.trim(),
-                                phone = phoneInput.trim(),
-                                role = roleInput,
-                                status = statusInput,
-                                defaultWeeklyOffs = if (roleInput == EngineerRole.ENGINEER || roleInput == EngineerRole.APPRENTICE) selectedOffs.toList() else emptyList(),
-                                joinDate = target?.joinDate?.ifBlank { null } ?: "2026-01-01",
-                                password = passwordInput.trim().ifBlank { null },
-                                originalUsername = origUsername,
-                                profilePicture = profilePictureInput
-                            )
-
-                            val newList = if (target == null) {
-                                val existingIdx = localEngineersList.indexOfFirst {
-                                    (it.username.isNotBlank() && it.username.equals(newEng.username, ignoreCase = true)) ||
-                                    it.name.equals(newEng.name, ignoreCase = true)
-                                }
-                                if (existingIdx >= 0) {
-                                    localEngineersList.mapIndexed { idx, item -> if (idx == existingIdx) newEng else item }
-                                } else {
-                                    localEngineersList + newEng
-                                }
-                            } else {
-                                localEngineersList.map {
-                                    val isMatch = (target.username.isNotBlank() && it.username.equals(target.username, ignoreCase = true)) ||
-                                                  (target.id.isNotBlank() && (it.id.equals(target.id, ignoreCase = true) || it.username.equals(target.id, ignoreCase = true))) ||
-                                                  it.name.equals(target.name, ignoreCase = true)
-                                    if (isMatch) newEng else it
-                                }
-                            }
-
-                            onSyncEngineers(newList) { success, message ->
-                                isSaving = false
-                                if (success) {
-                                    localEngineersList = newList
-                                    editingEngineer = null
-                                    showEditDialog = false
-                                    Toast.makeText(
-                                        context,
-                                        if (target == null) "Account registered successfully" else "Account updated successfully",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        if (message.isNotBlank()) message else "Failed to save account",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        },
-                        enabled = nameInput.isNotBlank() && emailInput.isNotBlank() && !isSaving,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NeumorphicTokens.AccentSalmon,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Saving...", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        } else {
-                            Icon(
-                                imageVector = if (editingEngineer == null) Icons.Default.PersonAdd else Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (editingEngineer == null) "Create Account" else "Save Changes",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                }
-            },
-            dismissButton = {
-                if (!isReadOnly && editingEngineer != null) {
+                    // Action Row
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (onDeleteEngineer != null) {
-                            TextButton(
-                                onClick = { showDeleteConfirmDialog = true },
-                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                enabled = !isSaving
+                        if (!isReadOnly && editingEngineer != null && onDeleteEngineer != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                                    .clickable(enabled = !isSaving) { showDeleteConfirmDialog = true },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Delete", fontWeight = FontWeight.Bold)
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Delete",
+                                    tint = Color(0xFFEF4444),
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
-                        TextButton(
-                            onClick = {
-                                if (!isSaving) {
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                                .clickable(enabled = !isSaving) {
                                     editingEngineer = null
                                     showEditDialog = false
                                 }
-                            },
-                            enabled = !isSaving
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("Cancel", color = NeumorphicTokens.TextMuted)
+                            Text(
+                                text = if (isReadOnly) "Close" else "Cancel",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted
+                            )
+                        }
+
+                        if (!isReadOnly) {
+                            val canSave = nameInput.isNotBlank() && emailInput.isNotBlank() && !isSaving
+                            Box(
+                                modifier = Modifier
+                                    .weight(1.5f)
+                                    .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (canSave) NeumorphicTokens.AccentSalmon else NeumorphicTokens.AccentSalmon.copy(alpha = 0.4f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable(enabled = canSave) {
+                                        val target = editingEngineer
+                                        val cleanUsername = if (usernameInput.isNotBlank()) {
+                                            usernameInput.trim().lowercase()
+                                        } else if (target != null && target.username.isNotBlank()) {
+                                            target.username.trim().lowercase()
+                                        } else if (emailInput.isNotBlank() && emailInput.contains("@")) {
+                                            emailInput.split("@")[0].trim().lowercase()
+                                        } else {
+                                            nameInput.split(" ").firstOrNull()?.lowercase()?.trim() ?: "user"
+                                        }
+
+                                        if (target == null && passwordInput.isBlank()) {
+                                            Toast.makeText(context, "Please set an initial password for this account", Toast.LENGTH_SHORT).show()
+                                            return@clickable
+                                        }
+
+                                        isSaving = true
+                                        val origUsername = if (target != null && target.username.isNotBlank() && !target.username.equals(cleanUsername, ignoreCase = true)) {
+                                            target.username.trim().lowercase()
+                                        } else null
+
+                                        val newEng = Engineer(
+                                            id = cleanUsername,
+                                            name = nameInput.trim(),
+                                            fullName = nameInput.trim(),
+                                            username = cleanUsername,
+                                            email = emailInput.trim(),
+                                            phone = phoneInput.trim(),
+                                            role = roleInput,
+                                            status = statusInput,
+                                            defaultWeeklyOffs = if (roleInput == EngineerRole.ENGINEER || roleInput == EngineerRole.APPRENTICE) selectedOffs.toList() else emptyList(),
+                                            joinDate = joinDateInput.ifBlank { "2026-01-01" },
+                                            birthday = birthdayInput.ifBlank { null },
+                                            password = passwordInput.trim().ifBlank { null },
+                                            originalUsername = origUsername,
+                                            profilePicture = profilePictureInput
+                                        )
+
+                                        val newList = if (target == null) {
+                                            val existingIdx = localEngineersList.indexOfFirst {
+                                                (it.username.isNotBlank() && it.username.equals(newEng.username, ignoreCase = true)) ||
+                                                it.name.equals(newEng.name, ignoreCase = true)
+                                            }
+                                            if (existingIdx >= 0) {
+                                                localEngineersList.mapIndexed { idx, item -> if (idx == existingIdx) newEng else item }
+                                            } else {
+                                                localEngineersList + newEng
+                                            }
+                                        } else {
+                                            localEngineersList.map {
+                                                val isMatch = (target.username.isNotBlank() && it.username.equals(target.username, ignoreCase = true)) ||
+                                                              (target.id.isNotBlank() && (it.id.equals(target.id, ignoreCase = true) || it.username.equals(target.id, ignoreCase = true))) ||
+                                                              it.name.equals(target.name, ignoreCase = true)
+                                                if (isMatch) newEng else it
+                                            }
+                                        }
+
+                                        onSyncEngineers(newList) { success, message ->
+                                            isSaving = false
+                                            if (success) {
+                                                localEngineersList = newList
+                                                editingEngineer = null
+                                                showEditDialog = false
+                                                Toast.makeText(
+                                                    context,
+                                                    if (target == null) "Account registered successfully" else "Account updated successfully",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    if (message.isNotBlank()) message else "Failed to save account",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (isSaving) {
+                                        CircularProgressIndicator(
+                                            color = Color.White,
+                                            modifier = Modifier.size(14.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Text("Saving...", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    } else {
+                                        Icon(
+                                            imageVector = if (editingEngineer == null) Icons.Default.PersonAdd else Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = if (editingEngineer == null) "Create account" else "Save changes",
+                                            color = Color.White,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-        )
+        }
     }
 
     // Delete Confirmation Dialog

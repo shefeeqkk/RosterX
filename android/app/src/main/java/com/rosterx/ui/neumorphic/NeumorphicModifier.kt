@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.rosterx.ui.theme.LocalIsDarkTheme
 import com.rosterx.ui.theme.LocalThemeAccent
 
 /**
@@ -60,32 +61,36 @@ fun Modifier.neumorphicRaised(
         val frameworkCanvas = canvas.nativeCanvas
 
         // 1. Bottom-Right Soft Occlusion Drop Shadow (+X, +Y)
-        val darkPaint = android.graphics.Paint().apply {
-            isAntiAlias = true
-            color = elevation.darkShadow.toArgb()
-            setShadowLayer(blurRadius, offsetX, offsetY, elevation.darkShadow.toArgb())
-            if (blurRadius > 0f) {
-                maskFilter = BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL)
+        if (elevation.darkShadow != Color.Transparent && elevation.darkShadow.alpha > 0.01f) {
+            val darkPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                color = elevation.darkShadow.toArgb()
+                setShadowLayer(blurRadius, offsetX, offsetY, elevation.darkShadow.toArgb())
+                if (blurRadius > 0f) {
+                    maskFilter = BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL)
+                }
             }
+            frameworkCanvas.save()
+            frameworkCanvas.translate(offsetX * 0.5f, offsetY * 0.5f)
+            drawOutlineIntoCanvas(frameworkCanvas, outline, darkPaint)
+            frameworkCanvas.restore()
         }
-        frameworkCanvas.save()
-        frameworkCanvas.translate(offsetX * 0.5f, offsetY * 0.5f)
-        drawOutlineIntoCanvas(frameworkCanvas, outline, darkPaint)
-        frameworkCanvas.restore()
 
         // 2. Top-Left Diffuse Specular Highlight (-X, -Y)
-        val lightPaint = android.graphics.Paint().apply {
-            isAntiAlias = true
-            color = elevation.lightShadow.toArgb()
-            setShadowLayer(blurRadius, -offsetX, -offsetY, elevation.lightShadow.toArgb())
-            if (blurRadius > 0f) {
-                maskFilter = BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL)
+        if (elevation.lightShadow != Color.Transparent && elevation.lightShadow.alpha > 0.01f) {
+            val lightPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                color = elevation.lightShadow.toArgb()
+                setShadowLayer(blurRadius, -offsetX, -offsetY, elevation.lightShadow.toArgb())
+                if (blurRadius > 0f) {
+                    maskFilter = BlurMaskFilter(blurRadius, BlurMaskFilter.Blur.NORMAL)
+                }
             }
+            frameworkCanvas.save()
+            frameworkCanvas.translate(-offsetX * 0.5f, -offsetY * 0.5f)
+            drawOutlineIntoCanvas(frameworkCanvas, outline, lightPaint)
+            frameworkCanvas.restore()
         }
-        frameworkCanvas.save()
-        frameworkCanvas.translate(-offsetX * 0.5f, -offsetY * 0.5f)
-        drawOutlineIntoCanvas(frameworkCanvas, outline, lightPaint)
-        frameworkCanvas.restore()
     }
 
     // 3. Molded Canvas Surface Body
@@ -116,56 +121,114 @@ fun Modifier.neumorphicInset(
         val depth = elevation.offsetY.toPx() * 1.5f
 
         // Top-Left Inner Occlusion Shadow (Simulates top lip casting shadow downward-right)
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(elevation.darkShadow, Color.Transparent),
-                startY = 0f,
-                endY = depth
-            ),
-            size = Size(width, depth)
-        )
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colors = listOf(elevation.darkShadow, Color.Transparent),
-                startX = 0f,
-                endX = depth
-            ),
-            size = Size(depth, height)
-        )
+        if (elevation.darkShadow != Color.Transparent && elevation.darkShadow.alpha > 0.01f) {
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(elevation.darkShadow, Color.Transparent),
+                    startY = 0f,
+                    endY = depth
+                ),
+                size = Size(width, depth)
+            )
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(elevation.darkShadow, Color.Transparent),
+                    startX = 0f,
+                    endX = depth
+                ),
+                size = Size(depth, height)
+            )
+        }
 
         // Bottom-Right Inner Specular Highlight (Simulates ambient key light catching bottom lip)
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, elevation.lightShadow),
-                startY = height - depth,
-                endY = height
-            ),
-            topLeft = Offset(0f, height - depth),
-            size = Size(width, depth)
-        )
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colors = listOf(Color.Transparent, elevation.lightShadow),
-                startX = width - depth,
-                endX = width
-            ),
-            topLeft = Offset(width - depth, 0f),
-            size = Size(depth, height)
-        )
+        if (elevation.lightShadow != Color.Transparent && elevation.lightShadow.alpha > 0.01f) {
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, elevation.lightShadow),
+                    startY = height - depth,
+                    endY = height
+                ),
+                topLeft = Offset(0f, height - depth),
+                size = Size(width, depth)
+            )
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color.Transparent, elevation.lightShadow),
+                    startX = width - depth,
+                    endX = width
+                ),
+                topLeft = Offset(width - depth, 0f),
+                size = Size(depth, height)
+            )
+        }
     }
 
 /**
  * High-Floating Layer elevation for Modals, Dialogs, and Action Drawers.
+ * Features realistic multi-layer downward dark drop shadows (ambient occlusion + deep directional key shadow)
+ * and an ultra-subtle inner specular rim, with ZERO outer white halo.
  */
 @Composable
 fun Modifier.neumorphicFloating(
     shape: Shape = NeumorphicTokens.ShapeContainer,
     surfaceColor: Color = NeumorphicTokens.Surface
-): Modifier = neumorphicRaised(
-    shape = shape,
-    elevation = NeumorphicTokens.ElevationFloating,
-    surfaceColor = surfaceColor
-)
+): Modifier {
+    val isDark = LocalIsDarkTheme.current
+    val ambientDarkShadow = if (isDark) Color(0x99000000) else Color(0x1F0F172A)
+    val keyDarkShadow = if (isDark) Color(0xE6020617) else Color(0x380F172A)
+    val rimColor = if (isDark) Color(0x2694A3B8) else Color(0x59FFFFFF)
+
+    return this.drawBehind {
+        val outline = shape.createOutline(size, layoutDirection, this)
+        val density = this
+
+        drawIntoCanvas { canvas ->
+            val frameworkCanvas = canvas.nativeCanvas
+
+            // 1. Ambient Occlusion Layer (soft spread all around)
+            val ambientBlur = with(density) { 10.dp.toPx() }
+            val ambientY = with(density) { 4.dp.toPx() }
+            val ambientPaint = android.graphics.Paint().apply {
+                this.isAntiAlias = true
+                this.color = ambientDarkShadow.toArgb()
+                this.setShadowLayer(ambientBlur, 0f, ambientY, ambientDarkShadow.toArgb())
+                if (ambientBlur > 0f) {
+                    this.maskFilter = BlurMaskFilter(ambientBlur, BlurMaskFilter.Blur.NORMAL)
+                }
+            }
+            frameworkCanvas.save()
+            frameworkCanvas.translate(0f, with(density) { 2.dp.toPx() })
+            drawOutlineIntoCanvas(frameworkCanvas, outline, ambientPaint)
+            frameworkCanvas.restore()
+
+            // 2. Direct Key Drop Shadow (+Y downward projection, NO white shadow!)
+            val keyBlur = with(density) { 24.dp.toPx() }
+            val keyY = with(density) { 12.dp.toPx() }
+            val keyPaint = android.graphics.Paint().apply {
+                this.isAntiAlias = true
+                this.color = keyDarkShadow.toArgb()
+                this.setShadowLayer(keyBlur, 0f, keyY, keyDarkShadow.toArgb())
+                if (keyBlur > 0f) {
+                    this.maskFilter = BlurMaskFilter(keyBlur, BlurMaskFilter.Blur.NORMAL)
+                }
+            }
+            frameworkCanvas.save()
+            frameworkCanvas.translate(0f, with(density) { 6.dp.toPx() })
+            drawOutlineIntoCanvas(frameworkCanvas, outline, keyPaint)
+            frameworkCanvas.restore()
+        }
+
+        // 3. Molded Card Body Surface
+        drawOutline(outline, surfaceColor)
+
+        // 4. Subtle Inner Specular Rim (Crisp, premium edge staying strictly inside bounds)
+        drawOutline(
+            outline = outline,
+            color = rimColor,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = with(density) { 1.dp.toPx() })
+        )
+    }
+}
 
 /**
  * Interactive Tactile Neumorphic Modifier.
@@ -271,13 +334,14 @@ private fun drawOutlineIntoCanvas(
     }
 }
 
-// Helper to fill Compose Outline with a solid color
+// Helper to fill or stroke Compose Outline
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawOutline(
     outline: Outline,
-    color: Color
+    color: Color,
+    style: androidx.compose.ui.graphics.drawscope.DrawStyle = androidx.compose.ui.graphics.drawscope.Fill
 ) {
     when (outline) {
-        is Outline.Rectangle -> drawRect(color, topLeft = outline.rect.topLeft, size = outline.rect.size)
+        is Outline.Rectangle -> drawRect(color, topLeft = outline.rect.topLeft, size = outline.rect.size, style = style)
         is Outline.Rounded -> drawRoundRect(
             color = color,
             topLeft = Offset(outline.roundRect.left, outline.roundRect.top),
@@ -285,8 +349,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawOutline(
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(
                 outline.roundRect.topLeftCornerRadius.x,
                 outline.roundRect.topLeftCornerRadius.y
-            )
+            ),
+            style = style
         )
-        is Outline.Generic -> drawPath(outline.path, color = color)
+        is Outline.Generic -> drawPath(outline.path, color = color, style = style)
     }
 }

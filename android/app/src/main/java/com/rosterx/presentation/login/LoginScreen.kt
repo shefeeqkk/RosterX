@@ -59,8 +59,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rosterx.R
+import com.rosterx.presentation.components.NeumorphicFormInput
+import com.rosterx.ui.neumorphic.NeumorphicTokens
+import com.rosterx.ui.neumorphic.neumorphicRaised
+import com.rosterx.ui.neumorphic.neumorphicInset
+import com.rosterx.ui.neumorphic.neumorphicFloating
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -294,7 +301,7 @@ fun LoginScreen(
 
     // Webpage-compatible OTP Reset Dialog with Retype Password & Eye Toggle
     if (showHelpDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { 
                 showHelpDialog = false
                 viewModel.resetOtpState()
@@ -302,211 +309,327 @@ fun LoginScreen(
                 newPassword = ""
                 confirmNewPassword = ""
             },
-            title = { Text("Password Reset (6-Digit OTP)", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .widthIn(max = 390.dp)
+                    .padding(vertical = 16.dp)
+                    .neumorphicFloating(shape = RoundedCornerShape(24.dp))
+                    .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
+                    .padding(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Password Reset (OTP)",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 17.sp,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .neumorphicRaised(shape = RoundedCornerShape(8.dp))
+                                .clickable {
+                                    showHelpDialog = false
+                                    viewModel.resetOtpState()
+                                    otpCode = ""
+                                    newPassword = ""
+                                    confirmNewPassword = ""
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
                     if (state.otpMessage != null) {
-                        Text(state.otpMessage!!, color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(state.otpMessage!!, color = Color(0xFF10B981), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
                     if (state.errorMessage != null) {
-                        Text(state.errorMessage!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(state.errorMessage!!, color = Color(0xFFEF4444), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
 
                     if (!state.otpSent) {
                         Text(
-                            "Enter your domain username or registered email address. A 6-digit verification code will be dispatched to your email.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Enter your domain username or email address. A 6-digit verification code will be dispatched.",
+                            fontSize = 11.5.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            lineHeight = 16.sp
                         )
-                        OutlinedTextField(
+                        NeumorphicFormInput(
                             value = identifier,
                             onValueChange = { identifier = it },
-                            label = { Text("Username or Email") },
-                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
+                            label = "Username or Email",
+                            placeholder = "e.g. johnd or user@tejasnetworks.com",
+                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
+                            modifier = Modifier.fillMaxWidth()
                         )
                     } else {
                         Text(
-                            "Please enter the 6-digit verification code sent to your email and set your new password.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Enter the 6-digit verification code sent to your email and set your new password.",
+                            fontSize = 11.5.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            lineHeight = 16.sp
                         )
-                        OutlinedTextField(
+                        NeumorphicFormInput(
                             value = otpCode,
                             onValueChange = { otpCode = it },
-                            label = { Text("6-Digit OTP Code") },
-                            leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            label = "6-Digit OTP Code",
+                            placeholder = "123456",
+                            leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            singleLine = true
+                            modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
+                        NeumorphicFormInput(
                             value = newPassword,
                             onValueChange = { newPassword = it },
-                            label = { Text("New Password") },
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            label = "New Password",
+                            placeholder = "Min 6 characters",
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
                             trailingIcon = {
-                                IconButton(onClick = { resetPasswordVisible = !resetPasswordVisible }) {
-                                    Icon(
-                                        imageVector = if (resetPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = "Toggle Password Visibility"
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (resetPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = "Toggle Password Visibility",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { resetPasswordVisible = !resetPasswordVisible }
+                                )
                             },
                             visualTransformation = if (resetPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            singleLine = true
+                            modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
+                        val mismatch = confirmNewPassword.isNotEmpty() && newPassword != confirmNewPassword
+                        NeumorphicFormInput(
                             value = confirmNewPassword,
                             onValueChange = { confirmNewPassword = it },
-                            label = { Text("Retype New Password") },
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            label = "Retype New Password",
+                            placeholder = "Confirm password",
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
                             trailingIcon = {
-                                IconButton(onClick = { resetPasswordVisible = !resetPasswordVisible }) {
-                                    Icon(
-                                        imageVector = if (resetPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = "Toggle Password Visibility"
-                                    )
-                                }
-                            },
-                            isError = confirmNewPassword.isNotEmpty() && newPassword != confirmNewPassword,
-                            supportingText = {
-                                if (confirmNewPassword.isNotEmpty() && newPassword != confirmNewPassword) {
-                                    Text("Passwords do not match", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
-                                }
+                                Icon(
+                                    imageVector = if (resetPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = "Toggle Password Visibility",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { resetPasswordVisible = !resetPasswordVisible }
+                                )
                             },
                             visualTransformation = if (resetPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            singleLine = true
+                            isError = mismatch,
+                            errorMessage = if (mismatch) "Passwords do not match" else null,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (!state.otpSent) {
-                            viewModel.sendOtp(identifier)
-                        } else {
-                            viewModel.verifyOtp(identifier, otpCode, newPassword)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                                .clickable {
+                                    showHelpDialog = false
+                                    viewModel.resetOtpState()
+                                    otpCode = ""
+                                    newPassword = ""
+                                    confirmNewPassword = ""
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Cancel", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMuted)
                         }
-                    },
-                    enabled = if (!state.otpSent) {
-                        !state.isLoading && identifier.isNotBlank()
-                    } else {
-                        !state.isLoading && otpCode.isNotBlank() && newPassword.isNotBlank() && newPassword == confirmNewPassword
-                    },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    } else {
-                        Text(if (!state.otpSent) "Send Code" else "Verify & Reset", fontWeight = FontWeight.Bold)
+
+                        val canProceed = if (!state.otpSent) {
+                            !state.isLoading && identifier.isNotBlank()
+                        } else {
+                            !state.isLoading && otpCode.isNotBlank() && newPassword.isNotBlank() && newPassword == confirmNewPassword
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1.4f)
+                                .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                                .background(
+                                    if (canProceed) NeumorphicTokens.AccentSalmon else NeumorphicTokens.AccentSalmon.copy(alpha = 0.45f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable(enabled = canProceed) {
+                                    if (!state.otpSent) {
+                                        viewModel.sendOtp(identifier)
+                                    } else {
+                                        viewModel.verifyOtp(identifier, otpCode, newPassword)
+                                    }
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (state.isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text(
+                                    text = if (!state.otpSent) "Send Code" else "Verify & Reset",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { 
-                    showHelpDialog = false
-                    viewModel.resetOtpState()
-                    otpCode = ""
-                    newPassword = ""
-                    confirmNewPassword = ""
-                }) {
-                    Text("Cancel")
-                }
             }
-        )
+        }
     }
 
     // Direct Server URL Connection Dialog (Accessible anytime without logging in)
     if (showServerDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showServerDialog = false },
-            title = { Text("Server Connection URL", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .widthIn(max = 390.dp)
+                    .padding(vertical = 16.dp)
+                    .neumorphicFloating(shape = RoundedCornerShape(24.dp))
+                    .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
+                    .padding(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Server Connection URL",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 17.sp,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .neumorphicRaised(shape = RoundedCornerShape(8.dp))
+                                .clickable { showServerDialog = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
                     Text(
-                        "Set the RosterX Server Base URL. Enter your Cloudflare Public Tunnel URL to access the server on 4G/5G mobile data or any Wi-Fi.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Set the RosterX Server Base URL. Enter your Cloudflare Public Tunnel URL to access the server on 4G/5G mobile data or Wi-Fi.",
+                        fontSize = 11.5.sp,
+                        color = NeumorphicTokens.TextMuted,
+                        lineHeight = 16.sp
                     )
-                    OutlinedTextField(
+
+                    NeumorphicFormInput(
                         value = serverUrlInput,
                         onValueChange = { serverUrlInput = it },
-                        label = { Text("Server Base URL") },
-                        placeholder = { Text("e.g. https://xxx.trycloudflare.com/api/") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
+                        label = "Server Base URL",
+                        placeholder = "e.g. https://xxx.trycloudflare.com/api/",
+                        leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()
                     )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (serverUrlInput.isNotBlank()) {
-                            viewModel.setBaseUrl(serverUrlInput)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                                .clickable { showServerDialog = false }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Cancel", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMuted)
                         }
-                        showServerDialog = false
-                    },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Save & Apply")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showServerDialog = false }) {
-                    Text("Cancel")
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1.4f)
+                                .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                                .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(12.dp))
+                                .clickable {
+                                    if (serverUrlInput.isNotBlank()) {
+                                        viewModel.setBaseUrl(serverUrlInput)
+                                    }
+                                    showServerDialog = false
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Save & Apply", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                        MaterialTheme.colorScheme.background
-                    ),
-                    radius = 1600f
-                )
-            )
+            .background(NeumorphicTokens.Canvas)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
             .verticalScroll(scrollState),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        Box(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .padding(vertical = 24.dp)
-                .border(
-                    1.dp,
-                    Color.White.copy(alpha = 0.15f),
-                    RoundedCornerShape(28.dp)
-                ),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-            tonalElevation = 12.dp
+                .fillMaxWidth(0.92f)
+                .widthIn(max = 380.dp)
+                .padding(vertical = 16.dp)
+                .neumorphicFloating(shape = RoundedCornerShape(26.dp))
+                .background(NeumorphicTokens.Surface, RoundedCornerShape(26.dp))
+                .padding(horizontal = 22.dp, vertical = 22.dp)
         ) {
             Column(
-                modifier = Modifier.padding(28.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Top Server Configuration Button Row
@@ -514,18 +637,21 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    IconButton(
-                        onClick = {
-                            serverUrlInput = viewModel.getBaseUrl()
-                            showServerDialog = true
-                        },
-                        modifier = Modifier.size(28.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .neumorphicRaised(shape = RoundedCornerShape(8.dp))
+                            .clickable {
+                                serverUrlInput = viewModel.getBaseUrl()
+                                showServerDialog = true
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.Default.Settings,
+                            imageVector = Icons.Default.Settings,
                             contentDescription = "Server URL Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(18.dp)
+                            tint = NeumorphicTokens.TextMuted,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -534,48 +660,47 @@ fun LoginScreen(
                 Image(
                     painter = painterResource(id = R.drawable.ic_rosterx_logo),
                     contentDescription = "RosterX Logo",
-                    modifier = Modifier.size(68.dp)
+                    modifier = Modifier.size(56.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Welcome to RosterX",
-                    fontSize = 26.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = NeumorphicTokens.TextMain
                 )
 
                 Text(
-                    text = "24/7 Shift Rotation & Real-time Duty Briefings",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+                    text = "Shift Rotation & Duty Briefings",
+                    fontSize = 11.5.sp,
+                    color = NeumorphicTokens.TextMuted,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 18.dp)
                 )
 
                 // Error Notification Banner
                 val activeError = localErrorMsg ?: state.errorMessage
                 if (activeError != null) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp)
+                            .padding(bottom = 12.dp)
+                            .neumorphicInset(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                            .background(Color(0xFFEF4444).copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                            .padding(10.dp)
                     ) {
                         Text(
                             text = activeError,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(12.dp)
+                            color = Color(0xFFEF4444),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
                 // Form Area: Identifier Field with Autofill & Google Password Manager
-                OutlinedTextField(
+                NeumorphicFormInput(
                     value = identifier,
                     onValueChange = { 
                         identifier = it
@@ -593,37 +718,38 @@ fun LoginScreen(
                             } catch (_: Throwable) {}
                         }
                     },
-                    label = { Text("Username") },
+                    label = "Username",
+                    placeholder = "Domain username or email",
                     leadingIcon = { 
                         Icon(
                             Icons.Default.Person, 
                             contentDescription = null, 
-                            tint = if (isIdentifierError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            tint = if (isIdentifierError) Color(0xFFEF4444) else NeumorphicTokens.AccentSalmon,
+                            modifier = Modifier.size(18.dp)
                         ) 
                     },
                     trailingIcon = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            IconButton(
-                                onClick = { requestGooglePasswordManager(targetField = TargetField.USERNAME, force = true) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Key,
-                                    contentDescription = "Autofill from Google Password Manager",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Key,
+                                contentDescription = "Autofill from Google Password Manager",
+                                tint = NeumorphicTokens.AccentSalmon,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { requestGooglePasswordManager(targetField = TargetField.USERNAME, force = true) }
+                            )
                             if (identifier.isNotEmpty()) {
-                                IconButton(
-                                    onClick = { identifier = ""; localErrorMsg = null },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear text", modifier = Modifier.size(18.dp))
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear text",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { identifier = ""; localErrorMsg = null }
+                                )
                             }
                         }
                     },
@@ -637,41 +763,29 @@ fun LoginScreen(
                     keyboardActions = KeyboardActions(
                         onNext = { passwordFocusRequester.requestFocus() }
                     ),
-                    isError = isIdentifierError,
-                    supportingText = {
-                        if (isIdentifierError) {
-                            Text(
-                                "Please enter your username",
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 11.sp
-                            )
+                    focusRequester = identifierFocusRequester,
+                    onGloballyPositioned = { coordinates ->
+                        identifierAutofillNode.boundingBox = coordinates.boundsInWindow()
+                    },
+                    onFocusChanged = { focusState ->
+                        isIdentifierFocused = focusState.isFocused
+                        autofill?.let {
+                            if (focusState.isFocused) {
+                                it.requestAutofillForNode(identifierAutofillNode)
+                            } else {
+                                it.cancelAutofillForNode(identifierAutofillNode)
+                            }
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(identifierFocusRequester)
-                        .onGloballyPositioned { coordinates ->
-                            identifierAutofillNode.boundingBox = coordinates.boundsInWindow()
-                        }
-                        .onFocusChanged { focusState ->
-                            isIdentifierFocused = focusState.isFocused
-                            autofill?.let {
-                                if (focusState.isFocused) {
-                                    it.requestAutofillForNode(identifierAutofillNode)
-                                } else {
-                                    it.cancelAutofillForNode(identifierAutofillNode)
-                                }
-                            }
-                        },
-                    shape = RoundedCornerShape(14.dp),
-                    singleLine = true
+                    isError = isIdentifierError,
+                    errorMessage = if (isIdentifierError) "Please enter your username" else null,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Password Input Field with Google Password Manager
-                OutlinedTextField(
+                NeumorphicFormInput(
                     value = password,
                     onValueChange = { 
                         password = it
@@ -686,43 +800,40 @@ fun LoginScreen(
                             } catch (_: Throwable) {}
                         }
                     },
-                    label = { Text("Password") },
+                    label = "Password",
+                    placeholder = "Enter your password",
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     leadingIcon = { 
                         Icon(
                             Icons.Default.Lock, 
                             contentDescription = null, 
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = NeumorphicTokens.AccentSalmon,
+                            modifier = Modifier.size(18.dp)
                         ) 
                     },
                     trailingIcon = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            IconButton(
-                                onClick = { requestGooglePasswordManager(targetField = TargetField.PASSWORD, force = true) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Key,
-                                    contentDescription = "Autofill from Google Password Manager",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            IconButton(
-                                onClick = { passwordVisible = !passwordVisible },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Toggle password visibility",
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Key,
+                                contentDescription = "Autofill from Google Password Manager",
+                                tint = NeumorphicTokens.AccentSalmon,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { requestGooglePasswordManager(targetField = TargetField.PASSWORD, force = true) }
+                            )
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = "Toggle password visibility",
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { passwordVisible = !passwordVisible }
+                            )
                         }
                     },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     interactionSource = passwordInteractionSource,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
@@ -738,70 +849,74 @@ fun LoginScreen(
                             }
                         }
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(passwordFocusRequester)
-                        .onGloballyPositioned { coordinates ->
-                            passwordAutofillNode.boundingBox = coordinates.boundsInWindow()
-                        }
-                        .onFocusChanged { focusState ->
-                            isPasswordFocused = focusState.isFocused
-                            autofill?.let {
-                                if (focusState.isFocused) {
-                                    it.requestAutofillForNode(passwordAutofillNode)
-                                } else {
-                                    it.cancelAutofillForNode(passwordAutofillNode)
-                                }
+                    focusRequester = passwordFocusRequester,
+                    onGloballyPositioned = { coordinates ->
+                        passwordAutofillNode.boundingBox = coordinates.boundsInWindow()
+                    },
+                    onFocusChanged = { focusState ->
+                        isPasswordFocused = focusState.isFocused
+                        autofill?.let {
+                            if (focusState.isFocused) {
+                                it.requestAutofillForNode(passwordAutofillNode)
+                            } else {
+                                it.cancelAutofillForNode(passwordAutofillNode)
                             }
-                        },
-                    shape = RoundedCornerShape(14.dp),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Sign In Button
-                Button(
-                    onClick = { 
-                        if (identifier.isBlank()) {
-                            isIdentifierError = true
-                        } else {
-                            localErrorMsg = null
-                            viewModel.login(identifier, password) 
                         }
                     },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Forgot password Link (Right-aligned immediately below password)
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    enabled = !state.isLoading && identifier.isNotBlank() && password.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        .padding(top = 6.dp, bottom = 14.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = "Forgot password?",
+                        color = NeumorphicTokens.AccentSalmon,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable { showHelpDialog = true }
                     )
+                }
+
+                // Sign In Button
+                val canSubmit = !state.isLoading && identifier.isNotBlank() && password.isNotBlank()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .neumorphicRaised(shape = RoundedCornerShape(14.dp))
+                        .background(
+                            if (canSubmit) NeumorphicTokens.AccentSalmon else NeumorphicTokens.AccentSalmon.copy(alpha = 0.45f),
+                            RoundedCornerShape(14.dp)
+                        )
+                        .clickable(enabled = canSubmit) { 
+                            if (identifier.isBlank()) {
+                                isIdentifierError = true
+                            } else {
+                                localErrorMsg = null
+                                viewModel.login(identifier, password) 
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     if (state.isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Sign In", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(
+                            text = "Sign In",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.5.sp,
+                            color = Color.White
+                        )
                     }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Footer Options
-                TextButton(
-                    onClick = { showHelpDialog = true }
-                ) {
-                    Text(
-                        "Forgot Username / Need Help?",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
             }
         }

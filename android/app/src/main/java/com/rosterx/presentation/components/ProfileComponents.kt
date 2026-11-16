@@ -57,6 +57,7 @@ import com.rosterx.ui.neumorphic.NeumorphicTokens
 import com.rosterx.ui.neumorphic.neumorphicAccentGlow
 import com.rosterx.ui.neumorphic.neumorphicInset
 import com.rosterx.ui.neumorphic.neumorphicRaised
+import com.rosterx.ui.neumorphic.neumorphicFloating
 import com.rosterx.ui.theme.LocalIsDarkTheme
 import com.rosterx.ui.theme.LocalThemeAccent
 import java.time.LocalDate
@@ -1016,414 +1017,347 @@ fun UnifiedEditProfileDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.background,
-            tonalElevation = 6.dp,
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.92f)
                 .padding(vertical = 12.dp)
+                .neumorphicFloating(shape = RoundedCornerShape(24.dp))
+                .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
+                .padding(horizontal = 18.dp, vertical = 16.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Top Header Row with [X], Title, and [Save]
+                // Header Row
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 14.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clickable { onDismiss() }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
+                    // Avatar with camera badge
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        UserAvatar(
+                            name = nameInput.ifBlank { "User" }.toProperCase(),
+                            profilePicture = effectivePhoto,
+                            size = 46.dp
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(activeAccent)
+                                .clickable {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = "Change photo",
+                                tint = Color.White,
+                                modifier = Modifier.size(11.dp)
                             )
                         }
                     }
 
-                    Text(
-                        text = "Edit profile",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = activeAccent
-                    )
-
-                    Button(
-                        onClick = {
-                            val trimmedName = nameInput.trim().toProperCase()
-                            val trimmedPhone = phoneInput.trim()
-                            val trimmedEmail = emailInput.trim().lowercase()
-                            val trimmedJoinDate = joinDateInput.trim()
-                            val trimmedBirthday = birthdayInput.trim()
-                            val currPassToVerify = currentPassword.trim().takeIf { it.isNotBlank() }
-                            val passToUpdate = newPassword.trim().takeIf { it.isNotBlank() }
-
-                            onSave(
-                                trimmedName,
-                                trimmedPhone,
-                                trimmedEmail,
-                                trimmedJoinDate,
-                                trimmedBirthday,
-                                pendingPhotoBase64,
-                                currPassToVerify,
-                                passToUpdate
-                            )
-                            onDismiss()
-                        },
-                        enabled = canSave,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = activeAccent,
-                            disabledContainerColor = activeAccent.copy(alpha = 0.35f)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Save",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color.White
+                            text = "Edit profile",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Personal details & security",
+                                fontSize = 11.sp,
+                                color = NeumorphicTokens.TextMuted
+                            )
+                            if (!effectivePhoto.isNullOrBlank()) {
+                                Text(
+                                    text = "• Remove photo",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable { showConfirmRemovePhotoDialog = true }
+                                )
+                            }
+                        }
+                    }
+
+                    // Close button
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .neumorphicRaised(shape = RoundedCornerShape(10.dp))
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = NeumorphicTokens.TextMuted,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
-                // Scrollable Form Body
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                // Row 1 (Dual-Column 50/50): Full name * | Contact phone
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // 1. Sleek Hero Card with Avatar & Actions
-                    Surface(
-                        shape = RoundedCornerShape(22.dp),
-                        color = darker,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(darker, activeAccent, lighter)
-                                    )
-                                )
-                                .padding(vertical = 20.dp, horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                // Avatar with white accent ring and camera badge
-                                Box(contentAlignment = Alignment.BottomEnd) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(92.dp)
-                                            .border(3.dp, Color.White.copy(alpha = 0.9f), CircleShape)
-                                            .padding(3.dp)
-                                            .clip(CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        UserAvatar(
-                                            name = nameInput.ifBlank { "User" }.toProperCase(),
-                                            profilePicture = effectivePhoto,
-                                            size = 86.dp,
-                                            backgroundColor = darker,
-                                            textColor = Color.White,
-                                            fontSize = 28.sp
-                                        )
-                                    }
-
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color.White,
-                                        shadowElevation = 3.dp,
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .offset(x = 2.dp, y = 2.dp)
-                                            .clickable {
-                                                photoPickerLauncher.launch(
-                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                                )
-                                            }
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = Icons.Default.PhotoCamera,
-                                                contentDescription = "Pick Photo",
-                                                tint = activeAccent,
-                                                modifier = Modifier.size(15.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Photo action pills
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Button(
-                                        onClick = {
-                                            photoPickerLauncher.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color.White,
-                                            contentColor = activeAccent
-                                        ),
-                                        shape = RoundedCornerShape(12.dp),
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Change photo",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = activeAccent
-                                        )
-                                    }
-
-                                    if (!effectivePhoto.isNullOrBlank()) {
-                                        OutlinedButton(
-                                            onClick = { showConfirmRemovePhotoDialog = true },
-                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
-                                            colors = ButtonDefaults.outlinedButtonColors(
-                                                contentColor = Color.White
-                                            ),
-                                            shape = RoundedCornerShape(12.dp),
-                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                        ) {
-                                            Text(
-                                                text = "Remove",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (showConfirmRemovePhotoDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showConfirmRemovePhotoDialog = false },
-                            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                            title = { Text("Remove Profile Photo?", fontWeight = FontWeight.Bold) },
-                            text = {
-                                Text("Are you sure you want to remove your profile photo? Your initials monogram will be displayed across the app and rosters instead.")
-                            },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        pendingPhotoBase64 = ""
-                                        showConfirmRemovePhotoDialog = false
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    Text("Remove")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showConfirmRemovePhotoDialog = false }) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
-                    }
-
-                    // 2. Personal Information Section
-                    Text(
-                        text = "PERSONAL INFORMATION",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = activeAccent,
-                        letterSpacing = 0.8.sp
-                    )
-
-                    EditProfileInputField(
+                    NeumorphicFormInput(
                         value = nameInput,
                         onValueChange = { if (it.length <= 60) nameInput = it },
                         label = "Full name *",
-                        leadingIcon = Icons.Outlined.Person,
+                        placeholder = "e.g. John Doe",
                         isError = !isNameValid,
-                        errorMessage = if (!isNameValid) "Full name must be between 2 and 60 characters" else null
+                        errorMessage = if (!isNameValid) "Must be 2-60 chars" else null,
+                        modifier = Modifier.weight(1f)
                     )
 
-                    EditProfileInputField(
+                    NeumorphicFormInput(
                         value = phoneInput,
                         onValueChange = { if (it.length <= 20) phoneInput = it },
-                        label = "Contact phone",
-                        leadingIcon = Icons.Outlined.Call,
-                        keyboardType = KeyboardType.Phone
+                        label = "Phone",
+                        placeholder = "+91 98765 43210",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.weight(1f)
                     )
+                }
 
-                    EditProfileInputField(
-                        value = emailInput,
-                        onValueChange = { emailInput = it },
-                        label = "Email address",
-                        leadingIcon = Icons.Outlined.Mail,
-                        keyboardType = KeyboardType.Email,
-                        isError = !isEmailValid,
-                        errorMessage = if (!isEmailValid) "Please enter a valid email address" else null
-                    )
+                // Row 2 (Single-Column 100%): Corporate email *
+                NeumorphicFormInput(
+                    value = emailInput,
+                    onValueChange = { emailInput = it },
+                    label = "Corporate email *",
+                    placeholder = "e.g. user@tejasnetworks.com",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    isError = !isEmailValid,
+                    errorMessage = if (!isEmailValid) "Valid email required" else null,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                    EditProfileInputField(
+                // Row 3 (Dual-Column 50/50): Join date | Birthday
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    NeumorphicFormInput(
                         value = joinDateInput,
                         onValueChange = { joinDateInput = it },
-                        label = "Joining date",
+                        label = "Join date",
                         placeholder = "YYYY-MM-DD",
-                        leadingIcon = Icons.Outlined.CalendarToday,
                         readOnly = true,
                         onClick = { openDatePicker(joinDateInput) { joinDateInput = it } },
                         trailingIcon = {
-                            IconButton(onClick = { openDatePicker(joinDateInput) { joinDateInput = it } }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CalendarMonth,
-                                    contentDescription = "Pick Joining Date",
-                                    tint = activeAccent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                            Icon(
+                                Icons.Default.CalendarMonth,
+                                contentDescription = "Pick Join Date",
+                                tint = activeAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
                     )
 
-                    EditProfileInputField(
+                    NeumorphicFormInput(
                         value = birthdayInput,
                         onValueChange = { birthdayInput = it },
                         label = "Birthday",
                         placeholder = "YYYY-MM-DD",
-                        leadingIcon = Icons.Outlined.Cake,
                         readOnly = true,
                         onClick = { openDatePicker(birthdayInput) { birthdayInput = it } },
                         trailingIcon = {
-                            IconButton(onClick = { openDatePicker(birthdayInput) { birthdayInput = it } }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CalendarMonth,
-                                    contentDescription = "Pick Birthday",
-                                    tint = activeAccent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                            Icon(
+                                Icons.Default.Cake,
+                                contentDescription = "Pick Birthday",
+                                tint = activeAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
                     )
+                }
 
-                    // 3. Security & Password Section
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "SECURITY & PASSWORD",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = activeAccent,
-                            letterSpacing = 0.8.sp
-                        )
-                        Text(
-                            text = "· OPTIONAL",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.8.sp
-                        )
-                    }
-
+                // Security Section Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Leave the password fields blank to keep your current password.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "SECURITY & PASSWORD",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = activeAccent,
+                        letterSpacing = 0.5.sp
                     )
-
-                    // Current password
-                    EditProfileInputField(
-                        value = currentPassword,
-                        onValueChange = { currentPassword = it },
-                        label = "Current password",
-                        placeholder = "••••••••",
-                        leadingIcon = Icons.Outlined.Lock,
-                        isPassword = true,
-                        isPasswordVisible = currentPasswordVisible,
-                        isError = isPasswordChangeAttempted && currentPassword.isBlank(),
-                        errorMessage = if (isPasswordChangeAttempted && currentPassword.isBlank()) "Current password is required to change password" else null,
-                        trailingIcon = {
-                            IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
-                                Icon(
-                                    imageVector = if (currentPasswordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                                    contentDescription = "Toggle password visibility",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                    Text(
+                        text = "(Leave blank to keep current)",
+                        fontSize = 10.5.sp,
+                        color = NeumorphicTokens.TextMuted
                     )
+                }
 
-                    // New password
-                    EditProfileInputField(
+                // Row 4 (Single-Column 100%): Current password
+                NeumorphicFormInput(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it },
+                    label = "Current password",
+                    placeholder = "Required only if changing password",
+                    visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        Icon(
+                            imageVector = if (currentPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Toggle password",
+                            tint = NeumorphicTokens.TextMuted,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { currentPasswordVisible = !currentPasswordVisible }
+                        )
+                    },
+                    isError = isPasswordChangeAttempted && currentPassword.isBlank(),
+                    errorMessage = if (isPasswordChangeAttempted && currentPassword.isBlank()) "Current password required" else null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Row 5 (Dual-Column 50/50): New password | Confirm password
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    NeumorphicFormInput(
                         value = newPassword,
                         onValueChange = { newPassword = it },
                         label = "New password",
-                        placeholder = "Leave blank to keep current",
-                        leadingIcon = Icons.Outlined.Key,
-                        isPassword = true,
-                        isPasswordVisible = newPasswordVisible,
-                        isError = isPasswordChangeAttempted && !isPasswordLengthOk,
-                        errorMessage = if (isPasswordChangeAttempted && !isPasswordLengthOk) "Password must be at least 6 characters" else null,
+                        placeholder = "Min 6 chars",
+                        visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
-                                Icon(
-                                    imageVector = if (newPasswordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                                    contentDescription = "Toggle password visibility",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                            Icon(
+                                imageVector = if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = "Toggle password",
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { newPasswordVisible = !newPasswordVisible }
+                            )
+                        },
+                        isError = isPasswordChangeAttempted && !isPasswordLengthOk,
+                        errorMessage = if (isPasswordChangeAttempted && !isPasswordLengthOk) "Min 6 characters" else null,
+                        modifier = Modifier.weight(1f)
                     )
 
-                    // Confirm new password
-                    EditProfileInputField(
+                    NeumorphicFormInput(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = "Confirm new password",
+                        label = "Confirm password",
                         placeholder = "Repeat new password",
-                        leadingIcon = Icons.Outlined.Key,
-                        isPassword = true,
-                        isPasswordVisible = confirmPasswordVisible,
-                        isError = isPasswordChangeAttempted && !isPasswordMatch,
-                        errorMessage = if (isPasswordChangeAttempted && !isPasswordMatch) "Passwords do not match" else null,
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                                Icon(
-                                    imageVector = if (confirmPasswordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                                    contentDescription = "Toggle password visibility",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                            Icon(
+                                imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = "Toggle password",
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { confirmPasswordVisible = !confirmPasswordVisible }
+                            )
+                        },
+                        isError = isPasswordChangeAttempted && !isPasswordMatch,
+                        errorMessage = if (isPasswordChangeAttempted && !isPasswordMatch) "Passwords mismatch" else null,
+                        modifier = Modifier.weight(1f)
                     )
+                }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                // Action Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                            .clickable { onDismiss() }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeumorphicTokens.TextMuted
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .neumorphicRaised(shape = RoundedCornerShape(12.dp))
+                            .background(
+                                if (canSave) activeAccent else activeAccent.copy(alpha = 0.4f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable(enabled = canSave) {
+                                val trimmedName = nameInput.trim().toProperCase()
+                                val trimmedPhone = phoneInput.trim()
+                                val trimmedEmail = emailInput.trim().lowercase()
+                                val trimmedJoinDate = joinDateInput.trim()
+                                val trimmedBirthday = birthdayInput.trim()
+                                val currPassToVerify = currentPassword.trim().takeIf { it.isNotBlank() }
+                                val passToUpdate = newPassword.trim().takeIf { it.isNotBlank() }
+
+                                onSave(
+                                    trimmedName,
+                                    trimmedPhone,
+                                    trimmedEmail,
+                                    trimmedJoinDate,
+                                    trimmedBirthday,
+                                    pendingPhotoBase64,
+                                    currPassToVerify,
+                                    passToUpdate
+                                )
+                                onDismiss()
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Save changes",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 22:45 IST** (Target Sprint: **v1.29.0 - Build 122**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 23:45 IST** (Target Sprint: **v1.29.1 - Build 123**)
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.29.1 - Build 123):
+> *"Dasa! Boss choicha forms-ile white dropshadow issue Vijayan ivide complete aayi resolve cheythu macha! 🎨✨
+> 
+> 1. **White Dropshadow Eradicated (`NeumorphicModifier.kt` & `NeumorphicTokens.kt`)**:
+>    - **Root Cause**: Specular white highlight (`0xE6FFFFFF`) floating dialogs-inte dark scrim backdrop-ilekku 28dp blur-il bleed cheyyumbozhaanu glaring white chalk halo / white dropshadow aayi maarunnath.
+>    - **Floating Elevation Overhaul (`neumorphicFloating`)**:
+>      - Outer white drop shadow poornamaayi remove cheythu (`lightShadow = Color.Transparent`).
+>      - Realistic dual-layer downward dark occlusion drop shadow set cheythu (Ambient spread `10.dp` blur + Key directional shadow `24.dp` blur with downward +12.dp Y-offset).
+>      - Card-inte boundary-kk akathu mathram nilkkunna subtle 1.dp inner specular rim stroke (`Color(0x59FFFFFF)` in light mode, `Color(0x2694A3B8)` in dark mode) add cheythu. No more white drop shadow anywhere!
+> 2. **Sunken Form Basins (`NeumorphicFormInput.kt` & `ElevationInsetSubtle`)**:
+>    - Inset light reflection 90% white-il ninnum gentle 15% translucent gleam (`0x26FFFFFF`) aakki subdued aakki.
+>    - Input fields-inu crisp hairline focus-reactive border add cheythu (unfocused: subtle 1.dp hairline; focused: active `NeumorphicTokens.Accent`; error: Red).
+> 3. **Screenshots & Visual Parity Verified on Device**:
+>    - **Single-Line Search Bar**: My Team directory-il placeholder single-line with ellipsis confirmed.
+>    - **Swap Off & Rest Day**: Team Shifts tab-il `SWA` card clean aayi `Swap Off` title-um `Rest Day` description-um display cheyyunnathu live verify cheythu.
+>    - **Dates `16-Nov-2026` Format**: Credential Tracker-il dates `dd-MMM-yyyy` (e.g. `04-Oct-2026`, `18-Nov-2026`) formatted properly.
+> 4. **Live Verification & Build**:
+>    - Bumped to `v1.29.1` (Build 123) in `build.gradle.kts` and `server.py`.
+>    - Executed `safe_build.bat assembleDebug` and installed on target `100.71.241.36:5555`. Verified live dialogs and captures!"*
 
 ---
 
