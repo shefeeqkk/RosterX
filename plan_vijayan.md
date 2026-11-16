@@ -1,50 +1,86 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED` (Sprint v1.27.0 - Build 113)
+**Status:** `READY FOR VIJAYAN` (Sprint v1.28.0 - Build 119)
 
 ---
 
-## 1. Architectural Mandates from Gafoor
+## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Vijaya, Gafoorka client UI-ude full layout and interactive enhancements architect cheythu vechittundu. Follow Neumorphic design tokens and Jetpack Compose standards strictly.
+Vijaya! Client side-il team celebrations (birthdays & work anniversaries) teammates-num manager-kkum display aakkaanulla complete UI architecture Gafoorka blueprint cheythittundu. Neumorphic design principles and Jetpack Compose standards strictly follow cheyyuka!
 
-### 🎯 Scope of Work for Vijayan:
+### 🔍 Current Client UI Flaws:
+1. In `EngineerPortalScreen.kt` (lines ~613–657), celebration check ONLY evaluates `state.loggedInEngineer` (the user's own profile). Teammates never get notified or prompted when someone else on the team has a birthday or anniversary!
+2. In `AdminMainScreen.kt`, neither Admin nor Manager has any celebration detection or greeting card on their dashboard.
+3. Teammates have no quick one-tap action to wish their colleague directly via WhatsApp or Phone call from the dashboard.
 
-1. **My Team Enhancements (`MyTeamView.kt`)**: [COMPLETED]
-   - **WhatsApp Vector Icon**:
-     - Added `ic_whatsapp.xml` to `android/app/src/main/res/drawable/`.
-     - In `TeamMemberCard`, replaced `Icons.Default.Chat` with authentic WhatsApp icon (`painterResource(R.drawable.ic_whatsapp)`) with signature emerald `#25D366`.
-   - **Accurate Active Member Count**:
-     - Excluded `role == EngineerRole.ADMIN` and username `"admin"` from `activeEngineers` count in `MyTeamView.kt` and `MoreHubView.kt`.
-     - Filter strictly: `it.status != EngineerStatus.RESIGNED && it.role in listOf(EngineerRole.MANAGER, EngineerRole.ENGINEER, EngineerRole.APPRENTICE) && !it.username.equals("admin", ignoreCase = true)`.
-     - Description text reflects exact count of active shift engineers & manager.
+---
 
-2. **Credential Tracker Terminology Refinement (`CredentialTrackerScreen.kt`)**: [COMPLETED]
-   - Replaced all instances of `"Rotated"` with `"Updated"` (e.g. `"Updated: ${tracker.lastUpdatedDate} (${tracker.validityDays}d cycle)"`).
-   - Replaced all dialog and button references of `"Rotate"` with `"Update"`.
-   - Unified "Update Date" action pill, confirmation dialog CTA, and date picker buttons with the theme accent color (`AccentSalmon`) instead of green.
+## 2. Scope of Work for Vijayan
 
-3. **Notification Animations (`ProfileComponents.kt` - `QuickNotificationsBottomSheet`)**: [COMPLETED]
-   - **Smooth Item Dismiss & Clear All**:
-     - Wrapped notification items in `AnimatedVisibility` with:
-       `exit = fadeOut(tween(250)) + slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(280)) + shrinkVertically(animationSpec = tween(250))`
-     - Smooth item height collapse with `shrinkVertically` and `animateItemPlacement` eliminates all abrupt height jumps and gaps.
-     - On "Clear All", applied a 60ms staggered waterfall dismissal across all items before clearing state.
+### 1. Data Layer Integration
+- In `RosterApiService.kt`:
+  - Add endpoint:
+    ```kotlin
+    @GET("api/celebrations/today")
+    suspend fun getTodayCelebrations(): Response<CelebrationsResponse>
+    ```
+- In `com.rosterx.data.remote`:
+  - Define `CelebrationsResponse`:
+    ```kotlin
+    data class CelebrationsResponse(
+        val celebrations: List<TeamCelebrationDto> = emptyList()
+    )
+    data class TeamCelebrationDto(
+        val username: String = "",
+        val name: String = "",
+        val type: String = "", // "birthday" | "anniversary" | "both"
+        val years: Int = 0,
+        val photo: String = "",
+        val phone: String = "",
+        val title: String = "",
+        val greeting_text: String = ""
+    )
+    ```
+- In `EngineerPortalViewModel.kt`:
+  - Add `todayCelebrations: StateFlow<List<TeamCelebrationDto>>`
+  - Fetch on dashboard load / refresh alongside roster and engineers.
 
-4. **Interactive Notifications & Professional Redirection**: [COMPLETED]
-   - **Deep-Linking / Contextual Redirection**:
-     - Tapping alert auto-dismisses notification and closes sheet:
-       - Credential Alert (`category == "credential_expiry"` or title contains "Credential"): Navigates to **Credential Tracker** (`isViewingCredentialTracker = true`).
-       - Shift / Roster Alert (`priority == "shift_update"` or title/body contains "Roster" / "Shift"): Navigates to **Month Roster** tab (`selectedTab = 2` or `3`).
-       - Celebration (`isCelebrationNotif == true`): Opens **Celebration Wishes Dialog**.
-   - **Professional Content Styling**:
-     - Topic / Category Badges: `[SECURITY]`, `[ROSTER UPDATE]`, `[OPERATIONS]`, `[ANNOUNCEMENT]`, `[CELEBRATION 🎉]` with distinct icons, borders, and colors.
-     - Enhanced `@username` & Teammate Mention: Styled mention pills using `SpanStyle` inline highlight.
+### 2. Festive `TeamCelebrationCard.kt` Component
+- Create `android/app/src/main/java/com/rosterx/presentation/components/TeamCelebrationCard.kt`.
+- **Neumorphic Festive Design**:
+  - Soft elevated Neumorphic card with subtle celebratory amber/gold or coral accent border/glow.
+  - Header badge:
+    - If `birthday`: "🎂 Birthday Today!" with festive cake icon & confetti styling.
+    - If `anniversary`: "🏆 ${years} Years Work Anniversary!" with gold trophy icon.
+    - If `both`: "🎉 Double Celebration: Birthday & ${years}y Anniversary!"
+  - Colleague Information:
+    - Colleague Profile Picture (or gradient avatar with initials).
+    - Colleague Full Name in bold typography.
+    - Subtitle wishing text (e.g., *"Join the team in wishing them a wonderful day!"*).
+  - **Action Suite**:
+    1. **"Wish on WhatsApp" Button**:
+       - Styled with WhatsApp green accent (`#25D366`) and `R.drawable.ic_whatsapp` vector icon.
+       - Tapping launches WhatsApp via `Intent.ACTION_VIEW` (`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedGreeting}`) with a warm pre-filled message:
+         - Birthday: `"Happy Birthday ${name}! 🎉🎂 Wishing you an amazing year ahead! - From RosterX"`
+         - Anniversary: `"Happy ${years} Year Work Anniversary, ${name}! 🏆✨ Congratulations on this milestone!"`
+    2. **"Call" Button**:
+       - Initiates phone call via `Intent.ACTION_DIAL` (`tel:${phone}`).
+    3. **Dismiss 'X' button**:
+       - Saves dismissed celebration ID in `SharedPreferences` (`seen_team_celeb_${username}_${todayStr}`) so it doesn't disturb the user repeatedly on the same day once acknowledged.
 
-5. **Post-Build Activities (Mandatory)**: [COMPLETED]
-   - Version bump in `android/app/build.gradle.kts`: `versionName = "1.27.0"`, `versionCode = 113`.
-   - Backend sync: `server.py` `SERVER_VERSION = "1.27.0"`.
-   - Build: `cd android && .\safe_build.bat assembleDebug` (BUILD SUCCESSFUL).
-   - Artifact ready: `android/app/build/outputs/apk/debug/app-debug.apk`.
-   - ADB Install & Verification: Ready for device sync.
-   - Commit changes and update `AGENT_HANDOFF.md`.
+### 3. Dashboard Integration
+- In `EngineerPortalScreen.kt`:
+  - Place `TeamCelebrationCard` right at the top of the Home / Shifts dashboard (above Today's Shift Card / Active Roster) whenever `todayCelebrations` is not empty.
+- In `AdminMainScreen.kt`:
+  - Also display `TeamCelebrationCard` on the Admin / Manager overview dashboard so managers and admin never miss team celebrations!
+
+### 4. Post-Build Activities (Mandatory)
+- Version bump in `android/app/build.gradle.kts`:
+  - `versionName = "1.28.0"`
+  - `versionCode = 119`
+- Execute safe build:
+  - `cd android && .\safe_build.bat assembleDebug`
+- Install on device via ADB:
+  - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
+- Verify celebration card renders cleanly and WhatsApp intent fires properly.
+- Commit changes and update `AGENT_HANDOFF.md`.

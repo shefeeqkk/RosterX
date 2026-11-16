@@ -1,7 +1,37 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 10:30 IST** (Target Sprint: **v1.27.0 - Build 113**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 17:45 IST** (Target Sprint: **v1.28.0 - Build 119**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.28.0 - Build 119):
+> *"Dasa, Vijaya! Gafoorka nammude team celebrations (Birthdays & Work Anniversaries) delivery engine-nte full diagnosis nadathi, blueprint lock aakki vechittundu.
+> 
+> ### 🔍 Why Team Members & Manager Were Not Getting Celebrations:
+> 1. **Fatal `NameError: name 'random' is not defined` in `server.py`**:
+>    - `server.py` line ~982-il celebration notification create cheyyumbol `random.randint(...)` call cheythappol `random` import illathathinaal instant crash aayi! Caught by silent `except Exception:`, so MongoDB notification insert aayilla, FCM push ayanjilla!
+> 2. **Brittle Date Matching**:
+>    - `check_and_trigger_celebrations` checked `bday_raw.endswith("-MM-DD")` or `bday_raw[-5:] == MM-DD`. Database-ilo profile edit-ilo `DD-MM-YYYY` (e.g. `16-11-1995`) aayi enter cheythaal `-1995` != `11-16` aayi completely drop aayirunnu!
+> 3. **Client UI Never Evaluated Teammates**:
+>    - `EngineerPortalScreen.kt` line 613-il celebration check ONLY evaluated `state.loggedInEngineer` (the user's own profile). Teammates-nte celebrations check cheyithirunnilla!
+>    - `AdminMainScreen.kt`-il manager/admin-kk celebration card or detection thanne illayirunnu!
+> 
+> ### 🛠️ The Architecture & Assignments:
+> 1. **Dasan (Backend)**:
+>    - Add missing `import random` in `server.py`.
+>    - Implement robust `parse_celebration_date()` handling `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YYYY`, `MM-DD`, `DD-MM`.
+>    - Overhaul `check_and_trigger_celebrations()` to broadcast high-priority in-app and FCM push to `all_fcm_tokens`.
+>    - Add dedicated endpoint `GET /api/celebrations/today` returning today's active team celebrations with unmasked phone numbers and personalized greeting templates.
+>    - Bump `SERVER_VERSION = "1.28.0"`.
+> 2. **Vijayan (Compose UI)**:
+>    - Integrate `GET /api/celebrations/today` in `RosterApiService` and `EngineerPortalViewModel`.
+>    - Build `TeamCelebrationCard.kt`: Festive Neumorphic banner on top of Home dashboard for both Engineer Portal and Admin/Manager Portal.
+>    - Actions: Direct **"Wish on WhatsApp"** button (launches pre-filled greeting message via WhatsApp) and **"Call"** button (launches phone dialer).
+>    - Dismiss option with local cache (`seen_team_celeb_${username}_${todayStr}`) so user isn't prompted repeatedly.
+>    - Bump version to `versionName = "1.28.0"`, `versionCode = 119`, and execute safe build (`safe_build.bat assembleDebug`).
+> 
+> Dasan and Vijayan: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
 ---
 
