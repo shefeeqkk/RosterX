@@ -4,6 +4,8 @@
 !.env.example
 firebase-adminsdk*.json
 *-adminsdk-*.json
+google-services.json
+android/app/google-services.json
 
 # Backups & Local Recovery Dumps
 backups/
