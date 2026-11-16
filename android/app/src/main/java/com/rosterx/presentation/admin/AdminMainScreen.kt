@@ -93,7 +93,7 @@ fun AdminMainScreen(
     Scaffold(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
-            if (!isFullScreenRoster) {
+            if (!isFullScreenRoster && !isViewingCredentialTracker) {
                 TopAppBar(
                     navigationIcon = {
                         if (isViewingSettings) {
@@ -276,7 +276,8 @@ fun AdminMainScreen(
                             CredentialTrackerScreen(
                                 state = portalState,
                                 viewModel = portalViewModel,
-                                onBackClick = { isViewingCredentialTracker = false }
+                                onBackClick = { isViewingCredentialTracker = false },
+                                currentUser = currentUser
                             )
                         }
                         2 -> {

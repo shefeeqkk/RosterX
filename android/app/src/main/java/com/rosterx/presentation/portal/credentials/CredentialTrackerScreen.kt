@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rosterx.data.remote.CredentialTrackerDto
+import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.presentation.portal.EngineerPortalViewModel
 import com.rosterx.presentation.portal.PortalState
@@ -57,6 +58,7 @@ fun CredentialTrackerScreen(
     state: PortalState,
     viewModel: EngineerPortalViewModel,
     onBackClick: () -> Unit,
+    currentUser: Engineer? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -69,11 +71,12 @@ fun CredentialTrackerScreen(
     var trackerToPickDateFor by remember { mutableStateOf<CredentialTrackerDto?>(null) }
     var pendingRenewalConfirmation by remember { mutableStateOf<Pair<CredentialTrackerDto, String>?>(null) }
 
-    val isManagerOrAdmin = state.loggedInEngineer?.role == EngineerRole.ADMIN ||
-            state.loggedInEngineer?.role == EngineerRole.MANAGER
+    val effectiveUser = currentUser ?: state.loggedInEngineer
+    val isManagerOrAdmin = effectiveUser?.role == EngineerRole.ADMIN ||
+            effectiveUser?.role == EngineerRole.MANAGER
 
-    val currentUserEmail = state.loggedInEngineer?.email?.trim()?.lowercase() ?: ""
-    val currentUsername = state.loggedInEngineer?.username?.trim()?.lowercase() ?: ""
+    val currentUserEmail = effectiveUser?.email?.trim()?.lowercase() ?: ""
+    val currentUsername = effectiveUser?.username?.trim()?.lowercase() ?: ""
 
     // Filter trackers
     val filteredTrackers = remember(state.credentialTrackers, searchQuery, selectedFilter) {

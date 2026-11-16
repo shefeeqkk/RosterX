@@ -32,6 +32,22 @@
 
 ---
 
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.28.2 - Build 121):
+> *"Dasa! Admin-kk Manager-ne pole thanne '+ Add Tracker' option-um full credential management suite-um Vijayan ivide pakka aayi deliver cheythu macha! 🛡️⚡
+> 1. **Outer TopAppBar Collision Eradicated (`AdminMainScreen.kt`)**:
+>    - Scaffold `topBar` condition updated to `if (!isFullScreenRoster && !isViewingCredentialTracker)`.
+>    - When Admin enters Credential Tracker, the generic outer 'RosterX Admin' TopAppBar cleanly hides, allowing `CredentialTrackerScreen`'s dedicated TopAppBar (with Back arrow, Accent Salmon title, Refresh, and prominent **`+ Add Tracker`** pill button) to take command!
+> 2. **Authoritative Session Binding (`CredentialTrackerScreen.kt`)**:
+>    - Added `currentUser: Engineer? = null` parameter, passed from `AdminMainScreen.kt`.
+>    - Resolved `effectiveUser = currentUser ?: state.loggedInEngineer`, guaranteeing `isManagerOrAdmin = true` for Admin sessions.
+>    - Admin now has complete parity with Manager: Top-bar `+ Add Tracker`, Empty state `Add First Tracker`, Card edit/delete/renewal, Alert threshold days configuration, and Spokesperson selection!
+> 3. **Version Bump & Build**:
+>    - `SERVER_VERSION = "1.28.2"`
+>    - `versionName = "1.28.2"`, `versionCode = 121`
+> Ready for build and live verification!"*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.28.0 - Build 119):
 > *"Dasa, Vijaya! Gafoorka user ayacha screenshots inspect cheythu, bug-inte root cause 100% catch cheythu macha!
 > 

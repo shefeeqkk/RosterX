@@ -1,7 +1,50 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 19:15 IST** (Target Sprint: **v1.28.0 - Build 119**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 20:50 IST** (Target Sprint: **v1.28.2 - Build 121**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.28.2 - Build 121):
+> *"Vijaya, Dasa! Gafoorka puthiya task-nte full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎯 User Requirement:
+> > 'Add tracker option is required for admin also same like manager'
+> 
+> ### 🔍 Why Admin Did Not See the 'Add Tracker' Option:
+> 1. **Outer TopAppBar Collision in `AdminMainScreen.kt`**:
+>    - `AdminMainScreen.kt` Scaffold's `topBar` condition was `if (!isFullScreenRoster)` — it was missing `&& !isViewingCredentialTracker`!
+>    - Because of that, when Admin opened Credential Tracker from the More tab, the outer Scaffold drew the generic 'RosterX Admin' TopAppBar right on top, completely covering and replacing `CredentialTrackerScreen`'s own TopAppBar (which houses the **`+ Add Tracker`** button, title, refresh, and back button)!
+> 2. **Role & Session Binding**:
+>    - `CredentialTrackerScreen.kt` checked `state.loggedInEngineer?.role`. In `AdminMainScreen.kt`, the authoritative session is held in `currentUser` (`AdminRosterViewModel.currentUser`), but `state` passed was `portalState` (`EngineerPortalViewModel`).
+> 
+> ### 🛠️ The Fix for Vijayan (`plan_vijayan.md`):
+> 1. In `AdminMainScreen.kt`:
+>    - Hide outer TopAppBar when viewing Credential Tracker: `if (!isFullScreenRoster && !isViewingCredentialTracker) { TopAppBar(...) }`.
+>    - Pass `currentUser = currentUser` to `CredentialTrackerScreen`.
+> 2. In `CredentialTrackerScreen.kt`:
+>    - Accept `currentUser: Engineer? = null`.
+>    - Compute `effectiveUser = currentUser ?: state.loggedInEngineer`.
+>    - Ensure `isManagerOrAdmin` evaluates to `true` for Admin, rendering the header **`+ Add Tracker`** button, empty-state button, and all edit/delete/spokesperson controls.
+> 3. Version bump to `versionName = "1.28.2"`, `versionCode = 121`, and safe build (`cd android && .\safe_build.bat assembleDebug`).
+> 
+> Vijaya, check `plan_vijayan.md`. Thudangikko!"*
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.28.2 - Build 121):
+> *"Dasa! Admin-kk Manager-ne pole thanne '+ Add Tracker' option-um full credential management suite-um Vijayan ivide pakka aayi deliver cheythu macha! 🛡️⚡
+> 1. **Outer TopAppBar Collision Eradicated (`AdminMainScreen.kt`)**:
+>    - Scaffold `topBar` condition updated to `if (!isFullScreenRoster && !isViewingCredentialTracker)`.
+>    - When Admin enters Credential Tracker, the generic outer 'RosterX Admin' TopAppBar cleanly hides, allowing `CredentialTrackerScreen`'s dedicated TopAppBar (with Back arrow, Accent Salmon title, Refresh, and prominent **`+ Add Tracker`** pill button) to take command!
+> 2. **Authoritative Session Binding (`CredentialTrackerScreen.kt`)**:
+>    - Added `currentUser: Engineer? = null` parameter, passed from `AdminMainScreen.kt`.
+>    - Resolved `effectiveUser = currentUser ?: state.loggedInEngineer`, guaranteeing `isManagerOrAdmin = true` for Admin sessions.
+>    - Admin now has complete parity with Manager: Top-bar `+ Add Tracker`, Empty state `Add First Tracker`, Card edit/delete/renewal, Alert threshold days configuration, and Spokesperson selection!
+> 3. **Version Bump & Build**:
+>    - `SERVER_VERSION = "1.28.2"`
+>    - `versionName = "1.28.2"`, `versionCode = 121`
+> Ready for build and live verification!"*
 
 ---
 
