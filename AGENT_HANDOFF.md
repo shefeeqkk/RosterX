@@ -5,6 +5,27 @@
 
 ---
 
+## 🚨 SYSTEM ALERT — Gafoor Security Overhaul (2026-11-16 09:40 IST) — v1.26.2 (Build 111)
+
+> *"Dasa! Vijaya! Public repository cleanliness audit completed & executed! Git history sanitized 100%!"*
+
+### 🔴 1. `google-services.json` Purged from Entire Git History & Gitignored
+- `android/app/google-services.json` was purged from **all commits** in repository history via `git-filter-repo`.
+- Added to `.gitignore` so Firebase API keys are **never pushed to public GitHub**.
+- The file remains preserved locally on disk so `.\safe_build.bat assembleDebug` and Android studio builds continue to work seamlessly without breakage.
+- History rewritten and pushed to GitHub `origin/main` via force push.
+
+### 🔴 2. Hardcoded JWT Fallback Secret Removed (`server.py`)
+- Removed static string fallback `rosterx_enterprise_sec_key_...` from `get_auth_secret()`.
+- Now strictly enforces `AUTH_SECRET_KEY` via environment variables (or `.env` file); otherwise throws a descriptive `RuntimeError`.
+
+### 📦 Version Status
+- `SERVER_VERSION`: **`1.26.2`**
+- `versionCode`: **`111`**
+- `versionName`: **`1.26.2`**
+
+---
+
 ## 🚨 SYSTEM ALERT — Gafoor Security Directive (2026-11-15 22:54 IST) — v1.26.1 (Build 110)
 
 > *"Dasa! Vijaya! Sharikkum sharikkum important! Randu security changes enforce cheythu — ningal randupeerum ithinte impact ariyaanam!"*
