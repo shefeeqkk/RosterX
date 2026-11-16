@@ -77,7 +77,10 @@ Transform `LoginScreen.kt` from flat Material 3 to compact Neumorphic styling:
   - Logo (`56.dp`), `"Welcome to RosterX"` (`22.sp`, Bold), subtitle (`11.sp`).
   - Username: Inset Neumorphic input with Person icon + Key icon for Google Password Manager.
   - Password: Inset Neumorphic input with Lock icon + Eye toggle icon.
-  - Forgot Password button aligned right.
+  - **Standard "Forgot password?" Link**:
+    - Change legacy text `"Forgot Username / Need Help?"` to standard `"Forgot password?"`.
+    - Position it **right-aligned immediately below the Password field** (`Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End)`).
+    - Tapping opens the Neumorphic OTP Password Reset dialog.
   - Primary **"Sign In"** button: Elevated Neumorphic button with smooth press animation (`neumorphicClickable`).
 - Server Settings Dialog & OTP Password Reset Dialog:
   - Converted to matching Neumorphic dialogs with inset inputs.

@@ -26,6 +26,7 @@
 > 2. **Login Screen (`LoginScreen.kt`)**:
 >    - Replaced flat Material 3 surface with floating Neumorphic card (`NeumorphicTokens.Surface`).
 >    - Inset Neumorphic inputs for Username & Password (retaining autofill & Google Password Manager).
+>    - Standardized `"Forgot Username / Need Help?"` to **`"Forgot password?"`**, positioned **right-aligned directly below the Password input**.
 >    - Tactile elevated Neumorphic **'Sign In'** button (`neumorphicClickable`).
 >    - Compact vertical layout fitting comfortably on phone screens with zero scrolling.
 > 
