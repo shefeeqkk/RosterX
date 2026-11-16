@@ -38,6 +38,39 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
+      - name: Restore Firebase Config (google-services.json)
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          mkdir -p android/app
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+            echo "✅ Successfully restored google-services.json from base64 secret."
+          elif [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "✅ Successfully restored google-services.json from raw secret."
+          else
+            echo "❌ CRITICAL: Neither GOOGLE_SERVICES_JSON_BASE64 nor GOOGLE_SERVICES_JSON secret is set in GitHub repository secrets!"
+            echo "Please add GOOGLE_SERVICES_JSON_BASE64 to GitHub Repo Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Restore Signing Keystore (Firebase SHA-256)
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p ~/.android
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
+            echo "✅ Successfully restored debug.keystore from secret."
+            echo "Verifying SHA-256 fingerprint in restored keystore:"
+            keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep -E "SHA1|SHA256"
+          else
+            echo "⚠️ WARNING: DEBUG_KEYSTORE_BASE64 secret is not set!"
+            echo "Gradle will generate an ephemeral keystore whose SHA-256 will NOT match Firebase!"
+          fi
+
       - name: Build Release APK
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' || github.event_name != 'workflow_dispatch' }}
         run: |
@@ -54,7 +87,7 @@ jobs:
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' || github.event_name != 'workflow_dispatch' }}
         uses: actions/upload-artifact@v4
         with:
-          name: RosterX-Release-v1.11.8
+          name: RosterX-Release-APK
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 30
 
@@ -62,7 +95,7 @@ jobs:
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event_name != 'workflow_dispatch' }}
         uses: actions/upload-artifact@v4
         with:
-          name: RosterX-Debug-v1.11.8
+          name: RosterX-Debug-APK
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
 

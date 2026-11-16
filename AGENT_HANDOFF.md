@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-15 22:15 IST** (Target Sprint: **v1.26.0 - Build 109**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 09:58 IST** (Target Sprint: **v1.26.3 - Build 112**)
+
+---
+
+## 🚨 SYSTEM ALERT — CI/CD Build Fix & Firebase SHA-256 Alignment (2026-11-16 09:58 IST) — v1.26.3 (Build 112)
+
+> *"Dasa! Vijaya! Build #92 failed on GitHub Actions because `google-services.json` was purged from git repository. We have wired GitHub Actions Secrets restoration for both `google-services.json` and the exact `debug.keystore` matching Firebase's SHA-256 fingerprint!"*
+
+### 🔴 1. Root Cause of Build #92 Failure:
+- `android/app/google-services.json` was purged from git and placed in `.gitignore`.
+- When GitHub Actions runner cloned the repo, `google-services.json` was absent, causing Gradle task `processReleaseGoogleServices` to fail after 44s.
+
+### 🔴 2. Solution Implemented:
+- Updated `.github/workflows/build-apk.yml`:
+  - Added secret decoding step for `GOOGLE_SERVICES_JSON_BASE64` into `android/app/google-services.json`.
+  - Added secret decoding step for `DEBUG_KEYSTORE_BASE64` into `~/.android/debug.keystore`.
+  - This ensures GitHub Actions signs APKs with the exact debug keystore whose SHA-256 (`EA:81:06:66:4C:EF:E8:51:FD:1B:54:17:D1:77:DD:E6:EB:83:FF:AA:9B:DA:D9:17:33:F5:CC:1D:51:0B:43:7D`) is registered in Firebase Console!
+  - Renamed artifact uploads from static `v1.11.8` to `RosterX-Release-APK` and `RosterX-Debug-APK`.
+
+### 📦 Version Status
+- `SERVER_VERSION`: **`1.26.3`**
+- `versionCode`: **`112`**
+- `versionName`: **`1.26.3`**
 
 ---
 
