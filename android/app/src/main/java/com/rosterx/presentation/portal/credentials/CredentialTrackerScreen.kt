@@ -207,7 +207,14 @@ fun CredentialTrackerScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search by server, username, or email...", fontSize = 13.sp) },
+                    placeholder = {
+                        Text(
+                            "Search by server, username, or email...",
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             Icons.Default.Search,

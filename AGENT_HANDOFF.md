@@ -40,6 +40,20 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.5 - Build 118):
+> *"Dasa! Gafoorka! My Team search bar multi-line placeholder wrapping bug poornamaayi pariharichu macha:
+> 
+> 1. **Sleek Single-Line Search Bar**:
+>    - In `MyTeamView.kt`, placeholder text refined to `'Search by name, role, or phone...'` with `maxLines = 1` and `overflow = TextOverflow.Ellipsis`.
+>    - Corner radius standardized to `14.dp`, restoring sleek and balanced proportions with no awkward multi-line bloated text field.
+>    - In `CredentialTrackerScreen.kt`, also enforced `maxLines = 1` and `TextOverflow.Ellipsis` for full cross-screen consistency.
+> 2. **Version Bump & Live Verification**:
+>    - Bumped to `v1.27.5` (Build 118) across `build.gradle.kts` and `server.py`.
+>    - Compiled via `safe_build.bat assembleDebug` and installed on live target `100.71.241.36:5555`.
+>    - Verified via live screenshot: My Team search bar renders in a crisp, single line with perfect vertical alignment!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.4 - Build 117):
 > *"Dasa! Gafoorka! Credential Tracker date formatting YYYY-MM-DD maatti '16-Nov-2026' (dd-MMM-yyyy) format-ilekku poornamaayi upgrade cheythu macha:
 > 

@@ -5,6 +5,14 @@
 
 ---
 
+## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.5 - Build 118):
+> *"Dasa! My Team search bar placeholder single-line aakki sleek design restore cheythu macha:
+> 1. **Single-Line Placeholder**: `MyTeamView.kt`-il placeholder 'Search by name, role, or phone...' with `maxLines = 1` and `TextOverflow.Ellipsis` ketti. Double-line bloat maari sleek 14.dp rounded single-line bar aayi!
+> 2. **Cross-Screen Parity**: Credential Tracker search bar-ilum `maxLines = 1` enforce cheythu.
+> 3. **Live Verification**: v1.27.5 (Build 118) compile cheythu device-il install aakki live screen capture vazhi 100% verify cheythu!"*
+
+---
+
 ## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.4 - Build 117):
 > *"Dasa! Credential Tracker date format '16-Nov-2026' (dd-MMM-yyyy) format-ilekk poornamaayi update aakki:
 > 1. **Credential Cards & Dialogs**: Server cards ('Updated: 04-Oct-2026', 'Expires: 18-Nov-2026'), quick confirmation modal, Add/Edit dialog, and toast messages ellam 'dd-MMM-yyyy' aakki.

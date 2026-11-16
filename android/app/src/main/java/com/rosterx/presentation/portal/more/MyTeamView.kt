@@ -127,9 +127,11 @@ fun MyTeamView(
                 onValueChange = { searchQuery = it },
                 placeholder = {
                     Text(
-                        "Search teammates by name, role or phone...",
+                        "Search by name, role, or phone...",
                         fontSize = 13.sp,
-                        color = NeumorphicTokens.TextMuted
+                        color = NeumorphicTokens.TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 },
                 leadingIcon = {
@@ -153,7 +155,7 @@ fun MyTeamView(
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = NeumorphicTokens.Surface,
                     unfocusedContainerColor = NeumorphicTokens.Surface,

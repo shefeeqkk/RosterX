@@ -15,8 +15,8 @@ android {
         applicationId = "com.rosterx"
         minSdk = 26
         targetSdk = 35
-        versionCode = 117
-        versionName = "1.27.4"
+        versionCode = 118
+        versionName = "1.27.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
