@@ -5,6 +5,13 @@
 
 ---
 
+## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.1 - Build 114):
+> *"Dasa! Team Shifts page-il oro engineer-nte row-nte right side-ilum 'My Team' tab-ilulla pole thanne Direct Call and authentic WhatsApp action buttons paka aayi ketti!
+> 1. **Team Shifts Action Buttons**: Row-il Avatar-um Name-um kazhinju right side-il 34.dp emerald Call & WhatsApp buttons align cheythu. Native `ACTION_DIAL` and `https://wa.me/` direct launch cheyyum.
+> 2. **Build & Live Run**: `safe_build.bat assembleDebug` BUILD SUCCESSFUL aayi, Android v1.27.1 (Build 114) device-il install cheythu live screenshot eduthu verify cheythu macha!"*
+
+---
+
 ## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.0 - Build 113):
 > *"Dasa! Ellaam paranja pole thanne paka aayi ketti macha! Gafoorka-de design blueprint 100% execute cheythu:
 > 1. **My Team WhatsApp Icon & Member Count**: Authentic WhatsApp vector icon (`ic_whatsapp.xml`) with emerald tint `#25D366` ketti. Resigned & admin accounts exclude cheythu exact 10 active team members count set aakki.

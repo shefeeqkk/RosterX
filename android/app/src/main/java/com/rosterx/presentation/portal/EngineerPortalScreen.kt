@@ -2784,6 +2784,7 @@ fun TeamShiftsView(
     onJumpToToday: () -> Unit
 
 ) {
+    val context = LocalContext.current
 
     val activeEngineers = remember(state.engineers, state.selectedDate, state.liveRoster) {
         val nonManagement = state.engineers.filter { !it.isManagementAccount }
@@ -3062,69 +3063,132 @@ fun TeamShiftsView(
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
 
                             engineersInShift.forEach { engineer ->
-
                                 val isUser = state.loggedInEngineer?.id == engineer.id
+                                val rawPhone = engineer.phone.trim()
+                                val hasPhone = rawPhone.isNotBlank()
+                                val cleanDialPhone = remember(rawPhone) {
+                                    rawPhone.replace(Regex("[^0-9+]"), "")
+                                }
+                                val whatsappPhone = remember(rawPhone) {
+                                    val digitsOnly = rawPhone.replace(Regex("[^0-9]"), "")
+                                    if (digitsOnly.length == 10) "91$digitsOnly" else digitsOnly
+                                }
+                                val properName = remember(engineer.name, engineer.fullName) {
+                                    engineer.fullName.ifBlank { engineer.name }.toProperCase()
+                                }
 
                                 Surface(
-
-                                    shape = RoundedCornerShape(8.dp),
-
+                                    shape = RoundedCornerShape(10.dp),
                                     color = if (isUser) NeumorphicTokens.AccentSalmon.copy(alpha = 0.12f) else NeumorphicTokens.SurfaceContrast.copy(alpha = 0.5f),
-
                                     modifier = Modifier.fillMaxWidth()
-
                                 ) {
-
                                     Row(
-
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-
                                         verticalAlignment = Alignment.CenterVertically
-
                                     ) {
-
                                         UserAvatar(
                                             profilePicture = engineer.profilePicture,
                                             name = engineer.name,
-                                            size = 26.dp
+                                            size = 28.dp
                                         )
 
                                         Spacer(modifier = Modifier.width(8.dp))
 
-                                        Text(
-
-                                            text = engineer.name.toProperCase(),
-
-                                            fontWeight = if (isUser) FontWeight.ExtraBold else FontWeight.Medium,
-
-                                            fontSize = 13.sp,
-
-                                            color = if (isUser) NeumorphicTokens.AccentSalmon else NeumorphicTokens.TextMain
-
-                                        )
-
-                                        if (isUser) {
-
-                                            Spacer(modifier = Modifier.width(4.dp))
-
-                                            Icon(
-
-                                                Icons.Default.Star, 
-
-                                                contentDescription = "You", 
-
-                                                tint = Color(0xFFF59E0B), 
-
-                                                modifier = Modifier.size(12.dp)
-
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = properName,
+                                                fontWeight = if (isUser) FontWeight.ExtraBold else FontWeight.Medium,
+                                                fontSize = 13.5.sp,
+                                                color = if (isUser) NeumorphicTokens.AccentSalmon else NeumorphicTokens.TextMain,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
 
+                                            if (isUser) {
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    Icons.Default.Star, 
+                                                    contentDescription = "You", 
+                                                    tint = Color(0xFFF59E0B), 
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
                                         }
 
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        // Action Buttons: Call & WhatsApp
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Call Button
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (hasPhone) Color(0xFF059669).copy(alpha = 0.12f)
+                                                        else NeumorphicTokens.TextMuted.copy(alpha = 0.08f)
+                                                    )
+                                                    .clickable {
+                                                        if (!hasPhone || cleanDialPhone.isBlank()) {
+                                                            Toast.makeText(context, "No phone number available for $properName", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanDialPhone"))
+                                                            try {
+                                                                context.startActivity(intent)
+                                                            } catch (_: Exception) {
+                                                                Toast.makeText(context, "Could not launch phone dialer", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Call,
+                                                    contentDescription = "Call",
+                                                    tint = if (hasPhone) Color(0xFF059669) else NeumorphicTokens.TextMuted.copy(alpha = 0.4f),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+
+                                            // WhatsApp Button
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (hasPhone) Color(0xFF25D366).copy(alpha = 0.15f)
+                                                        else NeumorphicTokens.TextMuted.copy(alpha = 0.08f)
+                                                    )
+                                                    .clickable {
+                                                        if (!hasPhone || whatsappPhone.isBlank()) {
+                                                            Toast.makeText(context, "No phone number available for WhatsApp", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$whatsappPhone"))
+                                                            try {
+                                                                context.startActivity(intent)
+                                                            } catch (e: Exception) {
+                                                                Toast.makeText(context, "Could not open WhatsApp: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_whatsapp),
+                                                    contentDescription = "WhatsApp",
+                                                    tint = if (hasPhone) Color(0xFF25D366) else NeumorphicTokens.TextMuted.copy(alpha = 0.4f),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
                                     }
-
                                 }
-
                             }
 
                         }

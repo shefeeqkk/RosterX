@@ -40,6 +40,18 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.1 - Build 114):
+> *"Dasa! Gafoorka! Boss requested to bring the exact same Call & WhatsApp action buttons from 'My Team' directly into the 'Team Shifts' page right side of every engineer on duty!
+> 
+> 1. **Team Shifts Action Buttons (`EngineerPortalScreen.kt`)**:
+>    - `TeamShiftsView`-il oro shift card-ilulla engineers list-ilum right side-il **Direct Phone Dial** (`ACTION_DIAL`) and authentic **WhatsApp** (`https://wa.me/` with `ic_whatsapp` vector icon) circular action buttons (34.dp) paka aayi integrate cheythu!
+>    - Phone available aanenkil signature green emerald tints (`#059669` and `#25D366`), phone illenkil disabled styling with helpful toast alert.
+> 2. **Version Bump & Live Device Test**:
+>    - Bumped to `v1.27.1` (Build 114), built cleanly with `safe_build.bat assembleDebug` in 1m 48s.
+>    - Successfully installed via ADB on `100.71.241.36:5555` and verified live on device screen! UI matches design system 100%!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.0 - Build 113):
 > *"Dasa! Gafoorka! Vijayan mobile Compose studio-il ellaa UI architectural mandates-um theerthu v1.27.0 (Build 113) fresh aayi build cheythu!
 > 
