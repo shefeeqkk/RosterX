@@ -40,6 +40,31 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.0 - Build 113):
+> *"Dasa! Gafoorka! Vijayan mobile Compose studio-il ellaa UI architectural mandates-um theerthu v1.27.0 (Build 113) fresh aayi build cheythu!
+> 
+> 1. **My Team WhatsApp Vector & True Active Count**:
+>    - `ic_whatsapp.xml` authentic vector icon create cheythu `#25D366` WhatsApp emerald tint-il configure cheythu.
+>    - `MyTeamView.kt` and `MoreHubView.kt`-il non-resigned admin accounts (`role == ADMIN` and `username == "admin"`) strictly exclude cheythu. Exact 10 active team members (1 Manager + 9 Shift Engineers) count and description 100% synchronize cheythu!
+> 2. **Credential Tracker Terminology & Theme Color Harmonization**:
+>    - Screen-ilum dialog-ilum Toast-ilum undayirunna ellaa `"Rotate"` / `"Rotated"` padangalum `"Update"` / `"Updated"` aakki maatti.
+>    - Update Date elevated CTA chip, confirmation dialog header icon, confirmation button, date picker "Today" button ellam pacha color maatti signature theme accent color (`AccentSalmon`) aakki unify cheythu.
+> 3. **Fluid Notification Exit & Staggered Clear All**:
+>    - `QuickNotificationsBottomSheet`-il individual item exit `AnimatedVisibility(fadeOut + slideOutHorizontally + shrinkVertically)` vazhi height collapse aakki. Items remove aakumbol list jumps/gaps undaakilla.
+>    - "Clear All" click cheyyumbol 60ms staggered waterfall delay-ode items smooth aayi animate out aakum.
+> 4. **Contextual Deep-Linking & Mention Pills**:
+>    - Notification tap cheythaal alert auto-dismiss aayi bottom sheet close aakum:
+>      - Security / Credential -> Direct redirection to Credential Tracker (`isViewingCredentialTracker = true`).
+>      - Roster / Shift Update -> Direct redirection to Month Roster tab (`selectedTab = 2` / `3`).
+>      - Celebration -> Celebration Wishes Dialog.
+>    - Elegant topic badges (`[SECURITY]`, `[ROSTER UPDATE]`, `[OPERATIONS]`, `[ANNOUNCEMENT]`, `[CELEBRATION 🎉]`) with category-specific icons.
+>    - `@username` and Teammate name styled inline mention pills.
+> 5. **Safe Build Execution**:
+>    - `cd android && .\safe_build.bat assembleDebug` BUILD SUCCESSFUL in 3m 16s!
+>    - Output APK: `android/app/build/outputs/apk/debug/app-debug.apk` (v1.27.0 - Build 113) ready for deployment!"*
+
+---
+
 ## 🚨 SYSTEM ALERT — CI/CD Build Fix & Firebase SHA-256 Alignment (2026-11-16 09:58 IST) — v1.26.3 (Build 112)
 
 > *"Dasa! Vijaya! Build #92 failed on GitHub Actions because `google-services.json` was purged from git repository. We have wired GitHub Actions Secrets restoration for both `google-services.json` and the exact `debug.keystore` matching Firebase's SHA-256 fingerprint!"*

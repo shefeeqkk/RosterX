@@ -407,7 +407,7 @@ fun CredentialTrackerScreen(
                             pendingRenewalConfirmation = Pair(tracker, todayStr)
                         }
                     ) {
-                        Text("Today", fontWeight = FontWeight.Bold, color = Color(0xFF059669))
+                        Text("Today", fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon)
                     }
                     Spacer(modifier = Modifier.width(6.dp))
                     TextButton(onClick = { trackerToPickDateFor = null }) {
@@ -420,7 +420,7 @@ fun CredentialTrackerScreen(
                 state = datePickerState,
                 title = {
                     Text(
-                        text = "Rotate '${tracker.serverName}' (${tracker.username})",
+                        text = "Update '${tracker.serverName}' (${tracker.username})",
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
@@ -440,12 +440,12 @@ fun CredentialTrackerScreen(
 
         AlertDialog(
             onDismissRequest = { pendingRenewalConfirmation = null },
-            icon = { Icon(Icons.Default.EventAvailable, contentDescription = null, tint = Color(0xFF059669)) },
-            title = { Text("Confirm Credential Rotation", fontWeight = FontWeight.Bold) },
+            icon = { Icon(Icons.Default.EventAvailable, contentDescription = null, tint = NeumorphicTokens.AccentSalmon) },
+            title = { Text("Confirm Credential Update", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Update credential rotation date for server '${tracker.serverName}' (${tracker.username})?",
+                        text = "Update credential date for server '${tracker.serverName}' (${tracker.username})?",
                         fontSize = 13.sp,
                         color = NeumorphicTokens.TextMuted
                     )
@@ -457,7 +457,7 @@ fun CredentialTrackerScreen(
                     ) {
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("New Rotation Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                                Text("New Update Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
                                 Text(selectedDateStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = NeumorphicTokens.TextMain)
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -481,7 +481,7 @@ fun CredentialTrackerScreen(
                             id = tId,
                             lastUpdatedDate = selectedDateStr,
                             onSuccess = {
-                                Toast.makeText(context, "Rotated '${tracker.serverName}' credentials to $selectedDateStr!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Updated '${tracker.serverName}' credentials to $selectedDateStr!", Toast.LENGTH_SHORT).show()
                             },
                             onError = { err ->
                                 Toast.makeText(context, err, Toast.LENGTH_LONG).show()
@@ -489,7 +489,7 @@ fun CredentialTrackerScreen(
                         )
                     },
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
+                    colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon)
                 ) {
                     Text("Confirm & Save", fontWeight = FontWeight.Bold)
                 }
@@ -823,7 +823,7 @@ private fun ServerGroupCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Rotated: ${tracker.lastUpdatedDate} (${tracker.validityDays}d cycle)",
+                                text = "Updated: ${tracker.lastUpdatedDate} (${tracker.validityDays}d cycle)",
                                 fontSize = 11.sp,
                                 color = NeumorphicTokens.TextMuted
                             )
@@ -1031,7 +1031,7 @@ fun AddEditCredentialTrackerDialog(
                             showDatePicker = false
                         }
                     ) {
-                        Text("Today", fontWeight = FontWeight.Bold, color = Color(0xFF059669))
+                        Text("Today", fontWeight = FontWeight.Bold, color = NeumorphicTokens.AccentSalmon)
                     }
                     Spacer(modifier = Modifier.width(6.dp))
                     TextButton(onClick = { showDatePicker = false }) {
@@ -1044,7 +1044,7 @@ fun AddEditCredentialTrackerDialog(
                 state = datePickerState,
                 title = {
                     Text(
-                        text = "Select Rotation Date",
+                        text = "Select Update Date",
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
@@ -1149,9 +1149,9 @@ fun AddEditCredentialTrackerDialog(
                     }
                 }
 
-                // Last Rotated Date (DatePicker field + Today quick button)
+                // Last Updated Date (DatePicker field + Today quick button)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Last Rotated Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
+                    Text("Last Updated Date:", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1189,9 +1189,9 @@ fun AddEditCredentialTrackerDialog(
                             onClick = { lastUpdatedDate = LocalDate.now().toString() },
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669).copy(alpha = 0.15f))
+                            colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f))
                         ) {
-                            Text("Today", color = Color(0xFF059669), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Today", color = NeumorphicTokens.AccentSalmon, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

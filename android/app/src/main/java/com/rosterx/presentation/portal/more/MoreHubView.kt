@@ -157,7 +157,11 @@ fun MoreHubView(
         // Feature 2: Non-Admin -> My Team Directory Card
         if (!isAdmin && onNavigateToMyTeam != null) {
             val activeMembersCount = remember(state.engineers) {
-                state.engineers.count { it.status != EngineerStatus.RESIGNED }
+                state.engineers.count {
+                    it.status != EngineerStatus.RESIGNED &&
+                            it.role in listOf(com.rosterx.domain.model.EngineerRole.MANAGER, com.rosterx.domain.model.EngineerRole.ENGINEER, com.rosterx.domain.model.EngineerRole.APPRENTICE) &&
+                            !it.username.equals("admin", ignoreCase = true)
+                }
             }
 
             MoreHubFeatureCard(

@@ -405,6 +405,7 @@ data class NotificationDto(
     @SerializedName("raw_message") val rawMessage: String?,
     @SerializedName("target_type") val targetType: String?,
     val priority: String?,
+    val category: String? = null,
     val sender: String?,
     @SerializedName("created_at") val createdAt: String?,
     @SerializedName("timestamp") val timestamp: Double? = null,

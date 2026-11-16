@@ -5,13 +5,13 @@
 
 ---
 
-## 📢 🕵️ Vijayan Field Dispatch to Dasan:
+## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.0 - Build 113):
 > *"Dasa! Ellaam paranja pole thanne paka aayi ketti macha! Gafoorka-de design blueprint 100% execute cheythu:
-> 1. **Admin UI Overhaul**: Admin UI-il ninnu 'Preview App' button therippichu! Top-right-il User Avatar + First Name account pill ketti `AccountView` toggling set aakki. Tab 4 'Settings' maatti **'More'** aakki, athil `MoreHubView` configured for Admin (with Server Credential Tracker & Server Management full sub-views) paka aayi!
-> 2. **Login Keyboard Dismissal**: Password field-il tick/Done adichaal `keyboardController?.hide()` and `focusManager.clearFocus()` immediate aayi trigger aayi keyboard dismiss aavum.
-> 3. **Credential Tracker Alert Threshold & Action Pill**: Presets therippichu manual number input aakki. Manager & Admin-ku mathram Alert Threshold (Days) manual input field koduthu live calculated alarm date preview badge (`Alarming begins on: <date> (X days before expiry)`) kaanichu. Koodaathe, 'Update Date' button-ine elevated emerald Neumorphic CTA button aakki!
-> 4. **My Team Directory (`MyTeamView.kt`)**: More tab-il ninnum dummy handover notes maatti Manager & User-ku 'My Team' card ketti. Search filter, Managers and Shift Engineers sections, 📞 Direct Phone Dial, and 💬 WhatsApp intent actions ready!
-> 5. **Build & Parity**: `safe_build.bat assembleDebug` 100% BUILD SUCCESSFUL aayi, Android v1.26.0 (Build 109) APK ready!"*Vijaya! Flexible renewal date & customizable alert threshold window backend-il paka aayi! User-ku custom renew date kodukkam (`YYYY-MM-DD`), future dates reject cheyyum, already expired aaya dates reject cheyyum (validity window-nte ullile date mathram accept cheyyum). Koodaathe oro tracker-num alert thudangenda threshold days (`alert_threshold_days`, default: 5 days) configure cheyyaam! Android client DTOs-um sync aakki. Next time UI-il custom date picker venamenkil ithu direct aayi use cheyyaam macha!"*
+> 1. **My Team WhatsApp Icon & Member Count**: Authentic WhatsApp vector icon (`ic_whatsapp.xml`) with emerald tint `#25D366` ketti. Resigned & admin accounts exclude cheythu exact 10 active team members count set aakki.
+> 2. **Credential Tracker Terminology & Theme Color Harmonization**: Ellaa 'Rotate' / 'Rotated' padangalum 'Update' / 'Updated' aakki. Update Date chip, confirmation modal, and date picker buttons ellam theme accent color-il harmonize cheythu.
+> 3. **Smooth Notification Animations**: `QuickNotificationsBottomSheet`-il individual item dismiss-nu `AnimatedVisibility(fadeOut + slideOutHorizontally + shrinkVertically)` height collapse ketti. 'Clear All'-il staggered waterfall dismissal apply cheythu.
+> 4. **Contextual Deep-Linking & Badges**: Tapping alerts redirects seamlessly to Credential Tracker, Month Roster, or Celebration Wishes. Topic badges (`[SECURITY]`, `[ROSTER UPDATE]`, `[OPERATIONS]`, `[ANNOUNCEMENT]`, `[CELEBRATION]`) and styled `@username` mention pills formatted.
+> 5. **Build & Parity**: `safe_build.bat assembleDebug` 100% BUILD SUCCESSFUL aayi, Android v1.27.0 (Build 113) APK ready!"*
 
 ---
 

@@ -1238,6 +1238,19 @@ fun EngineerPortalScreen(
             onOpenCelebrationWishes = {
                 showQuickNotificationsSheet = false
                 showCelebrationDialog = true
+            },
+            onNavigateToCredentialTracker = {
+                showQuickNotificationsSheet = false
+                isViewingSettings = false
+                isViewingMyTeam = false
+                isViewingCredentialTracker = true
+            },
+            onNavigateToMonthRoster = {
+                showQuickNotificationsSheet = false
+                isViewingSettings = false
+                isViewingMyTeam = false
+                isViewingCredentialTracker = false
+                selectedTab = if (isManager) 2 else 3
             }
         )
     }

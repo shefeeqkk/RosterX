@@ -23,10 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rosterx.R
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
@@ -44,7 +46,11 @@ fun MyTeamView(
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val activeEngineers = remember(engineers) {
-        engineers.filter { it.status != EngineerStatus.RESIGNED }
+        engineers.filter {
+            it.status != EngineerStatus.RESIGNED &&
+                    it.role in listOf(EngineerRole.MANAGER, EngineerRole.ENGINEER, EngineerRole.APPRENTICE) &&
+                    !it.username.equals("admin", ignoreCase = true)
+        }
     }
 
     val filteredList = remember(activeEngineers, searchQuery) {
@@ -445,7 +451,7 @@ private fun TeamMemberCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Chat,
+                        painter = painterResource(R.drawable.ic_whatsapp),
                         contentDescription = "WhatsApp",
                         tint = if (hasPhone) Color(0xFF25D366) else NeumorphicTokens.TextMuted.copy(alpha = 0.4f),
                         modifier = Modifier.size(18.dp)
