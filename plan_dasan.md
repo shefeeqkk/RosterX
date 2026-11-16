@@ -1,81 +1,56 @@
 # 📋 Execution Plan for Dasan (Backend & Core Orchestration)
 
-**Status:** `COMPLETED` (Sprint v1.28.0 - Build 119 Celebration engine restored, missing import fixed, flexible date normalizer & GET /api/celebrations/today deployed and verified)
+**Status:** `READY FOR DASAN` (Sprint v1.28.0 - Build 119)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Dasa! Nammude team celebrations (Birthdays & Work Anniversaries) teammates-num manager-kkum ethathathinte root causes Gafoorka deep investigation nadathi kandupidichu vechittundu. Ippol backend engine full robust aakki set aakkenda responsibility Dasan-te aanu!
-
-### 🔍 Root Causes Identified:
-1. **Fatal `random` NameError Crash in `check_and_trigger_celebrations`**:
-   - `server.py` line ~982-il `notif_id = f"notif_celeb_{int(now_time*1000)}_{random.randint(100, 999)}"` ennu call cheythittundu, pakshe `server.py`-il `import random` import cheyithirunnilla!
-   - Ithumoolam ethoru celebration event detect cheythaalum (e.g. Nandua's anniversary today), execution instant aayi `NameError: name 'random' is not defined` crash aayi silent `try...except`-il poyi empty list `[]` aayi return aayirunnu!
-   - Result: In-app notification insert aayilla, FCM push dispatch aayilla, teammates-kkum manager-kkum onnum poyilla!
-2. **Brittle Date Format Parsing**:
-   - Birthday & Join date check relied on `bday_raw.endswith(f"-{today_md}")` or `bday_raw[-5:] == today_md` where `today_md = MM-DD` (e.g. `11-16`).
-   - Profile edit-ilo database-ilo dates `DD-MM-YYYY` (e.g. `16-11-1995` or `16/11/1995`) aayi enter cheythaal, `bday_raw[-5:]` gives `-1995`, which NEVER matches `11-16`!
-3. **Missing Dedicated Celebrations Endpoint**:
-   - App client-nu today's team celebrations direct aayi pull cheyyaan oru dedicated endpoint illayirunnu.
+Dasa! Nammude team celebrations (Birthdays & Work Anniversaries) delivery engine-il 2 major issues Gafoorka solve cheythu blueprint ready aakki:
+1. Teammates-num manager-kkum celebrations varumbol athu **3rd person team announcement** aayi varanam (not speaking as if the reader is the celebrant).
+2. Anniversary notification text-il "completing 2nd with our team" ennulla grammar bug maatti proper "completing 2 years with our team" aakkanam.
+3. Teammates-nu instant aayi WhatsApp or Call vazhi wish cheyyaan vendi `celebration_phone` notification doc-il incorporate cheyyanam.
 
 ---
 
 ## 2. Scope of Work for Dasan
 
 ### 1. Fix Missing Import (`server.py`)
-- Add `import random` at top of `server.py` alongside other standard library imports.
+- Add `import random` at the top of `server.py`.
 
-### 2. Bulletproof Celebration Date Normalizer (`server.py`)
-- Implement a flexible helper function `parse_celebration_date(raw_date_str: str, now_ist: datetime) -> tuple[bool, int]`:
-  - Strips leading/trailing spaces, replaces `/` and `.` with `-`.
-  - Intelligently parses all standard formats:
-    - `YYYY-MM-DD` (e.g., `2024-11-16`)
-    - `DD-MM-YYYY` (e.g., `16-11-2024` or `16-11-1995`)
-    - `MM-DD` (e.g., `11-16`)
-    - `DD-MM` (e.g., `16-11` disambiguated against today's day/month)
-  - Compares `(month, day)` cleanly with `(now_ist.month, now_ist.day)`.
-  - For work anniversary, computes `years = now_ist.year - join_year`. If `years >= 1`, flags `is_anniversary = True` and returns `years`.
+### 2. Bulletproof Date Normalizer (`server.py`)
+- Implement `parse_celebration_date(raw_date_str: str, now_ist: datetime) -> tuple[bool, int]`:
+  - Handles `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YYYY`, `YYYY/MM/DD`, `MM-DD`, `DD-MM`.
+  - Accurately checks `(month, day) == (now_ist.month, now_ist.day)`.
+  - For anniversary, computes `years = now_ist.year - join_year`.
 
-### 3. Overhaul `check_and_trigger_celebrations(force=False)`
-- Use the robust date normalizer for both `birthday` and `join_date` / `joinDate`.
-- Keep the idempotency key `cid = f"celeb_{today_str}_{uname}_{event_type}"` to ensure events trigger only once per day.
-- Create broadcast notification in `ATLAS_DB.notifications` with:
-  - `"target": "everyone"`
-  - `"target_type": "everyone"`
-  - `"priority": "high"`
-  - `"send_in_app": True`
-  - `"send_push": True`
-- Dispatch high-priority FCM push to all registered devices (`all_fcm_tokens`) with payload `{"target_user": "everyone", "type": "celebration"}`.
+### 3. Overhaul `check_and_trigger_celebrations(force=False)` & 3rd-Person Phrasing
+- In `server.py`:
+  - Calculate `yr_ord` (e.g. `2nd`) and `yr_label = f"{yr} years" if yr > 1 else "1 year"`.
+  - **Work Anniversary**:
+    - `title`: `f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆"`
+    - `msg`: `f"Today {full_name} completes {yr_label} of operational excellence with our team! Join us in celebrating this milestone and send your warm congratulations! 🥂🎊✨"`
+  - **Birthday**:
+    - `title`: `f"Happy Birthday, {full_name}! 🎂"`
+    - `msg`: `f"Today is {full_name}'s birthday! Join the entire RosterX team in wishing them joy, vibrant health, and continued success! Tap to send wishes! 🎉🎈🥳"`
+  - **Both**:
+    - `title`: `f"Double Celebration: Birthday & {yr_ord} Anniversary for {full_name}! 🎂🏆"`
+    - `msg`: `f"Today is doubly special for {full_name}! Join us in wishing them a very Happy Birthday and celebrating their {yr_ord} Work Anniversary with RosterX! Tap to send wishes! 🎉🎈🥂"`
+  - Add `celebration_phone` to the notification dictionary:
+    `"celebration_phone": str(eng.get("phone") or eng.get("phoneNumber") or eng.get("contact") or "").strip()`
+  - Send high-priority FCM push with `{"target_user": "everyone", "type": "celebration"}`.
 
-### 4. Implement Dedicated Endpoint: `GET /api/celebrations/today`
-- Route: `GET /api/celebrations/today`
-- Authenticated endpoint (requires valid token, or accessible by logged-in users & managers).
-- Triggers `check_and_trigger_celebrations()` if not checked in current throttle window.
-- Scans active engineers (excluding resigned / system admin accounts).
-- For each engineer celebrating today (Birthday, Work Anniversary, or Both):
-  - Returns:
-    ```json
-    {
-      "celebrations": [
-        {
-          "username": "nandua",
-          "name": "Nandu A",
-          "type": "anniversary",
-          "years": 2,
-          "photo": "...",
-          "phone": "9876543210",
-          "title": "2nd Work Anniversary",
-          "greeting_text": "Happy 2nd Work Anniversary, Nandu A! 🏆✨ Thank you for your dedication to the team!"
-        }
-      ]
-    }
-    ```
-  - Unmasks phone number so teammates can launch WhatsApp or Call directly.
+### 4. Dedicated Endpoint: `GET /api/celebrations/today`
+- Returns today's active team celebrations with unmasked phone number, photo, celebration type, name, username, years, and 3rd-person greeting text template.
 
-### 5. Version Bump & Verification
+### 5. Patch Existing Today's Celebration Notification in MongoDB
+- Update existing notification for `nandua` (`celeb_2026-11-16_nandua_anniversary`) with:
+  - Corrected 3rd-person text (`Today Nandu Anthikat completes 2 years of operational excellence with our team!...`).
+  - Corrected `celebration_phone` (unmasked).
+
+### 6. Version Bump & Verification
 - Update `SERVER_VERSION = "1.28.0"` in `server.py`.
 - Run verification script in python:
-  - Verify `check_and_trigger_celebrations(force=True)` runs with zero errors and detects `nandua`'s 2nd anniversary today (`2024-11-16` -> `2026-11-16`).
-  - Verify `GET /api/celebrations/today` returns the celebration payload with unmasked phone number.
+  - Test `check_and_trigger_celebrations(force=True)`.
+  - Test `GET /api/celebrations/today`.
 - Commit changes and update `AGENT_HANDOFF.md`.
