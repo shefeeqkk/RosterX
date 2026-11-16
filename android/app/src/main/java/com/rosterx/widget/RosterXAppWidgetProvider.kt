@@ -88,7 +88,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
         fun resolveMeta(code: String): ShiftMeta {
             val upper = code.trim().uppercase()
             if (shiftRegistry.containsKey(upper)) return shiftRegistry[upper]!!
-            if (upper.startsWith("SW")) return ShiftMeta("Swap Shift", "Covered Duty", "#FEF08A", "#854D0E", 0L, 0L)
+            if (upper.startsWith("SW")) return ShiftMeta("Swap Off", "Rest Day", "#FEF08A", "#854D0E", 0L, 0L)
             return ShiftMeta(code, "Assigned Duty", "#E2E8F0", "#334155", 0L, 0L)
         }
 
@@ -435,7 +435,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
                     } else {
                         if (!isOvernightActive) {
                             val restDesc = when {
-                                rawCode.startsWith("SW") -> "Shift Swap Off"
+                                rawCode.startsWith("SW") -> "Swap Off"
                                 rawCode == "L" -> "Approved Leave"
                                 else -> "Scheduled Rest"
                             }

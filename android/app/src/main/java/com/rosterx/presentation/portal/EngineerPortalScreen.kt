@@ -2659,7 +2659,7 @@ fun VibrantShiftCard(title: String, shift: ShiftCode?, accentColor: Color, modif
 
                     Text(
 
-                        text = if (shift != null && shift !is ShiftCode.OFF) "Active Duty" else "Rest Day",
+                        text = if (shift != null && shift !is ShiftCode.OFF && shift !is ShiftCode.SW && !shift.code.startsWith("SW")) "Active Duty" else "Rest Day",
 
                         fontSize = 11.sp,
 
@@ -2930,7 +2930,11 @@ fun TeamShiftsView(
 
             items(sortedShiftGroups) { (shift, engineersInShift) ->
 
-                val shiftTiming = ALL_STANDARD_SHIFTS.find { it.first.code == shift.code }?.second ?: "Rest / Duty"
+                val shiftTiming = when {
+                    shift is ShiftCode.SW || shift.code.startsWith("SW") -> "Rest Day"
+                    shift is ShiftCode.OFF -> "Rest Day"
+                    else -> ALL_STANDARD_SHIFTS.find { it.first.code == shift.code }?.second ?: "Rest Day"
+                }
 
                 
 

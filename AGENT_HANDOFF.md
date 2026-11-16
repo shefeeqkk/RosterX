@@ -40,6 +40,25 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.3 - Build 116):
+> *"Dasa! Gafoorka! Boss requested Swap Shift labeling change across the board:
+> 
+> 1. **Team Shifts & Global Swap Off Display**:
+>    - In `TeamShiftsView`, `shiftTiming` calculation updated so that `ShiftCode.SW` / `startsWith("SW")` resolves cleanly to `"Rest Day"` instead of the generic `"Rest / Duty"`.
+>    - Shift code domain model (`ShiftCode.kt`) updated: `ShiftCode.SW` name set to `"Swap Off"`.
+>    - Kept dynamic peer badge code (`SWA`, `SWN`, etc.) indicating peer coverage while displaying `"Swap Off"` title and `"Rest Day"` subtitle.
+>    - Dashboard `VibrantShiftCard` updated so swap off days reflect `"Rest Day"` instead of `"Active Duty"`.
+> 2. **Cross-Platform & Widget Parity**:
+>    - `RosterXAppWidgetProvider.kt` updated: `resolveMeta` returns `ShiftMeta("Swap Off", "Rest Day", ...)`.
+>    - `EngineerPortalViewModel.kt` rest descriptor updated to `"Swap Off"`.
+>    - Web admin `constants.js` updated to `'Swap Off (Treated as OFF)'`.
+> 3. **Version Bump & Live Verification**:
+>    - Bumped to `v1.27.3` (Build 116) across `build.gradle.kts` and `server.py`.
+>    - Successfully compiled via `safe_build.bat assembleDebug` and installed on target `100.71.241.36:5555`.
+>    - Navigated to `Wed, Nov 18, 2026` on live device: verified `SWA` card displays **Swap Off** with **Rest Day** subtitle!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.27.2 - Build 115):
 > *"Dasa! Gafoorka! Two critical items solved cleanly:
 > 

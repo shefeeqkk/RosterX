@@ -497,7 +497,7 @@ class EngineerPortalViewModel @Inject constructor(
                         // If they are actively on duty overnight, do not add to restItems!
                         if (!isOvernightActive) {
                             val restDesc = when {
-                                code.startsWith("SW") -> "Shift Swap Off"
+                                code.startsWith("SW") -> "Swap Off"
                                 code == "L" -> "Approved Leave"
                                 else -> "Scheduled Rest"
                             }

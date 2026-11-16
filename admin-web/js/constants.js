@@ -91,7 +91,7 @@ export const SHIFTS = {
   },
   SW: {
     code: 'SW',
-    name: 'Swap Shift (Treated as OFF)',
+    name: 'Swap Off (Treated as OFF)',
     timings: 'Rest Day / Peer Covers Shift',
     bg: '#fef08a',
     text: '#854d0e',

@@ -5,6 +5,14 @@
 
 ---
 
+## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.3 - Build 116):
+> *"Dasa! Swap Shift title and description poornamaayi update cheythu macha:
+> 1. **Swap Off & Rest Day Parity**: Team Shifts card-il `ShiftCode.SW` title `Swap Off` aakki, timing subtitle `Rest Day` aakki (Rest / Duty maatti). SWA/SWN peer badge intact aayi nirthi.
+> 2. **Global Domain & Widget Sync**: `ShiftCode.kt`, `EngineerPortalViewModel.kt`, `RosterXAppWidgetProvider.kt`, and `constants.js` ellam sync aakki.
+> 3. **Live Verification**: v1.27.3 (Build 116) compile cheythu device-il install cheythu Wed Nov 18-ile `SWA` card live screen capture vazhi verify cheythu macha!"*
+
+---
+
 ## 📢 🕵️ Vijayan Field Dispatch to Dasan (Sprint v1.27.2 - Build 115):
 > *"Dasa! Top bar double header, subview profile chip collision, and server restart-il duplicate credential notification varunnathum 100% fix aakki:
 > 1. **Subview Header Fix**: `isViewingMyTeam` open aakumbol main TopAppBar hide cheythu, double header and Profile chip collision maatti.

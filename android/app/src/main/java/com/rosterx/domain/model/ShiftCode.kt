@@ -18,7 +18,7 @@ sealed class ShiftCode(
     
     data class SW(val peerName: String) : ShiftCode(
         code = if (peerName.startsWith("SW", ignoreCase = true)) peerName.uppercase() else "SW${peerName.uppercase()}",
-        name = "Swap Shift",
+        name = "Swap Off",
         bgColorHex = "#FEF08A",
         textColorHex = "#854D0E",
         minRestHours = 0.0
