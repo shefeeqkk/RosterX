@@ -41,7 +41,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.29.1"
+SERVER_VERSION = "1.29.2"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -178,10 +178,31 @@ def log_server(msg: str):
 
 # Security & Authentication State
 AUTH_SECRET_KEY = None
+EPHEMERAL_ADMIN_PASSWORD = None
 ACTIVE_OTPS = {}  # { clean_id: {"hash": "...", "expires_at": timestamp, "email": "...", "attempts": 0} }
 OTP_IDENTIFIER_COOLDOWN = {}  # { clean_id: last_timestamp }
 OTP_IP_REQUESTS = collections.defaultdict(list)  # { ip: [timestamps] }
 FAILED_LOGIN_ATTEMPTS = collections.defaultdict(list)  # { ip_user_key: [timestamps] }
+
+def get_admin_credentials():
+    """
+    Retrieve master admin credentials from environment or .env.
+    If ADMIN_PASSWORD is not configured, generates a secure one-time cryptographic
+    password via secrets.token_urlsafe(16) and logs a security warning once to console.
+    """
+    global EPHEMERAL_ADMIN_PASSWORD
+    env = load_env_variables()
+    admin_user = env.get("ADMIN_USERNAME", "admin").strip().lower() or os.environ.get("ADMIN_USERNAME", "admin").strip().lower()
+    admin_pass = env.get("ADMIN_PASSWORD", "").strip() or os.environ.get("ADMIN_PASSWORD", "").strip()
+    if not admin_pass:
+        if not EPHEMERAL_ADMIN_PASSWORD:
+            EPHEMERAL_ADMIN_PASSWORD = secrets.token_urlsafe(16)
+            log_server(
+                f"[SECURITY WARNING] ADMIN_PASSWORD is not set in environment or .env! "
+                f"Generated temporary one-time password for '{admin_user}': {EPHEMERAL_ADMIN_PASSWORD}"
+            )
+        admin_pass = EPHEMERAL_ADMIN_PASSWORD
+    return admin_user, admin_pass
 
 # Resend Configuration
 DEFAULT_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip().strip("'\"")
@@ -190,19 +211,27 @@ RESEND_API_KEY = DEFAULT_RESEND_API_KEY
 RESEND_FROM = os.environ.get("RESEND_FROM", "RosterX Operations <notify@rosterx.online>").strip().strip("'\"")
 
 
-# Official Team Directory
-DEFAULT_SERVER_ENGINEERS = [
-    {"name": "Nandu Anthikat", "username": "nandua", "full_name": "Nandu Anthikat", "email": "nandua@tejasnetworks.com", "phone": "+919811001103", "role": "engineer", "status": "Active", "default_weekly_offs": ["Sunday", "Monday"], "preferred_shifts": ["FS", "FG"]},
-    {"name": "Shefeeq", "username": "shefeeqkk", "full_name": "Shefeeq K K", "email": "shefeeqkk@tejasnetworks.com", "phone": "+91 9809226169", "role": "engineer", "status": "Active", "default_weekly_offs": ["Monday", "Tuesday"], "preferred_shifts": ["G", "FG"]},
-    {"name": "Dyani Desoza", "username": "dyanid", "full_name": "Dyani DeSoza", "email": "dyanid@tejasnetworks.com", "phone": "+919811001105", "role": "engineer", "status": "Active", "default_weekly_offs": ["Tuesday", "Wednesday"], "preferred_shifts": ["SS", "SG"]},
-    {"name": "Atul Kangralkar", "username": "athulka", "full_name": "Atul Kangralkar", "email": "athulka@tejasnetworks.com", "phone": "+919811001106", "role": "admin", "status": "Active", "default_weekly_offs": [], "preferred_shifts": ["FG", "G"]},
-    {"name": "Silambarasan", "username": "silambarasan", "full_name": "Silambarasan V", "email": "silambarasan@tejasnetworks.com", "phone": "+919811001107", "role": "engineer", "status": "Active", "default_weekly_offs": ["Thursday", "Friday"], "preferred_shifts": ["FS", "SS"]},
-    {"name": "Hemanth", "username": "hemanthti", "full_name": "Hemanth K", "email": "hemanthti@tejasnetworks.com", "phone": "+919811001108", "role": "engineer", "status": "Active", "default_weekly_offs": ["Friday", "Saturday"], "preferred_shifts": ["SG", "G"]},
-    {"name": "Manoj", "username": "manoj", "full_name": "Manoj N", "email": "manoj@tejasnetworks.com", "phone": "+919811001101", "role": "engineer", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["FS", "FG", "SS"]},
-    {"name": "Dhanush B", "username": "dhanush", "full_name": "Dhanush P", "email": "dhanush@tejasnetworks.com", "phone": "+919811001110", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
-    {"name": "Rohit N", "username": "rohit", "full_name": "Rohit M", "email": "rohit@tejasnetworks.com", "phone": "+919811001109", "role": "apprentice", "status": "Active", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["G"]},
-    {"name": "Raj Kumar", "username": "rajkumar", "full_name": "Raj Kumar S", "email": "rajkumar@tejasnetworks.com", "phone": "+919811001102", "role": "engineer", "status": "Resigned", "default_weekly_offs": ["Saturday", "Sunday"], "preferred_shifts": ["SS", "G"]},
-]
+# ==============================================================================
+# Team Directory Seed Loader (No hardcoded credentials or engineers in source)
+# ==============================================================================
+def load_default_engineers():
+    """Load initial engineer directory from an ignored local seed file if present, otherwise empty."""
+    seed_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "default_engineers.json"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), ".engineers_seed.json")
+    ]
+    for p in seed_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        return data
+            except Exception as e:
+                print(f"  [SEED LOAD ERROR] {e}")
+    return []
+
+DEFAULT_SERVER_ENGINEERS = load_default_engineers()
 
 
 # ==============================================================================
@@ -392,19 +421,20 @@ def find_user_by_identifier(identifier: str):
         return None
     clean_id = str(identifier).strip().lower()
 
-    # Match primary administrator / alert email alias (e.g. kkshefeeq005@gmail.com)
+    # Match primary administrator / alert email alias
     env = load_env_variables()
     alert_email = env.get("ALERT_EMAIL", "").strip().lower() or (DEFAULT_ALERT_EMAIL.lower() if DEFAULT_ALERT_EMAIL else "")
     if alert_email and clean_id == alert_email:
+        admin_u = env.get("ADMIN_USERNAME", "admin").strip().lower()
         if ATLAS_DB is not None:
             try:
-                user = ATLAS_DB.engineers.find_one({"$or": [{"username": "shefeeqkk"}, {"username": "admin"}, {"role": "admin"}]})
+                user = ATLAS_DB.engineers.find_one({"$or": [{"username": admin_u}, {"role": "admin"}]})
                 if user:
                     return user
             except Exception as e:
                 print(f"  [USER LOOKUP ERROR] {e}")
         for tm in DEFAULT_SERVER_ENGINEERS:
-            if tm.get("username") in ("shefeeqkk", "admin") or tm.get("role") == "admin":
+            if tm.get("username") == admin_u or tm.get("role") == "admin":
                 return dict(tm)
 
     if ATLAS_DB is not None:
@@ -455,7 +485,7 @@ def is_management_account(user_dict: dict) -> bool:
     n = str(user_dict.get("name", "")).strip().lower()
     fn = str(user_dict.get("full_name", "")).strip().lower()
     role = str(user_dict.get("role", "")).strip().lower()
-    if uname in ("shefeeqkk", "shefeeq", "athulka"):
+    if role not in ("admin", "manager"):
         return False
     # Accounts dedicated strictly to administrative/system tasks
     return (
@@ -3443,9 +3473,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 return
 
             # Check Atlas DB for admin user or fall back to temporary admin credentials (never stored locally)
+            admin_user, admin_pass = get_admin_credentials()
             env = load_env_variables()
-            admin_user = env.get("ADMIN_USERNAME", "admin").strip().lower()
-            admin_pass = env.get("ADMIN_PASSWORD", "Admin@123").strip()
 
             # First, check if admin user exists in Atlas DB
             user = find_user_by_identifier(identifier)
@@ -3453,7 +3482,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 stored_pass = user.get("password")
                 if not stored_pass:
                     # If this is the master admin username and no password in Atlas yet, permit temporary password login and persist hash to Atlas DB!
-                    if identifier == admin_user and (hmac.compare_digest(password, admin_pass) or hmac.compare_digest(password, "Admin@123")):
+                    if identifier == admin_user and hmac.compare_digest(password, admin_pass):
                         reset_failed_login(client_ip, identifier)
                         new_hash = hash_password(password)
                         if ATLAS_DB is not None and "_id" in user:
@@ -3533,7 +3562,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             # If user not yet in Atlas DB and matches master admin with temporary password:
             # Create the admin record directly in Atlas DB!
-            if identifier == admin_user and (hmac.compare_digest(password, admin_pass) or hmac.compare_digest(password, "Admin@123")):
+            if identifier == admin_user and hmac.compare_digest(password, admin_pass):
                 reset_failed_login(client_ip, identifier)
                 admin_doc = {
                     "id": "eng_admin",

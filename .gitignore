@@ -7,6 +7,11 @@ firebase-adminsdk*.json
 google-services.json
 android/app/google-services.json
 
+# Local seed & directory dumps
+default_engineers.json
+.engineers_seed.json
+*.seed.json
+
 # Backups & Local Recovery Dumps
 backups/
 *.json.bak

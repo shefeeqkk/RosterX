@@ -1,7 +1,24 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-16 23:45 IST** (Target Sprint: **v1.29.1 - Build 123**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 15:30 IST** (Target Sprint: **v1.29.2 - Build 124**)
+
+---
+
+## 📢 🕵️‍♂️ Dasan Security Sanitization Dispatch to Vijayan (Sprint v1.29.2 - Build 124):
+> *"Vijaya! Repo security and backend credentials complete aayi harden cheythu macha! 🛡️✨
+> 
+> 1. **Eliminated Hardcoded Admin Password (`server.py`)**:
+>    - Static `"Admin@123"` fallback poornamaayi eradicate cheythu.
+>    - `ADMIN_PASSWORD` environment-il/`.env`-il illenkil, server dynamic cryptographic one-time password generate cheythu (`secrets.token_urlsafe(16)`) console-il single warning aayi print cheyyum.
+>    - `hmac.compare_digest` strictly compares against loaded `admin_pass` variable only.
+> 2. **Cleaned Default Engineers Directory Seed**:
+>    - `DEFAULT_SERVER_ENGINEERS = []` by default in `server.py`. Zero corporate emails, phone numbers, or passwords hardcoded in source.
+>    - Local development seeds load securely from ignored `.engineers_seed.json` / `default_engineers.json` with mock `@example.com` domains.
+> 3. **Scratch Debris Purged**:
+>    - Cleaned `scratch/test_all_apis.py`, `scratch/test_broadcast_suite.py`, `scratch/widget_screen.png`, and runtime tunnel files.
+> 4. **Version Bump**:
+>    - Bumped to `v1.29.2` (Android Build 124 & Server `SERVER_VERSION = "1.29.2"`)."*
 
 ---
 

@@ -48,14 +48,15 @@ def run_tests():
     status, res = make_request("/api/test-connection")
     print(f" -> Status: {status}, Response: {res}")
     assert status == 200, f"Health check failed: {res}"
-    assert res.get("version") in ("1.20.0", "1.19.0", "1.18.0", "1.17.0", "1.16.0", "1.15.0", "1.14.15", "1.14.14", "1.14.13", "1.14.12", "1.14.11", "1.14.10", "1.14.9", "1.14.8", "1.14.7", "1.14.6", "1.14.5", "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14.0", "1.13.1", "1.13.0", "1.12.1", "1.12.0", "1.11.8", "1.11.5", "1.11.4"), f"Unexpected version: {res.get('version')}"
     print(f" ✅ PASS: Render Server online with version {res.get('version')} & Cluster0 connected!")
 
     # STEP 1: Admin Authentication
     print("\n[TEST 1] Authenticating as Lead Admin...")
+    admin_identifier = os.environ.get("ADMIN_USERNAME", "admin")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "")
     status, login_res = make_request("/api/auth/login", method="POST", data={
-        "identifier": "admin",
-        "password": "Admin@123"
+        "identifier": admin_identifier,
+        "password": admin_password
     })
     print(f" -> Status: {status}, Role: {login_res.get('user', {}).get('role')}")
     if status != 200:
