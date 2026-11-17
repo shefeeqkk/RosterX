@@ -1,60 +1,56 @@
 # 📋 Execution Plan for Dasan (Backend & Core Orchestration)
 
-**Status:** `COMPLETED` (Sprint v1.28.0 - Build 119 3rd-person phrasing, grammar fix, celebration_phone contract & live Atlas patch verified)
+**Status:** `READY FOR DASAN` (Sprint v1.30.0 - Build 128)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Dasa! Nammude team celebrations (Birthdays & Work Anniversaries) delivery engine-il 2 major issues Gafoorka solve cheythu blueprint ready aakki:
-1. Teammates-num manager-kkum celebrations varumbol athu **3rd person team announcement** aayi varanam (not speaking as if the reader is the celebrant).
-2. Anniversary notification text-il "completing 2nd with our team" ennulla grammar bug maatti proper "completing 2 years with our team" aakkanam.
-3. Teammates-nu instant aayi WhatsApp or Call vazhi wish cheyyaan vendi `celebration_phone` notification doc-il incorporate cheyyanam.
+Dasa! Nammude Credential Tracker-il Admin-num Manager-kkum maathram access ulla **Audit Log History Engine** implement cheyyaan Gafoorka blueprint lock aakki vechittundu.
+
+### 🎯 Key Directives:
+1. **Audit Logs Persistence (`server.py`)**:
+   - Store all credential tracker update, renewal, creation, and deletion events in a dedicated MongoDB collection: `ATLAS_DB.credential_tracker_logs`.
+   - Each log entry must record:
+     - `tracker_id`, `server_name`, `username` (account)
+     - `action` (`"RENEW"`, `"UPDATE"`, `"CREATE"`, `"DELETE"`)
+     - `action_label` (`"Credential Renewed"`, `"Tracker Updated"`, etc.)
+     - `updated_by` (username) and `updated_by_name` (proper full name from `engineers` collection)
+     - `previous_date` (old `last_updated_date`) and `new_date` (new `last_updated_date`)
+     - `validity_days`, `expiry_date`
+     - `summary` (e.g. `"Password updated to 16-Oct-2026 (Valid for 45 days, expires 30-Nov-2026)"`)
+     - `timestamp` (epoch) and `datetime_str` (IST formatted: e.g. `"17-Nov-2026, 09:29 PM"`)
+2. **Hook Into All Mutation Handlers**:
+   - `_handle_create_credential_tracker` -> record `CREATE`
+   - `_handle_update_credential_tracker` -> record `UPDATE` (comparing diffs)
+   - `_handle_renew_credential_tracker` -> record `RENEW` (capturing previous vs new date)
+   - `_handle_delete_credential_tracker` -> record `DELETE`
+3. **Auto-Seed Existing Trackers**:
+   - On server start or migration check:
+     If `ATLAS_DB.credential_tracker_logs.count_documents({}) == 0`:
+     Iterate through all active trackers in `ATLAS_DB.credential_trackers`:
+     Create baseline `CREATE` log entry (`created_by`, `created_at`), and if `updated_at > created_at`, create an `UPDATE` or `RENEW` entry (`updated_by`, `updated_at`, `last_updated_date`) so the logs viewer immediately displays historical baseline data!
+4. **Dedicated Endpoint**:
+   - `GET /api/credentials/trackers/logs`:
+     - Access Control: `claims = self.require_auth(["admin", "manager"])`
+     - Query parameters supported: `tracker_id` (optional), `action` (optional), `search` (optional), `limit` (default 100).
+     - Returns `{ "success": True, "logs": [...], "count": len(...) }` sorted by `timestamp` descending.
+5. **Version Bump**:
+   - `server.py`: `SERVER_VERSION = "1.30.0"`.
 
 ---
 
-## 2. Scope of Work for Dasan
+## 2. Technical Blueprint for Dasan
 
-### 1. Fix Missing Import (`server.py`)
-- Add `import random` at the top of `server.py`.
+### 📁 Primary File:
+- `server.py`
 
-### 2. Bulletproof Date Normalizer (`server.py`)
-- Implement `parse_celebration_date(raw_date_str: str, now_ist: datetime) -> tuple[bool, int]`:
-  - Handles `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YYYY`, `YYYY/MM/DD`, `MM-DD`, `DD-MM`.
-  - Accurately checks `(month, day) == (now_ist.month, now_ist.day)`.
-  - For anniversary, computes `years = now_ist.year - join_year`.
-
-### 3. Overhaul `check_and_trigger_celebrations(force=False)` & 3rd-Person Phrasing
-- In `server.py`:
-  - Calculate `yr_ord` (e.g. `2nd`) and `yr_label = f"{yr} years" if yr > 1 else "1 year"`.
-  - **Work Anniversary**:
-    - `title`: `f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆"`
-    - `msg`: `f"Today {full_name} completes {yr_label} of operational excellence with our team! Join us in celebrating this milestone and send your warm congratulations! 🥂🎊✨"`
-  - **Birthday**:
-    - `title`: `f"Happy Birthday, {full_name}! 🎂"`
-    - `msg`: `f"Today is {full_name}'s birthday! Join the entire RosterX team in wishing them joy, vibrant health, and continued success! Tap to send wishes! 🎉🎈🥳"`
-  - **Both**:
-    - `title`: `f"Double Celebration: Birthday & {yr_ord} Anniversary for {full_name}! 🎂🏆"`
-    - `msg`: `f"Today is doubly special for {full_name}! Join us in wishing them a very Happy Birthday and celebrating their {yr_ord} Work Anniversary with RosterX! Tap to send wishes! 🎉🎈🥂"`
-  - Add `celebration_phone` to the notification dictionary:
-    `"celebration_phone": str(eng.get("phone") or eng.get("phoneNumber") or eng.get("contact") or "").strip()`
-  - Send high-priority FCM push with `{"target_user": "everyone", "type": "celebration"}`.
-
-### 4. Dedicated Endpoint: `GET /api/celebrations/today`
-- Returns today's active team celebrations with unmasked phone number, photo, celebration type, name, username, years, and clean 3rd-person greeting text template.
-- **IMPORTANT**: Ensure `greeting_text` contains NO sender signature (do NOT append `"- From [Name]"` or `"- From RosterX"`). E.g.
-  - Anniversary: `f"Happy {yr_ord} Work Anniversary, {full_name}! 🏆✨ Congratulations on completing {yr_label} with our team!"`
-  - Birthday: `f"Happy Birthday, {full_name}! 🎉🎂 Wishing you a fantastic year ahead filled with joy and success!"`
-  - Both: `f"Happy Birthday and Happy {yr_ord} Work Anniversary, {full_name}! 🎂🏆 Wishing you the very best!"`
-
-### 5. Patch Existing Today's Celebration Notification in MongoDB
-- Update existing notification for `nandua` (`celeb_2026-11-16_nandua_anniversary`) with:
-  - Corrected 3rd-person text (`Today Nandu Anthikat completes 2 years of operational excellence with our team!...`).
-  - Corrected `celebration_phone` (unmasked).
-
-### 6. Version Bump & Verification
-- Update `SERVER_VERSION = "1.28.0"` in `server.py`.
-- Run verification script in python:
-  - Test `check_and_trigger_celebrations(force=True)`.
-  - Test `GET /api/celebrations/today`.
-- Commit changes and update `AGENT_HANDOFF.md`.
+### 🛠️ Execution & Verification:
+1. Implement `record_credential_tracker_log(action, tracker, claims, previous_tracker=None, custom_summary=None)`.
+2. Hook into `_handle_create_credential_tracker`, `_handle_update_credential_tracker`, `_handle_renew_credential_tracker`, `_handle_delete_credential_tracker`.
+3. Implement `GET /api/credentials/trackers/logs` with role guard (`["admin", "manager"]`).
+4. Implement baseline auto-seeder for existing trackers.
+5. Run python verification script:
+   - Call `GET /api/credentials/trackers/logs` with admin/manager token.
+   - Verify logs are returned with all account & server details, who updated, and previous/new dates.
+6. Commit changes and update `AGENT_HANDOFF.md`.

@@ -1,7 +1,37 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 19:35 IST** (Target Sprint: **v1.29.5 - Build 127**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 21:15 IST** (Target Sprint: **v1.30.0 - Build 128**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.30.0 - Build 128):
+> *"Dasa, Vijaya! Gafoorka nammude Credential Tracker Audit Trail engine-nte full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎯 User Requirement:
+> > 'For Credential tracker only in Admin and Manager UI need option to see logs details who updated the dates and date of updation etc.
+> > Single logs viewer which shows all accounts and Server details'
+> 
+> ### 🔍 Aligned Architecture from /grill-me:
+> 1. **Access Control**: Strictly restricted to **Admin and Manager** (`isManagerOrAdmin == true`). Regular shift engineers cannot view or access audit logs.
+> 2. **Backend Engine (`server.py` - Dasan's Territory)**:
+>    - Dedicated MongoDB collection: `ATLAS_DB.credential_tracker_logs`.
+>    - Captures `tracker_id`, `server_name`, `username`, `action` (`RENEW`, `UPDATE`, `CREATE`, `DELETE`), `updated_by`, `updated_by_name`, `previous_date`, `new_date`, `validity_days`, `expiry_date`, `summary`, `timestamp`, and `datetime_str` (IST formatted).
+>    - Hooked into `_handle_create_credential_tracker`, `_handle_update_credential_tracker`, `_handle_renew_credential_tracker`, and `_handle_delete_credential_tracker`.
+>    - Baseline seeder: Automatically seeds historical baseline logs from existing trackers on startup so history is immediately visible.
+>    - New protected endpoint: `GET /api/credentials/trackers/logs` (requires `admin` or `manager`).
+>    - Version bump: `SERVER_VERSION = "1.30.0"`.
+> 
+> 3. **Compose UI Suite (`CredentialTrackerLogsSheet.kt` - Vijayan's Territory)**:
+>    - Top-Bar Action: TopAppBar-il `Refresh` and `+ Add Tracker` button-nte koode **Audit Logs History Button** (`Icons.Default.History`) add cheyyuka (shown ONLY when `isManagerOrAdmin == true`).
+>    - Single Neumorphic Logs Modal Sheet:
+>      - Unified view aggregating all accounts & servers.
+>      - Search bar (by server name, account username, or engineer name).
+>      - Filter chips: `ALL`, `RENEWED`, `UPDATED`, `CREATED`.
+>      - Rich log items: Server & Account pill (`NMS Server • root`), semantic action badge (`RENEWED` emerald / `UPDATED` indigo / `CREATED` teal), Who updated (`Name (@username)`), Date transition diff (`Previous: 16-Oct-2026 ➔ New: 17-Nov-2026`), Summary, and IST timestamp.
+>    - Version bump: `versionName = "1.30.0"`, `versionCode = 128`, and execute safe build (`safe_build.bat assembleDebug`).
+> 
+> Dasa and Vijaya: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
 ---
 

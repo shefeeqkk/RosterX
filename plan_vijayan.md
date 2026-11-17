@@ -1,114 +1,135 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED` (Sprint v1.29.5 - Build 127)
+**Status:** `READY FOR VIJAYAN` (Sprint v1.30.0 - Build 128)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Vijaya! User nammude Edit Account form-il 4 critical refinements request cheythittundu:
-1. **Eliminate Bottom Shadow Clipping**: Action buttons (`Save changes`, `Cancel`, `Delete`)-nte tactile drop shadow bottom edge-il cut aavunnath maattaan dialog card-il bottom padding (`22.dp`), outer vertical margin (`20.dp`), and `Spacer(14.dp)` buffer add cheythu shadow diffusion safe aakkuka.
-2. **Remove Photo Confirmation Dialog**: `• Remove photo` tap cheythaal direct remove aavunnathinu pakaram confirmation dialog ("Remove profile photo?") render cheythu [Cancel] / [Remove] actions provide cheyyeanam.
-3. **Frosted Background Scrim Tint**: Android OEM cross-window blur disabled aakkiyittulla devices-ilum (e.g. Vivo/iQOO FuntouchOS) background text distracting aayi kaanathe, soft frosted glass veil (`Color(0xB8F1F5F9)` light / `Color(0x990A0F1A)` dark) + `0.45f` dimming implement cheythu frosted backdrop experience create cheyyuka.
-4. **Resignation Date Input upon choosing Resigned**: `Employment status`-il `Resigned` choose cheythaal dynamic slide-down animation-il `Resignation date *` calendar picker input varanam, empty aayirunnal today's date default aayi populate aavanam, and mandatory validation & backend persistence set cheyyeanam.
+Vijaya! Credential Tracker-il **Admin and Manager-kk maathram** password update/renewal history kaanaanulla **Single Audit Logs Viewer** architect cheythu blueprint ready aakki vechittundu.
 
-### 🎯 Key Design Directives (Matching Image 2 Reference):
-1. **Compact & Less Scrolling**:
-   - Replace the tall single-column stacked forms with intelligent mixed layout based on character length:
-     - Short fields (Full Name & Username, Phone & Password, Join Date & Birthday) paired in **Dual Columns (50% / 50%)**.
-     - Long fields (Corporate Email, Role Strip, Spokespersons) in **Single Columns (100%)**.
-2. **Authentic Neumorphic Styling**:
-   - Sunken / Inset text input basins (`Modifier.neumorphicInset(...)` with subtle inner occlusion and specular highlight).
-   - Molded floating card surfaces (`NeumorphicTokens.Surface`).
-   - Tactile Neumorphic buttons with active press kinetics.
-3. **Scope of Forms**:
-   - **Form 1: Edit Account & Register Engineer Dialog** (`ManageTeamTab.kt` & `ProfileComponents.kt`).
-   - **Form 2: Login Screen & Reset Password Dialog** (`LoginScreen.kt`).
-   - **Form 3: Add/Edit Credential Tracker Dialog** (`CredentialTrackerScreen.kt`).
+### 🎯 Key Design Directives:
+1. **Access Control**:
+   - Strictly restricted to `isManagerOrAdmin == true`. Regular engineers should not see the logs button or viewer.
+2. **Top-Bar Action Button**:
+   - In `CredentialTrackerScreen.kt` TopAppBar actions:
+     Next to `Refresh` and `+ Add Tracker`, place an **Audit Logs Button** (`Icons.Default.History`) with subtle Neumorphic styling, visible only if `isManagerOrAdmin == true`.
+3. **Single Neumorphic Audit Modal (`CredentialTrackerLogsSheet.kt`)**:
+   - Full-featured Neumorphic Bottom Sheet or Dialog showing an aggregated timeline of updates across **all accounts and servers**:
+     - Header: Title `"Credential Update Logs"`, subtitle `"Authoritative audit trail of updates & renewals"`, Close button & Refresh button.
+     - Search Bar: Quick search by server name, account username, or engineer who updated.
+     - Action Filter Chips: `ALL`, `RENEWED`, `UPDATED`, `CREATED`.
+     - Log Card Timeline:
+       - Server & Account pill: `[NMS Server] • root`
+       - Action Badge:
+         - `RENEWED` (Emerald `#10B981` pill with `Icons.Default.Autorenew`)
+         - `UPDATED` (Indigo `#6366F1` pill with `Icons.Default.Edit`)
+         - `CREATED` (Teal `#059669` pill with `Icons.Default.Add`)
+         - `DELETED` (Rose `#EF4444` pill with `Icons.Default.Delete`)
+       - Who Updated: Avatar / user icon + Name + `@username` (e.g. `Shefeeq K K (@shefeeqkk)`)
+       - Date Transition Diff:
+         `Previous: 16-Oct-2026 ➔ New: 17-Nov-2026`
+       - Summary: `Password updated to 17-Nov-2026 (Valid for 45 days, expires 01-Jan-2027)`
+       - IST Timestamp: `17-Nov-2026, 09:29 PM IST`
 
 ---
 
 ## 2. Scope of Work for Vijayan
 
-### 1. Reusable Compact Neumorphic Input Component (`NeumorphicFormInput.kt`)
-- Create `android/app/src/main/java/com/rosterx/presentation/components/NeumorphicFormInput.kt`:
-  - Label: `Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMuted)`.
-  - Sunken basin:
-    ```kotlin
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .neumorphicInset(shape = RoundedCornerShape(12.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-    ) {
-        BasicTextField(...)
-    }
-    ```
-  - Trailing icon support (e.g., eye toggle for passwords, calendar icon for dates).
+### 1. Data Layer (`RosterApiService.kt` & `RosterRepositoryImpl.kt`)
+- Define DTOs in `com.rosterx.data.remote`:
+  ```kotlin
+  data class CredentialTrackerLogDto(
+      val id: String = "",
+      @SerializedName("tracker_id") val trackerId: String = "",
+      @SerializedName("server_name") val serverName: String = "",
+      val username: String = "",
+      val action: String = "",
+      @SerializedName("action_label") val actionLabel: String = "",
+      @SerializedName("updated_by") val updatedBy: String = "",
+      @SerializedName("updated_by_name") val updatedByName: String = "",
+      @SerializedName("previous_date") val previousDate: String? = null,
+      @SerializedName("new_date") val newDate: String? = null,
+      @SerializedName("validity_days") val validityDays: Int? = null,
+      @SerializedName("expiry_date") val expiryDate: String? = null,
+      val summary: String = "",
+      val timestamp: Long = 0L,
+      @SerializedName("datetime_str") val datetimeStr: String = ""
+  )
 
-### 2. Form 1: Edit Account & Register Engineer Dialog (`ManageTeamTab.kt` & `ProfileComponents.kt`)
-Overhaul `EngineerDialog` in `ManageTeamTab.kt` and `UnifiedEditProfileDialog` in `ProfileComponents.kt` to mirror Image 2:
-- **Card**: Floating Neumorphic surface with `RoundedCornerShape(24.dp)` and `padding(18.dp)`.
-- **Header**:
-  - Left: Circular `UserAvatar` (size `44.dp`) with camera badge icon overlay `📷`. Tapping triggers photo picker.
-  - Middle: Title `"Edit account"` / `"Register new account"` (`18.sp`, ExtraBold), Subtitle `nameInput` / `"Create system access"` (`11.sp`, `TextMuted`).
-  - Right: Theme toggle / close icon button.
-- **Row 1 (Dual-Column 50/50)**:
-  - Left: `Full name *` (`NeumorphicFormInput`)
-  - Right: `Username *` (`NeumorphicFormInput`)
-- **Row 2 (Single-Column 100%)**:
-  - `Corporate email *` (full width for long addresses).
-- **Row 3 (Dual-Column 50/50)**:
-  - Left: `Phone` (`NeumorphicFormInput`)
-  - Right: `New password` (with eye toggle).
-- **Row 4 (Dual-Column 50/50)**:
-  - Left: `Join date` (with date picker / calendar icon).
-  - Right: `Birthday` (with date picker / cake icon).
-- **Row 5 (Single-Column 100% - Role Selector)**:
-  - Label: `"Role and access"`
-  - Segmented Neumorphic recessed container with tactile raised pill buttons for:
-    `[Engineer]  [Manager]  [Admin]  [Apprent.]`
-    Active pill styled with brand Blue / Salmon accent.
-- **Row 6 (Action Row)**:
-  - Left: Square Neumorphic delete button (`[🗑️]`) with red tint (visible when editing existing account).
-  - Middle: Neumorphic `[Cancel]` button.
-  - Right: Neumorphic Primary `[✓ Save changes]` button with checkmark icon and solid accent styling.
+  data class CredentialTrackerLogsResponse(
+      val success: Boolean = false,
+      val logs: List<CredentialTrackerLogDto> = emptyList(),
+      val count: Int = 0
+  )
+  ```
+- In `RosterApiService.kt`:
+  ```kotlin
+  @GET("api/credentials/trackers/logs")
+  suspend fun getCredentialTrackerLogs(): Response<CredentialTrackerLogsResponse>
+  ```
+- In `RosterRepository.kt` & `RosterRepositoryImpl.kt`:
+  Add `suspend fun getCredentialTrackerLogs(): Result<List<CredentialTrackerLogDto>>`.
 
-### 3. Form 2: Login Screen (`LoginScreen.kt`)
-Transform `LoginScreen.kt` from flat Material 3 to compact Neumorphic styling:
-- Floating Neumorphic Card: `Modifier.neumorphicFloating(shape = RoundedCornerShape(24.dp))` on `NeumorphicTokens.Canvas`.
-- Compact vertical sizing so the entire screen fits without vertical scrolling on mobile viewports:
-  - Logo (`56.dp`), `"Welcome to RosterX"` (`22.sp`, Bold), subtitle (`11.sp`).
-  - Username: Inset Neumorphic input with Person icon + Key icon for Google Password Manager.
-  - Password: Inset Neumorphic input with Lock icon + Eye toggle icon.
-  - **Standard "Forgot password?" Link**:
-    - Change legacy text `"Forgot Username / Need Help?"` to standard `"Forgot password?"`.
-    - Position it **right-aligned immediately below the Password field** (`Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End)`).
-    - Tapping opens the Neumorphic OTP Password Reset dialog.
-  - Primary **"Sign In"** button: Elevated Neumorphic button with smooth press animation (`neumorphicClickable`).
-- Server Settings Dialog & OTP Password Reset Dialog:
-  - Converted to matching Neumorphic dialogs with inset inputs.
+### 2. ViewModel Integration (`EngineerPortalViewModel.kt`)
+- In `EngineerPortalState`:
+  ```kotlin
+  val credentialTrackerLogs: List<CredentialTrackerLogDto> = emptyList(),
+  val isLoadingCredentialLogs: Boolean = false
+  ```
+- In `EngineerPortalViewModel`:
+  ```kotlin
+  fun loadCredentialTrackerLogs(silent: Boolean = false) {
+      viewModelScope.launch {
+          _state.value = _state.value.copy(isLoadingCredentialLogs = !silent)
+          val result = repository.getCredentialTrackerLogs()
+          result.onSuccess { logs ->
+              _state.value = _state.value.copy(credentialTrackerLogs = logs, isLoadingCredentialLogs = false)
+          }.onFailure {
+              _state.value = _state.value.copy(isLoadingCredentialLogs = false)
+          }
+      }
+  }
+  ```
 
-### 4. Form 3: Add/Edit Credential Tracker Dialog (`CredentialTrackerScreen.kt`)
-Overhaul `AddEditCredentialTrackerDialog`:
-- Dual-Column Row 1: `Server Name *` | `Username / Account *`
-- Dual-Column Row 2: `Validity Days *` (manual input) | `Alert Threshold Days *` (manual input)
-- Single-Column Row 3: `Last Updated Date *` (with calendar picker & 'Today' chip)
-- Single-Column Row 4: `Designated Spokesperson Emails` (chips + teammate picker)
-- Action Row: Delete button (if editing), Cancel button, and Save Tracker button.
+### 3. Modern Neumorphic Component (`CredentialTrackerLogsSheet.kt`)
+- Create `android/app/src/main/java/com/rosterx/presentation/portal/credentials/CredentialTrackerLogsSheet.kt`.
+- Present as `ModalBottomSheet` or Neumorphic Dialog:
+  - Header: Title, subtitle, Close, and Refresh button.
+  - Search field: `NeumorphicTextField` searching server, account, or updater name.
+  - Action Chips: `ALL`, `RENEWED`, `UPDATED`, `CREATED`.
+  - Empty state: Neumorphic card with "No audit logs found".
+  - Scrollable LazyColumn of log cards with crisp typographic hierarchy and Neumorphic elevation.
+
+### 4. Wire Up in `CredentialTrackerScreen.kt`
+- Add state: `var showLogsSheet by remember { mutableStateOf(false) }`.
+- In `TopAppBar` actions:
+  ```kotlin
+  if (isManagerOrAdmin) {
+      IconButton(onClick = {
+          viewModel.loadCredentialTrackerLogs()
+          showLogsSheet = true
+      }) {
+          Icon(
+              imageVector = Icons.Default.History,
+              contentDescription = "Audit Logs",
+              tint = NeumorphicTokens.AccentSalmon
+          )
+      }
+  }
+  ```
+- Render `CredentialTrackerLogsSheet(show = showLogsSheet, onDismiss = { showLogsSheet = false }, logs = state.credentialTrackerLogs, isLoading = state.isLoadingCredentialLogs, onRefresh = { viewModel.loadCredentialTrackerLogs() })`.
 
 ### 5. Post-Build Activities (Mandatory)
 - Version bump in `android/app/build.gradle.kts`:
-  - `versionName = "1.29.0"`
-  - `versionCode = 122`
-- Version bump in `server.py`:
-  - `SERVER_VERSION = "1.29.0"`
+  - `versionName = "1.30.0"`
+  - `versionCode = 128`
 - Execute safe build:
   - `cd android && .\safe_build.bat assembleDebug`
 - Install on device via ADB:
   - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
 - Verification:
-  - Test Login Screen: Verify compact, inset fields, Google Password Manager autofill, and zero scrolling.
-  - Test Edit Account Dialog in Manage Team: Verify dual-column layout, compact height, and visual parity with Image 2.
-  - Test Credential Tracker Dialog: Verify dual-column inputs and smooth Neumorphic styling.
+  - Open Credential Tracker in Admin and Manager profiles. Verify "History" icon appears in top bar.
+  - Tap icon: verify single audit sheet opens with all servers & accounts listed.
+  - Verify who updated, previous/new dates, and IST timestamps are displayed cleanly.
 - Commit changes and update `AGENT_HANDOFF.md`.
