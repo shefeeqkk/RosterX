@@ -19,7 +19,8 @@
 >    - Portrait mobile-il clean separation between editor and history feed; landscape/tablet-il side-by-side dual pane!
 > 
 > 2. **Compose Editor Overhaul (`NotificationsTab.kt` - Vijayan's Territory)**:
->    - **Templates Overhaul**: Preloaded dummy templates removed! In header, a sleek Neumorphic **`[ 💾 Save as Template ]`** button allows saving the current broadcast into MongoDB custom templates. Custom templates render as a compact horizontal pill strip above the title only when saved.
+>    - **Clean Slate (No Pre-filled Message)**: Remove the hardcoded initial title and message (`"Shift Operations Announcement"` and `"Dear {name}, Please review..."`). The composer starts with completely empty fields (`notificationTitle = ""`, `notificationMessage = ""`) with clean placeholders.
+>    - **Templates Overhaul**: All preloaded/dummy templates are permanently removed! No pre-seeded text or personal names. In header, a sleek Neumorphic **`[ 💾 Save as Template ]`** button allows saving the current broadcast into MongoDB custom templates. Custom templates render as a compact horizontal pill strip above the title only when user saves them.
 >    - **Inputs (Neumorphic Inset)**: Sunken wells for Title and Message editor (`Modifier.neumorphicInset(...)`).
 >    - **Interactive `@` Mention Dropdown**: Typing `@` triggers popup with:
 >      - `@name` (Dynamic recipient personalization: each engineer sees their own name)

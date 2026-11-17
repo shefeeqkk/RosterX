@@ -9,11 +9,12 @@
 Dasa! Nammude Broadcast Console-il preloaded dummy templates remove cheythu, user create cheyyunna **pure custom templates** maathram retain cheyyaanum, dynamic `@name` recipient personalization support cheyyaanumulla blueprint Gafoorka set aakki vechittundu.
 
 ### 🎯 Key Directives for Dasan:
-1. **Purge Preloaded Dummy Templates (`server.py`)**:
+1. **Purge Preloaded Dummy Templates & Defaults (`server.py`)**:
    - In `GET /api/broadcast/templates`:
      - **Remove** auto-upserting `DEFAULT_BROADCAST_TEMPLATES`.
      - In MongoDB `ATLAS_DB.broadcast_templates`, purge any default preloaded templates with legacy titles (`"Shift Operations Announcement"`, `"Urgent Operational Handover"`, `"Scheduled System Maintenance"`, `"Shift Coverage Swap Request"`).
      - Return only user-created custom templates: `{ "success": True, "templates": user_templates, "count": len(user_templates) }`. If none exist, return empty list `[]`.
+     - Ensure NO mock text, preloaded defaults, or personal names are seeded.
 2. **Support Saving Custom Templates**:
    - Ensure `POST /api/broadcast/templates` allows Admins and Managers to save templates with:
      - `name`: string (e.g. template title or name)

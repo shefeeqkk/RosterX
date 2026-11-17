@@ -19,7 +19,11 @@ Vijaya! User Broadcast Tab-il major modernisation request cheythittundu:
    - **Quick Chips Toolbar Removed**: `{name}`, `@all`, `@ Mention...` chip toolbar poornamaayi remove cheyyuka!
    - **Subtle Helper Description**: Editor-nu thazhe subtle helper text add cheyyuka:
      `💡 Tip: Type @ to insert dynamic @name, alert @all, or mention specific teammates.`
-3. **Template Overhaul**:
+3. **Template & Initial State Overhaul**:
+   - **Clean Slate (No Pre-filled Default Message)**:
+     - Remove the legacy pre-filled default title and message (`"Shift Operations Announcement"` and `"Dear {name}, Please review..."`).
+     - Initialize `notificationTitle = ""` and `notificationMessage = ""`.
+     - Use clean Neumorphic placeholders: `"Enter broadcast title..."` and `"Type broadcast message..."`.
    - **Preloaded Dummy Templates Removed**: Hardcoded `defaultTemplates` list poornamaayi remove cheyyuka!
    - **"Save as Template" Action**: Editor header-il sleek Neumorphic **"Save as Template"** button (`[ 💾 Save as Template ]` or Bookmark icon) add cheyyuka. Tapping prompts or saves Title + Message as a custom reusable template.
    - **Custom Saved Templates Strip**: Custom templates exist cheyyunnundengil maathram title-nu mukalil compact horizontal pill strip aayi show cheyyuka (with delete 'x' action). Template illengil clean aayi hide cheyyuka.
