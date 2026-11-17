@@ -1,12 +1,15 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED` (Sprint v1.29.3 - Build 125)
+**Status:** `COMPLETED` (Sprint v1.29.4 - Build 126)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Vijaya! User nammude entire form ecosystem (Edit Account, Register Engineer, Login Screen, Credential Tracker Dialog) flat style-il ninnum authentic **Neumorphic style**-ilekku redesign cheyyaan request cheythittundu. Attached reference image-il (Image 2) ulla pole **compact, zero-scrolling, mixed dual-column & single-column layout** aanu nammude target!
+Vijaya! User nammude Edit Account form-il 3 specific visual improvements request cheythittundu:
+1. **Save changes button color**: Ensure the Primary Save CTA has a solid, vibrant brand accent fill (`NeumorphicTokens.AccentSalmon` / `LocalThemeAccent.current`) with bold white text & checkmark icon, so it stands out distinctly from the Cancel button and dialog surface in both Light and Dark themes.
+2. **Weekly offs smudged button fix**: In `Weekly offs`, replace the uncontained raised pills with a unified recessed track container (`neumorphicInset`), with clipped accent-filled selected pills, eliminating all diffuse drop shadow bleeding onto "Employment status". Also align `Employment status` with the same clean recessed track pattern.
+3. **Remove photo option in admin form**: Add a red `• Remove photo` action button in the header right next to the subtitle when a profile photo is present, allowing clearing the avatar back to initials in both the mobile UI and backend database.
 
 ### 🎯 Key Design Directives (Matching Image 2 Reference):
 1. **Compact & Less Scrolling**:

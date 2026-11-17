@@ -41,7 +41,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.29.3"
+SERVER_VERSION = "1.29.4"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -4159,6 +4159,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             del eng["password"]
 
                     # Handle profile picture if provided
+                    unset_fields = {"id": "", "engineer_id": ""}
                     if "profile_picture" in eng:
                         raw_pic = eng.get("profile_picture")
                         if raw_pic and isinstance(raw_pic, str) and raw_pic.strip():
@@ -4166,13 +4167,14 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                                 eng["profile_picture"] = process_profile_picture_base64(raw_pic, max_dimension=256, quality=85)
                             except Exception:
                                 pass
-                        elif raw_pic is None or raw_pic == "":
+                        elif raw_pic is None or raw_pic == "" or raw_pic == "remove":
                             del eng["profile_picture"]
+                            unset_fields["profile_picture"] = ""
 
                     # Primary key is username
                     ATLAS_DB.engineers.update_one(
                         {"username": eng_user},
-                        {"$set": eng, "$unset": {"id": "", "engineer_id": ""}},
+                        {"$set": eng, "$unset": unset_fields},
                         upsert=True
                     )
                     saved_count += 1

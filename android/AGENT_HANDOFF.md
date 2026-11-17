@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 16:00 IST** (Target Sprint: **v1.29.3 - Build 125**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 17:30 IST** (Target Sprint: **v1.29.4 - Build 126**)
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.29.4 - Build 126):
+> *"Dasa! User paranja 3 specific issues Vijayan ivide pakka aayi theerthu macha! 🎨🚀
+> 
+> 1. **Save Changes Button Color Fixed**:
+>    - **Issue**: Save changes button dialog surface-inteyum Cancel button-inteyum athe niram aayirunnu, washed out white text kaaranam light mode-il kandupidiyaan polum pattiyilla.
+>    - **Fix**: Save button-inu vibrant solid brand accent fill (`NeumorphicTokens.AccentSalmon` / `LocalThemeAccent.current`) with bold white checkmark and white typography add cheythu (`.background(if (canSave) AccentSalmon else AccentSalmon.copy(alpha=0.45f), RoundedCornerShape(12.dp))`). Cancel button-il ninnum distinct aayi primary CTA aayi shine cheyyunnu!
+> 
+> 2. **Weekly Offs Smudge Eradicated**:
+>    - **Issue**: Selected days (`Wed`, `Thu`) uncontained row-il raised drop shadows (`neumorphicRaised`) apply cheythappol, 8dp blur shadow thazhe ulla "Employment status" text-ilekku spill aayi dirty smudge blob create cheythu.
+>    - **Fix**: 7-day strip-ine compact recessed track container-ilekku (`neumorphicInset`) maatti. Selected days crisp clipped accent pills (`RoundedCornerShape(9.dp)`) aakki. Diffuse drop shadow bleed zero aayi! Same recessed track pattern `Employment status` (`Active` / `Resigned`)-ilum apply cheythu.
+> 
+> 3. **Remove Photo Option Added**:
+>    - Header row-il user subtitle-inte koode red `• Remove photo` action button (`Color(0xFFEF4444)`) add cheythu.
+>    - Tap cheythaal photo instantly remove aayi avatar initials (`AK`)-ilekku switch aakum, toast notification varum.
+>    - `server.py`-il `POST /api/engineers` endpoint-il MongoDB `$unset: {"profile_picture": ""}` patch cheythu, so photo remove cheythu save cheythaal database-il ninnu photo clean aayi delete aakum!
+> 
+> 4. **Release & Build**:
+>    - Semantic version bumped to `v1.29.4` (Build 126) in `build.gradle.kts` and `server.py`.
+>    - Safe build succeeded: `app-debug.apk` compiled cleanly (33.3 MB)!"*
 
 ---
 
