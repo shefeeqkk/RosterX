@@ -18,6 +18,7 @@
 >    - Dedicated MongoDB collection: `ATLAS_DB.credential_tracker_logs`.
 >    - Captures `tracker_id`, `server_name`, `username`, `action` (`RENEW`, `UPDATE`, `CREATE`, `DELETE`), `updated_by`, `updated_by_name`, `previous_date`, `new_date`, `validity_days`, `expiry_date`, `summary`, `timestamp`, and `datetime_str` (IST formatted).
 >    - Hooked into `_handle_create_credential_tracker`, `_handle_update_credential_tracker`, `_handle_renew_credential_tracker`, and `_handle_delete_credential_tracker`.
+>    - Unified Terminology: 'Renewed' and 'Updated' are unified under `"UPDATED"` to remove redundancy.
 >    - Baseline seeder: Automatically seeds historical baseline logs from existing trackers on startup so history is immediately visible.
 >    - New protected endpoint: `GET /api/credentials/trackers/logs` (requires `admin` or `manager`).
 >    - Version bump: `SERVER_VERSION = "1.30.0"`.
@@ -27,8 +28,8 @@
 >    - Single Neumorphic Logs Modal Sheet:
 >      - Unified view aggregating all accounts & servers.
 >      - Search bar (by server name, account username, or engineer name).
->      - Filter chips: `ALL`, `RENEWED`, `UPDATED`, `CREATED`.
->      - Rich log items: Server & Account pill (`NMS Server • root`), semantic action badge (`RENEWED` emerald / `UPDATED` indigo / `CREATED` teal), Who updated (`Name (@username)`), Date transition diff (`Previous: 16-Oct-2026 ➔ New: 17-Nov-2026`), Summary, and IST timestamp.
+>      - Filter chips: `ALL`, `UPDATED`, `CREATED`, `DELETED` (no redundant `RENEWED` chip!).
+>      - Rich log items: Server & Account pill (`NMS Server • root`), semantic action badge (`UPDATED` indigo / `CREATED` teal / `DELETED` rose), Who updated (`Name (@username)`), Date transition diff (`Previous: 16-Oct-2026 ➔ New: 17-Nov-2026`), Summary, and IST timestamp.
 >    - Version bump: `versionName = "1.30.0"`, `versionCode = 128`, and execute safe build (`safe_build.bat assembleDebug`).
 > 
 > Dasa and Vijaya: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*

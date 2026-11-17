@@ -18,12 +18,11 @@ Vijaya! Credential Tracker-il **Admin and Manager-kk maathram** password update/
    - Full-featured Neumorphic Bottom Sheet or Dialog showing an aggregated timeline of updates across **all accounts and servers**:
      - Header: Title `"Credential Update Logs"`, subtitle `"Authoritative audit trail of updates & renewals"`, Close button & Refresh button.
      - Search Bar: Quick search by server name, account username, or engineer who updated.
-     - Action Filter Chips: `ALL`, `RENEWED`, `UPDATED`, `CREATED`.
+     - Action Filter Chips: `ALL`, `UPDATED`, `CREATED`, `DELETED` (*'Renewed' and 'Updated' are unified under `UPDATED` to eliminate redundancy*).
      - Log Card Timeline:
        - Server & Account pill: `[NMS Server] • root`
        - Action Badge:
-         - `RENEWED` (Emerald `#10B981` pill with `Icons.Default.Autorenew`)
-         - `UPDATED` (Indigo `#6366F1` pill with `Icons.Default.Edit`)
+         - `UPDATED` (Indigo `#6366F1` pill with `Icons.Default.Edit` / `Autorenew`)
          - `CREATED` (Teal `#059669` pill with `Icons.Default.Add`)
          - `DELETED` (Rose `#EF4444` pill with `Icons.Default.Delete`)
        - Who Updated: Avatar / user icon + Name + `@username` (e.g. `Shefeeq K K (@shefeeqkk)`)

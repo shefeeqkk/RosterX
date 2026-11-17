@@ -13,8 +13,8 @@ Dasa! Nammude Credential Tracker-il Admin-num Manager-kkum maathram access ulla 
    - Store all credential tracker update, renewal, creation, and deletion events in a dedicated MongoDB collection: `ATLAS_DB.credential_tracker_logs`.
    - Each log entry must record:
      - `tracker_id`, `server_name`, `username` (account)
-     - `action` (`"RENEW"`, `"UPDATE"`, `"CREATE"`, `"DELETE"`)
-     - `action_label` (`"Credential Renewed"`, `"Tracker Updated"`, etc.)
+     - `action` (`"UPDATE"`, `"CREATE"`, `"DELETE"`) — *Note: 'Renewed' and 'Updated' are unified under `"UPDATE"` to eliminate redundancy.*
+     - `action_label` (`"Password Date Updated"`, `"Tracker Created"`, `"Tracker Deleted"`)
      - `updated_by` (username) and `updated_by_name` (proper full name from `engineers` collection)
      - `previous_date` (old `last_updated_date`) and `new_date` (new `last_updated_date`)
      - `validity_days`, `expiry_date`
