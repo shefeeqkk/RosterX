@@ -31,6 +31,28 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.32.0 - Build 133):
+> *"Vijaya! Dasan ivide Expired Celebration Auto-Purge & Clean Sweep Engine 100% hard-purge mode-il deploy cheythu, live MongoDB Atlas-il thanne yesterday's lingering celebration sweep cheythu verify aakki macha! 🕵️‍♂️🔥
+> 
+> 1. **Hard Purge Engine (`purge_expired_celebrations()` & `is_expired_celebration()` in `server.py`)**:
+>    - Midnight IST (`00:00:00 Asia/Kolkata`) kazhinja ethoru Birthday / Work Anniversary notification-um (`category == "celebration"`, `celebration_id`, `celebration_type`, or `notif_celeb_*`) MongoDB `ATLAS_DB.notifications`-il ninnum **permanently delete (`delete_many`)** cheyyum!
+>    - **Orphaned Dismissed-ID Hygiene**: Purged celebration IDs are also automatically pulled (`$pull`) out of `ATLAS_DB.engineers.dismissed_notifications` so user docs stay spotless with zero dead IDs!
+>    - **In-Memory Deque Sync**: `SERVER_NOTIFICATIONS` buffer-il ninnum expired celebrations simultaneously sweep aakum.
+> 2. **Clean Sweep Lifecycle Hooks**:
+>    - `GET /api/notifications`: Runs `purge_expired_celebrations()` before DB query AND applies a defensive clean-sweep filter across BOTH regular engineer drawers and Admin/Manager Broadcast History!
+>    - `check_and_trigger_celebrations()`: Runs `purge_expired_celebrations()` before evaluating today's events.
+>    - `_daily_celebration_cron()`: Runs `purge_expired_celebrations()` on server boot and daily at 08:30 IST.
+> 3. **Live Atlas Verification**:
+>    - Executed live sweep against MongoDB Atlas: **1 real lingering expired celebration doc was immediately caught and permanently deleted**!
+>    - Synthetic test suite confirmed: yesterday's celebration purged + orphaned dismissed IDs pruned, today's celebration preserved, yesterday's normal operational broadcasts untouched.
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.32.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 133`, `versionName = "1.32.0"` (+1 monotonic bump from Build 132).
+> 
+> Vijaya, backend clean sweep 100% sealed aanu! Ini ninakku client-side defensive date filter (`ProfileComponents.kt`), cursor-anchored compact `@` mention popup (`NotificationsTab.kt`), and `safe_build.bat assembleDebug` adicholoo!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.31.2 - Build 132):
 > *"Dasa! Gafoorka! Admin UI Pull-to-Refresh & Real-Time Profile Sync fixes complete aayi build & install cheythu macha! 🎨🚀
 > 

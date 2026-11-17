@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.31.2"
+SERVER_VERSION = "1.32.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -993,6 +993,118 @@ def parse_celebration_date(raw_date_str: str, now_ist: datetime) -> tuple:
 
     return (is_today, years, year)
 
+def is_expired_celebration(notif_doc: dict, today_str: str = None, start_of_today_ist: float = None) -> bool:
+    """
+    Returns True if a notification document represents a Birthday / Work Anniversary celebration
+    whose event date is strictly before today's IST date.
+    """
+    if not isinstance(notif_doc, dict):
+        return False
+
+    cat = str(notif_doc.get("category") or "").strip().lower()
+    celeb_id = str(notif_doc.get("celebration_id") or "").strip()
+    celeb_type = str(notif_doc.get("celebration_type") or "").strip()
+    notif_id = str(notif_doc.get("id") or "").strip()
+
+    is_celeb = (cat == "celebration") or bool(celeb_id) or bool(celeb_type) or notif_id.startswith("notif_celeb_")
+    if not is_celeb:
+        return False
+
+    if today_str is None or start_of_today_ist is None:
+        ist_tz = timezone(timedelta(hours=5, minutes=30))
+        now_ist = datetime.now(ist_tz)
+        today_str = now_ist.strftime("%Y-%m-%d")
+        start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist_tz).timestamp()
+
+    if celeb_id.startswith("celeb_") and not celeb_id.startswith(f"celeb_{today_str}"):
+        return True
+
+    ts = notif_doc.get("timestamp")
+    if ts is not None:
+        try:
+            if float(ts) < start_of_today_ist:
+                return True
+        except Exception:
+            pass
+
+    return False
+
+def purge_expired_celebrations() -> int:
+    """
+    Hard Purge Engine:
+    Permanently deletes expired celebration notices from ATLAS_DB.notifications,
+    prunes their orphaned IDs from ATLAS_DB.engineers.dismissed_notifications,
+    and purges expired celebrations from the in-memory SERVER_NOTIFICATIONS buffer.
+    """
+    global ATLAS_DB, SERVER_NOTIFICATIONS
+    try:
+        ist_tz = timezone(timedelta(hours=5, minutes=30))
+        now_ist = datetime.now(ist_tz)
+        today_str = now_ist.strftime("%Y-%m-%d")
+        start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist_tz).timestamp()
+
+        deleted_count = 0
+        if ATLAS_DB is not None:
+            celeb_filter = {
+                "$and": [
+                    {
+                        "$or": [
+                            {"category": "celebration"},
+                            {"celebration_id": {"$exists": True, "$nin": [None, ""]}},
+                            {"celebration_type": {"$exists": True, "$nin": [None, ""]}},
+                            {"id": {"$regex": r"^notif_celeb_"}}
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {"timestamp": {"$lt": start_of_today_ist}},
+                            {"celebration_id": {"$regex": r"^celeb_(?!" + re.escape(today_str) + r")"}}
+                        ]
+                    }
+                ]
+            }
+            expired_docs = list(ATLAS_DB.notifications.find(celeb_filter, {"_id": 0, "id": 1, "celebration_id": 1}))
+            if expired_docs:
+                expired_ids = []
+                for d in expired_docs:
+                    if d.get("id"):
+                        expired_ids.append(str(d["id"]))
+                    if d.get("celebration_id"):
+                        expired_ids.append(str(d["celebration_id"]))
+
+                res = ATLAS_DB.notifications.delete_many(celeb_filter)
+                deleted_count = res.deleted_count
+
+                if deleted_count > 0:
+                    log_server(f"[PURGE] Permanently deleted {deleted_count} expired celebration notification(s) from MongoDB.")
+
+                if expired_ids:
+                    try:
+                        pull_res = ATLAS_DB.engineers.update_many(
+                            {"dismissed_notifications": {"$in": expired_ids}},
+                            {"$pull": {"dismissed_notifications": {"$in": expired_ids}}}
+                        )
+                        if pull_res.modified_count > 0:
+                            log_server(f"[PURGE] Pruned {len(expired_ids)} orphaned celebration ID(s) from {pull_res.modified_count} engineer record(s).")
+                    except Exception as pull_err:
+                        log_server(f"[PURGE NOTE] Failed to prune dismissed_notifications: {pull_err}")
+
+        # Purge in-memory deque as well
+        if SERVER_NOTIFICATIONS:
+            before_mem = len(SERVER_NOTIFICATIONS)
+            SERVER_NOTIFICATIONS = collections.deque(
+                [n for n in SERVER_NOTIFICATIONS if not is_expired_celebration(n, today_str, start_of_today_ist)],
+                maxlen=SERVER_NOTIFICATIONS.maxlen
+            )
+            mem_removed = before_mem - len(SERVER_NOTIFICATIONS)
+            if mem_removed > 0 and deleted_count == 0:
+                log_server(f"[PURGE] Removed {mem_removed} expired celebration(s) from in-memory buffer.")
+
+        return deleted_count
+    except Exception as e:
+        log_server(f"[PURGE ERROR] Failed to purge expired celebrations: {e}")
+        return 0
+
 def check_and_trigger_celebrations(force=False):
     """
     Automated Daily Celebration Engine:
@@ -1009,6 +1121,12 @@ def check_and_trigger_celebrations(force=False):
     ist_tz = timezone(timedelta(hours=5, minutes=30))
     now_ist = datetime.now(ist_tz)
     today_str = now_ist.strftime("%Y-%m-%d")
+
+    # Always purge expired past-day celebrations before evaluating today's milestones
+    try:
+        purge_expired_celebrations()
+    except Exception:
+        pass
 
     # Throttle: Check at most once every 15 minutes unless date changed or force=True
     if not force and LAST_CELEBRATION_CHECK_DATE == today_str and (now_time - LAST_CELEBRATION_CHECK_TIME < 900):
@@ -3510,6 +3628,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 return
 
             try:
+                purge_expired_celebrations()
                 check_and_trigger_celebrations()
             except Exception:
                 pass
@@ -3518,9 +3637,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             dismissed_ids = []
             if ATLAS_DB is not None:
                 try:
-                    db_notifs = list(ATLAS_DB.notifications.find({}, {"_id": 0}).sort("timestamp", -1).limit(50))
-                    if db_notifs:
-                        notifs = db_notifs
+                    notifs = list(ATLAS_DB.notifications.find({}, {"_id": 0}).sort("timestamp", -1).limit(50))
                 except Exception as e:
                     print(f"  [ATLAS] Notifications fetch error: {e}")
 
@@ -3531,6 +3648,13 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             dismissed_ids = list(u_doc["dismissed_notifications"])
                     except Exception as e:
                         print(f"  [ATLAS] Dismissed notifs fetch error: {e}")
+
+            # Defensive clean sweep: ensure zero expired celebrations ever leak to engineers or Admin/Manager history
+            ist_tz = timezone(timedelta(hours=5, minutes=30))
+            now_ist = datetime.now(ist_tz)
+            today_ist_str = now_ist.strftime("%Y-%m-%d")
+            start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist_tz).timestamp()
+            notifs = [n for n in notifs if not is_expired_celebration(n, today_ist_str, start_of_today_ist)]
 
             is_admin = bool(claims.get("role") in ("admin", "manager") or claims.get("is_admin"))
 
@@ -5684,8 +5808,9 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         # Run once at startup (after a short delay to let DB connect settle)
         time.sleep(10)
         try:
+            purged = purge_expired_celebrations()
             check_and_trigger_celebrations()
-            log_server("[CRON] Startup celebration check complete.")
+            log_server(f"[CRON] Startup celebration check complete (purged {purged} expired).")
         except Exception as _e:
             log_server(f"[CRON] Startup check error: {_e}")
 
@@ -5699,11 +5824,12 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
             log_server(f"[CRON] Next birthday/anniversary check in {int(sleep_secs//3600)}h {int((sleep_secs%3600)//60)}m (at 08:30 IST).")
             time.sleep(max(sleep_secs, 1))
             try:
+                purged = purge_expired_celebrations()
                 triggered = check_and_trigger_celebrations(force=True)
                 if triggered:
-                    log_server(f"[CRON] 08:30 celebration cron fired — {len(triggered)} event(s) dispatched.")
+                    log_server(f"[CRON] 08:30 celebration cron fired — purged {purged} expired, {len(triggered)} event(s) dispatched.")
                 else:
-                    log_server("[CRON] 08:30 celebration cron fired — no events today.")
+                    log_server(f"[CRON] 08:30 celebration cron fired — purged {purged} expired, no events today.")
             except Exception as _ce:
                 log_server(f"[CRON] Celebration cron error: {_ce}")
 
