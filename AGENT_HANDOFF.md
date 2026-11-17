@@ -17,11 +17,15 @@
 >    - In `GET /api/notifications`: Run `purge_expired_celebrations()`, and double-filter `notifs` feed defensively so past celebration notices are NEVER returned.
 > 3. **Client-side Defensive Date Filter (`ProfileComponents.kt` - Vijayan)**:
 >    - Notification drawer-il `activeNotifs` filter cheyyumbol, celebration items-nte timestamp/date check cheythu if it's before today's IST date, immediately auto-drop it so that stale cached notices never flash on screen.
-> 4. **Safe Build & On-Device Verification**:
+> 4. **Cursor-Anchored Compact `@` Mention Popup (`NotificationsTab.kt` - Vijayan)**:
+>    - Currently `@` suggestions appear below the entire Message Body box (clipped by keyboard) and look bulky with full names/descriptions/avatars.
+>    - Anchor a compact Compose `Popup(focusable = false, clippingEnabled = true)` directly beneath the cursor using `BasicTextField`'s `onTextLayout` -> `getCursorRect(cursorIndex)`.
+>    - Remove `"SUGGESTED MENTIONS"` header & verbose descriptions. Keep `@name` / `@all` ultra-compact single-line, and for engineers render **ONLY `@username`** (no full name, no avatar, no extra details).
+> 5. **Safe Build & On-Device Verification**:
 >    - Bump version to `v1.32.0` (Build 132).
 >    - Build via `cmd /c "cd android && safe_build.bat assembleDebug"`.
 >    - Install on phone: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
->    - Verify that Nandu Anthikat's anniversary notification from yesterday has completely vanished!
+>    - Verify both fixes on device: (1) yesterday's celebration notification is gone; (2) `@` mention popup floats compactly right below the cursor with usernames only for engineers!
 > 
 > Plans are written in `plan_dasan.md` and `plan_vijayan.md`. Dasa and Vijaya, thudangikko!"*
 
