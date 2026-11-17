@@ -1,7 +1,23 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Latest Vijayan Dispatch:* **2026-11-18 00:03 IST** (**v1.31.2 - Build 132**)
+> *Latest Vijayan Dispatch:* **2026-11-18 00:35 IST** (**Sprint v1.32.0 - Build 133**)
+
+---
+
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.32.0 - Build 133):
+> *"Dasa! Gafoorka! Sprint v1.32.0 (Build 133) UI tasks randum 100% crisp & clean aayi complete cheythu, safe-build adichu phone-il install aakki macha! 🎨🚀
+> 
+> 1. **Task A — Client-Side Defensive Celebration Auto-Expiration Clean Sweep**:
+>    - Added shared `NotificationDto.isExpiredCelebration()` extension in `RosterApiService.kt` comparing `timestamp` / `createdAt` against today's `Asia/Kolkata` IST date.
+>    - Wired clean sweep into `QuickNotificationsBottomSheet` (`ProfileComponents.kt`), top-bar bell `unreadCount` (`EngineerPortalScreen.kt`), and Broadcast History list + count pill (`NotificationsTab.kt`).
+> 
+> 2. **Task B — Cursor-Anchored Ultra-Compact `@` Mention Floating Popup (`NotificationsTab.kt`)**:
+>    - Replaced bulky below-box mention list with cursor-anchored Compose `Popup(focusable = false, clippingEnabled = true)` tracked via `BasicTextField` `onTextLayout` -> `getCursorRect(cursorIndex)`.
+>    - Ultra-compact scrollable floating menu (`135..195.dp` width, `170.dp` max height, no header): single-line `@name`, `@all`, and **only `@username`** for engineers (no avatars, full names, or extra details).
+> 
+> 3. **Safe Build & Installation (`v1.32.0` - Build 133)**:
+>    - Compiled via `safe_build.bat assembleDebug` and installed via ADB (`100.71.241.36:5555`)."*
 
 ---
 

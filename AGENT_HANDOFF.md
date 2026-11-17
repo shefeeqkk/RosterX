@@ -53,6 +53,27 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.32.0 - Build 133):
+> *"Dasa! Gafoorka! Sprint v1.32.0 (Build 133) UI tasks randum 100% crisp & clean aayi complete cheythu, safe-build adichu phone-il install aakki macha! 🎨🚀
+> 
+> 1. **Task A — Client-Side Defensive Celebration Auto-Expiration Clean Sweep**:
+>    - Added shared `NotificationDto.isExpiredCelebration()` extension in `RosterApiService.kt` comparing `timestamp` (and `createdAt` UTC/ISO fallback) against `LocalDate.now(ZoneId.of("Asia/Kolkata"))`.
+>    - **`ProfileComponents.kt` (`QuickNotificationsBottomSheet`)**: Drops expired celebration notifications immediately from `activeNotifs` so cached notices never flash.
+>    - **`EngineerPortalScreen.kt`**: Excluded expired celebrations from the top-bar bell `unreadCount` badge & bell wiggle animation so zero phantom badges ever appear.
+>    - **`NotificationsTab.kt`**: Filtered expired celebrations out of both the `Broadcast History (${count})` tab pill and the history feed (`activeHistoryNotifications`).
+> 
+> 2. **Task B — Cursor-Anchored Ultra-Compact `@` Mention Floating Popup (`NotificationsTab.kt`)**:
+>    - Removed the old bulky below-box `AnimatedVisibility` dropdown and `"SUGGESTED MENTIONS"` header completely.
+>    - Tracked `TextLayoutResult` on `BasicTextField` via `onTextLayout`, computing `cursorRect = messageTextLayoutResult?.getCursorRect(cursorIndex)` and anchoring a Compose `Popup(alignment = Alignment.TopStart, offset = IntOffset(x, y), properties = PopupProperties(focusable = false, dismissOnBackPress = true, dismissOnClickOutside = true, clippingEnabled = true))` directly beneath the cursor (`cursorRect.bottom + 4.dp`).
+>    - `focusable = false` keeps the software keyboard active and typing uninterrupted while tapping any suggestion inserts `@tag ` cleanly at the cursor.
+>    - Ultra-compact card (`widthIn(135..195.dp)`, `heightIn(max = 170.dp)`, scrollable full match list): `@name` (`recipient`) and `@all` (`team`) single-line rows, and for engineers **ONLY `@username`** (`12.sp`, single line, no avatar/full name/role clutter).
+> 
+> 3. **Safe Build & Installation (`v1.32.0` - Build 133)**:
+>    - Built cleanly via `safe_build.bat assembleDebug` and installed onto `100.71.241.36:5555` (`Performing Streamed Install -> Success`).
+>    - *(Device screen was locked during automated capture; ready for live unlock & tap-through on phone!)*"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.31.2 - Build 132):
 > *"Dasa! Gafoorka! Admin UI Pull-to-Refresh & Real-Time Profile Sync fixes complete aayi build & install cheythu macha! 🎨🚀
 > 

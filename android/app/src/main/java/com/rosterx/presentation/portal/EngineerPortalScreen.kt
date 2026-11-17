@@ -135,6 +135,7 @@ import com.rosterx.BuildConfig
 import com.rosterx.R
 
 import com.rosterx.data.local.AppThemeMode
+import com.rosterx.data.remote.isExpiredCelebration
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.domain.model.isManagementAccount
@@ -765,7 +766,9 @@ fun EngineerPortalScreen(
                     val isManagementAccountUser = state.loggedInEngineer?.isManagementAccount == true ||
                         state.loggedInEngineer?.role == EngineerRole.ADMIN ||
                         state.loggedInEngineer?.role == EngineerRole.MANAGER
-                    val unreadCount = if (isManagementAccountUser) 0 else state.notifications.count { (it.id ?: "") !in state.dismissedNotificationIds }
+                    val unreadCount = if (isManagementAccountUser) 0 else state.notifications.count {
+                        !it.isExpiredCelebration() && (it.id ?: "") !in state.dismissedNotificationIds
+                    }
 
                     // Natural lively bell ringing animation with clapper physics & rest cadence
                     val bellInfiniteTransition = rememberInfiniteTransition(label = "bell_wiggle")

@@ -441,6 +441,49 @@ data class NotificationDto(
     @SerializedName("celebration_phone") val celebrationPhone: String? = null
 )
 
+fun NotificationDto.isExpiredCelebration(): Boolean {
+    val isCelebrationNotif = !celebrationType.isNullOrBlank() ||
+        sender?.contains("Celebration", ignoreCase = true) == true ||
+        category.equals("celebration", ignoreCase = true) ||
+        title?.contains("Birthday", ignoreCase = true) == true ||
+        title?.contains("Anniversary", ignoreCase = true) == true
+
+    if (!isCelebrationNotif) return false
+
+    val istZone = java.time.ZoneId.of("Asia/Kolkata")
+    val todayIst = java.time.LocalDate.now(istZone)
+
+    val notifDate: java.time.LocalDate? = try {
+        val ts = timestamp
+        if (ts != null && ts > 0.0) {
+            java.time.Instant.ofEpochMilli((ts * 1000).toLong()).atZone(istZone).toLocalDate()
+        } else null
+    } catch (_: Exception) {
+        null
+    } ?: createdAt?.trim()?.takeIf { it.isNotBlank() }?.let { raw ->
+        try {
+            val utcCandidate = raw.removeSuffix(" UTC").trim()
+            val fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            java.time.LocalDateTime.parse(utcCandidate, fmt)
+                .atZone(java.time.ZoneOffset.UTC)
+                .withZoneSameInstant(istZone)
+                .toLocalDate()
+        } catch (_: Exception) {
+            try {
+                java.time.Instant.parse(raw).atZone(istZone).toLocalDate()
+            } catch (_: Exception) {
+                try {
+                    java.time.LocalDate.parse(raw.take(10))
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
+    }
+
+    return notifDate != null && notifDate.isBefore(todayIst)
+}
+
 data class BroadcastTemplateDto(
     val id: String,
     val name: String? = null,

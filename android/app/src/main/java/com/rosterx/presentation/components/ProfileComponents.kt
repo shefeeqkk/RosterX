@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import com.rosterx.data.remote.isExpiredCelebration
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -1413,7 +1414,10 @@ fun QuickNotificationsBottomSheet(
         notifications.mapIndexed { idx, n ->
             val id = n.id ?: "idx_$idx"
             id to n
-        }.filter { (id, _) -> id !in dismissedNotificationIds || id in dismissingIds }
+        }.filter { (id, n) ->
+            if (n.isExpiredCelebration()) return@filter false
+            id !in dismissedNotificationIds || id in dismissingIds
+        }
     }
 
     val configuration = LocalConfiguration.current

@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Article
@@ -32,16 +33,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.rosterx.data.remote.BroadcastTemplateDto
 import com.rosterx.data.remote.NotificationDto
+import com.rosterx.data.remote.isExpiredCelebration
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
@@ -112,16 +119,30 @@ fun NotificationsTab(
     var templateNameInput by remember { mutableStateOf("") }
     var templateToDelete by remember { mutableStateOf<BroadcastTemplateDto?>(null) }
 
-    // Cursor-aware live '@' Mention detector
+    // Clean-sweep Broadcast History: defensively exclude expired celebration alerts (< today IST)
+    val activeHistoryNotifications = remember(state.notifications) {
+        state.notifications.filter { !it.isExpiredCelebration() }
+    }
+
+    // Cursor-aware live '@' Mention detector + Layout tracker for Cursor-Anchored Popup
+    val density = LocalDensity.current
+    var messageTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var dismissedMentionPrefix by remember { mutableStateOf<String?>(null) }
+
     val textBeforeCursor = remember(messageTextFieldValue) {
         val sel = messageTextFieldValue.selection.start.coerceIn(0, messageTextFieldValue.text.length)
         messageTextFieldValue.text.take(sel)
+    }
+    LaunchedEffect(textBeforeCursor) {
+        if (dismissedMentionPrefix != null && textBeforeCursor != dismissedMentionPrefix) {
+            dismissedMentionPrefix = null
+        }
     }
     val mentionMatch = remember(textBeforeCursor) {
         Regex("@([a-zA-Z0-9_\\-\\.]*)$").find(textBeforeCursor)
     }
     val mentionQuery = mentionMatch?.groupValues?.getOrNull(1)?.lowercase()
-    val isMentionActive = mentionMatch != null
+    val isMentionActive = mentionMatch != null && dismissedMentionPrefix != textBeforeCursor
 
     val matchingMentionEngineers = remember(mentionQuery, activeEngineers) {
         if (mentionQuery == null) emptyList()
@@ -130,7 +151,7 @@ fun NotificationsTab(
                 val uname = eng.username.lowercase()
                 val fname = (eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name).lowercase()
                 mentionQuery.isEmpty() || uname.contains(mentionQuery) || fname.contains(mentionQuery)
-            }.take(5)
+            }
         }
     }
 
@@ -143,6 +164,7 @@ fun NotificationsTab(
         val inserted = "@$tag "
         val newText = prefix + inserted + suffix
         val newPos = prefix.length + inserted.length
+        dismissedMentionPrefix = null
         messageTextFieldValue = TextFieldValue(newText, TextRange(newPos))
     }
 
@@ -338,7 +360,7 @@ fun NotificationsTab(
                                 tint = if (isHistoryActive) Color.White else NeumorphicTokens.TextMuted
                             )
                             Text(
-                                text = "Broadcast History (${state.notifications.size})",
+                                text = "Broadcast History (${activeHistoryNotifications.size})",
                                 fontSize = 12.5.sp,
                                 fontWeight = if (isHistoryActive) FontWeight.Bold else FontWeight.SemiBold,
                                 color = if (isHistoryActive) Color.White else NeumorphicTokens.TextMuted
@@ -892,25 +914,147 @@ fun NotificationsTab(
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 contentAlignment = Alignment.TopStart
                             ) {
-                                if (messageTextFieldValue.text.isEmpty()) {
-                                    Text(
-                                        text = "Type broadcast message...",
-                                        fontSize = 13.5.sp,
-                                        color = NeumorphicTokens.TextMuted.copy(alpha = 0.6f)
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    if (messageTextFieldValue.text.isEmpty()) {
+                                        Text(
+                                            text = "Type broadcast message...",
+                                            fontSize = 13.5.sp,
+                                            color = NeumorphicTokens.TextMuted.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                    BasicTextField(
+                                        value = messageTextFieldValue,
+                                        onValueChange = { messageTextFieldValue = it },
+                                        onTextLayout = { messageTextLayoutResult = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textStyle = TextStyle(
+                                            fontSize = 13.5.sp,
+                                            color = NeumorphicTokens.TextMain,
+                                            fontWeight = FontWeight.Normal,
+                                            lineHeight = 19.sp
+                                        ),
+                                        cursorBrush = SolidColor(NeumorphicTokens.Accent)
                                     )
+
+                                    // Cursor-Anchored Ultra-Compact '@' Mention Floating Popup
+                                    val showMentionPopup = isMentionActive && (
+                                        matchingMentionEngineers.isNotEmpty() ||
+                                        "name".contains(mentionQuery ?: "") ||
+                                        "all".contains(mentionQuery ?: "") ||
+                                        "everyone".contains(mentionQuery ?: "")
+                                    )
+                                    val cursorIndex = messageTextFieldValue.selection.start.coerceIn(0, messageTextFieldValue.text.length)
+                                    val cursorRect = messageTextLayoutResult?.getCursorRect(cursorIndex)
+
+                                    if (showMentionPopup && cursorRect != null) {
+                                        val xOffset = cursorRect.left.toInt().coerceAtLeast(0)
+                                        val yOffset = (cursorRect.bottom + with(density) { 4.dp.toPx() }).toInt()
+
+                                        Popup(
+                                            alignment = Alignment.TopStart,
+                                            offset = IntOffset(x = xOffset, y = yOffset),
+                                            onDismissRequest = { dismissedMentionPrefix = textBeforeCursor },
+                                            properties = PopupProperties(
+                                                focusable = false,
+                                                dismissOnBackPress = true,
+                                                dismissOnClickOutside = true,
+                                                clippingEnabled = true
+                                            )
+                                        ) {
+                                            Surface(
+                                                modifier = Modifier
+                                                    .widthIn(min = 135.dp, max = 195.dp)
+                                                    .heightIn(max = 170.dp),
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = NeumorphicTokens.Surface,
+                                                shadowElevation = 8.dp,
+                                                border = BorderStroke(1.dp, NeumorphicTokens.Accent.copy(alpha = 0.35f))
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .verticalScroll(rememberScrollState())
+                                                        .padding(4.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
+                                                    // 1. @name (compact single-line)
+                                                    if ("name".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .clickable { insertMention("name") }
+                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                        ) {
+                                                            Text(
+                                                                text = "@name",
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = NeumorphicTokens.Accent,
+                                                                maxLines = 1
+                                                            )
+                                                            Text(
+                                                                text = "recipient",
+                                                                fontSize = 10.sp,
+                                                                color = NeumorphicTokens.TextMuted,
+                                                                maxLines = 1
+                                                            )
+                                                        }
+                                                    }
+
+                                                    // 2. @all (compact single-line)
+                                                    if ("all".contains(mentionQuery ?: "") || "everyone".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .clickable { insertMention("all") }
+                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                        ) {
+                                                            Text(
+                                                                text = "@all",
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFF8B5CF6),
+                                                                maxLines = 1
+                                                            )
+                                                            Text(
+                                                                text = "team",
+                                                                fontSize = 10.sp,
+                                                                color = NeumorphicTokens.TextMuted,
+                                                                maxLines = 1
+                                                            )
+                                                        }
+                                                    }
+
+                                                    // 3. Engineers — ONLY @username (no full name, no avatar, no extra details)
+                                                    matchingMentionEngineers.forEach { eng ->
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .clickable { insertMention(eng.username) }
+                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = "@${eng.username}",
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = NeumorphicTokens.TextMain,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                BasicTextField(
-                                    value = messageTextFieldValue,
-                                    onValueChange = { messageTextFieldValue = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = TextStyle(
-                                        fontSize = 13.5.sp,
-                                        color = NeumorphicTokens.TextMain,
-                                        fontWeight = FontWeight.Normal,
-                                        lineHeight = 19.sp
-                                    ),
-                                    cursorBrush = SolidColor(NeumorphicTokens.Accent)
-                                )
                             }
 
                             // Subtle Helper Tip Description
@@ -921,162 +1065,6 @@ fun NotificationsTab(
                                 lineHeight = 15.sp,
                                 modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
                             )
-
-                            // Live '@' Mention Autocomplete Popup Dropdown
-                            AnimatedVisibility(
-                                visible = isMentionActive && (
-                                    matchingMentionEngineers.isNotEmpty() ||
-                                    "name".contains(mentionQuery ?: "") ||
-                                    "all".contains(mentionQuery ?: "") ||
-                                    "everyone".contains(mentionQuery ?: "")
-                                )
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 4.dp)
-                                        .neumorphicFloating(
-                                            shape = RoundedCornerShape(14.dp),
-                                            surfaceColor = NeumorphicTokens.Surface
-                                        )
-                                        .border(1.dp, NeumorphicTokens.Accent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                                        .padding(8.dp)
-                                ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(
-                                            text = "SUGGESTED MENTIONS",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = NeumorphicTokens.Accent,
-                                            letterSpacing = 1.sp,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-
-                                        // 1. Dynamic @name
-                                        if ("name".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .clickable { insertMention("name") }
-                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(26.dp)
-                                                        .clip(CircleShape)
-                                                        .background(NeumorphicTokens.Accent.copy(alpha = 0.15f)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Person,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(15.dp),
-                                                        tint = NeumorphicTokens.Accent
-                                                    )
-                                                }
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = "@name",
-                                                        fontSize = 12.5.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = NeumorphicTokens.TextMain
-                                                    )
-                                                    Text(
-                                                        text = "Dynamic Recipient Name — Personalizes per recipient",
-                                                        fontSize = 10.5.sp,
-                                                        color = NeumorphicTokens.TextMuted
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        // 2. Alert @all
-                                        if ("all".contains(mentionQuery ?: "") || "everyone".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .clickable { insertMention("all") }
-                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(26.dp)
-                                                        .clip(CircleShape)
-                                                        .background(Color(0xFF8B5CF6).copy(alpha = 0.15f)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Groups,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(15.dp),
-                                                        tint = Color(0xFF8B5CF6)
-                                                    )
-                                                }
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = "@all",
-                                                        fontSize = 12.5.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = NeumorphicTokens.TextMain
-                                                    )
-                                                    Text(
-                                                        text = "Alert entire operational team",
-                                                        fontSize = 10.5.sp,
-                                                        color = NeumorphicTokens.TextMuted
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        // 3. Teammates matching query
-                                        matchingMentionEngineers.forEach { eng ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .clickable { insertMention(eng.username) }
-                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(26.dp)
-                                                        .clip(CircleShape)
-                                                        .background(NeumorphicTokens.SurfaceContrast),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = eng.name.take(1).uppercase(),
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = NeumorphicTokens.Accent
-                                                    )
-                                                }
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
-                                                        fontSize = 12.sp,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = NeumorphicTokens.TextMain
-                                                    )
-                                                    Text(
-                                                        text = "@${eng.username}",
-                                                        fontSize = 10.5.sp,
-                                                        color = NeumorphicTokens.Accent
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
                         }
 
                         // Live Personalized Recipient Preview Card
@@ -1291,7 +1279,7 @@ fun NotificationsTab(
         // SECTION 1: BROADCAST HISTORY & AUDIT
         // ==========================================
         if (activeTabSection == 1) {
-            if (state.notifications.isEmpty()) {
+            if (activeHistoryNotifications.isEmpty()) {
                 item {
                     NeumorphicCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -1324,7 +1312,7 @@ fun NotificationsTab(
                     }
                 }
             } else {
-                items(state.notifications) { notif ->
+                items(activeHistoryNotifications) { notif ->
                     NotificationHistoryCard(
                         notif = notif,
                         onClone = {
