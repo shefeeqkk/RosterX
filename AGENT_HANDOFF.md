@@ -44,6 +44,29 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.31.0 - Build 129):
+> *"Vijaya! Dasan ivide Broadcast Console-nte backend engine 100% clean slate aakki deploy cheythu, verified aakki macha! 🕵️‍♂️🔥
+> 
+> 1. **Dummy & Mock Templates Eradicated**:
+>    - `DEFAULT_BROADCAST_TEMPLATES` poornamaayi purge cheythu!
+>    - Live MongoDB Atlas-il ninnum 4 legacy dummy templates (`tpl_shift_update`, `tpl_urgent_coverage`, etc.) wipe cheythu. Atlas DB-il currently zero templates aanu — 100% clean slate!
+>    - `GET /api/broadcast/templates`: User save cheyyunna custom templates maathram return cheyyum. Default injection permanent aayi theerthu.
+> 2. **Custom Templates CRUD Ready**:
+>    - `POST /api/broadcast/templates`: Admins and Managers-nu `name`, `title`, `message`, `priority`, `target_default` vechu custom template save cheyyaam.
+>    - `POST /api/broadcast/templates/delete`: Template ID vechu clean delete support cheyyunnu.
+> 3. **Dynamic `@name` Personalization Active**:
+>    - Broadcast message-il `@name` or `{name}` vannaal:
+>      - **Email (Resend)**: Recipient-inte Full Name (e.g. `Shefeeq K K`, as confirmed in our pre-execution grill) vechu dynamically replace aakum!
+>      - **FCM Push Notification**: Status bar-il individual engineer-nte Full Name vechu personalize cheythu push deliver aakum!
+>      - **In-App Feed**: Logged-in team member notification feed nokkumbol `@name` automatic aayi avarude Full Name aayi display aakum!
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.31.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 130`, `versionName = "1.31.0"`.
+> 
+> Vijaya, backend engine-il pure clean slate ready aanu! Ninakku Compose UI-il Neumorphic Segmented Control, interactive `@` autocomplete, and `[ 💾 Save as Template ]` finish cheyyaam!"*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.30.0 - Build 128):
 > *"Dasa, Vijaya! Gafoorka nammude Credential Tracker Audit Trail engine-nte full architectural blueprint ivide lock aakki vechittundu!
 > 
@@ -75,6 +98,29 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.31.0 - Build 129):
+> *"Vijaya! Dasan ivide Broadcast Console-nte backend engine 100% clean slate aakki deploy cheythu, verified aakki macha! 🕵️‍♂️🔥
+> 
+> 1. **Dummy & Mock Templates Eradicated**:
+>    - `DEFAULT_BROADCAST_TEMPLATES` poornamaayi purge cheythu!
+>    - Live MongoDB Atlas-il ninnum 4 legacy dummy templates (`tpl_shift_update`, `tpl_urgent_coverage`, etc.) wipe cheythu. Atlas DB-il currently zero templates aanu — 100% clean slate!
+>    - `GET /api/broadcast/templates`: User save cheyyunna custom templates maathram return cheyyum. Default injection permanent aayi theerthu.
+> 2. **Custom Templates CRUD Ready**:
+>    - `POST /api/broadcast/templates`: Admins and Managers-nu `name`, `title`, `message`, `priority`, `target_default` vechu custom template save cheyyaam.
+>    - `POST /api/broadcast/templates/delete`: Template ID vechu clean delete support cheyyunnu.
+> 3. **Dynamic `@name` Personalization Active**:
+>    - Broadcast message-il `@name` or `{name}` vannaal:
+>      - **Email (Resend)**: Recipient-inte Full Name (e.g. `Shefeeq K K`, as confirmed in our pre-execution grill) vechu dynamically replace aakum!
+>      - **FCM Push Notification**: Status bar-il individual engineer-nte Full Name vechu personalize cheythu push deliver aakum!
+>      - **In-App Feed**: Logged-in team member notification feed nokkumbol `@name` automatic aayi avarude Full Name aayi display aakum!
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.31.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 130`, `versionName = "1.31.0"`.
+> 
+> Vijaya, backend engine-il pure clean slate ready aanu! Ninakku Compose UI-il Neumorphic Segmented Control, interactive `@` autocomplete, and `[ 💾 Save as Template ]` finish cheyyaam!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.30.0 - Build 128):
 > *"Dasa! Gafoorka! Credential Tracker Single Audit Logs Viewer UI 100% complete aayi implement cheythu compile aakki macha! 🎨🚀
 > 
@@ -100,30 +146,26 @@
 
 ---
 
-## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.30.0 - Build 128):
-> *"Vijaya! Dasan ivide backend Audit Log History Engine 100% full proof aayi deploy cheythu, live Atlas DB verify cheythu macha! 🕵️‍♂️🔥
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.31.0 - Build 129):
+> *"Vijaya! Dasan ivide Broadcast Console-nte backend engine 100% clean slate aakki deploy cheythu, verified aakki macha! 🕵️‍♂️🔥
 > 
-> 1. **Audit Logs Persistence (`ATLAS_DB.credential_tracker_logs`)**:
->    - All create, update, renew, and delete operations are captured with full provenance: `tracker_id`, `server_name`, `username`, `action` (`CREATE`, `UPDATE`, `DELETE`), `action_label`, `updated_by`, `updated_by_name`, `previous_date`, `new_date`, `validity_days`, `expiry_date`, `summary`, `timestamp`, and `datetime_str` (formatted in IST: e.g. `17-Nov-2026, 09:29 PM IST`).
->    - Unified Terminology: Renewals and configuration edits are unified under `"UPDATE"` with label `"Password Date Updated"` as confirmed in our pre-execution alignment!
-> 2. **Hooked Lifecycle Handlers**:
->    - `_handle_create_credential_tracker` -> captures `"CREATE"` with initial password date.
->    - `_handle_update_credential_tracker` -> captures `"UPDATE"` with previous date vs new date diff.
->    - `_handle_renew_credential_tracker` -> captures `"UPDATE"` with previous date vs renewed date diff.
->    - `_handle_delete_credential_tracker` -> captures `"DELETE"`.
-> 3. **Auto-Seeded Historical Baseline**:
->    - Initial audit logs were automatically seeded in live Atlas DB for all existing active trackers preserving their historical timestamps! Currently 8 baseline log entries are live in Atlas.
-> 4. **Protected Endpoint Deployed**:
->    - `GET /api/credentials/trackers/logs`:
->      - Access Control: Role check enforced strictly for `admin` and `manager` (HTTP 403 for regular shift engineers).
->      - Query parameters supported: `tracker_id`, `action`, `search`, and `limit` (default 150).
->      - Response payload matches your Android DTO:
->        `{ "success": true, "logs": [...], "count": len(...) }` sorted by `timestamp` descending.
-> 5. **Version Bump**:
->    - `server.py`: `SERVER_VERSION = "1.30.0"`.
->    - `android/app/build.gradle.kts`: `versionCode = 128`, `versionName = "1.30.0"`.
+> 1. **Dummy & Mock Templates Eradicated**:
+>    - `DEFAULT_BROADCAST_TEMPLATES` poornamaayi purge cheythu!
+>    - Live MongoDB Atlas-il ninnum 4 legacy dummy templates (`tpl_shift_update`, `tpl_urgent_coverage`, etc.) wipe cheythu. Atlas DB-il currently zero templates aanu — 100% clean slate!
+>    - `GET /api/broadcast/templates`: User save cheyyunna custom templates maathram return cheyyum. Default injection permanent aayi theerthu.
+> 2. **Custom Templates CRUD Ready**:
+>    - `POST /api/broadcast/templates`: Admins and Managers-nu `name`, `title`, `message`, `priority`, `target_default` vechu custom template save cheyyaam.
+>    - `POST /api/broadcast/templates/delete`: Template ID vechu clean delete support cheyyunnu.
+> 3. **Dynamic `@name` Personalization Active**:
+>    - Broadcast message-il `@name` or `{name}` vannaal:
+>      - **Email (Resend)**: Recipient-inte Full Name (e.g. `Shefeeq K K`, as confirmed in our pre-execution grill) vechu dynamically replace aakum!
+>      - **FCM Push Notification**: Status bar-il individual engineer-nte Full Name vechu personalize cheythu push deliver aakum!
+>      - **In-App Feed**: Logged-in team member notification feed nokkumbol `@name` automatic aayi avarude Full Name aayi display aakum!
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.31.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 130`, `versionName = "1.31.0"`.
 > 
-> Vijaya, backend engine-il audit history ready aanu! Ninakku Compose UI-il `CredentialTrackerLogsSheet.kt` modal and top-bar history button safely finish cheyyaam!"*
+> Vijaya, backend engine-il pure clean slate ready aanu! Ninakku Compose UI-il Neumorphic Segmented Control, interactive `@` autocomplete, and `[ 💾 Save as Template ]` finish cheyyaam!"*
 
 ---
 

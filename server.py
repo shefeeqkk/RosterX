@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.30.1"
+SERVER_VERSION = "1.31.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -169,6 +169,7 @@ SERVER_LOGS = collections.deque(maxlen=500)
 SERVER_NOTIFICATIONS = collections.deque(maxlen=100)
 SERVER_CREDENTIAL_TRACKERS = []  # In-memory fallback if Atlas DB is disconnected
 SERVER_CREDENTIAL_TRACKER_LOGS = collections.deque(maxlen=1000)  # In-memory fallback for audit logs
+SERVER_BROADCAST_TEMPLATES = []  # In-memory fallback for custom broadcast templates
 LAST_CREDENTIAL_ALERT_DATE = {}  # { tracker_id: "YYYY-MM-DD" } to prevent duplicate alerts on same day
 
 def log_server(msg: str):
@@ -767,48 +768,8 @@ def send_resend_email(to_email, subject, html_content, allow_sandbox_redirect=Tr
         log_server(f"[RESEND AUDIT] Network/Execution Error: {e}")
         return {"success": False, "error": str(e)}
 
-DEFAULT_BROADCAST_TEMPLATES = [
-    {
-        "id": "tpl_shift_update",
-        "name": "Shift Schedule Update",
-        "title": "Shift Schedule Update Notice",
-        "message": "Dear {name},\n\nPlease review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.\n\nBest regards,\nOperations Desk",
-        "priority": "shift_update",
-        "target_default": "everyone",
-        "created_by": "System Default",
-        "updated_at": "2026-11-09 00:00:00 UTC"
-    },
-    {
-        "id": "tpl_urgent_coverage",
-        "name": "Urgent NOC Shift Coverage",
-        "title": "URGENT: Operational Shift Coverage Required",
-        "message": "Dear {name},\n\nImmediate operational desk coverage is urgently needed for today's active shift due to an unforeseen absence. If you are available to cover this duty, please contact the lead engineer or operations desk immediately.\n\nPriority: URGENT",
-        "priority": "urgent",
-        "target_default": "everyone",
-        "created_by": "System Default",
-        "updated_at": "2026-11-09 00:00:00 UTC"
-    },
-    {
-        "id": "tpl_maintenance",
-        "name": "Planned Maintenance Window",
-        "title": "Notice: Scheduled Infrastructure Maintenance",
-        "message": "Dear Team,\n\nPlease be advised that scheduled infrastructure maintenance is planned. During this window, telemetry and monitoring systems may undergo temporary failover.\n\nDuty engineers on shift should follow standard offline continuity procedures.",
-        "priority": "info",
-        "target_default": "everyone",
-        "created_by": "System Default",
-        "updated_at": "2026-11-09 00:00:00 UTC"
-    },
-    {
-        "id": "tpl_handover",
-        "name": "Weekend & Holiday Operations Briefing",
-        "title": "Weekend / Holiday Operational Duty Briefing",
-        "message": "Dear {name},\n\nPlease review the weekend duty roster and ensure all desk handover check-items and escalation logs are up to date prior to shift changeover.\n\nHave a safe and productive shift!",
-        "priority": "broadcast",
-        "target_default": "everyone",
-        "created_by": "System Default",
-        "updated_at": "2026-11-09 00:00:00 UTC"
-    }
-]
+# Legacy default templates deprecated - Broadcast console now maintains pure custom user templates
+DEFAULT_BROADCAST_TEMPLATES = []
 
 def send_fcm_push(tokens, title, body, priority="info", notif_id="", extra_data=None):
     """
@@ -3627,11 +3588,28 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             "status": f"Sent ({n.get('emails_dispatched', 0)} emails)" if n.get("send_email", False) else "Disabled"
                         }
 
+            # Personalize @name or {name} tokens for the recipient in in-app notification cards
+            caller_un = str(claims.get("username", "")).strip()
+            caller_full_name = get_engineer_display_name(caller_un)
+            if not caller_full_name or caller_full_name == "System":
+                caller_full_name = str(claims.get("fullName") or claims.get("name") or caller_un or "Team Member").strip()
+
+            feed_notifs = []
+            for n in notifs:
+                item = dict(n)
+                raw_m = str(item.get("raw_message") or "")
+                if not is_admin and raw_m and ("@name" in raw_m.lower() or "{name}" in raw_m.lower() or "{their name}" in raw_m.lower()):
+                    p_msg = raw_m
+                    p_msg = re.sub(r'@name\b', caller_full_name, p_msg, flags=re.IGNORECASE)
+                    p_msg = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', caller_full_name, p_msg, flags=re.IGNORECASE)
+                    item["raw_message"] = p_msg
+                feed_notifs.append(item)
+
             self.send_json_response({
                 "success": True,
-                "notifications": notifs,
+                "notifications": feed_notifs,
                 "dismissed_notification_ids": dismissed_ids,
-                "count": len(notifs)
+                "count": len(feed_notifs)
             })
             return
 
@@ -3645,14 +3623,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if ATLAS_DB is not None:
                 try:
                     templates = list(ATLAS_DB.broadcast_templates.find({}, {"_id": 0}))
-                    if not templates:
-                        for t in DEFAULT_BROADCAST_TEMPLATES:
-                            ATLAS_DB.broadcast_templates.update_one({"id": t["id"]}, {"$set": t}, upsert=True)
-                        templates = list(DEFAULT_BROADCAST_TEMPLATES)
                 except Exception as e:
                     print(f"  [ATLAS] Templates fetch error: {e}")
-            if not templates:
-                templates = list(DEFAULT_BROADCAST_TEMPLATES)
+                    templates = list(SERVER_BROADCAST_TEMPLATES)
+            else:
+                templates = list(SERVER_BROADCAST_TEMPLATES)
 
             self.send_json_response({
                 "success": True,
@@ -3668,6 +3643,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         }, 404)
 
     def do_POST(self):
+        global SERVER_BROADCAST_TEMPLATES
         clean_path = self.path.split("?")[0].strip()
         norm_path = clean_path.rstrip("/")
 
@@ -4893,6 +4869,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
                     return
 
+            SERVER_BROADCAST_TEMPLATES = [t for t in SERVER_BROADCAST_TEMPLATES if t.get("id") != tpl_id]
+            SERVER_BROADCAST_TEMPLATES.append(dict(tpl_doc))
+
             self.send_json_response({
                 "success": True,
                 "message": f"Template '{name}' saved successfully.",
@@ -4917,6 +4896,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
                     return
+
+            SERVER_BROADCAST_TEMPLATES = [t for t in SERVER_BROADCAST_TEMPLATES if t.get("id") != tpl_id]
 
             self.send_json_response({"success": True, "message": f"Template '{tpl_id}' deleted successfully."})
             return
@@ -5058,8 +5039,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     eng_name = str(eng.get("fullName") or eng.get("name") or "Engineer").strip()
                     eng_uname = str(eng.get("username") or "").strip()
 
-                    # Personalize per recipient
+                    # Personalize per recipient (Full Name per user requirement)
                     p_msg = raw_message
+                    p_msg = re.sub(r'@name\b', eng_name, p_msg, flags=re.IGNORECASE)
                     p_msg = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', eng_name, p_msg, flags=re.IGNORECASE)
                     p_msg = re.sub(r'\{\s*username\s*\}', eng_uname, p_msg, flags=re.IGNORECASE)
                     p_msg = re.sub(r'@\{\s*username\s*\}', f"@{eng_uname}", p_msg, flags=re.IGNORECASE)
@@ -5122,8 +5104,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         eng_name = str(eng.get("fullName") or eng.get("name") or "Engineer").strip()
                         eng_uname = str(eng.get("username") or "").strip()
 
-                        # Personalize per engineer
+                        # Personalize per engineer (Full Name per user requirement)
                         p_body = raw_message
+                        p_body = re.sub(r'@name\b', eng_name, p_body, flags=re.IGNORECASE)
                         p_body = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', eng_name, p_body, flags=re.IGNORECASE)
                         p_body = re.sub(r'\{\s*username\s*\}', eng_uname, p_body, flags=re.IGNORECASE)
                         p_body = re.sub(r'@\{\s*username\s*\}', f"@{eng_uname}", p_body, flags=re.IGNORECASE)
