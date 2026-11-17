@@ -855,3 +855,37 @@ A Gmail App Password was previously hardcoded as an `os.environ.get(...)` defaul
 ### 3. 📦 Build & Release
 - APK built successfully: `android/app/build/outputs/apk/debug/app-debug.apk`
 - Semantic Version: `v1.25.0` (Build `107`).
+
+---
+
+## 📋 Accomplished in v1.31.1 (Build 131) by Vijayan
+> *"Dasa macha! Karyangal poornamaayi set aakki! Broadcast Tab-inte pazhaya clutter poornamaayi maati, sleek Neumorphic Segmented Tab Row `[ 📢 Compose Broadcast ]` vs `[ 📜 Broadcast History ]` aakki kattiyaakki! Clean slate initialization (no default announcements), zero dummy templates, Save as Template dialog, and cursor-aware live `@` mention autocomplete popup (`@name`, `@all`, teammates) set aakki! Koodaathe user paranja pole chips-nte unselected state poornamaayi SUNKEN (`neumorphicInset`) aakki — Priority Level, Delivery Channels, Specific Engineers selector-ilum, Edit Account form-ile Role & Access, Weekly Offs, and Employment Status-ilum tactile sunken basins aakki maatti! Live device-il stream install cheythu visual checks run cheythu 100% verified!"*
+
+### 1. 📢 Neumorphic Broadcast Console Overhaul (`NotificationsTab.kt`)
+- **Segmented Control**: Molded recessed track hosting `[ 📢 Compose Broadcast ]` and `[ 📜 Broadcast History (count) ]` with vibrant glowing accent pill on active selection.
+- **Clean Slate Initialization**: Eliminated legacy pre-filled default message body and title. Sunken well inputs with crisp placeholders (`Enter broadcast title...`, `Type broadcast message...`).
+- **Dynamic Reusable Templates Strip**: Removed hardcoded dummy templates. Displays custom saved template pills with delete ('×') button only when templates exist in Atlas DB.
+- **Save as Template**: Neumorphic action button opening a tactile dialog to name and save custom reusable announcements directly to `POST /api/broadcast/templates`.
+- **Cursor-Aware `@` Mention Autocomplete**:
+  - Replaced noisy static suggestion chips toolbar with an inline live suggested mentions popup.
+  - Dynamically triggers when `@` is typed at cursor position:
+    - `@name`: Dynamic recipient full name personalization.
+    - `@all`: Operational team-wide broadcast alert.
+    - Matching active teammates with avatar, name, and `@username`.
+- **Inline Live Personalized Preview Card**: Real-time feedback for dynamic recipient resolution and enabled channel badges.
+- **Dedicated History Section**: Tab 1 displays full past announcements feed with clone button (loads announcement into composer and auto-switches to Tab 0), channel badges, and retraction.
+
+### 2. 🔘 Sunken Chips for Unselected State (`ManageTeamTab.kt` & `NotificationsTab.kt`)
+- **Broadcast Console**:
+  - Delivery Channels (`In-App`, `Push (FCM)`, `Email`): Sunken (`neumorphicInset`) when unselected, raised (`neumorphicRaised`) with color border when active.
+  - Priority Level (`Info`, `Shift Update`, `Urgent`, `Broadcast`): Sunken (`neumorphicInset`) when unselected, raised with vibrant color glow when active.
+  - Specific Engineers multi-select chips: Sunken (`neumorphicInset`) when unselected, raised with accent tint when active.
+- **Manage Team / Edit Account Dialog**:
+  - `Role and access`: Unselected roles are sunken into the track (`neumorphicInset`), selected role is raised with high-contrast accent.
+  - `Weekly offs`: Unselected days are sunken into the track (`neumorphicInset`), selected days are raised.
+  - `Employment status`: `Active` / `Resigned` chips are sunken (`neumorphicInset`) when inactive, raised with status color when active.
+
+### 3. 📦 Build & Release
+- APK built successfully: `android/app/build/outputs/apk/debug/app-debug.apk`
+- Semantic Version: `v1.31.1` (Build `131`).
+- Verified via ADB on live device `100.71.241.36:5555`.

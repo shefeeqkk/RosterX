@@ -355,7 +355,9 @@ fun AdminMainScreen(
                                         state = state,
                                         onSendNotification = viewModel::sendNotification,
                                         onRetractNotification = viewModel::retractNotification,
-                                        onRefreshNotifications = viewModel::loadNotifications
+                                        onRefreshNotifications = viewModel::loadNotifications,
+                                        onSaveTemplate = viewModel::saveBroadcastTemplate,
+                                        onDeleteTemplate = viewModel::deleteBroadcastTemplate
                                     )
                                     4 -> MoreHubView(
                                         state = portalState,

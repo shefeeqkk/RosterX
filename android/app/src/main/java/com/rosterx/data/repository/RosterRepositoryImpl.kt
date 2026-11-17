@@ -815,6 +815,42 @@ class RosterRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun saveBroadcastTemplate(name: String, title: String, message: String, priority: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val payload = mapOf(
+                "name" to name,
+                "title" to title,
+                "message" to message,
+                "priority" to priority
+            )
+            val resp = apiService.saveBroadcastTemplate(payload)
+            if (resp.success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(resp.message ?: "Failed to save template"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteBroadcastTemplate(id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val resp = apiService.deleteBroadcastTemplate(mapOf("id" to id))
+            if (resp.success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(resp.message ?: "Failed to delete template"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun dismissNotification(notificationId: String, dismissAll: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val payload = com.rosterx.data.remote.DismissNotificationRequest(

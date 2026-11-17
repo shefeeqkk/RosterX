@@ -297,6 +297,12 @@ interface RosterApiService {
     @GET("api/broadcast/templates")
     suspend fun getBroadcastTemplates(): BroadcastTemplatesResponse
 
+    @POST("api/broadcast/templates")
+    suspend fun saveBroadcastTemplate(@Body body: Map<String, String>): PingResponse
+
+    @POST("api/broadcast/templates/delete")
+    suspend fun deleteBroadcastTemplate(@Body body: Map<String, String>): PingResponse
+
     @POST("api/notifications/retract")
     suspend fun retractNotification(@Body body: Map<String, String>): PingResponse
 

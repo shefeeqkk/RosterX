@@ -1146,7 +1146,9 @@ fun EngineerPortalScreen(
                                         onRetractNotification = { notifId, onComplete ->
                                             viewModel.retractBroadcast(notifId, onComplete)
                                         },
-                                        onRefreshNotifications = viewModel::loadBroadcastHistory
+                                        onRefreshNotifications = viewModel::loadBroadcastHistory,
+                                        onSaveTemplate = viewModel::saveBroadcastTemplate,
+                                        onDeleteTemplate = viewModel::deleteBroadcastTemplate
                                     )
                                     4 -> MoreHubView(
                                         state = state,

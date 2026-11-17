@@ -790,6 +790,32 @@ class EngineerPortalViewModel @Inject constructor(
         }
     }
 
+    fun saveBroadcastTemplate(name: String, title: String, message: String, priority: String, onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            repository.saveBroadcastTemplate(name, title, message, priority)
+                .onSuccess {
+                    loadBroadcastTemplates()
+                    onComplete(true, "Template saved successfully")
+                }
+                .onFailure { e ->
+                    onComplete(false, e.message ?: "Failed to save template")
+                }
+        }
+    }
+
+    fun deleteBroadcastTemplate(id: String, onComplete: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            repository.deleteBroadcastTemplate(id)
+                .onSuccess {
+                    loadBroadcastTemplates()
+                    onComplete(true, "Template deleted")
+                }
+                .onFailure { e ->
+                    onComplete(false, e.message ?: "Failed to delete template")
+                }
+        }
+    }
+
     fun loadBroadcastHistory() {
         viewModelScope.launch {
             repository.getNotifications().onSuccess { notifs ->

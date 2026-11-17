@@ -2,7 +2,6 @@ package com.rosterx.presentation.admin.tabs
 
 import android.widget.Toast
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -16,19 +15,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +47,13 @@ import com.rosterx.domain.model.EngineerRole
 import com.rosterx.domain.model.EngineerStatus
 import com.rosterx.domain.model.isManagementAccount
 import com.rosterx.presentation.admin.AdminRosterState
+import com.rosterx.presentation.components.NeumorphicButton
+import com.rosterx.presentation.components.NeumorphicButtonVariant
+import com.rosterx.presentation.components.NeumorphicCard
+import com.rosterx.presentation.components.NeumorphicElevationStyle
+import com.rosterx.presentation.components.NeumorphicFormInput
+import com.rosterx.ui.neumorphic.*
+import com.rosterx.ui.theme.LocalIsDarkTheme
 
 enum class NotificationPriority(val key: String, val label: String, val color: Color) {
     INFO("info", "Info", Color(0xFF3B82F6)),
@@ -65,7 +80,9 @@ fun NotificationsTab(
         notificationId: String,
         onComplete: (Boolean, String) -> Unit
     ) -> Unit = { _, _ -> },
-    onRefreshNotifications: () -> Unit
+    onRefreshNotifications: () -> Unit,
+    onSaveTemplate: ((name: String, title: String, message: String, priority: String, onComplete: (Boolean, String) -> Unit) -> Unit)? = null,
+    onDeleteTemplate: ((id: String, onComplete: (Boolean, String) -> Unit) -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -74,58 +91,34 @@ fun NotificationsTab(
         state.engineers.filter { it.status != EngineerStatus.RESIGNED && !it.isManagementAccount }
     }
 
-    // Default Operational Templates
-    val defaultTemplates = remember {
-        listOf(
-            BroadcastTemplateDto(
-                id = "tpl_shift_announcement",
-                name = "Shift Announcement",
-                title = "Shift Operations Announcement",
-                message = "Dear {name},\n\nPlease review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.\n\nBest regards,\nOperations Desk",
-                priority = "info"
-            ),
-            BroadcastTemplateDto(
-                id = "tpl_urgent_handover",
-                name = "Urgent Handover",
-                title = "Urgent Operational Handover",
-                message = "Dear {name},\n\nURGENT: Critical operational updates require immediate attention before beginning your shift. Please acknowledge handover protocols immediately.\n\nBest regards,\nOperations Desk",
-                priority = "urgent"
-            ),
-            BroadcastTemplateDto(
-                id = "tpl_maintenance",
-                name = "System Maintenance",
-                title = "Scheduled System Maintenance",
-                message = "Dear {name},\n\nScheduled maintenance is planned for this Sunday between 02:00 UTC and 04:00 UTC. System services may experience intermittent availability.\n\nBest regards,\nOperations Desk",
-                priority = "info"
-            ),
-            BroadcastTemplateDto(
-                id = "tpl_coverage_swap",
-                name = "Swap Request",
-                title = "Shift Coverage Swap Request",
-                message = "Dear {name},\n\nA shift coverage swap request has been submitted for upcoming operational dates. Please review the updated schedule.\n\nBest regards,\nOperations Desk",
-                priority = "shift_update"
-            )
-        )
-    }
+    // Segmented Navigation: 0 = Compose, 1 = History
+    var activeTabSection by rememberSaveable { mutableIntStateOf(0) }
 
-    val availableTemplates = remember(state.broadcastTemplates) {
-        if (state.broadcastTemplates.isNotEmpty()) state.broadcastTemplates else defaultTemplates
-    }
-
-    // Form states
-    var targetMode by remember { mutableStateOf("everyone") } // "everyone" or "specific"
+    // Form states - Clean slate on initialization (no hardcoded default announcement)
+    var targetMode by rememberSaveable { mutableStateOf("everyone") } // "everyone" or "specific"
     val selectedEngineerIds = remember { mutableStateListOf<String>() }
-    var notificationTitle by remember { mutableStateOf("Shift Operations Announcement") }
-    var notificationMessage by remember { mutableStateOf("Dear {name},\n\nPlease review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.\n\nBest regards,\nOperations Desk") }
-    var selectedPriority by remember { mutableStateOf(NotificationPriority.INFO) }
-    var sendInAppChecked by remember { mutableStateOf(true) }
-    var sendPushChecked by remember { mutableStateOf(true) }
-    var sendEmailChecked by remember { mutableStateOf(true) }
-    var showMentionDialog by remember { mutableStateOf(false) }
+    var notificationTitle by rememberSaveable { mutableStateOf("") }
+    var messageTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+    val notificationMessage = messageTextFieldValue.text
+    var selectedPriority by rememberSaveable { mutableStateOf(NotificationPriority.INFO) }
 
-    // Live '@' Mention inline detector
-    val mentionMatch = remember(notificationMessage) {
-        Regex("@([a-zA-Z0-9_\\-\\.]*)$").find(notificationMessage)
+    // Channel toggles
+    var sendInAppChecked by rememberSaveable { mutableStateOf(true) }
+    var sendPushChecked by rememberSaveable { mutableStateOf(true) }
+    var sendEmailChecked by rememberSaveable { mutableStateOf(true) }
+
+    // Dialog states for Save as Template & Delete Template
+    var showSaveTemplateDialog by remember { mutableStateOf(false) }
+    var templateNameInput by remember { mutableStateOf("") }
+    var templateToDelete by remember { mutableStateOf<BroadcastTemplateDto?>(null) }
+
+    // Cursor-aware live '@' Mention detector
+    val textBeforeCursor = remember(messageTextFieldValue) {
+        val sel = messageTextFieldValue.selection.start.coerceIn(0, messageTextFieldValue.text.length)
+        messageTextFieldValue.text.take(sel)
+    }
+    val mentionMatch = remember(textBeforeCursor) {
+        Regex("@([a-zA-Z0-9_\\-\\.]*)$").find(textBeforeCursor)
     }
     val mentionQuery = mentionMatch?.groupValues?.getOrNull(1)?.lowercase()
     val isMentionActive = mentionMatch != null
@@ -141,6 +134,18 @@ fun NotificationsTab(
         }
     }
 
+    // Function to safely insert a mention tag at the cursor
+    val insertMention: (String) -> Unit = { tag ->
+        val q = mentionQuery ?: ""
+        val selStart = messageTextFieldValue.selection.start.coerceIn(0, messageTextFieldValue.text.length)
+        val prefix = messageTextFieldValue.text.take(selStart).dropLast(q.length + 1)
+        val suffix = messageTextFieldValue.text.drop(selStart)
+        val inserted = "@$tag "
+        val newText = prefix + inserted + suffix
+        val newPos = prefix.length + inserted.length
+        messageTextFieldValue = TextFieldValue(newText, TextRange(newPos))
+    }
+
     // Live preview recipient selector
     var previewTargetIndex by remember { mutableIntStateOf(0) }
     val previewEngineer = activeEngineers.getOrNull(previewTargetIndex) ?: activeEngineers.firstOrNull()
@@ -148,26 +153,24 @@ fun NotificationsTab(
     // Calculated personalized preview with @mention resolution to Full Names
     val resolvedPreviewMessage = remember(notificationMessage, previewEngineer, activeEngineers) {
         val engName = previewEngineer?.fullName?.takeIf { it.isNotBlank() }
-            ?: previewEngineer?.name ?: "Engineer"
-        val engUsername = previewEngineer?.username ?: engName.lowercase().replace(" ", "")
-
+            ?: previewEngineer?.name
+            ?: "Engineer"
         var text = notificationMessage
-            .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
-            .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
-            .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+        text = text.replace(Regex("@name\\b", RegexOption.IGNORE_CASE), engName)
+        text = text.replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
+        text = text.replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), previewEngineer?.username ?: "engineer")
+        text = text.replace(Regex("@\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@${previewEngineer?.username ?: "engineer"}")
 
-        val nameMap = activeEngineers.associate { e ->
-            val u = e.username.lowercase()
-            val fn = e.fullName?.takeIf { it.isNotBlank() } ?: e.name
-            u to fn
-        }
-
-        text = Regex("@([a-zA-Z0-9_\\-\\.]+)").replace(text) { m ->
-            val u = m.groupValues[1].lowercase()
-            if (u in listOf("all", "everyone", "team")) {
-                "@Everyone (All Team)"
+        val mentionRegex = Regex("@([a-zA-Z0-9_\\-\\.]+)")
+        text = mentionRegex.replace(text) { matchResult ->
+            val uname = matchResult.groupValues[1]
+            if (uname.equals("all", ignoreCase = true) || uname.equals("everyone", ignoreCase = true)) {
+                "@everyone"
+            } else if (uname.equals("name", ignoreCase = true)) {
+                engName
             } else {
-                val resolved = nameMap[u] ?: u
+                val found = activeEngineers.find { it.username.equals(uname, ignoreCase = true) }
+                val resolved = found?.fullName?.takeIf { it.isNotBlank() } ?: found?.name ?: uname
                 "@$resolved"
             }
         }
@@ -178,1065 +181,1269 @@ fun NotificationsTab(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 88.dp)
     ) {
-        // --- 1. Header Banner ---
+        // --- 1. Top Header Banner ---
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                    Color(0xFF8B5CF6).copy(alpha = 0.10f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                        .padding(18.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .neumorphicRaised(
+                                shape = CircleShape,
+                                elevation = NeumorphicTokens.ElevationRaisedSubtle
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Campaign,
+                            contentDescription = null,
+                            tint = NeumorphicTokens.Accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "TEAM BROADCAST CONSOLE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.Accent,
+                            letterSpacing = 1.2.sp
+                        )
+                        Text(
+                            text = "Multi-Channel Operations Dispatcher",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                    }
+                }
+
+                if (activeTabSection == 1) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .neumorphicRaised(
+                                shape = CircleShape,
+                                elevation = NeumorphicTokens.ElevationRaisedSubtle
+                            )
+                            .clip(CircleShape)
+                            .clickable { onRefreshNotifications() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Refresh History",
+                            tint = NeumorphicTokens.Accent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 2. Neumorphic Segmented Tab Row ---
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .neumorphicInset(
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = NeumorphicTokens.ElevationInsetSubtle
+                    )
+                    .padding(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Segment 0: Compose Broadcast
+                    val isComposeActive = activeTabSection == 0
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .then(
+                                if (isComposeActive) {
+                                    Modifier
+                                        .neumorphicAccentGlow(radius = 6.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(NeumorphicTokens.AccentGradient)
+                                } else {
+                                    Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { activeTabSection = 0 }
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Default.Campaign,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Column {
-                                Text(
-                                    text = "TEAM BROADCAST CONSOLE",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 1.2.sp
-                                )
-                                Text(
-                                    text = "Multi-Channel Operations Dispatcher",
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Broadcast live notices across In-App feeds, Android Notification Panel (FCM), and Email. Type @ to mention teammates.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        // --- 2. Operational Templates Carousel ---
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "OPERATIONAL TEMPLATES",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "Tap to load",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(availableTemplates) { tpl ->
-                            SuggestionChip(
-                                onClick = {
-                                    notificationTitle = tpl.title ?: tpl.name ?: "Announcement"
-                                    notificationMessage = tpl.message ?: ""
-                                    when (tpl.priority?.lowercase()) {
-                                        "urgent" -> selectedPriority = NotificationPriority.URGENT
-                                        "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
-                                        "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
-                                        else -> selectedPriority = NotificationPriority.INFO
-                                    }
-                                    Toast.makeText(context, "Loaded template: ${tpl.name ?: tpl.title}", Toast.LENGTH_SHORT).show()
-                                },
-                                label = {
-                                    Text(
-                                        tpl.name ?: tpl.title ?: "Template",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                icon = {
-                                    Icon(
-                                        Icons.Default.Article,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                )
+                            Icon(
+                                Icons.Default.EditNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isComposeActive) Color.White else NeumorphicTokens.TextMuted
                             )
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- 3. Recipient Audience Card ---
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "TARGET AUDIENCE",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 1.sp
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                        ) {
                             Text(
-                                text = if (targetMode == "everyone") "${activeEngineers.size} Active Engineers" else "${selectedEngineerIds.size} Selected",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = "Compose Broadcast",
+                                fontSize = 12.5.sp,
+                                fontWeight = if (isComposeActive) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (isComposeActive) Color.White else NeumorphicTokens.TextMuted
                             )
                         }
                     }
 
-                    // Segmented Filter
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    // Segment 1: Broadcast History
+                    val isHistoryActive = activeTabSection == 1
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .then(
+                                if (isHistoryActive) {
+                                    Modifier
+                                        .neumorphicAccentGlow(radius = 6.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(NeumorphicTokens.AccentGradient)
+                                } else {
+                                    Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { activeTabSection = 1 }
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        FilterChip(
-                            selected = targetMode == "everyone",
-                            onClick = { targetMode = "everyone" },
-                            label = { Text("🌐 Everyone (Team)") },
-                            leadingIcon = if (targetMode == "everyone") {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null,
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterChip(
-                            selected = targetMode == "specific",
-                            onClick = { targetMode = "specific" },
-                            label = { Text("👤 Specific Engineers") },
-                            leadingIcon = if (targetMode == "specific") {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    // Specific Engineers Chip Selector
-                    AnimatedVisibility(visible = targetMode == "specific") {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 4.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Tap engineers to include in notification:",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                TextButton(
-                                    onClick = {
-                                        if (selectedEngineerIds.size == activeEngineers.size) {
-                                            selectedEngineerIds.clear()
-                                        } else {
-                                            selectedEngineerIds.clear()
-                                            selectedEngineerIds.addAll(activeEngineers.map { it.id.ifBlank { it.username } })
-                                        }
-                                    },
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text(
-                                        text = if (selectedEngineerIds.size == activeEngineers.size) "Clear All" else "Select All",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                activeEngineers.forEach { eng ->
-                                    val engKey = eng.id.ifBlank { eng.username }
-                                    val isSelected = selectedEngineerIds.contains(engKey)
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = {
-                                            if (isSelected) selectedEngineerIds.remove(engKey)
-                                            else selectedEngineerIds.add(engKey)
-                                        },
-                                        label = {
-                                            Text(
-                                                eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
-                                                fontSize = 12.sp,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                            )
-                                        },
-                                        leadingIcon = {
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text(
-                                                        eng.name.take(1).uppercase(),
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-                            }
+                            Icon(
+                                Icons.Default.History,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isHistoryActive) Color.White else NeumorphicTokens.TextMuted
+                            )
+                            Text(
+                                text = "Broadcast History (${state.notifications.size})",
+                                fontSize = 12.5.sp,
+                                fontWeight = if (isHistoryActive) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (isHistoryActive) Color.White else NeumorphicTokens.TextMuted
+                            )
                         }
                     }
                 }
             }
         }
 
-        // --- 4. Composer Card ---
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "COMPOSE NOTIFICATION",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-
-                    // Priority Selector
+        // ==========================================
+        // SECTION 0: COMPOSE BROADCAST
+        // ==========================================
+        if (activeTabSection == 0) {
+            // --- Custom Saved Templates Strip (Visible ONLY if custom templates exist) ---
+            if (state.broadcastTemplates.isNotEmpty()) {
+                item {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Priority Level:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            NotificationPriority.values().forEach { priority ->
-                                val isSelected = selectedPriority == priority
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isSelected) priority.color.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    border = BorderStroke(
-                                        if (isSelected) 1.5.dp else 1.dp,
-                                        if (isSelected) priority.color else MaterialTheme.colorScheme.surfaceVariant
-                                    ),
-                                    modifier = Modifier.clickable { selectedPriority = priority }
+                            Text(
+                                text = "SAVED TEMPLATES (${state.broadcastTemplates.size})",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeumorphicTokens.TextMuted,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = "Tap to load",
+                                fontSize = 10.sp,
+                                color = NeumorphicTokens.TextMuted.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(state.broadcastTemplates) { tpl ->
+                                Row(
+                                    modifier = Modifier
+                                        .neumorphicRaised(
+                                            shape = RoundedCornerShape(12.dp),
+                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                        )
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            notificationTitle = tpl.title ?: tpl.name ?: ""
+                                            val msg = tpl.message ?: ""
+                                            messageTextFieldValue = TextFieldValue(msg, TextRange(msg.length))
+                                            when (tpl.priority?.lowercase()) {
+                                                "urgent" -> selectedPriority = NotificationPriority.URGENT
+                                                "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
+                                                "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
+                                                else -> selectedPriority = NotificationPriority.INFO
+                                            }
+                                            Toast.makeText(context, "Loaded template: ${tpl.name ?: tpl.title}", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.Article,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(13.dp),
+                                        tint = NeumorphicTokens.Accent
+                                    )
+                                    Text(
+                                        text = tpl.name ?: tpl.title ?: "Template",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = NeumorphicTokens.TextMain
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .clickable { templateToDelete = tpl },
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = priority.color,
-                                            modifier = Modifier.size(8.dp)
-                                        ) {}
-                                        Text(
-                                            priority.label,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) priority.color else MaterialTheme.colorScheme.onSurface
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Delete template",
+                                            modifier = Modifier.size(12.dp),
+                                            tint = NeumorphicTokens.TextMuted
                                         )
                                     }
                                 }
                             }
                         }
                     }
+                }
+            }
 
-                    // Title
-                    OutlinedTextField(
-                        value = notificationTitle,
-                        onValueChange = { notificationTitle = it },
-                        label = { Text("Notification Title") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(Icons.Default.Title, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    )
-
-                    // Quick Mention & Variable Helpers Toolbar
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // --- Compose Card ---
+            item {
+                NeumorphicCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = NeumorphicTokens.ShapeContainer,
+                    contentPadding = 16.dp
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        // Card Header Row: Title & Save as Template Button
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Quick Mentions & Tokens:",
+                                text = "COMPOSE ANNOUNCEMENT",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Type @ anytime",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Dear {name}
-                            SuggestionChip(
-                                onClick = {
-                                    notificationMessage = "Dear {name},\n\n$notificationMessage"
-                                },
-                                label = { Text("✨ {name}") },
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                                )
+                                color = NeumorphicTokens.TextMuted,
+                                letterSpacing = 1.sp
                             )
 
-                            // @all
-                            SuggestionChip(
-                                onClick = {
-                                    notificationMessage += " @all "
-                                },
-                                label = { Text("@all") },
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = Color(0xFF8B5CF6).copy(alpha = 0.12f)
-                                )
-                            )
-
-                            // @ Mention Engineer Dialog
-                            SuggestionChip(
-                                onClick = { showMentionDialog = true },
-                                label = { Text("@ Mention...") },
-                                icon = { Icon(Icons.Default.AlternateEmail, contentDescription = null, modifier = Modifier.size(14.dp)) },
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = Color(0xFF8B5CF6).copy(alpha = 0.12f)
-                                )
-                            )
-                        }
-                    }
-
-                    // Message Body Textfield
-                    OutlinedTextField(
-                        value = notificationMessage,
-                        onValueChange = { notificationMessage = it },
-                        label = { Text("Message Body (Supports {name}, @username, @all)") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 130.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    // Live '@' Mention Autocomplete Popup Dropdown
-                    AnimatedVisibility(
-                        visible = isMentionActive && (matchingMentionEngineers.isNotEmpty() || "all".contains(mentionQuery ?: ""))
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(1.dp, Color(0xFF8B5CF6)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(6.dp)) {
-                                Text(
-                                    text = "Select teammate to mention:",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF8B5CF6),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-
-                                // @all team option
-                                if ("all".contains(mentionQuery ?: "") || "everyone".contains(mentionQuery ?: "")) {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color.Transparent,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                val q = mentionQuery ?: ""
-                                                notificationMessage = notificationMessage.dropLast(q.length + 1) + "@all "
-                                            }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = Color(0xFF8B5CF6),
-                                                modifier = Modifier.size(24.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text("@", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                                }
-                                            }
-                                            Text("@all — Everyone (All Team)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            // Neumorphic Save as Template Button
+                            Box(
+                                modifier = Modifier
+                                    .neumorphicRaised(
+                                        shape = RoundedCornerShape(10.dp),
+                                        elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                    )
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        if (notificationTitle.isBlank() && notificationMessage.isBlank()) {
+                                            Toast.makeText(context, "Enter a title or message first to save as template", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            templateNameInput = notificationTitle.takeIf { it.isNotBlank() } ?: "Operations Notice"
+                                            showSaveTemplateDialog = true
                                         }
                                     }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.BookmarkAdd,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = NeumorphicTokens.Accent
+                                    )
+                                    Text(
+                                        text = "Save as Template",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = NeumorphicTokens.Accent
+                                    )
                                 }
+                            }
+                        }
 
-                                matchingMentionEngineers.forEach { eng ->
-                                    val engKey = eng.id.ifBlank { eng.username }
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color.Transparent,
+                        // Target Audience Selector Row
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "Target Audience:",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .neumorphicInset(
+                                        shape = RoundedCornerShape(12.dp),
+                                        elevation = NeumorphicTokens.ElevationInsetSubtle
+                                    )
+                                    .padding(3.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    // Everyone option
+                                    val isEveryone = targetMode == "everyone"
+                                    Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                val q = mentionQuery ?: ""
-                                                notificationMessage = notificationMessage.dropLast(q.length + 1) + "@${eng.username} "
-                                                if (targetMode == "specific" && !selectedEngineerIds.contains(engKey)) {
-                                                    selectedEngineerIds.add(engKey)
+                                            .weight(1f)
+                                            .height(36.dp)
+                                            .then(
+                                                if (isEveryone) {
+                                                    Modifier
+                                                        .neumorphicAccentGlow(radius = 4.dp)
+                                                        .clip(RoundedCornerShape(9.dp))
+                                                        .background(NeumorphicTokens.AccentGradient)
+                                                } else {
+                                                    Modifier
+                                                        .clip(RoundedCornerShape(9.dp))
+                                                        .clickable { targetMode = "everyone" }
                                                 }
-                                            }
+                                            ),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        Text(
+                                            text = "🌐 Everyone (${activeEngineers.size})",
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isEveryone) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isEveryone) Color.White else NeumorphicTokens.TextMuted
+                                        )
+                                    }
+
+                                    // Specific Engineers option
+                                    val isSpecific = targetMode == "specific"
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(36.dp)
+                                            .then(
+                                                if (isSpecific) {
+                                                    Modifier
+                                                        .neumorphicAccentGlow(radius = 4.dp)
+                                                        .clip(RoundedCornerShape(9.dp))
+                                                        .background(NeumorphicTokens.AccentGradient)
+                                                } else {
+                                                    Modifier
+                                                        .clip(RoundedCornerShape(9.dp))
+                                                        .clickable { targetMode = "specific" }
+                                                }
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "👤 Specific (${selectedEngineerIds.size})",
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSpecific) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isSpecific) Color.White else NeumorphicTokens.TextMuted
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Specific Engineers Multi-Select Grid
+                            AnimatedVisibility(visible = targetMode == "specific") {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Select engineers to notify:",
+                                            fontSize = 11.sp,
+                                            color = NeumorphicTokens.TextMuted
+                                        )
+                                        TextButton(
+                                            onClick = {
+                                                if (selectedEngineerIds.size == activeEngineers.size) {
+                                                    selectedEngineerIds.clear()
+                                                } else {
+                                                    selectedEngineerIds.clear()
+                                                    selectedEngineerIds.addAll(activeEngineers.map { it.id.ifBlank { it.username } })
+                                                }
+                                            },
+                                            contentPadding = PaddingValues(0.dp)
                                         ) {
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                                modifier = Modifier.size(24.dp)
+                                            Text(
+                                                text = if (selectedEngineerIds.size == activeEngineers.size) "Deselect All" else "Select All",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = NeumorphicTokens.Accent
+                                            )
+                                        }
+                                    }
+
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        activeEngineers.forEach { eng ->
+                                            val engKey = eng.id.ifBlank { eng.username }
+                                            val isSelected = selectedEngineerIds.contains(engKey)
+                                            Box(
+                                                modifier = Modifier
+                                                    .then(
+                                                        if (isSelected) {
+                                                            Modifier
+                                                                .neumorphicRaised(
+                                                                    shape = RoundedCornerShape(8.dp),
+                                                                    elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                                )
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(NeumorphicTokens.Accent.copy(alpha = 0.15f))
+                                                                .border(1.dp, NeumorphicTokens.Accent, RoundedCornerShape(8.dp))
+                                                        } else {
+                                                            Modifier
+                                                                .neumorphicInset(
+                                                                    shape = RoundedCornerShape(8.dp),
+                                                                    elevation = NeumorphicTokens.ElevationInsetSubtle
+                                                                )
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                        }
+                                                    )
+                                                    .clickable {
+                                                        if (isSelected) selectedEngineerIds.remove(engKey)
+                                                        else selectedEngineerIds.add(engKey)
+                                                    }
+                                                    .padding(horizontal = 8.dp, vertical = 5.dp)
                                             ) {
-                                                Box(contentAlignment = Alignment.Center) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
                                                     Text(
-                                                        eng.name.take(1).uppercase(),
-                                                        color = MaterialTheme.colorScheme.primary,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 11.sp
+                                                        text = eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) NeumorphicTokens.Accent else NeumorphicTokens.TextMuted
                                                     )
                                                 }
                                             }
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                                Text(
-                                                    "@${eng.username}",
-                                                    fontSize = 10.sp,
-                                                    color = MaterialTheme.colorScheme.outline
-                                                )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Delivery Channels Row
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "Delivery Channels:",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Channel 1: In-App
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                        .then(
+                                            if (sendInAppChecked) {
+                                                Modifier
+                                                    .neumorphicRaised(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationRaisedSubtle)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(Color(0xFF3B82F6).copy(alpha = 0.15f))
+                                                    .border(1.dp, Color(0xFF3B82F6), RoundedCornerShape(10.dp))
+                                            } else {
+                                                Modifier
+                                                    .neumorphicInset(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                            }
+                                        )
+                                        .clickable { sendInAppChecked = !sendInAppChecked },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.PhoneAndroid,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (sendInAppChecked) Color(0xFF3B82F6) else NeumorphicTokens.TextMuted
+                                        )
+                                        Text(
+                                            text = "In-App",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = if (sendInAppChecked) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (sendInAppChecked) Color(0xFF3B82F6) else NeumorphicTokens.TextMuted
+                                        )
+                                    }
+                                }
+
+                                // Channel 2: FCM Push
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                        .then(
+                                            if (sendPushChecked) {
+                                                Modifier
+                                                    .neumorphicRaised(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationRaisedSubtle)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(Color(0xFFF59E0B).copy(alpha = 0.15f))
+                                                    .border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(10.dp))
+                                            } else {
+                                                Modifier
+                                                    .neumorphicInset(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                            }
+                                        )
+                                        .clickable { sendPushChecked = !sendPushChecked },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Notifications,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (sendPushChecked) Color(0xFFF59E0B) else NeumorphicTokens.TextMuted
+                                        )
+                                        Text(
+                                            text = "Push (FCM)",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = if (sendPushChecked) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (sendPushChecked) Color(0xFFF59E0B) else NeumorphicTokens.TextMuted
+                                        )
+                                    }
+                                }
+
+                                // Channel 3: Email
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                        .then(
+                                            if (sendEmailChecked) {
+                                                Modifier
+                                                    .neumorphicRaised(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationRaisedSubtle)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(Color(0xFF10B981).copy(alpha = 0.15f))
+                                                    .border(1.dp, Color(0xFF10B981), RoundedCornerShape(10.dp))
+                                            } else {
+                                                Modifier
+                                                    .neumorphicInset(shape = RoundedCornerShape(10.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                            }
+                                        )
+                                        .clickable { sendEmailChecked = !sendEmailChecked },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Email,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (sendEmailChecked) Color(0xFF10B981) else NeumorphicTokens.TextMuted
+                                        )
+                                        Text(
+                                            text = "Email",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = if (sendEmailChecked) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (sendEmailChecked) Color(0xFF10B981) else NeumorphicTokens.TextMuted
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Priority Level Row
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "Priority Level:",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted
+                            )
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                NotificationPriority.values().forEach { priority ->
+                                    val isSelected = selectedPriority == priority
+                                    Box(
+                                        modifier = Modifier
+                                            .then(
+                                                if (isSelected) {
+                                                    Modifier
+                                                        .neumorphicRaised(
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                        )
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(priority.color.copy(alpha = 0.18f))
+                                                        .border(1.dp, priority.color, RoundedCornerShape(10.dp))
+                                                } else {
+                                                    Modifier
+                                                        .neumorphicInset(
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            elevation = NeumorphicTokens.ElevationInsetSubtle
+                                                        )
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                }
+                                            )
+                                            .clickable { selectedPriority = priority }
+                                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                                    ) {
+                                        Text(
+                                            text = priority.label,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) priority.color else NeumorphicTokens.TextMuted
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Notification Title Input (Sunken Well)
+                        NeumorphicFormInput(
+                            value = notificationTitle,
+                            onValueChange = { notificationTitle = it },
+                            label = "Notification Title *",
+                            placeholder = "Enter broadcast title...",
+                            leadingIcon = {
+                                Icon(Icons.Default.Title, contentDescription = null, tint = NeumorphicTokens.Accent, modifier = Modifier.size(16.dp))
+                            }
+                        )
+
+                        // Message Body Editor (Sunken Multiline Well)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Message Body *",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted,
+                                letterSpacing = 0.2.sp
+                            )
+
+                            val isDark = LocalIsDarkTheme.current
+                            val borderColor = if (isDark) Color(0x1FFFFFFF) else Color(0x1F94A3B8)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 120.dp)
+                                    .neumorphicInset(
+                                        shape = RoundedCornerShape(12.dp),
+                                        elevation = NeumorphicTokens.ElevationInsetSubtle,
+                                        surfaceColor = NeumorphicTokens.InputSurface
+                                    )
+                                    .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.TopStart
+                            ) {
+                                if (messageTextFieldValue.text.isEmpty()) {
+                                    Text(
+                                        text = "Type broadcast message...",
+                                        fontSize = 13.5.sp,
+                                        color = NeumorphicTokens.TextMuted.copy(alpha = 0.6f)
+                                    )
+                                }
+                                BasicTextField(
+                                    value = messageTextFieldValue,
+                                    onValueChange = { messageTextFieldValue = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textStyle = TextStyle(
+                                        fontSize = 13.5.sp,
+                                        color = NeumorphicTokens.TextMain,
+                                        fontWeight = FontWeight.Normal,
+                                        lineHeight = 19.sp
+                                    ),
+                                    cursorBrush = SolidColor(NeumorphicTokens.Accent)
+                                )
+                            }
+
+                            // Subtle Helper Tip Description
+                            Text(
+                                text = "💡 Tip: Type @ to insert dynamic @name, alert @all, or mention specific teammates.",
+                                fontSize = 11.sp,
+                                color = NeumorphicTokens.TextMuted,
+                                lineHeight = 15.sp,
+                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
+                            )
+
+                            // Live '@' Mention Autocomplete Popup Dropdown
+                            AnimatedVisibility(
+                                visible = isMentionActive && (
+                                    matchingMentionEngineers.isNotEmpty() ||
+                                    "name".contains(mentionQuery ?: "") ||
+                                    "all".contains(mentionQuery ?: "") ||
+                                    "everyone".contains(mentionQuery ?: "")
+                                )
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp)
+                                        .neumorphicFloating(
+                                            shape = RoundedCornerShape(14.dp),
+                                            surfaceColor = NeumorphicTokens.Surface
+                                        )
+                                        .border(1.dp, NeumorphicTokens.Accent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(
+                                            text = "SUGGESTED MENTIONS",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = NeumorphicTokens.Accent,
+                                            letterSpacing = 1.sp,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+
+                                        // 1. Dynamic @name
+                                        if ("name".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable { insertMention("name") }
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(26.dp)
+                                                        .clip(CircleShape)
+                                                        .background(NeumorphicTokens.Accent.copy(alpha = 0.15f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Person,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(15.dp),
+                                                        tint = NeumorphicTokens.Accent
+                                                    )
+                                                }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "@name",
+                                                        fontSize = 12.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = NeumorphicTokens.TextMain
+                                                    )
+                                                    Text(
+                                                        text = "Dynamic Recipient Name — Personalizes per recipient",
+                                                        fontSize = 10.5.sp,
+                                                        color = NeumorphicTokens.TextMuted
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // 2. Alert @all
+                                        if ("all".contains(mentionQuery ?: "") || "everyone".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable { insertMention("all") }
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(26.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF8B5CF6).copy(alpha = 0.15f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Groups,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(15.dp),
+                                                        tint = Color(0xFF8B5CF6)
+                                                    )
+                                                }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "@all",
+                                                        fontSize = 12.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = NeumorphicTokens.TextMain
+                                                    )
+                                                    Text(
+                                                        text = "Alert entire operational team",
+                                                        fontSize = 10.5.sp,
+                                                        color = NeumorphicTokens.TextMuted
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // 3. Teammates matching query
+                                        matchingMentionEngineers.forEach { eng ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable { insertMention(eng.username) }
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(26.dp)
+                                                        .clip(CircleShape)
+                                                        .background(NeumorphicTokens.SurfaceContrast),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = eng.name.take(1).uppercase(),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = NeumorphicTokens.Accent
+                                                    )
+                                                }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = NeumorphicTokens.TextMain
+                                                    )
+                                                    Text(
+                                                        text = "@${eng.username}",
+                                                        fontSize = 10.5.sp,
+                                                        color = NeumorphicTokens.Accent
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // Delivery Options (In-App, FCM Push, and Email)
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Delivery Channels:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        // Channel 1: In-App Notification (Live App Alert)
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (sendInAppChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                            border = BorderStroke(1.dp, if (sendInAppChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant),
-                            modifier = Modifier.fillMaxWidth()
+                        // Live Personalized Recipient Preview Card
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .neumorphicInset(
+                                    shape = RoundedCornerShape(14.dp),
+                                    elevation = NeumorphicTokens.ElevationInsetSubtle
+                                )
+                                .padding(12.dp)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        Icons.Default.NotificationsActive, 
-                                        contentDescription = null, 
-                                        tint = if (sendInAppChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                                    )
-                                    Column {
-                                        Text("Send In-App Portal Notice", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                        Text("Publishes live banner announcement card inside mobile & web portal", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Visibility,
+                                            contentDescription = null,
+                                            tint = NeumorphicTokens.Accent,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "LIVE PREVIEW",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = NeumorphicTokens.Accent,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+
+                                    // Switch preview recipient
+                                    if (activeEngineers.isNotEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .neumorphicRaised(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                )
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    previewTargetIndex = (previewTargetIndex + 1) % activeEngineers.size
+                                                }
+                                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "As: ${previewEngineer?.name ?: "Recipient"}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = NeumorphicTokens.Accent
+                                                )
+                                                Icon(
+                                                    Icons.Default.SwapHoriz,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(13.dp),
+                                                    tint = NeumorphicTokens.Accent
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                                Switch(
-                                    checked = sendInAppChecked,
-                                    onCheckedChange = { sendInAppChecked = it }
-                                )
+
+                                // Enabled channels badges
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (sendInAppChecked) {
+                                        Text(
+                                            "✓ In-App",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF3B82F6),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xFF3B82F6).copy(alpha = 0.12f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    if (sendPushChecked) {
+                                        Text(
+                                            "🔔 Push",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFF59E0B),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xFFF59E0B).copy(alpha = 0.12f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    if (sendEmailChecked) {
+                                        Text(
+                                            "✉ Email",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF10B981),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xFF10B981).copy(alpha = 0.12f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                // Message Preview Box
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .neumorphicRaised(
+                                            shape = RoundedCornerShape(10.dp),
+                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                        )
+                                        .padding(10.dp)
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = notificationTitle.ifBlank { "(Untitled Notice)" },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = NeumorphicTokens.TextMain
+                                            )
+                                            Text(
+                                                text = selectedPriority.label.uppercase(),
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = selectedPriority.color,
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(5.dp))
+                                                    .background(selectedPriority.color.copy(alpha = 0.15f))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        Text(
+                                            text = resolvedPreviewMessage.ifBlank { "(Type message above to preview dynamic personalization)" },
+                                            fontSize = 12.5.sp,
+                                            lineHeight = 17.sp,
+                                            color = if (resolvedPreviewMessage.isNotBlank()) NeumorphicTokens.TextMain else NeumorphicTokens.TextMuted
+                                        )
+                                    }
+                                }
                             }
                         }
 
-                        // Channel 2: FCM Push Notification (Android Shade Panel)
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (sendPushChecked) Color(0xFFF59E0B).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                            border = BorderStroke(1.dp, if (sendPushChecked) Color(0xFFF59E0B).copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(
-                                        Icons.Default.PhoneAndroid, 
-                                        contentDescription = null, 
-                                        tint = if (sendPushChecked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.outline
-                                    )
-                                    Column {
-                                        Text("Phone Panel (FCM Push)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                        Text("Instant alert straight into phone notification panel", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                                Switch(
-                                    checked = sendPushChecked,
-                                    onCheckedChange = { sendPushChecked = it }
-                                )
-                            }
-                        }
+                        // Dispatch Broadcast Button
+                        val recipientCount = if (targetMode == "everyone") activeEngineers.size else selectedEngineerIds.size
+                        val hasChannel = sendInAppChecked || sendPushChecked || sendEmailChecked
+                        val canSend = notificationTitle.isNotBlank() && notificationMessage.isNotBlank() && recipientCount > 0 && hasChannel && !state.isSendingNotification
 
-                        // Channel 3: Email via Resend
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (sendEmailChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                            border = BorderStroke(1.dp, if (sendEmailChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Email, 
-                                        contentDescription = null, 
-                                        tint = if (sendEmailChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                                    )
-                                    Column {
-                                        Text("Send Email via Resend", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                        Text("Sends styled HTML email to recipient mailboxes", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
+                        NeumorphicButton(
+                            onClick = {
+                                if (targetMode == "specific" && selectedEngineerIds.isEmpty()) {
+                                    Toast.makeText(context, "Please select at least one engineer.", Toast.LENGTH_SHORT).show()
+                                    return@NeumorphicButton
                                 }
-                                Switch(
-                                    checked = sendEmailChecked,
-                                    onCheckedChange = { sendEmailChecked = it }
-                                )
-                            }
+                                if (!hasChannel) {
+                                    Toast.makeText(context, "Please enable at least one delivery channel.", Toast.LENGTH_SHORT).show()
+                                    return@NeumorphicButton
+                                }
+                                val targetPayload: Any = if (targetMode == "everyone") "everyone" else selectedEngineerIds.toList()
+
+                                onSendNotification(
+                                    notificationTitle,
+                                    notificationMessage,
+                                    targetPayload,
+                                    selectedPriority.key,
+                                    sendEmailChecked,
+                                    sendInAppChecked,
+                                    sendPushChecked
+                                ) { success, msg ->
+                                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            variant = NeumorphicButtonVariant.PrimaryAccent,
+                            shape = RoundedCornerShape(14.dp),
+                            enabled = canSend,
+                            isLoading = state.isSendingNotification
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Dispatch to $recipientCount Engineer${if (recipientCount != 1) "s" else ""}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
                         }
                     }
                 }
             }
         }
 
-        // --- 5. Live Personalized Preview Card ---
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                ),
-                border = BorderStroke(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.3f))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
+        // ==========================================
+        // SECTION 1: BROADCAST HISTORY & AUDIT
+        // ==========================================
+        if (activeTabSection == 1) {
+            if (state.notifications.isEmpty()) {
+                item {
+                    NeumorphicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(Icons.Default.Visibility, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(18.dp))
-                            Text(
-                                text = "LIVE PERSONALIZED PREVIEW",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF8B5CF6),
-                                letterSpacing = 1.sp
-                            )
-                        }
-
-                        // Preview recipient picker
-                        if (activeEngineers.isNotEmpty()) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                modifier = Modifier.clickable {
-                                    previewTargetIndex = (previewTargetIndex + 1) % activeEngineers.size
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "As: ${previewEngineer?.name ?: "None"}",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        }
-                    }
-
-                    // Channel indicator badges
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (sendInAppChecked) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                            ) {
-                                Text(
-                                    "✓ In-App",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        if (sendPushChecked) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFFF59E0B).copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    "🔔 FCM Push",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFF59E0B),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        if (sendEmailChecked) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFF3B82F6).copy(alpha = 0.12f)
-                            ) {
-                                Text(
-                                    "✉ Email",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF3B82F6),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Preview Box
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth()
+                        shape = NeumorphicTokens.ShapeContainer,
+                        contentPadding = 32.dp
                     ) {
                         Column(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = notificationTitle.ifBlank { "Untitled Notice" },
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = selectedPriority.color.copy(alpha = 0.15f)
-                                ) {
-                                    Text(
-                                        text = selectedPriority.label.uppercase(),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = selectedPriority.color,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-
+                            Icon(
+                                Icons.Default.Campaign,
+                                contentDescription = null,
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier.size(36.dp)
+                            )
                             Text(
-                                text = resolvedPreviewMessage,
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp,
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = "No Broadcasts Dispatched",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeumorphicTokens.TextMain
+                            )
+                            Text(
+                                text = "Switch to Compose tab to dispatch your first announcement!",
+                                fontSize = 12.sp,
+                                color = NeumorphicTokens.TextMuted
                             )
                         }
                     }
                 }
-            }
-        }
-
-        // --- 6. Dispatch Button ---
-        item {
-            val recipientCount = if (targetMode == "everyone") activeEngineers.size else selectedEngineerIds.size
-            val hasChannel = sendInAppChecked || sendPushChecked || sendEmailChecked
-            val canSend = notificationTitle.isNotBlank() && notificationMessage.isNotBlank() && recipientCount > 0 && hasChannel && !state.isSendingNotification
-
-            Button(
-                onClick = {
-                    if (targetMode == "specific" && selectedEngineerIds.isEmpty()) {
-                        Toast.makeText(context, "Please select at least one engineer.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    if (!hasChannel) {
-                        Toast.makeText(context, "Please enable at least one delivery channel.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    val targetPayload: Any = if (targetMode == "everyone") "everyone" else selectedEngineerIds.toList()
-
-                    onSendNotification(
-                        notificationTitle,
-                        notificationMessage,
-                        targetPayload,
-                        selectedPriority.key,
-                        sendEmailChecked,
-                        sendInAppChecked,
-                        sendPushChecked
-                    ) { success, msg ->
-                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                enabled = canSend,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                if (state.isSendingNotification) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text("Broadcasting Announcement...", fontWeight = FontWeight.Bold)
-                } else {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Broadcast to $recipientCount Engineer${if (recipientCount != 1) "s" else ""}",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+            } else {
+                items(state.notifications) { notif ->
+                    NotificationHistoryCard(
+                        notif = notif,
+                        onClone = {
+                            notificationTitle = notif.title ?: ""
+                            val msg = notif.rawMessage ?: ""
+                            messageTextFieldValue = TextFieldValue(msg, TextRange(msg.length))
+                            when (notif.priority?.lowercase()) {
+                                "urgent" -> selectedPriority = NotificationPriority.URGENT
+                                "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
+                                "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
+                                else -> selectedPriority = NotificationPriority.INFO
+                            }
+                            activeTabSection = 0
+                            Toast.makeText(context, "Loaded notice into composer!", Toast.LENGTH_SHORT).show()
+                        },
+                        onRetract = { nid ->
+                            onRetractNotification(nid) { success, msg ->
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     )
                 }
-            }
-        }
-
-        // --- 7. Broadcast History Section with Read Receipts & Retraction ---
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "BROADCAST HISTORY & AUDIT (${state.notifications.size})",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp
-                )
-                IconButton(onClick = onRefreshNotifications) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(18.dp))
-                }
-            }
-        }
-
-        if (state.notifications.isEmpty()) {
-            item {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "No broadcasts dispatched yet. Create your first announcement above!",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                }
-            }
-        } else {
-            items(state.notifications) { notif ->
-                NotificationHistoryCard(
-                    notif = notif,
-                    onClone = {
-                        notificationTitle = notif.title ?: ""
-                        notificationMessage = notif.rawMessage ?: ""
-                        when (notif.priority?.lowercase()) {
-                            "urgent" -> selectedPriority = NotificationPriority.URGENT
-                            "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
-                            "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
-                            else -> selectedPriority = NotificationPriority.INFO
-                        }
-                        Toast.makeText(context, "Loaded notice into composer!", Toast.LENGTH_SHORT).show()
-                    },
-                    onRetract = { nid ->
-                        onRetractNotification(nid) { success, msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
             }
         }
     }
 
-    // --- Mention Engineer Modal Dialog ---
-    if (showMentionDialog) {
+    // --- Save as Template Dialog ---
+    if (showSaveTemplateDialog) {
         AlertDialog(
-            onDismissRequest = { showMentionDialog = false },
+            onDismissRequest = { showSaveTemplateDialog = false },
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = Color(0xFF8B5CF6))
-                    Text("Mention an Engineer", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.BookmarkAdd, contentDescription = null, tint = NeumorphicTokens.Accent)
+                    Text("Save as Template", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // Everyone option
-                    item {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    notificationMessage += " @all "
-                                    showMentionDialog = false
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color(0xFF8B5CF6),
-                                    modifier = Modifier.size(30.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("@", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    }
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Everyone (Team)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                    Text("@all", fontSize = 11.sp, color = Color(0xFF8B5CF6))
-                                }
-                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Enter a memorable name for this reusable broadcast template:",
+                        fontSize = 12.sp,
+                        color = NeumorphicTokens.TextMuted
+                    )
 
-                    items(activeEngineers) { eng ->
-                        val engKey = eng.id.ifBlank { eng.username }
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    notificationMessage += " @${eng.username} "
-                                    if (targetMode == "specific" && !selectedEngineerIds.contains(engKey)) {
-                                        selectedEngineerIds.add(engKey)
-                                    }
-                                    showMentionDialog = false
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                    modifier = Modifier.size(30.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            eng.name.take(1).uppercase(),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text("@${eng.username}", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-                                }
-                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
+                    OutlinedTextField(
+                        value = templateNameInput,
+                        onValueChange = { templateNameInput = it },
+                        label = { Text("Template Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    if (notificationTitle.isNotBlank()) {
+                        Text(
+                            text = "Title: $notificationTitle",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeumorphicTokens.TextMain
+                        )
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showMentionDialog = false }) {
-                    Text("Close")
+                Button(
+                    onClick = {
+                        val name = templateNameInput.trim().ifBlank { notificationTitle.takeIf { it.isNotBlank() } ?: "Custom Template" }
+                        onSaveTemplate?.invoke(name, notificationTitle, notificationMessage, selectedPriority.key) { success, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                        showSaveTemplateDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.Accent)
+                ) {
+                    Text("Save Template", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveTemplateDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // --- Delete Template Confirmation Dialog ---
+    if (templateToDelete != null) {
+        val tpl = templateToDelete!!
+        AlertDialog(
+            onDismissRequest = { templateToDelete = null },
+            title = { Text("Delete Template?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Are you sure you want to delete template '${tpl.name ?: tpl.title}'? This action cannot be undone.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteTemplate?.invoke(tpl.id) { success, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                        templateToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { templateToDelete = null }) {
+                    Text("Cancel")
                 }
             }
         )
     }
 }
+
 
 @Composable
 fun NotificationHistoryCard(

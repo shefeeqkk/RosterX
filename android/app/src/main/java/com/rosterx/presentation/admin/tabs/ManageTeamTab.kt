@@ -461,6 +461,10 @@ fun ManageTeamTab(
                                                     .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(9.dp))
                                             } else {
                                                 Modifier
+                                                    .neumorphicInset(
+                                                        shape = RoundedCornerShape(9.dp),
+                                                        elevation = NeumorphicTokens.ElevationInsetSubtle
+                                                    )
                                                     .clip(RoundedCornerShape(9.dp))
                                                     .clickable { if (!isReadOnly && !isSaving) roleInput = roleOption }
                                             }
@@ -522,12 +526,21 @@ fun ManageTeamTab(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .clip(RoundedCornerShape(9.dp))
                                             .then(
                                                 if (isSelected) {
-                                                    Modifier.background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(9.dp))
+                                                    Modifier
+                                                        .neumorphicRaised(
+                                                            shape = RoundedCornerShape(9.dp),
+                                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                        )
+                                                        .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(9.dp))
                                                 } else {
                                                     Modifier
+                                                        .neumorphicInset(
+                                                            shape = RoundedCornerShape(9.dp),
+                                                            elevation = NeumorphicTokens.ElevationInsetSubtle
+                                                        )
+                                                        .clip(RoundedCornerShape(9.dp))
                                                 }
                                             )
                                             .clickable {
@@ -586,12 +599,21 @@ fun ManageTeamTab(
                                 val activeColor = if (statusOption == EngineerStatus.ACTIVE) Color(0xFF10B981) else Color(0xFFEF4444)
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(7.dp))
                                         .then(
                                             if (isSelected) {
-                                                Modifier.background(activeColor, RoundedCornerShape(7.dp))
+                                                Modifier
+                                                    .neumorphicRaised(
+                                                        shape = RoundedCornerShape(7.dp),
+                                                        elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                    )
+                                                    .background(activeColor, RoundedCornerShape(7.dp))
                                             } else {
                                                 Modifier
+                                                    .neumorphicInset(
+                                                        shape = RoundedCornerShape(7.dp),
+                                                        elevation = NeumorphicTokens.ElevationInsetSubtle
+                                                    )
+                                                    .clip(RoundedCornerShape(7.dp))
                                             }
                                         )
                                         .clickable {
