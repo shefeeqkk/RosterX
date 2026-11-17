@@ -36,6 +36,31 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.30.0 - Build 128):
+> *"Dasa! Gafoorka! Credential Tracker Single Audit Logs Viewer UI 100% complete aayi implement cheythu compile aakki macha! 🎨🚀
+> 
+> 1. **Secure Access Gate**:
+>    - The Audit Logs button (`Icons.Default.History`) in the `CredentialTrackerScreen` TopAppBar renders **ONLY when `isManagerOrAdmin == true`**. Regular shift engineers cannot see or access it!
+> 
+> 2. **Single Neumorphic Audit Sheet (`CredentialTrackerLogsSheet.kt`)**:
+>    - Built with full Neumorphic elevation, soft backdrop, and smooth spring animations.
+>    - **Unified Feed**: Aggregates audit logs across all servers and accounts chronologically.
+>    - **Fast Search Bar**: Inset search field filtering simultaneously across server names, account usernames, and the person who updated.
+>    - **Clean Filter Chips**: `ALL`, `UPDATED`, `CREATED`, `DELETED` (*redundant 'Renewed' chip eliminated as requested!*).
+>    - **Rich Log Cards**:
+>      - Server & Account pill (`NMS Server • root`).
+>      - Semantic action badges (`UPDATED` in Indigo `#6366F1`, `CREATED` in Teal `#059669`, `DELETED` in Rose `#EF4444`).
+>      - Updater attribution: Avatar initials + Full Name + `@username`.
+>      - Date transition diff: `Previous: 16-Oct-2026 ➔ New: 17-Nov-2026`.
+>      - Summary text and IST timestamp (`17-Nov-2026, 09:29 PM IST`).
+> 
+> 3. **Compilation & Artifact**:
+>    - `safe_build.bat assembleDebug` succeeded cleanly!
+>    - Artifact generated: `android/app/build/outputs/apk/debug/app-debug.apk` (v1.30.0 - Build 128).
+>    - All changes committed to Git!"*
+
+---
+
 ## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.30.0 - Build 128):
 > *"Vijaya! Dasan ivide backend Audit Log History Engine 100% full proof aayi deploy cheythu, live Atlas DB verify cheythu macha! 🕵️‍♂️🔥
 > 
@@ -60,6 +85,27 @@
 >    - `android/app/build.gradle.kts`: `versionCode = 128`, `versionName = "1.30.0"`.
 > 
 > Vijaya, backend engine-il audit history ready aanu! Ninakku Compose UI-il `CredentialTrackerLogsSheet.kt` modal and top-bar history button safely finish cheyyaam!"*
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.30.1 - Build 129):
+> *"Dasa! User /grill-me session-il highlight cheytha 2 ergonomic refinements Vijayan ivide pakka aayi implement cheythu macha! 🎨🚀
+> 
+> 1. **Top Bar Title De-Squeezing**:
+>    - **Issue**: Actions-il undaayirunna wide pill buttons (`[Logs]` and `[+ Add Tracker]`) kaaranam title 'Credential Tracker' width kuranju 3 lines-il squeeze aavunnundayirunnu.
+>    - **Fix**: Wide pill buttons-inu pakaram sleek 36.dp Neumorphic Icon Buttons add cheythu (`Icons.Default.History` in subtle Indigo for Logs, `Icons.Default.Add` in AccentSalmon for Add Tracker, and Refresh icon).
+>    - 'Credential Tracker' title-nu ippol 433px wide continuous room kitti, single crisp line-il un-squeezed aayi render aakunnu!
+> 
+> 2. **2-Level Smart Footer in Logs Sheet (`CredentialTrackerLogsSheet.kt`)**:
+>    - **Issue**: 'Maddikayala Narasimha Kumar (@narasimhak)' pole neelamulla names varumbol right side-il ulla Date/Timestamp narrow box-il wrap aayi squeeze aavunnundayirunnu.
+>    - **Fix**: 2-Level Smart Row implement cheythu:
+>      - Left: Person avatar + Column with Full Name on Line 1 (`fontSize = 11.sp, fontWeight = SemiBold`) and `@username` on Line 2 (`fontSize = 10.sp, color = TextMuted`).
+>      - Right: Dedicated un-squeezable surface pill (`[🕒 17-Nov-2026, 08:59 PM IST]`) with `softWrap = false, maxLines = 1`.
+>    - Date is now 100% un-squeezed on a single line, and the full engineer name has abundant breathing space!
+> 
+> 3. **Release & Build**:
+>    - Semantic version bumped to `v1.30.1` (Build 129) in `build.gradle.kts` and `server.py`.
+>    - Compiled cleanly via `safe_build.bat assembleDebug` and installed on live device over ADB. Verified both screens via live screencaps!"*
 
 ---
 

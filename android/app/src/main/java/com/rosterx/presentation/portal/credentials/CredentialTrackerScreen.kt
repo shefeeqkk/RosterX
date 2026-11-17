@@ -121,7 +121,9 @@ fun CredentialTrackerScreen(
                         text = "Credential Tracker",
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 19.sp,
-                        color = NeumorphicTokens.AccentSalmon
+                        color = NeumorphicTokens.AccentSalmon,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 },
                 actions = {
@@ -134,63 +136,46 @@ fun CredentialTrackerScreen(
                     }
                     if (isManagerOrAdmin) {
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = Color(0xFF6366F1).copy(alpha = 0.12f),
                             border = BorderStroke(1.dp, Color(0xFF6366F1).copy(alpha = 0.35f)),
                             modifier = Modifier
-                                .padding(end = 6.dp)
+                                .size(36.dp)
                                 .clickable {
                                     viewModel.loadCredentialTrackerLogs()
                                     showLogsSheet = true
                                 }
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.History,
                                     contentDescription = "Audit Logs",
                                     tint = Color(0xFF6366F1),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Logs",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF6366F1)
+                                    modifier = Modifier.size(19.dp)
                                 )
                             }
                         }
 
+                        Spacer(modifier = Modifier.width(6.dp))
+
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
                             border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.4f)),
                             modifier = Modifier
                                 .padding(end = 12.dp)
+                                .size(36.dp)
                                 .clickable {
                                     trackerToEdit = null
                                     showAddEditDialog = true
                                 }
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = null,
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Tracker",
                                     tint = NeumorphicTokens.AccentSalmon,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Add Tracker",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = NeumorphicTokens.AccentSalmon
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }

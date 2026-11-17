@@ -561,55 +561,86 @@ private fun CredentialLogItemCard(log: CredentialTrackerLogDto) {
                 thickness = 0.5.dp
             )
 
-            // Row 4: Footer (Updated By Engineer + Timestamp)
+            // Row 4: Footer (2-Level Smart Row: Updater Attribution & Un-squeezable Timestamp Pill)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Who updated
+                // Who updated: Person icon + 2-Level Column (Full Name on top, @username below)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = NeumorphicTokens.TextMuted,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    val updaterName = log.updatedByName.ifEmpty { log.updatedBy.ifEmpty { "System" } }
-                    Text(
-                        text = updaterName,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = NeumorphicTokens.TextMain
-                    )
-                    if (log.updatedBy.isNotBlank() && log.updatedBy != updaterName) {
-                        Text(
-                            text = "(@${log.updatedBy})",
-                            fontSize = 10.sp,
-                            color = NeumorphicTokens.TextMuted
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(NeumorphicTokens.SurfaceContrast.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = NeumorphicTokens.TextMuted,
+                            modifier = Modifier.size(13.dp)
                         )
+                    }
+
+                    val updaterName = log.updatedByName.ifEmpty { log.updatedBy.ifEmpty { "System" } }
+                    Column(
+                        modifier = Modifier.weight(1f, fill = false),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = updaterName,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeumorphicTokens.TextMain,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (log.updatedBy.isNotBlank() && log.updatedBy != updaterName) {
+                            Text(
+                                text = "@${log.updatedBy}",
+                                fontSize = 10.sp,
+                                color = NeumorphicTokens.TextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
-                // Timestamp
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                // Dedicated Un-squeezable Timestamp Pill
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = NeumorphicTokens.SurfaceContrast.copy(alpha = 0.45f),
+                    border = BorderStroke(0.5.dp, NeumorphicTokens.Border.copy(alpha = 0.3f))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Schedule,
-                        contentDescription = null,
-                        tint = NeumorphicTokens.TextMuted,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Text(
-                        text = log.datetimeStr.ifEmpty { "Recently" },
-                        fontSize = 10.sp,
-                        color = NeumorphicTokens.TextMuted
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = NeumorphicTokens.TextMuted,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = log.datetimeStr.ifEmpty { "Recently" },
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = NeumorphicTokens.TextMuted,
+                            softWrap = false,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
