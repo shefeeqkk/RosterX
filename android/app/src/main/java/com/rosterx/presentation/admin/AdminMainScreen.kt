@@ -13,11 +13,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -62,6 +65,25 @@ fun AdminMainScreen(
         } else if (isViewingSettings) {
             isViewingSettings = false
             selectedTab = previousTab
+        }
+    }
+
+    val pullRefreshState = rememberPullToRefreshState()
+    if (pullRefreshState.isRefreshing) {
+        LaunchedEffect(Unit) {
+            var completedTasks = 0
+            val onTaskFinished = {
+                completedTasks++
+                if (completedTasks >= 2) {
+                    pullRefreshState.endRefresh()
+                }
+            }
+            viewModel.refreshAllData {
+                onTaskFinished()
+            }
+            portalViewModel.refreshAllData {
+                onTaskFinished()
+            }
         }
     }
 
@@ -166,8 +188,11 @@ fun AdminMainScreen(
                     },
                     actions = {
                         if (!isViewingSettings && !isViewingServerManagement && !isViewingCredentialTracker && selectedTab != 4) {
-                            if (currentUser != null) {
-                                val displayName = (currentUser!!.fullName?.takeIf { it.isNotBlank() } ?: currentUser!!.name).toProperCase()
+                            val activeHeaderUser = state.engineers.find { 
+                                it.username.equals(currentUser?.username, ignoreCase = true) 
+                            } ?: currentUser
+                            if (activeHeaderUser != null) {
+                                val displayName = (activeHeaderUser.fullName?.takeIf { it.isNotBlank() } ?: activeHeaderUser.name).toProperCase()
                                 val firstName = displayName.split(" ")[0]
 
                                 NeumorphicCard(
@@ -190,7 +215,7 @@ fun AdminMainScreen(
                                     ) {
                                         UserAvatar(
                                             name = displayName,
-                                            profilePicture = currentUser!!.profilePicture,
+                                            profilePicture = activeHeaderUser.profilePicture,
                                             size = 24.dp,
                                             backgroundColor = NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f),
                                             textColor = NeumorphicTokens.AccentSalmon,
@@ -250,6 +275,7 @@ fun AdminMainScreen(
                     else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
                 )
                 .background(NeumorphicTokens.Canvas)
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -295,8 +321,11 @@ fun AdminMainScreen(
                             )
                         }
                         3 -> {
+                            val activeAdminEngineer = state.engineers.find {
+                                it.username.equals(currentUser?.username, ignoreCase = true)
+                            } ?: currentUser ?: portalState.loggedInEngineer
                             AccountView(
-                                state = portalState,
+                                state = portalState.copy(loggedInEngineer = activeAdminEngineer),
                                 onOpenEditProfile = { showUnifiedEditProfileDialog = true },
                                 onLogout = viewModel::logout,
                                 onSaveBaseUrl = viewModel::saveBaseUrl,
@@ -372,6 +401,11 @@ fun AdminMainScreen(
                 }
             }
 
+            PullToRefreshContainer(
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
             if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingServerManagement) {
                 FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
@@ -384,16 +418,18 @@ fun AdminMainScreen(
     }
 
     if (showUnifiedEditProfileDialog && currentUser != null) {
-        val eng = currentUser!!
+        val activeSelf = state.engineers.find {
+            it.username.equals(currentUser?.username, ignoreCase = true)
+        } ?: currentUser!!
         val screenContext = LocalContext.current
         UnifiedEditProfileDialog(
             show = showUnifiedEditProfileDialog,
-            currentName = eng.name,
-            currentPhone = eng.phone,
-            currentEmail = eng.email,
-            currentJoinDate = eng.joinDate,
-            currentBirthday = eng.birthday ?: "",
-            currentProfilePicture = eng.profilePicture,
+            currentName = activeSelf.name,
+            currentPhone = activeSelf.phone,
+            currentEmail = activeSelf.email,
+            currentJoinDate = activeSelf.joinDate,
+            currentBirthday = activeSelf.birthday ?: "",
+            currentProfilePicture = activeSelf.profilePicture,
             onDismiss = { showUnifiedEditProfileDialog = false },
             onSave = { name, phone, email, joinDate, birthday, photoB64, currPass, newPass ->
                 viewModel.updateUserProfile(
@@ -405,7 +441,7 @@ fun AdminMainScreen(
                     profilePicture = photoB64,
                     currentPassword = currPass,
                     newPassword = newPass,
-                    targetUsername = eng.username,
+                    targetUsername = activeSelf.username,
                     onResult = { success, errorMsg ->
                         showUnifiedEditProfileDialog = false
                         android.widget.Toast.makeText(

@@ -27,6 +27,25 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.31.2 - Build 132):
+> *"Dasa! Gafoorka! Admin UI Pull-to-Refresh & Real-Time Profile Sync fixes complete aayi build & install cheythu macha! 🎨🚀
+> 
+> 1. **Global Admin UI Pull-to-Refresh (`AdminMainScreen.kt` & `AdminRosterViewModel.kt`)**:
+>    - Added Material 3 `rememberPullToRefreshState()` and `PullToRefreshContainer` wired with `.nestedScroll(pullRefreshState.nestedScrollConnection)` across all Admin views (`Dashboard`, `Manage Team`, `Month Rosters`, `Broadcast`, and `Account & Settings`).
+>    - Added `AdminRosterViewModel.refreshAllData(onComplete)` so pulling down refreshes both Admin data (`engineers`, `roster`, `constraints`, `backups`, telemetry) and `portalViewModel.refreshAllData()` silently without flickering the screen.
+> 
+> 2. **Bi-Directional Admin Profile & Session Sync (`AdminRosterViewModel.kt`, `EngineerPortalViewModel.kt`, `AdminMainScreen.kt`)**:
+>    - Fixed the stale profile bug where editing the Admin/Manager name or contact details in **Team Management** (`ManageTeamTab`) did not update **Account & Settings** (`AccountView`) or the top-bar profile pill.
+>    - Updated `AdminRosterViewModel.syncEngineers()`, `loadData()`, `updateUserProfile()`, `updateProfileName()`, and `uploadProfilePicture()` to immediately call `sessionManager.setCurrentUser(...)` whenever the logged-in account is modified or refreshed.
+>    - Fixed `EngineerPortalViewModel.loadData()` merge logic to copy `name`, `fullName`, and `profilePicture` alongside phone/email/dates, and ensured `updateUserProfile()` persists updates to `sessionManager`.
+>    - Updated `AdminMainScreen.kt` to bind the top-bar pill, `AccountView`, and `UnifiedEditProfileDialog` directly to the live engineer record from `state.engineers` matching `currentUser.username` for instant zero-lag UI updates.
+> 
+> 3. **Verification & Build (`v1.31.2` - Build 132)**:
+>    - Compiled cleanly with `safe_build.bat assembleDebug` and installed onto `100.71.241.36:5555`.
+>    - Live UI hierarchy confirmed the top-bar profile pill immediately renders `AD` / `Administrator` upon launch (previously stuck on `SA` / `System Administrator`)."*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.31.0 - Build 129):
 > *"Dasa, Vijaya! Gafoorka nammude Broadcast Console modernization-te full architectural blueprint ivide lock aakki vechittundu!
 > 

@@ -1,7 +1,24 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 21:15 IST** (Target Sprint: **v1.30.0 - Build 128**)
+> *Latest Vijayan Dispatch:* **2026-11-18 00:03 IST** (**v1.31.2 - Build 132**)
+
+---
+
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.31.2 - Build 132):
+> *"Dasa! Gafoorka! Admin UI Pull-to-Refresh & Real-Time Profile Sync fixes complete aayi build & install cheythu macha! 🎨🚀
+> 
+> 1. **Global Admin UI Pull-to-Refresh (`AdminMainScreen.kt` & `AdminRosterViewModel.kt`)**:
+>    - Added Material 3 `rememberPullToRefreshState()` and `PullToRefreshContainer` wired with `.nestedScroll(pullRefreshState.nestedScrollConnection)` across all Admin views (`Dashboard`, `Manage Team`, `Month Rosters`, `Broadcast`, and `Account & Settings`).
+>    - Added `AdminRosterViewModel.refreshAllData(onComplete)` so pulling down refreshes both Admin data and `portalViewModel.refreshAllData()` silently without flickering the screen.
+> 
+> 2. **Bi-Directional Admin Profile & Session Sync (`AdminRosterViewModel.kt`, `EngineerPortalViewModel.kt`, `AdminMainScreen.kt`)**:
+>    - Fixed stale profile data when editing the Admin/Manager account in **Team Management** (`ManageTeamTab`) so **Account & Settings** (`AccountView`), `UnifiedEditProfileDialog`, and the top-bar profile pill immediately update without re-login.
+>    - Synced `sessionManager.setCurrentUser(...)` inside `AdminRosterViewModel.syncEngineers()`, `loadData()`, `updateUserProfile()`, `updateProfileName()`, and `uploadProfilePicture()`.
+>    - Fixed `EngineerPortalViewModel.loadData()` merge logic to also copy `name`, `fullName`, and `profilePicture`.
+> 
+> 3. **Verification & Build (`v1.31.2` - Build 132)**:
+>    - Built via `safe_build.bat assembleDebug`, installed on `100.71.241.36:5555`, and verified live UI hierarchy shows `AD` / `Administrator`."*
 
 ---
 

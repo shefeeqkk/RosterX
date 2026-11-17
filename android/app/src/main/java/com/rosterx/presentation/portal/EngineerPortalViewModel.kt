@@ -290,11 +290,14 @@ class EngineerPortalViewModel @Inject constructor(
                 }
                 if (fullProfile != null) {
                     val mergedUser = current.copy(
+                        name = if (fullProfile.name.isNotBlank()) fullProfile.name else current.name,
+                        fullName = if (fullProfile.fullName?.isNotBlank() == true) fullProfile.fullName else current.fullName,
                         defaultWeeklyOffs = if (fullProfile.defaultWeeklyOffs.isNotEmpty()) fullProfile.defaultWeeklyOffs else current.defaultWeeklyOffs,
                         email = if (fullProfile.email.isNotBlank()) fullProfile.email else current.email,
                         phone = if (!fullProfile.phone.contains("*") && fullProfile.phone.isNotBlank()) fullProfile.phone else current.phone,
                         joinDate = if (fullProfile.joinDate.isNotBlank()) fullProfile.joinDate else current.joinDate,
-                        birthday = if (!fullProfile.birthday.isNullOrBlank()) fullProfile.birthday else current.birthday
+                        birthday = if (!fullProfile.birthday.isNullOrBlank()) fullProfile.birthday else current.birthday,
+                        profilePicture = fullProfile.profilePicture ?: current.profilePicture
                     )
                     sessionManager.setCurrentUser(mergedUser)
                     _state.value = _state.value.copy(loggedInEngineer = mergedUser)
@@ -1020,6 +1023,7 @@ class EngineerPortalViewModel @Inject constructor(
                 val updatedEng = res.getOrNull()
                 val loggedIn = _state.value.loggedInEngineer
                 if (updatedEng != null && loggedIn != null && (targetUsername.isNullOrBlank() || targetUsername.equals(loggedIn.username, ignoreCase = true))) {
+                    sessionManager.setCurrentUser(updatedEng)
                     _state.value = _state.value.copy(loggedInEngineer = updatedEng)
                 }
                 if (updatedEng != null) {

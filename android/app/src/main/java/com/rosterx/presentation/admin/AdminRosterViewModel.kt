@@ -211,76 +211,95 @@ class AdminRosterViewModel @Inject constructor(
 
 
 
-    fun loadData(silent: Boolean = false) {
+    fun refreshAllData(onComplete: (() -> Unit)? = null) {
+        loadData(silent = true, onComplete = onComplete)
+    }
+
+    fun loadData(silent: Boolean = false, onComplete: (() -> Unit)? = null) {
         checkConnection()
         refreshTelemetry()
         viewModelScope.launch {
-            val monthKey = String.format(Locale.US, "%d-%02d", _state.value.currentYear, _state.value.currentMonth)
-            val cachedRoster = rosterCache[monthKey]
-            if (cachedRoster != null && _state.value.engineers.isNotEmpty()) {
-                _state.value = _state.value.copy(
-                    roster = cachedRoster,
-                    isLoading = false
-                )
-            } else if (!silent) {
-                _state.value = _state.value.copy(isLoading = true, errorMessage = null)
-            }
+            try {
+                val monthKey = String.format(Locale.US, "%d-%02d", _state.value.currentYear, _state.value.currentMonth)
+                val cachedRoster = rosterCache[monthKey]
+                if (cachedRoster != null && _state.value.engineers.isNotEmpty()) {
+                    _state.value = _state.value.copy(
+                        roster = cachedRoster,
+                        isLoading = false
+                    )
+                } else if (!silent) {
+                    _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+                }
 
-            // 1. Load Engineers
-            val engineersResult = repository.getEngineers()
-            val engineers = engineersResult.getOrElse { emptyList() }
+                // 1. Load Engineers
+                val engineersResult = repository.getEngineers()
+                val engineers = engineersResult.getOrElse { emptyList() }
 
-            // 2. Load Roster for current month/year
-            val rosterResult = repository.getRoster(monthKey)
-            val rosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
-
-            if (rosterResult.isSuccess) {
-                val rawRoster = rosterResult.getOrNull() ?: emptyMap()
-                rawRoster.forEach { (engId, daysMap) ->
-                    val shiftMap = mutableMapOf<String, ShiftCode>()
-                    daysMap.forEach { (day, shiftStr) ->
-                        shiftMap[day] = ShiftCode.fromString(shiftStr)
+                // Sync active user profile if updated in Team Management or backend
+                if (engineers.isNotEmpty()) {
+                    val currentUname = sessionManager.currentUser.value?.username
+                    if (!currentUname.isNullOrBlank()) {
+                        val selfEng = engineers.find { it.username.equals(currentUname, ignoreCase = true) }
+                        if (selfEng != null) {
+                            sessionManager.setCurrentUser(selfEng)
+                        }
                     }
-                    rosterMap[engId] = shiftMap
                 }
-                rosterCache[monthKey] = rosterMap
-            } else {
-                rosterCache.remove(monthKey)
-            }
 
-            // 3. Load Operational Constraints
-            val constraintsResult = repository.getConstraints()
-            val loadedConstraints = constraintsResult.getOrDefault(com.rosterx.domain.model.OperationalConstraints())
+                // 2. Load Roster for current month/year
+                val rosterResult = repository.getRoster(monthKey)
+                val rosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
 
-            _state.value = _state.value.copy(
-                isLoading = false,
-                engineers = if (engineers.isNotEmpty()) engineers else _state.value.engineers,
-                roster = if (rosterResult.isSuccess) rosterMap else emptyMap(),
-                constraints = loadedConstraints
-            )
-
-            // 4. Sync Operations Radar Widget for Admin
-            if (rosterResult.isSuccess && engineers.isNotEmpty()) {
-                val fullStringRoster = mutableMapOf<String, Map<String, String>>()
-                val rawRoster = rosterResult.getOrNull() ?: emptyMap()
-                rawRoster.forEach { (engId, daysMap) ->
-                    fullStringRoster[engId] = daysMap
+                if (rosterResult.isSuccess) {
+                    val rawRoster = rosterResult.getOrNull() ?: emptyMap()
+                    rawRoster.forEach { (engId, daysMap) ->
+                        val shiftMap = mutableMapOf<String, ShiftCode>()
+                        daysMap.forEach { (day, shiftStr) ->
+                            shiftMap[day] = ShiftCode.fromString(shiftStr)
+                        }
+                        rosterMap[engId] = shiftMap
+                    }
+                    rosterCache[monthKey] = rosterMap
+                } else {
+                    rosterCache.remove(monthKey)
                 }
-                val currentAdmin = sessionManager.currentUser.value
-                val adminName = currentAdmin?.fullName?.takeIf { it.isNotBlank() }
-                    ?: currentAdmin?.name
-                    ?: "Operations Administrator"
 
-                com.rosterx.widget.RosterXAppWidgetProvider.syncManagerOrAdminRoster(
-                    context = context,
-                    managerName = adminName,
-                    engineers = engineers,
-                    roster = fullStringRoster,
-                    monthKey = monthKey
+                // 3. Load Operational Constraints
+                val constraintsResult = repository.getConstraints()
+                val loadedConstraints = constraintsResult.getOrDefault(com.rosterx.domain.model.OperationalConstraints())
+
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    engineers = if (engineers.isNotEmpty()) engineers else _state.value.engineers,
+                    roster = if (rosterResult.isSuccess) rosterMap else emptyMap(),
+                    constraints = loadedConstraints
                 )
-            }
 
-            loadBackups()
+                // 4. Sync Operations Radar Widget for Admin
+                if (rosterResult.isSuccess && engineers.isNotEmpty()) {
+                    val fullStringRoster = mutableMapOf<String, Map<String, String>>()
+                    val rawRoster = rosterResult.getOrNull() ?: emptyMap()
+                    rawRoster.forEach { (engId, daysMap) ->
+                        fullStringRoster[engId] = daysMap
+                    }
+                    val currentAdmin = sessionManager.currentUser.value
+                    val adminName = currentAdmin?.fullName?.takeIf { it.isNotBlank() }
+                        ?: currentAdmin?.name
+                        ?: "Operations Administrator"
+
+                    com.rosterx.widget.RosterXAppWidgetProvider.syncManagerOrAdminRoster(
+                        context = context,
+                        managerName = adminName,
+                        engineers = engineers,
+                        roster = fullStringRoster,
+                        monthKey = monthKey
+                    )
+                }
+
+                loadBackups()
+            } finally {
+                onComplete?.invoke()
+            }
         }
     }
 
@@ -413,6 +432,15 @@ class AdminRosterViewModel @Inject constructor(
         viewModelScope.launch {
 
             _state.value = _state.value.copy(engineers = engineers)
+
+            // Immediately sync active user session if their account was updated in Team Management
+            val currentUname = sessionManager.currentUser.value?.username
+            if (!currentUname.isNullOrBlank()) {
+                val updatedSelf = engineers.find { it.username.equals(currentUname, ignoreCase = true) }
+                if (updatedSelf != null) {
+                    sessionManager.setCurrentUser(updatedSelf)
+                }
+            }
 
             val result = repository.syncEngineers(engineers)
 
@@ -742,8 +770,12 @@ class AdminRosterViewModel @Inject constructor(
             val res = repository.updateProfilePicture(targetUsername, base64Image)
             if (res.isSuccess) {
                 val newPic = res.getOrNull()
+                val currentUname = sessionManager.currentUser.value?.username
+                if (targetUsername.isNullOrBlank() || targetUsername.equals(currentUname, ignoreCase = true)) {
+                    sessionManager.updateCurrentUserProfilePicture(newPic)
+                }
                 val updatedEngineers = _state.value.engineers.map { eng ->
-                    if (eng.username.equals(targetUsername ?: sessionManager.currentUser.value?.username, ignoreCase = true)) {
+                    if (eng.username.equals(targetUsername ?: currentUname, ignoreCase = true)) {
                         eng.copy(profilePicture = newPic)
                     } else {
                         eng
@@ -766,8 +798,12 @@ class AdminRosterViewModel @Inject constructor(
             val res = repository.updateProfileName(newName, targetUsername)
             if (res.isSuccess) {
                 val updatedName = res.getOrNull() ?: newName
+                val currentUname = sessionManager.currentUser.value?.username
+                if (targetUsername.isNullOrBlank() || targetUsername.equals(currentUname, ignoreCase = true)) {
+                    sessionManager.updateCurrentUserName(updatedName)
+                }
                 val updatedEngineers = _state.value.engineers.map { eng ->
-                    if (eng.username.equals(targetUsername ?: sessionManager.currentUser.value?.username, ignoreCase = true)) {
+                    if (eng.username.equals(targetUsername ?: currentUname, ignoreCase = true)) {
                         eng.copy(name = updatedName)
                     } else {
                         eng
@@ -809,6 +845,11 @@ class AdminRosterViewModel @Inject constructor(
                 username = targetUsername ?: currentUser.value?.username
             )
             if (res.isSuccess) {
+                val updatedEng = res.getOrNull()
+                val currentUname = sessionManager.currentUser.value?.username
+                if (updatedEng != null && (targetUsername.isNullOrBlank() || targetUsername.equals(currentUname, ignoreCase = true))) {
+                    sessionManager.setCurrentUser(updatedEng)
+                }
                 loadData()
                 onResult?.invoke(true, null)
             } else {
