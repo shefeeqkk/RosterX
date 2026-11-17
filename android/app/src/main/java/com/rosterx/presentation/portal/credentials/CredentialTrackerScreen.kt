@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.rosterx.presentation.components.NeumorphicFormInput
+import com.rosterx.presentation.components.ApplyDialogBlurBehind
+import com.rosterx.ui.theme.LocalIsDarkTheme
 import com.rosterx.data.remote.CredentialTrackerDto
 import com.rosterx.domain.model.Engineer
 import com.rosterx.domain.model.EngineerRole
@@ -1084,6 +1086,9 @@ fun AddEditCredentialTrackerDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        ApplyDialogBlurBehind()
+        val isDark = LocalIsDarkTheme.current
+
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.95f)

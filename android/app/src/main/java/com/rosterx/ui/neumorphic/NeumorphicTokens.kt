@@ -56,6 +56,7 @@ object NeumorphicTokens {
     val LightCanvas: Color = Color(0xFFEEF2F6)
     val LightSurface: Color = Color(0xFFEEF2F6)
     val LightSurfaceContrast: Color = Color(0xFFE2E8F0)
+    val LightInputSurface: Color = Color(0xFFE2E8F0)
     val LightTextMain: Color = Color(0xFF1E293B)
     val LightTextMuted: Color = Color(0xFF64748B)
     val LightShadowDark: Color = Color(0x8C92A3B8) // rgba(146, 163, 184, 0.55)
@@ -67,6 +68,7 @@ object NeumorphicTokens {
     val DarkCanvas: Color = Color(0xFF1E293B) // Dark Slate Baseline
     val DarkSurface: Color = Color(0xFF1E293B)
     val DarkSurfaceContrast: Color = Color(0xFF334155)
+    val DarkInputSurface: Color = Color(0xFF151F2E)
     val DarkTextMain: Color = Color(0xFFF8FAFC) // Crisp Off-White Text
     val DarkTextMuted: Color = Color(0xFF94A3B8) // Soft Slate Text
     val DarkShadowDark: Color = Color(0xCC0B1120) // Deep Dark Occlusion
@@ -83,6 +85,9 @@ object NeumorphicTokens {
 
     val SurfaceContrast: Color
         @Composable get() = if (LocalIsDarkTheme.current) DarkSurfaceContrast else LightSurfaceContrast
+
+    val InputSurface: Color
+        @Composable get() = if (LocalIsDarkTheme.current) DarkInputSurface else LightInputSurface
 
     val TextMain: Color
         @Composable get() = if (LocalIsDarkTheme.current) DarkTextMain else LightTextMain
@@ -165,19 +170,19 @@ object NeumorphicTokens {
 
     val ElevationInset: ElevationSpec
         @Composable get() = ElevationSpec(
-            offsetX = 3.dp,
-            offsetY = 3.dp,
-            blurRadius = 6.dp,
-            darkShadow = if (LocalIsDarkTheme.current) DarkShadowDark else Color(0x3894A3B8),
+            offsetX = 4.dp,
+            offsetY = 4.dp,
+            blurRadius = 8.dp,
+            darkShadow = if (LocalIsDarkTheme.current) Color(0xE6080D15) else Color(0x5592A3B8),
             lightShadow = if (LocalIsDarkTheme.current) Color(0x14FFFFFF) else Color(0x33FFFFFF)
         )
 
     val ElevationInsetSubtle: ElevationSpec
         @Composable get() = ElevationSpec(
-            offsetX = 2.dp,
-            offsetY = 2.dp,
-            blurRadius = 4.dp,
-            darkShadow = if (LocalIsDarkTheme.current) Color(0x990B1120) else Color(0x2894A3B8),
+            offsetX = 3.dp,
+            offsetY = 3.dp,
+            blurRadius = 6.dp,
+            darkShadow = if (LocalIsDarkTheme.current) Color(0xB3090E18) else Color(0x4592A3B8),
             lightShadow = if (LocalIsDarkTheme.current) Color(0x0FFFFFFF) else Color(0x26FFFFFF)
         )
 

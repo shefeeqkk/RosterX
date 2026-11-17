@@ -53,11 +53,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.border
 import com.rosterx.ui.neumorphic.NeumorphicTokens
 import com.rosterx.ui.neumorphic.neumorphicAccentGlow
 import com.rosterx.ui.neumorphic.neumorphicInset
 import com.rosterx.ui.neumorphic.neumorphicRaised
 import com.rosterx.ui.neumorphic.neumorphicFloating
+import com.rosterx.ui.neumorphic.neumorphicClickable
 import com.rosterx.ui.theme.LocalIsDarkTheme
 import com.rosterx.ui.theme.LocalThemeAccent
 import java.time.LocalDate
@@ -1017,6 +1019,9 @@ fun UnifiedEditProfileDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        ApplyDialogBlurBehind()
+        val isDark = LocalIsDarkTheme.current
+
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
@@ -1295,9 +1300,17 @@ fun UnifiedEditProfileDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .neumorphicRaised(shape = RoundedCornerShape(12.dp))
-                            .clickable { onDismiss() }
-                            .padding(vertical = 10.dp),
+                            .neumorphicClickable(
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = true
+                            ) { onDismiss() }
+                            .background(NeumorphicTokens.Surface, RoundedCornerShape(12.dp))
+                            .border(
+                                1.dp,
+                                if (isDark) Color(0x1FFFFFFF) else Color(0x1F94A3B8),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(vertical = 11.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -1311,12 +1324,10 @@ fun UnifiedEditProfileDialog(
                     Box(
                         modifier = Modifier
                             .weight(1.5f)
-                            .neumorphicRaised(shape = RoundedCornerShape(12.dp))
-                            .background(
-                                if (canSave) activeAccent else activeAccent.copy(alpha = 0.4f),
-                                RoundedCornerShape(12.dp)
-                            )
-                            .clickable(enabled = canSave) {
+                            .neumorphicClickable(
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = canSave
+                            ) {
                                 val trimmedName = nameInput.trim().toProperCase()
                                 val trimmedPhone = phoneInput.trim()
                                 val trimmedEmail = emailInput.trim().lowercase()
@@ -1337,7 +1348,11 @@ fun UnifiedEditProfileDialog(
                                 )
                                 onDismiss()
                             }
-                            .padding(vertical = 10.dp),
+                            .background(
+                                if (canSave) activeAccent else activeAccent.copy(alpha = 0.4f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(vertical = 11.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(

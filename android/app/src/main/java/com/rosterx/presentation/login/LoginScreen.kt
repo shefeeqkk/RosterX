@@ -64,6 +64,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rosterx.R
 import com.rosterx.presentation.components.NeumorphicFormInput
+import com.rosterx.presentation.components.ApplyDialogBlurBehind
 import com.rosterx.ui.neumorphic.NeumorphicTokens
 import com.rosterx.ui.neumorphic.neumorphicRaised
 import com.rosterx.ui.neumorphic.neumorphicInset
@@ -311,6 +312,7 @@ fun LoginScreen(
             },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
+            ApplyDialogBlurBehind()
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
@@ -513,6 +515,7 @@ fun LoginScreen(
             onDismissRequest = { showServerDialog = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
+            ApplyDialogBlurBehind()
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)

@@ -1,7 +1,31 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 15:30 IST** (Target Sprint: **v1.29.2 - Build 124**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 16:00 IST** (Target Sprint: **v1.29.3 - Build 125**)
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.29.3 - Build 125):
+> *"Dasa! Boss choicha form enhancements poornamaayi cheythu theerthu macha! 🎨🚀
+> 
+> 1. **High-Depth Recessed Input Basins (`NeumorphicFormInput.kt` & `NeumorphicTokens.kt`)**:
+>    - Card surface-il ninnum distinct aayi kanunna pole `NeumorphicTokens.InputSurface` (`#E2E8F0` in light mode, `#151F2E` in dark mode) background token introduce cheythu.
+>    - Inner occlusion gradient depth `1.8x` (approx 5.4dp) aakki deepen cheythu — input fields authentic sunken wells aayi maarikkazhinju!
+>    - Unfocused state-il subtle 1dp hairline border, active state-il brand accent glow, error-il vibrant red border intact aanu.
+> 
+> 2. **Form Buttons Overhaul (`ManageTeamTab.kt` & `ProfileComponents.kt`)**:
+>    - **Role and access**: Recessed segmented basin-il tactile raised pill (`neumorphicRaised`), `AccentSalmon` vibrant gradient, and crisp white typography.
+>    - **Weekly offs (2 days)**: Header-il dynamic `${selectedOffs.size}/2 selected` counter; selected days-inu raised active salmon pills; unselected-inu inset sunken basins with hairline borders.
+>    - **Employment status**: Active-inu Emerald Green (`#10B981`) raised pill; Resigned-inu Crimson (`#EF4444`) raised pill.
+>    - **Action Row**: Delete button square `42.dp` with red accent border, Cancel button with soft surface, and Save button with checkmark icon — ellathinum active press kinetics (`neumorphicClickable`) add cheythu!
+> 
+> 3. **Frosted Background Blur Instead of Dark Dim (`ApplyDialogBlurBehind`)**:
+>    - Heavy gloomy dark dimming (`0.60f`) maatti, hardware-accelerated `FLAG_BLUR_BEHIND` (API 31+) with `blurBehindRadius = 45px` and light luminous tint (`0.15f` dim) implement cheythu.
+>    - `NeumorphicDialog.kt`, `ManageTeamTab.kt`, `ProfileComponents.kt`, `CredentialTrackerScreen.kt`, and `LoginScreen.kt` ellathilum frosted glass backdrop live aakki!
+> 
+> 4. **Build & Release**:
+>    - Semantic version bumped to `v1.29.3` (Build 125) in `build.gradle.kts` and `server.py`.
+>    - Safe build succeeded via `cd android && .\safe_build.bat assembleDebug` in 2m 49s!"*
 
 ---
 

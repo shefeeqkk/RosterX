@@ -43,10 +43,14 @@ import android.app.DatePickerDialog
 import java.util.Calendar
 import java.util.Locale
 import com.rosterx.presentation.components.NeumorphicFormInput
+import com.rosterx.presentation.components.ApplyDialogBlurBehind
 import com.rosterx.ui.neumorphic.neumorphicRaised
 import com.rosterx.ui.neumorphic.neumorphicInset
 import com.rosterx.ui.neumorphic.neumorphicFloating
+import com.rosterx.ui.neumorphic.neumorphicClickable
 import com.rosterx.ui.neumorphic.NeumorphicTokens
+import com.rosterx.ui.theme.LocalIsDarkTheme
+import androidx.compose.foundation.border
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,6 +153,9 @@ fun ManageTeamTab(
             },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
+            ApplyDialogBlurBehind()
+            val isDark = LocalIsDarkTheme.current
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.95f)
@@ -369,7 +376,7 @@ fun ManageTeamTab(
                     // Row 5: Role & Access Level (100%)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Role & access",
+                            text = "Role and access",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = NeumorphicTokens.TextMuted
@@ -377,8 +384,17 @@ fun ManageTeamTab(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .neumorphicInset(shape = RoundedCornerShape(12.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
-                                .padding(3.dp),
+                                .neumorphicInset(
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = NeumorphicTokens.ElevationInsetSubtle,
+                                    surfaceColor = NeumorphicTokens.InputSurface
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isDark) Color(0x1AFFFFFF) else Color(0x1F94A3B8),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             listOf(
@@ -394,10 +410,15 @@ fun ManageTeamTab(
                                         .then(
                                             if (isSelected) {
                                                 Modifier
-                                                    .neumorphicRaised(shape = RoundedCornerShape(9.dp), elevation = NeumorphicTokens.ElevationRaised)
+                                                    .neumorphicRaised(
+                                                        shape = RoundedCornerShape(9.dp),
+                                                        elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                    )
                                                     .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(9.dp))
                                             } else {
-                                                Modifier.clickable { if (!isReadOnly && !isSaving) roleInput = roleOption }
+                                                Modifier
+                                                    .clip(RoundedCornerShape(9.dp))
+                                                    .clickable { if (!isReadOnly && !isSaving) roleInput = roleOption }
                                             }
                                         )
                                         .padding(vertical = 7.dp),
@@ -405,7 +426,7 @@ fun ManageTeamTab(
                                 ) {
                                     Text(
                                         text = label,
-                                        fontSize = 10.5.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected) Color.White else NeumorphicTokens.TextMuted,
                                         maxLines = 1
@@ -418,12 +439,24 @@ fun ManageTeamTab(
                     // Weekly Offs (if role is Engineer or Apprentice)
                     if (roleInput == EngineerRole.ENGINEER || roleInput == EngineerRole.APPRENTICE) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Weekly offs (2 days)",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = NeumorphicTokens.TextMuted
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Weekly offs (2 days)",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NeumorphicTokens.TextMuted
+                                )
+                                Text(
+                                    text = "${selectedOffs.size}/2 selected",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (selectedOffs.size == 2) Color(0xFF10B981) else NeumorphicTokens.TextMuted
+                                )
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -436,10 +469,23 @@ fun ManageTeamTab(
                                             .then(
                                                 if (isSelected) {
                                                     Modifier
-                                                        .neumorphicRaised(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationRaised)
+                                                        .neumorphicRaised(
+                                                            shape = RoundedCornerShape(8.dp),
+                                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                        )
                                                         .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(8.dp))
                                                 } else {
-                                                    Modifier.neumorphicInset(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                                    Modifier
+                                                        .neumorphicInset(
+                                                            shape = RoundedCornerShape(8.dp),
+                                                            elevation = NeumorphicTokens.ElevationInsetSubtle,
+                                                            surfaceColor = NeumorphicTokens.InputSurface
+                                                        )
+                                                        .border(
+                                                            1.dp,
+                                                            if (isDark) Color(0x1AFFFFFF) else Color(0x1F94A3B8),
+                                                            RoundedCornerShape(8.dp)
+                                                        )
                                                 }
                                             )
                                             .clickable {
@@ -447,7 +493,7 @@ fun ManageTeamTab(
                                                     selectedOffs = if (isSelected) selectedOffs - day else selectedOffs + day
                                                 }
                                             }
-                                            .padding(vertical = 5.dp),
+                                            .padding(vertical = 6.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
@@ -486,20 +532,32 @@ fun ManageTeamTab(
                                         .then(
                                             if (isSelected) {
                                                 Modifier
-                                                    .neumorphicRaised(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationRaised)
+                                                    .neumorphicRaised(
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                    )
                                                     .background(activeColor, RoundedCornerShape(8.dp))
                                             } else {
                                                 Modifier
-                                                    .neumorphicInset(shape = RoundedCornerShape(8.dp), elevation = NeumorphicTokens.ElevationInsetSubtle)
+                                                    .neumorphicInset(
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        elevation = NeumorphicTokens.ElevationInsetSubtle,
+                                                        surfaceColor = NeumorphicTokens.InputSurface
+                                                    )
+                                                    .border(
+                                                        1.dp,
+                                                        if (isDark) Color(0x1AFFFFFF) else Color(0x1F94A3B8),
+                                                        RoundedCornerShape(8.dp)
+                                                    )
                                                     .clickable { if (!isReadOnly && !isSaving) statusInput = statusOption }
                                             }
                                         )
-                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = label,
-                                        fontSize = 10.5.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) Color.White else NeumorphicTokens.TextMuted
                                     )
@@ -512,23 +570,27 @@ fun ManageTeamTab(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (!isReadOnly && editingEngineer != null && onDeleteEngineer != null) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .neumorphicRaised(shape = RoundedCornerShape(12.dp))
-                                    .clickable(enabled = !isSaving) { showDeleteConfirmDialog = true },
+                                    .size(42.dp)
+                                    .neumorphicClickable(
+                                        shape = RoundedCornerShape(12.dp),
+                                        enabled = !isSaving
+                                    ) { showDeleteConfirmDialog = true }
+                                    .background(NeumorphicTokens.Surface, RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color(0x33EF4444), RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = "Delete",
                                     tint = Color(0xFFEF4444),
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(19.dp)
                                 )
                             }
                         }
@@ -536,12 +598,20 @@ fun ManageTeamTab(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .neumorphicRaised(shape = RoundedCornerShape(12.dp))
-                                .clickable(enabled = !isSaving) {
+                                .neumorphicClickable(
+                                    shape = RoundedCornerShape(12.dp),
+                                    enabled = !isSaving
+                                ) {
                                     editingEngineer = null
                                     showEditDialog = false
                                 }
-                                .padding(vertical = 10.dp),
+                                .background(NeumorphicTokens.Surface, RoundedCornerShape(12.dp))
+                                .border(
+                                    1.dp,
+                                    if (isDark) Color(0x1FFFFFFF) else Color(0x1F94A3B8),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(vertical = 11.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -557,12 +627,10 @@ fun ManageTeamTab(
                             Box(
                                 modifier = Modifier
                                     .weight(1.5f)
-                                    .neumorphicRaised(shape = RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (canSave) NeumorphicTokens.AccentSalmon else NeumorphicTokens.AccentSalmon.copy(alpha = 0.4f),
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable(enabled = canSave) {
+                                    .neumorphicClickable(
+                                        shape = RoundedCornerShape(12.dp),
+                                        enabled = canSave
+                                    ) {
                                         val target = editingEngineer
                                         val cleanUsername = if (usernameInput.isNotBlank()) {
                                             usernameInput.trim().lowercase()
@@ -576,7 +644,7 @@ fun ManageTeamTab(
 
                                         if (target == null && passwordInput.isBlank()) {
                                             Toast.makeText(context, "Please set an initial password for this account", Toast.LENGTH_SHORT).show()
-                                            return@clickable
+                                            return@neumorphicClickable
                                         }
 
                                         isSaving = true

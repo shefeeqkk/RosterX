@@ -118,7 +118,7 @@ fun Modifier.neumorphicInset(
 
         val width = size.width
         val height = size.height
-        val depth = elevation.offsetY.toPx() * 1.5f
+        val depth = elevation.offsetY.toPx() * 1.8f
 
         // Top-Left Inner Occlusion Shadow (Simulates top lip casting shadow downward-right)
         if (elevation.darkShadow != Color.Transparent && elevation.darkShadow.alpha > 0.01f) {

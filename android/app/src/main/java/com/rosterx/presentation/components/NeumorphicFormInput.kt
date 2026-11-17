@@ -47,6 +47,7 @@ fun NeumorphicFormInput(
     readOnly: Boolean = false,
     singleLine: Boolean = true,
     shape: Shape = RoundedCornerShape(12.dp),
+    surfaceColor: Color = NeumorphicTokens.InputSurface,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
@@ -83,7 +84,7 @@ fun NeumorphicFormInput(
 
         var boxModifier = Modifier
             .fillMaxWidth()
-            .neumorphicInset(shape = shape, elevation = NeumorphicTokens.ElevationInsetSubtle)
+            .neumorphicInset(shape = shape, elevation = NeumorphicTokens.ElevationInsetSubtle, surfaceColor = surfaceColor)
             .border(width = 1.dp, color = borderColor, shape = shape)
 
         if (onClick != null) {
