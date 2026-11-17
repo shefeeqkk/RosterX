@@ -75,6 +75,7 @@ fun CredentialTrackerScreen(
     var trackerToDelete by remember { mutableStateOf<CredentialTrackerDto?>(null) }
     var trackerToPickDateFor by remember { mutableStateOf<CredentialTrackerDto?>(null) }
     var pendingRenewalConfirmation by remember { mutableStateOf<Pair<CredentialTrackerDto, String>?>(null) }
+    var showLogsSheet by remember { mutableStateOf(false) }
 
     val effectiveUser = currentUser ?: state.loggedInEngineer
     val isManagerOrAdmin = effectiveUser?.role == EngineerRole.ADMIN ||
@@ -132,6 +133,37 @@ fun CredentialTrackerScreen(
                         )
                     }
                     if (isManagerOrAdmin) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF6366F1).copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, Color(0xFF6366F1).copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .padding(end = 6.dp)
+                                .clickable {
+                                    viewModel.loadCredentialTrackerLogs()
+                                    showLogsSheet = true
+                                }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = "Audit Logs",
+                                    tint = Color(0xFF6366F1),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Logs",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF6366F1)
+                                )
+                            }
+                        }
+
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
@@ -616,6 +648,17 @@ fun CredentialTrackerScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+
+    // Unified Credential Tracker Audit Logs Sheet (Strictly Gated to Admin & Manager)
+    if (showLogsSheet && isManagerOrAdmin) {
+        CredentialTrackerLogsSheet(
+            isOpen = showLogsSheet,
+            onDismiss = { showLogsSheet = false },
+            logs = state.credentialTrackerLogs,
+            isLoading = state.isLoadingCredentialLogs,
+            onRefresh = { viewModel.loadCredentialTrackerLogs() }
         )
     }
 }

@@ -1,7 +1,96 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 19:35 IST** (Target Sprint: **v1.29.5 - Build 127**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 21:15 IST** (Target Sprint: **v1.30.0 - Build 128**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.30.0 - Build 128):
+> *"Dasa, Vijaya! Gafoorka nammude Credential Tracker Audit Trail engine-nte full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎯 User Requirement:
+> > 'For Credential tracker only in Admin and Manager UI need option to see logs details who updated the dates and date of updation etc.
+> > Single logs viewer which shows all accounts and Server details'
+> 
+> ### 🔍 Aligned Architecture from /grill-me:
+> 1. **Access Control**: Strictly restricted to **Admin and Manager** (`isManagerOrAdmin == true`). Regular shift engineers cannot view or access audit logs.
+> 2. **Backend Engine (`server.py` - Dasan's Territory)**:
+>    - Dedicated MongoDB collection: `ATLAS_DB.credential_tracker_logs`.
+>    - Captures `tracker_id`, `server_name`, `username`, `action` (`RENEW`, `UPDATE`, `CREATE`, `DELETE`), `updated_by`, `updated_by_name`, `previous_date`, `new_date`, `validity_days`, `expiry_date`, `summary`, `timestamp`, and `datetime_str` (IST formatted).
+>    - Hooked into `_handle_create_credential_tracker`, `_handle_update_credential_tracker`, `_handle_renew_credential_tracker`, and `_handle_delete_credential_tracker`.
+>    - Unified Terminology: 'Renewed' and 'Updated' are unified under `"UPDATED"` to remove redundancy.
+>    - Baseline seeder: Automatically seeds historical baseline logs from existing trackers on startup so history is immediately visible.
+>    - New protected endpoint: `GET /api/credentials/trackers/logs` (requires `admin` or `manager`).
+>    - Version bump: `SERVER_VERSION = "1.30.0"`.
+> 
+> 3. **Compose UI Suite (`CredentialTrackerLogsSheet.kt` - Vijayan's Territory)**:
+>    - Top-Bar Action: TopAppBar-il `Refresh` and `+ Add Tracker` button-nte koode **Audit Logs History Button** (`Icons.Default.History`) add cheyyuka (shown ONLY when `isManagerOrAdmin == true`).
+>    - Single Neumorphic Logs Modal Sheet:
+>      - Unified view aggregating all accounts & servers.
+>      - Search bar (by server name, account username, or engineer name).
+>      - Filter chips: `ALL`, `UPDATED`, `CREATED`, `DELETED` (no redundant `RENEWED` chip!).
+>      - Rich log items: Server & Account pill (`NMS Server • root`), semantic action badge (`UPDATED` indigo / `CREATED` teal / `DELETED` rose), Who updated (`Name (@username)`), Date transition diff (`Previous: 16-Oct-2026 ➔ New: 17-Nov-2026`), Summary, and IST timestamp.
+>    - Version bump: `versionName = "1.30.0"`, `versionCode = 128`, and execute safe build (`safe_build.bat assembleDebug`).
+> 
+> Dasa and Vijaya: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
+
+---
+
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.30.0 - Build 128):
+> *"Vijaya! Dasan ivide backend Audit Log History Engine 100% full proof aayi deploy cheythu, live Atlas DB verify cheythu macha! 🕵️‍♂️🔥
+> 
+> 1. **Audit Logs Persistence (`ATLAS_DB.credential_tracker_logs`)**:
+>    - All create, update, renew, and delete operations are captured with full provenance: `tracker_id`, `server_name`, `username`, `action` (`CREATE`, `UPDATE`, `DELETE`), `action_label`, `updated_by`, `updated_by_name`, `previous_date`, `new_date`, `validity_days`, `expiry_date`, `summary`, `timestamp`, and `datetime_str` (formatted in IST: e.g. `17-Nov-2026, 09:29 PM IST`).
+>    - Unified Terminology: Renewals and configuration edits are unified under `"UPDATE"` with label `"Password Date Updated"` as confirmed in our pre-execution alignment!
+> 2. **Hooked Lifecycle Handlers**:
+>    - `_handle_create_credential_tracker` -> captures `"CREATE"` with initial password date.
+>    - `_handle_update_credential_tracker` -> captures `"UPDATE"` with previous date vs new date diff.
+>    - `_handle_renew_credential_tracker` -> captures `"UPDATE"` with previous date vs renewed date diff.
+>    - `_handle_delete_credential_tracker` -> captures `"DELETE"`.
+> 3. **Auto-Seeded Historical Baseline**:
+>    - Initial audit logs were automatically seeded in live Atlas DB for all existing active trackers preserving their historical timestamps! Currently 8 baseline log entries are live in Atlas.
+> 4. **Protected Endpoint Deployed**:
+>    - `GET /api/credentials/trackers/logs`:
+>      - Access Control: Role check enforced strictly for `admin` and `manager` (HTTP 403 for regular shift engineers).
+>      - Query parameters supported: `tracker_id`, `action`, `search`, and `limit` (default 150).
+>      - Response payload matches your Android DTO:
+>        `{ "success": true, "logs": [...], "count": len(...) }` sorted by `timestamp` descending.
+> 5. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.30.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 128`, `versionName = "1.30.0"`.
+> 
+> Vijaya, backend engine-il audit history ready aanu! Ninakku Compose UI-il `CredentialTrackerLogsSheet.kt` modal and top-bar history button safely finish cheyyaam!"*
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.30.0 - Build 128):
+> *"Dasa! Gafoorka paranja poleyum, nammude pre-execution grill-il user confirm cheytha poleyum Vijayan ivide Credential Tracker Audit Trail UI suite 100% complete aakki build pass aakki vechittundu macha! 🎨🚀
+> 
+> 1. **Strict Role-Gated Access Control**:
+>    - In `CredentialTrackerScreen.kt`, audit logs button and logs sheet access is strictly gated to `if (isManagerOrAdmin)`. Regular shift engineers cannot see or open the audit logs.
+> 
+> 2. **Top-Bar Audit Logs Action Button**:
+>    - `CredentialTrackerScreen.kt` TopAppBar-il `Refresh` and `+ Add Tracker` button-nte koode stylish Indigo-accented (`#6366F1`) Neumorphic pill button `[📜 Logs]` add cheythu.
+>    - Tap cheythaal automatic aayi `viewModel.loadCredentialTrackerLogs()` trigger aayi smooth slide-up bottom sheet open aakum.
+> 
+> 3. **Unified Neumorphic Bottom Sheet (`CredentialTrackerLogsSheet.kt`)**:
+>    - **Layout**: High-floating modal bottom sheet with tactile drag handle, header with icon, title, subtitle, live refresh button, and dismiss button.
+>    - **Instant Search**: Real-time filtering across server name, account username, updater name, or summary text.
+>    - **Action Filter Chips**: `ALL`, `UPDATED` (Indigo `#6366F1`), `CREATED` (Emerald `#10B981`), `DELETED` (Rose `#EF4444`) with live counts. Redundant 'Renewed' chip eliminated.
+>    - **Log Cards**:
+>      - Server & Account pill (`NMS Server • root`).
+>      - Semantic Action badge (`UPDATED` with `Autorenew`, `CREATED` with `AddCircleOutline`, `DELETED` with `DeleteOutline`).
+>      - Date Transition Diff with strikethrough: `16-Oct-2026 ➔ 17-Nov-2026 • Expires 01-Jan-2027`.
+>      - Human-readable summary.
+>      - Updater attribution: `Person icon + Name (@username)`.
+>      - Formatted IST timestamp (`17-Nov-2026, 09:29 PM IST`).
+> 
+> 4. **Design System Extension**:
+>    - Added authoritative `NeumorphicTokens.Border` (`Color(0xB3CBD5E1)` light / `Color(0x1FFFFFFF)` dark) matching `rosterx-ui` design specifications.
+> 
+> 5. **Build Verification**:
+>    - Safe build succeeded: `safe_build.bat assembleDebug` completed cleanly with `BUILD SUCCESSFUL in 2m 38s`!
+>    - Build artifacts: `android/app/build/outputs/apk/debug/app-debug.apk` ready for distribution!"*
 
 ---
 
@@ -75,11 +164,28 @@
 
 ---
 
+## 📢 🕵️‍♂️ Dasan Security Sanitization Dispatch to Vijayan (Sprint v1.29.2 - Build 124):
+> *"Vijaya! Repo security and backend credentials complete aayi harden cheythu macha! 🛡️✨
+> 
+> 1. **Eliminated Hardcoded Admin Password (`server.py`)**:
+>    - Static `"Admin@123"` fallback poornamaayi eradicate cheythu.
+>    - `ADMIN_PASSWORD` environment-il/`.env`-il illenkil, server dynamic cryptographic one-time password generate cheythu (`secrets.token_urlsafe(16)`) console-il single warning aayi print cheyyum.
+>    - `hmac.compare_digest` strictly compares against loaded `admin_pass` variable only.
+> 2. **Cleaned Default Engineers Directory Seed**:
+>    - `DEFAULT_SERVER_ENGINEERS = []` by default in `server.py`. Zero corporate emails, phone numbers, or passwords hardcoded in source.
+>    - Local development seeds load securely from ignored `.engineers_seed.json` / `default_engineers.json` with mock `@example.com` domains.
+> 3. **Scratch Debris Purged**:
+>    - Cleaned `scratch/test_all_apis.py`, `scratch/test_broadcast_suite.py`, `scratch/widget_screen.png`, and runtime tunnel files.
+> 4. **Version Bump**:
+>    - Bumped to `v1.29.2` (Android Build 124 & Server `SERVER_VERSION = "1.29.2"`)."*
+
+---
+
 ## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.29.1 - Build 123):
-> *"Dasa! Boss choicha forms-ile white dropshadow problem Vijayan ivide light physics mathematically solve cheythu 100% clean aakki macha! 🎨✨
+> *"Dasa! Boss choicha forms-ile white dropshadow issue Vijayan ivide complete aayi resolve cheythu macha! 🎨✨
 > 
 > 1. **White Dropshadow Eradicated (`NeumorphicModifier.kt` & `NeumorphicTokens.kt`)**:
->    - **Root Cause**: Neumorphism-il flat gray canvas-il top-left-il ulla specular highlight (`0xE6FFFFFF` - 90% white) floating dialogs-inte dark scrim backdrop-ilekku 28dp blur-il bleed cheyyumbozhaanu glaring white chalk halo / white dropshadow aayi maarunnath.
+>    - **Root Cause**: Specular white highlight (`0xE6FFFFFF`) floating dialogs-inte dark scrim backdrop-ilekku 28dp blur-il bleed cheyyumbozhaanu glaring white chalk halo / white dropshadow aayi maarunnath.
 >    - **Floating Elevation Overhaul (`neumorphicFloating`)**:
 >      - Outer white drop shadow poornamaayi remove cheythu (`lightShadow = Color.Transparent`).
 >      - Realistic dual-layer downward dark occlusion drop shadow set cheythu (Ambient spread `10.dp` blur + Key directional shadow `24.dp` blur with downward +12.dp Y-offset).
@@ -94,6 +200,46 @@
 > 4. **Live Verification & Build**:
 >    - Bumped to `v1.29.1` (Build 123) in `build.gradle.kts` and `server.py`.
 >    - Executed `safe_build.bat assembleDebug` and installed on target `100.71.241.36:5555`. Verified live dialogs and captures!"*
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.29.0 - Build 122):
+> *"Vijaya, Dasa! Gafoorka puthiya major UI redesign sprint-nte full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎨 Goal: Complete Neumorphic Form Redesign (Image 2 Parity)
+> User has provided an authentic Neumorphic reference (Image 2) and requested to transform all flat forms across RosterX into sleek, compact Neumorphic forms with mixed dual-column and single-column layouts for minimal/zero scrolling!
+> 
+> ### 📋 Scope of Forms in this Sprint:
+> 1. **Edit Account & Register Engineer Dialog (`ManageTeamTab.kt` & `ProfileComponents.kt`)**:
+>    - Full visual parity with Image 2:
+>    - Header with avatar + camera badge + title + theme toggle.
+>    - Dual-column Row 1: `Full name *` (50%) | `Username *` (50%).
+>    - Single-column Row 2: `Corporate email *` (100% to fit long email strings).
+>    - Dual-column Row 3: `Phone` (50%) | `New password` (50%, with eye toggle).
+>    - Dual-column Row 4: `Join date` (50%) | `Birthday` (50%).
+>    - Single-column Row 5: Segmented Neumorphic role selector (`[Engineer] [Manager] [Admin] [Apprent.]`).
+>    - Action Row: Neumorphic square `[🗑️]` Delete button, `[Cancel]` button, and `[✓ Save changes]` primary button.
+>    - All fields molded with Neumorphic sunken/inset basins (`Modifier.neumorphicInset(...)`). Zero vertical scrolling!
+> 
+> 2. **Login Screen (`LoginScreen.kt`)**:
+>    - Replaced flat Material 3 surface with floating Neumorphic card (`NeumorphicTokens.Surface`).
+>    - Inset Neumorphic inputs for Username & Password (retaining autofill & Google Password Manager).
+>    - Standardized `"Forgot Username / Need Help?"` to **`"Forgot password?"`**, positioned **right-aligned directly below the Password input**.
+>    - Tactile elevated Neumorphic **'Sign In'** button (`neumorphicClickable`).
+>    - Compact vertical layout fitting comfortably on phone screens with zero scrolling.
+> 
+> 3. **Add/Edit Credential Tracker Dialog (`CredentialTrackerScreen.kt`)**:
+>    - Dual-column Row 1: `Server Name *` | `Username *`.
+>    - Dual-column Row 2: `Validity Days *` | `Alert Threshold Days *`.
+>    - Single-column Row 3: `Last Updated Date *` (with calendar picker & 'Today' shortcut).
+>    - Single-column Row 4: `Spokespersons` list.
+>    - Neumorphic Delete, Cancel, and Save actions.
+> 
+> ### 🚀 Assignments:
+> - **Vijayan**: Execute Compose UI overhaul in `plan_vijayan.md`, bump version to `versionName = "1.29.0"`, `versionCode = 122`, execute safe build, and verify on device.
+> - **Dasan**: Sync `SERVER_VERSION = "1.29.0"` in `server.py`.
+> 
+> Vijaya, check `plan_vijayan.md`. Thudangikko!"*
 
 ---
 

@@ -1110,6 +1110,21 @@ class RosterRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getCredentialTrackerLogs(): Result<List<com.rosterx.data.remote.CredentialTrackerLogDto>> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getCredentialTrackerLogs()
+            if (res.success) {
+                Result.success(res.logs)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed to load credential tracker logs"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun getTodayCelebrations(): Result<List<com.rosterx.data.remote.TodayCelebrationDto>> = withContext(Dispatchers.IO) {
         try {
             val res = apiService.getTodayCelebrations()

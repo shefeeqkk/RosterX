@@ -321,6 +321,9 @@ interface RosterApiService {
     @POST("api/credentials/trackers/{id}/delete")
     suspend fun deleteCredentialTracker(@Path("id") id: String): CredentialTrackerOperationResponse
 
+    @GET("api/credentials/trackers/logs")
+    suspend fun getCredentialTrackerLogs(): CredentialTrackerLogsResponse
+
     @GET("api/celebrations/today")
     suspend fun getTodayCelebrations(): TodayCelebrationsResponse
 }
@@ -535,6 +538,31 @@ data class CredentialTrackerOperationResponse(
     val success: Boolean,
     val message: String? = null,
     val tracker: CredentialTrackerDto? = null
+)
+
+data class CredentialTrackerLogDto(
+    val id: String = "",
+    @SerializedName("tracker_id") val trackerId: String = "",
+    @SerializedName("server_name") val serverName: String = "",
+    val username: String = "",
+    val action: String = "",
+    @SerializedName("action_label") val actionLabel: String = "",
+    @SerializedName("updated_by") val updatedBy: String = "",
+    @SerializedName("updated_by_name") val updatedByName: String = "",
+    @SerializedName("previous_date") val previousDate: String? = null,
+    @SerializedName("new_date") val newDate: String? = null,
+    @SerializedName("validity_days") val validityDays: Int? = null,
+    @SerializedName("expiry_date") val expiryDate: String? = null,
+    val summary: String = "",
+    val timestamp: Long = 0L,
+    @SerializedName("datetime_str") val datetimeStr: String = ""
+)
+
+data class CredentialTrackerLogsResponse(
+    val success: Boolean = false,
+    val logs: List<CredentialTrackerLogDto> = emptyList(),
+    val count: Int = 0,
+    val message: String? = null
 )
 
 data class TodayCelebrationDto(

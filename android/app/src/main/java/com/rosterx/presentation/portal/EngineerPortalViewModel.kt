@@ -109,6 +109,8 @@ data class PortalState(
     val credentialsExpiredCount: Int = 0,
     val credentialsTotalCount: Int = 0,
     val credentialsActionError: String? = null,
+    val credentialTrackerLogs: List<com.rosterx.data.remote.CredentialTrackerLogDto> = emptyList(),
+    val isLoadingCredentialLogs: Boolean = false,
     val todayCelebrations: List<com.rosterx.data.remote.TodayCelebrationDto> = emptyList(),
     val dismissedCelebrationIds: Set<String> = emptySet()
 )
@@ -1153,6 +1155,23 @@ class EngineerPortalViewModel @Inject constructor(
                 )
             }
             onComplete?.invoke()
+        }
+    }
+
+    fun loadCredentialTrackerLogs(silent: Boolean = false) {
+        viewModelScope.launch {
+            if (!silent) {
+                _state.value = _state.value.copy(isLoadingCredentialLogs = true)
+            }
+            val res = repository.getCredentialTrackerLogs()
+            res.onSuccess { logs ->
+                _state.value = _state.value.copy(
+                    credentialTrackerLogs = logs,
+                    isLoadingCredentialLogs = false
+                )
+            }.onFailure {
+                _state.value = _state.value.copy(isLoadingCredentialLogs = false)
+            }
         }
     }
 

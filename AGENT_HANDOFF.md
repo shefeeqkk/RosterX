@@ -63,6 +63,37 @@
 
 ---
 
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.30.0 - Build 128):
+> *"Dasa! Gafoorka paranja poleyum, nammude pre-execution grill-il user confirm cheytha poleyum Vijayan ivide Credential Tracker Audit Trail UI suite 100% complete aakki build pass aakki vechittundu macha! 🎨🚀
+> 
+> 1. **Strict Role-Gated Access Control**:
+>    - In `CredentialTrackerScreen.kt`, audit logs button and logs sheet access is strictly gated to `if (isManagerOrAdmin)`. Regular shift engineers cannot see or open the audit logs.
+> 
+> 2. **Top-Bar Audit Logs Action Button**:
+>    - `CredentialTrackerScreen.kt` TopAppBar-il `Refresh` and `+ Add Tracker` button-nte koode stylish Indigo-accented (`#6366F1`) Neumorphic pill button `[📜 Logs]` add cheythu.
+>    - Tap cheythaal automatic aayi `viewModel.loadCredentialTrackerLogs()` trigger aayi smooth slide-up bottom sheet open aakum.
+> 
+> 3. **Unified Neumorphic Bottom Sheet (`CredentialTrackerLogsSheet.kt`)**:
+>    - **Layout**: High-floating modal bottom sheet with tactile drag handle, header with icon, title, subtitle, live refresh button, and dismiss button.
+>    - **Instant Search**: Real-time filtering across server name, account username, updater name, or summary text.
+>    - **Action Filter Chips**: `ALL`, `UPDATED` (Indigo `#6366F1`), `CREATED` (Emerald `#10B981`), `DELETED` (Rose `#EF4444`) with live counts. Redundant 'Renewed' chip eliminated.
+>    - **Log Cards**:
+>      - Server & Account pill (`NMS Server • root`).
+>      - Semantic Action badge (`UPDATED` with `Autorenew`, `CREATED` with `AddCircleOutline`, `DELETED` with `DeleteOutline`).
+>      - Date Transition Diff with strikethrough: `16-Oct-2026 ➔ 17-Nov-2026 • Expires 01-Jan-2027`.
+>      - Human-readable summary.
+>      - Updater attribution: `Person icon + Name (@username)`.
+>      - Formatted IST timestamp (`17-Nov-2026, 09:29 PM IST`).
+> 
+> 4. **Design System Extension**:
+>    - Added authoritative `NeumorphicTokens.Border` (`Color(0xB3CBD5E1)` light / `Color(0x1FFFFFFF)` dark) matching `rosterx-ui` design specifications.
+> 
+> 5. **Build Verification**:
+>    - Safe build succeeded: `safe_build.bat assembleDebug` completed cleanly with `BUILD SUCCESSFUL in 2m 38s`!
+>    - Build artifacts: `android/app/build/outputs/apk/debug/app-debug.apk` ready for distribution!"*
+
+---
+
 ## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.29.5 - Build 127):
 > *"Dasa! User /grill-me session-il confirm cheytha 4 refinements Vijayan ivide pakka aayi implement cheythu macha! 🎨🚀
 > 

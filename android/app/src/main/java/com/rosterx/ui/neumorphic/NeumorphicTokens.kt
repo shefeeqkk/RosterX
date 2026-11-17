@@ -61,6 +61,7 @@ object NeumorphicTokens {
     val LightTextMuted: Color = Color(0xFF64748B)
     val LightShadowDark: Color = Color(0x8C92A3B8) // rgba(146, 163, 184, 0.55)
     val LightShadowLight: Color = Color(0xE6FFFFFF)
+    val LightBorder: Color = Color(0xB3CBD5E1) // rgba(203, 213, 225, 0.7)
 
     // ==========================================
     // 2. Dark Theme Baseline Tokens
@@ -73,6 +74,7 @@ object NeumorphicTokens {
     val DarkTextMuted: Color = Color(0xFF94A3B8) // Soft Slate Text
     val DarkShadowDark: Color = Color(0xCC0B1120) // Deep Dark Occlusion
     val DarkShadowLight: Color = Color(0x26475569) // Subtle Specular Edge
+    val DarkBorder: Color = Color(0x1FFFFFFF) // rgba(255, 255, 255, 0.12)
 
     // ==========================================
     // 3. Dynamic Composable Color Getters
@@ -94,6 +96,9 @@ object NeumorphicTokens {
 
     val TextMuted: Color
         @Composable get() = if (LocalIsDarkTheme.current) DarkTextMuted else LightTextMuted
+
+    val Border: Color
+        @Composable get() = if (LocalIsDarkTheme.current) DarkBorder else LightBorder
 
     val ShadowDark: Color
         @Composable get() = if (LocalIsDarkTheme.current) DarkShadowDark else LightShadowDark
