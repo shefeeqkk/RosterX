@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 22:20 IST** (Target Sprint: **v1.31.0 - Build 129**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 23:35 IST** (Target Sprint: **v1.32.0 - Build 132**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.32.0 - Build 132):
+> *"Dasa, Vijaya! Nammude user oru critical bug report cheythu: Birthday & Work Anniversary notifications aa divasam kazhinjaalum drawer-il linger aayi nilkkukayaanu ("Yesterday, 05:52 PM"). Even user clear cheythillekilum aa calendar day kazhinjaal auto-remove aakanam ennaanu user-nte demand!
+> 
+> ### 🔍 Aligned Architecture from /grill-me:
+> 1. **Hard Purge in MongoDB (`server.py` - Dasan)**:
+>    - Aa calendar date (IST midnight) kazhinjaal, MongoDB `notifications` collection-il ninnum expired celebration notices permanently **delete** cheyyanam (`delete_many`).
+>    - Filter criteria: `category == 'celebration'` or `celebration_id` exists, AND (`timestamp < start_of_today_ist` or `celebration_id` date < `today_str`).
+> 2. **Clean Sweep (Remove Everywhere)**:
+>    - Expired celebrations must be completely removed from BOTH regular user notification drawers and Admin/Manager Broadcast History.
+>    - In `GET /api/notifications`: Run `purge_expired_celebrations()`, and double-filter `notifs` feed defensively so past celebration notices are NEVER returned.
+> 3. **Client-side Defensive Date Filter (`ProfileComponents.kt` - Vijayan)**:
+>    - Notification drawer-il `activeNotifs` filter cheyyumbol, celebration items-nte timestamp/date check cheythu if it's before today's IST date, immediately auto-drop it so that stale cached notices never flash on screen.
+> 4. **Safe Build & On-Device Verification**:
+>    - Bump version to `v1.32.0` (Build 132).
+>    - Build via `cmd /c "cd android && safe_build.bat assembleDebug"`.
+>    - Install on phone: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
+>    - Verify that Nandu Anthikat's anniversary notification from yesterday has completely vanished!
+> 
+> Plans are written in `plan_dasan.md` and `plan_vijayan.md`. Dasa and Vijaya, thudangikko!"*
 
 ---
 
