@@ -34,6 +34,7 @@ import uuid
 import base64
 import urllib.request
 import urllib.error
+import urllib.parse
 import random
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -41,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.29.5"
+SERVER_VERSION = "1.30.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -167,6 +168,7 @@ def get_ist_time_str(format_12h: bool = True) -> str:
 SERVER_LOGS = collections.deque(maxlen=500)
 SERVER_NOTIFICATIONS = collections.deque(maxlen=100)
 SERVER_CREDENTIAL_TRACKERS = []  # In-memory fallback if Atlas DB is disconnected
+SERVER_CREDENTIAL_TRACKER_LOGS = collections.deque(maxlen=1000)  # In-memory fallback for audit logs
 LAST_CREDENTIAL_ALERT_DATE = {}  # { tracker_id: "YYYY-MM-DD" } to prevent duplicate alerts on same day
 
 def log_server(msg: str):
@@ -604,11 +606,14 @@ def init_atlas_connection(env):
         except Exception:
             pass
 
-        # Ensure indexes on credential_trackers collection
+        # Ensure indexes on credential_trackers and credential_tracker_logs collections
         try:
             ATLAS_DB.credential_trackers.create_index("id", unique=True)
             ATLAS_DB.credential_trackers.create_index("server_name")
             ATLAS_DB.credential_trackers.create_index("expiry_date")
+            ATLAS_DB.credential_tracker_logs.create_index("id", unique=True)
+            ATLAS_DB.credential_tracker_logs.create_index([("timestamp", -1)])
+            ATLAS_DB.credential_tracker_logs.create_index("tracker_id")
         except Exception:
             pass
 
@@ -1337,6 +1342,230 @@ def get_credential_tracker_by_id(tracker_id: str):
     item["status"] = calc["status"]
     item["alert_threshold_days"] = calc["alert_threshold_days"]
     return item
+
+def get_engineer_display_name(username: str) -> str:
+    """Retrieve full name or display name of an engineer from MongoDB, or fallback to username."""
+    if not username:
+        return "System"
+    clean = str(username).strip()
+    if ATLAS_DB is not None:
+        try:
+            eng = ATLAS_DB.engineers.find_one({"username": {"$regex": f"^{re.escape(clean)}$", "$options": "i"}})
+            if eng:
+                return str(eng.get("name") or eng.get("full_name") or clean).strip()
+        except Exception:
+            pass
+    for tm in DEFAULT_SERVER_ENGINEERS:
+        if tm.get("username", "").lower() == clean.lower():
+            return str(tm.get("name") or tm.get("full_name") or clean).strip()
+    return clean.replace("_", " ").replace(".", " ").title()
+
+def record_credential_tracker_log(action: str, tracker: dict, claims: dict = None, previous_tracker: dict = None, custom_summary: str = None):
+    """
+    Record an authoritative audit log entry for credential tracker operations in Atlas DB and in-memory buffer.
+    Unifies 'Renewed' and 'Updated' terminology under 'UPDATE' to eliminate redundancy.
+    """
+    try:
+        now_ist = get_ist_now()
+        timestamp = int(time.time())
+        datetime_str = now_ist.strftime("%d-%b-%Y, %I:%M %p IST")
+        
+        updated_by = (claims.get("username") if claims else None) or tracker.get("updated_by") or tracker.get("created_by") or "system"
+        updated_by_name = get_engineer_display_name(updated_by)
+        
+        act_raw = str(action).strip().upper()
+        if act_raw in ("RENEW", "UPDATE", "UPDATED", "RENEWED"):
+            act_clean = "UPDATE"
+            act_label = "Password Date Updated"
+        elif act_raw in ("CREATE", "CREATED"):
+            act_clean = "CREATE"
+            act_label = "Tracker Created"
+        elif act_raw in ("DELETE", "DELETED"):
+            act_clean = "DELETE"
+            act_label = "Tracker Deleted"
+        else:
+            act_clean = act_raw
+            act_label = act_raw.capitalize()
+            
+        previous_date = None
+        if previous_tracker and isinstance(previous_tracker, dict):
+            previous_date = previous_tracker.get("last_updated_date")
+            
+        new_date = tracker.get("last_updated_date")
+        validity_days = tracker.get("validity_days")
+        expiry_date = tracker.get("expiry_date")
+        server_name = tracker.get("server_name", "Unknown Server")
+        username = tracker.get("username", "account")
+        
+        disp_new = format_display_date(new_date) if new_date else ""
+        disp_prev = format_display_date(previous_date) if previous_date else ""
+        disp_exp = format_display_date(expiry_date) if expiry_date else ""
+
+        if custom_summary:
+            summary = custom_summary
+        elif act_clean == "CREATE":
+            summary = f"Tracker created for '{server_name}' ({username}) with password date {disp_new} (Valid for {validity_days} days, expires {disp_exp})"
+        elif act_clean == "DELETE":
+            summary = f"Deleted credential tracker for '{server_name}' ({username})"
+        else:
+            if previous_date and previous_date != new_date:
+                summary = f"Password updated from {disp_prev} to {disp_new} (Valid for {validity_days} days, expires {disp_exp})"
+            else:
+                summary = f"Password updated to {disp_new} (Valid for {validity_days} days, expires {disp_exp})"
+                
+        log_entry = {
+            "id": f"cred_log_{uuid.uuid4().hex[:12]}",
+            "tracker_id": tracker.get("id", ""),
+            "server_name": server_name,
+            "username": username,
+            "action": act_clean,
+            "action_label": act_label,
+            "updated_by": updated_by,
+            "updated_by_name": updated_by_name,
+            "previous_date": previous_date,
+            "new_date": new_date,
+            "validity_days": validity_days,
+            "expiry_date": expiry_date,
+            "summary": summary,
+            "timestamp": timestamp,
+            "datetime_str": datetime_str
+        }
+        
+        if ATLAS_DB is not None:
+            try:
+                ATLAS_DB.credential_tracker_logs.insert_one(dict(log_entry))
+            except Exception as e:
+                log_server(f"[CREDENTIAL-LOG] Error inserting log into Atlas: {e}")
+                
+        SERVER_CREDENTIAL_TRACKER_LOGS.appendleft(dict(log_entry))
+        log_server(f"[CREDENTIAL-LOG] {act_label}: '{server_name}' ({username}) by {updated_by_name} (@{updated_by})")
+        return log_entry
+    except Exception as e:
+        log_server(f"[CREDENTIAL-LOG] Error recording audit log: {e}")
+        return None
+
+def seed_credential_tracker_logs_if_empty():
+    """Auto-seed baseline audit logs for existing trackers if log collection is completely empty."""
+    try:
+        count = 0
+        if ATLAS_DB is not None:
+            try:
+                count = ATLAS_DB.credential_tracker_logs.count_documents({})
+            except Exception:
+                count = len(SERVER_CREDENTIAL_TRACKER_LOGS)
+        else:
+            count = len(SERVER_CREDENTIAL_TRACKER_LOGS)
+            
+        if count == 0:
+            trackers = get_all_credential_trackers_from_db()
+            if not trackers:
+                return
+            log_server(f"[CREDENTIAL-LOG] Auto-seeding initial audit trail for {len(trackers)} existing trackers...")
+            for t in reversed(trackers):
+                created_by = t.get("created_by") or "admin"
+                created_at = t.get("created_at") or int(time.time() - 86400 * 30)
+                dt_str = datetime.fromtimestamp(created_at, tz=timezone(timedelta(hours=5, minutes=30))).strftime("%d-%b-%Y, %I:%M %p IST")
+                disp_new = format_display_date(t.get("last_updated_date"))
+                disp_exp = format_display_date(t.get("expiry_date"))
+
+                # Baseline create entry
+                c_entry = {
+                    "id": f"cred_log_{uuid.uuid4().hex[:12]}",
+                    "tracker_id": t.get("id", ""),
+                    "server_name": t.get("server_name", ""),
+                    "username": t.get("username", ""),
+                    "action": "CREATE",
+                    "action_label": "Tracker Created",
+                    "updated_by": created_by,
+                    "updated_by_name": get_engineer_display_name(created_by),
+                    "previous_date": None,
+                    "new_date": t.get("last_updated_date"),
+                    "validity_days": t.get("validity_days", 30),
+                    "expiry_date": t.get("expiry_date"),
+                    "summary": f"Initial tracker created for '{t.get('server_name')}' ({t.get('username')}) with password date {disp_new}",
+                    "timestamp": created_at,
+                    "datetime_str": dt_str
+                }
+                if ATLAS_DB is not None:
+                    try:
+                        ATLAS_DB.credential_tracker_logs.insert_one(dict(c_entry))
+                    except Exception:
+                        pass
+                SERVER_CREDENTIAL_TRACKER_LOGS.appendleft(dict(c_entry))
+                
+                # If updated, baseline update entry
+                updated_at = t.get("updated_at")
+                if updated_at and updated_at > created_at:
+                    u_by = t.get("updated_by") or created_by
+                    u_dt_str = datetime.fromtimestamp(updated_at, tz=timezone(timedelta(hours=5, minutes=30))).strftime("%d-%b-%Y, %I:%M %p IST")
+                    u_entry = {
+                        "id": f"cred_log_{uuid.uuid4().hex[:12]}",
+                        "tracker_id": t.get("id", ""),
+                        "server_name": t.get("server_name", ""),
+                        "username": t.get("username", ""),
+                        "action": "UPDATE",
+                        "action_label": "Password Date Updated",
+                        "updated_by": u_by,
+                        "updated_by_name": get_engineer_display_name(u_by),
+                        "previous_date": None,
+                        "new_date": t.get("last_updated_date"),
+                        "validity_days": t.get("validity_days", 30),
+                        "expiry_date": t.get("expiry_date"),
+                        "summary": f"Password date renewed to {disp_new} (Expires {disp_exp})",
+                        "timestamp": updated_at,
+                        "datetime_str": u_dt_str
+                    }
+                    if ATLAS_DB is not None:
+                        try:
+                            ATLAS_DB.credential_tracker_logs.insert_one(dict(u_entry))
+                        except Exception:
+                            pass
+                    SERVER_CREDENTIAL_TRACKER_LOGS.appendleft(dict(u_entry))
+    except Exception as e:
+        log_server(f"[CREDENTIAL-LOG] Error auto-seeding audit trail: {e}")
+
+def get_credential_tracker_logs_from_db(tracker_id: str = None, action: str = None, search: str = None, limit: int = 150):
+    """Retrieve audit logs sorted by timestamp descending, with auto-seeding fallback."""
+    seed_credential_tracker_logs_if_empty()
+    limit = max(1, min(int(limit), 500))
+    if ATLAS_DB is not None:
+        try:
+            query = {}
+            if tracker_id:
+                query["tracker_id"] = tracker_id
+            if action and action.upper() != "ALL":
+                query["action"] = action.upper()
+            if search:
+                s_rgx = {"$regex": re.escape(search), "$options": "i"}
+                query["$or"] = [
+                    {"server_name": s_rgx},
+                    {"username": s_rgx},
+                    {"updated_by": s_rgx},
+                    {"updated_by_name": s_rgx},
+                    {"summary": s_rgx}
+                ]
+            docs = list(ATLAS_DB.credential_tracker_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit))
+            return docs
+        except Exception as e:
+            log_server(f"[CREDENTIAL-LOG] Error querying logs from Atlas: {e}")
+
+    # In-memory fallback
+    filtered = list(SERVER_CREDENTIAL_TRACKER_LOGS)
+    if tracker_id:
+        filtered = [l for l in filtered if l.get("tracker_id") == tracker_id]
+    if action and action.upper() != "ALL":
+        filtered = [l for l in filtered if str(l.get("action", "")).upper() == action.upper()]
+    if search:
+        s_low = search.lower()
+        filtered = [
+            l for l in filtered
+            if s_low in str(l.get("server_name", "")).lower()
+            or s_low in str(l.get("username", "")).lower()
+            or s_low in str(l.get("updated_by", "")).lower()
+            or s_low in str(l.get("updated_by_name", "")).lower()
+            or s_low in str(l.get("summary", "")).lower()
+        ]
+    return sorted(filtered, key=lambda x: x.get("timestamp", 0), reverse=True)[:limit]
 
 def check_and_dispatch_credential_alerts(force=False):
     """
@@ -2647,7 +2876,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/"):
+        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/"):
             norm_path = "/api" + norm_path
 
         # REST API Endpoints (/api/*)
@@ -2979,6 +3208,32 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "expiring_soon_count": expiring_soon_count,
                     "expired_count": expired_count
                 }
+            })
+            return
+
+        # 1.551 GET /api/credentials/trackers/logs (Authoritative audit logs for credentials - Admin & Manager only)
+        if clean_path in ("/api/credentials/trackers/logs", "/api/credentials/trackers/logs/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            query_str = self.path.split("?")[1] if "?" in self.path else ""
+            params = urllib.parse.parse_qs(query_str) if query_str else {}
+            tracker_id = params.get("tracker_id", [None])[0]
+            action = params.get("action", [None])[0]
+            search = params.get("search", [None])[0]
+            limit_val = 150
+            try:
+                if "limit" in params:
+                    limit_val = int(params["limit"][0])
+            except Exception:
+                limit_val = 150
+
+            logs = get_credential_tracker_logs_from_db(tracker_id=tracker_id, action=action, search=search, limit=limit_val)
+            self.send_json_response({
+                "success": True,
+                "logs": logs,
+                "count": len(logs)
             })
             return
 
@@ -5031,6 +5286,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         }
 
         save_credential_tracker_to_db(new_tracker)
+        record_credential_tracker_log("CREATE", new_tracker, claims)
         log_server(f"[CREDENTIAL-TRACKER] Created tracker '{tracker_id}' for {server_name} ({username}) by '{claims.get('username')}'")
         self.send_json_response({
             "success": True,
@@ -5101,6 +5357,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         })
 
         save_credential_tracker_to_db(updated_tracker)
+        record_credential_tracker_log("UPDATE", updated_tracker, claims, previous_tracker=existing)
         log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' updated by '{claims.get('username')}': {server_name} ({username})")
         self.send_json_response({
             "success": True,
@@ -5186,6 +5443,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception:
                     pass
 
+        previous_copy = dict(tracker)
         calc = compute_credential_status(target_date_str, validity_days, alert_threshold_days)
 
         tracker["last_updated_date"] = target_date_str
@@ -5198,6 +5456,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         tracker["updated_by"] = claims.get("username", "admin")
 
         save_credential_tracker_to_db(tracker)
+        record_credential_tracker_log("UPDATE", tracker, claims, previous_tracker=previous_copy)
         log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' renewed to {target_date_str} (alert at <= {alert_threshold_days}d) by '{claims.get('username')}'")
 
         self.send_json_response({
@@ -5225,6 +5484,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         server_name = existing.get("server_name", tracker_id)
         delete_credential_tracker_from_db(tracker_id)
+        record_credential_tracker_log("DELETE", existing, claims)
         log_server(f"[CREDENTIAL-TRACKER] Tracker '{tracker_id}' ({server_name}) deleted by '{claims.get('username')}'")
         self.send_json_response({
             "success": True,

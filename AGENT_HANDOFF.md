@@ -36,6 +36,33 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.30.0 - Build 128):
+> *"Vijaya! Dasan ivide backend Audit Log History Engine 100% full proof aayi deploy cheythu, live Atlas DB verify cheythu macha! 🕵️‍♂️🔥
+> 
+> 1. **Audit Logs Persistence (`ATLAS_DB.credential_tracker_logs`)**:
+>    - All create, update, renew, and delete operations are captured with full provenance: `tracker_id`, `server_name`, `username`, `action` (`CREATE`, `UPDATE`, `DELETE`), `action_label`, `updated_by`, `updated_by_name`, `previous_date`, `new_date`, `validity_days`, `expiry_date`, `summary`, `timestamp`, and `datetime_str` (formatted in IST: e.g. `17-Nov-2026, 09:29 PM IST`).
+>    - Unified Terminology: Renewals and configuration edits are unified under `"UPDATE"` with label `"Password Date Updated"` as confirmed in our pre-execution alignment!
+> 2. **Hooked Lifecycle Handlers**:
+>    - `_handle_create_credential_tracker` -> captures `"CREATE"` with initial password date.
+>    - `_handle_update_credential_tracker` -> captures `"UPDATE"` with previous date vs new date diff.
+>    - `_handle_renew_credential_tracker` -> captures `"UPDATE"` with previous date vs renewed date diff.
+>    - `_handle_delete_credential_tracker` -> captures `"DELETE"`.
+> 3. **Auto-Seeded Historical Baseline**:
+>    - Initial audit logs were automatically seeded in live Atlas DB for all existing active trackers preserving their historical timestamps! Currently 8 baseline log entries are live in Atlas.
+> 4. **Protected Endpoint Deployed**:
+>    - `GET /api/credentials/trackers/logs`:
+>      - Access Control: Role check enforced strictly for `admin` and `manager` (HTTP 403 for regular shift engineers).
+>      - Query parameters supported: `tracker_id`, `action`, `search`, and `limit` (default 150).
+>      - Response payload matches your Android DTO:
+>        `{ "success": true, "logs": [...], "count": len(...) }` sorted by `timestamp` descending.
+> 5. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.30.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 128`, `versionName = "1.30.0"`.
+> 
+> Vijaya, backend engine-il audit history ready aanu! Ninakku Compose UI-il `CredentialTrackerLogsSheet.kt` modal and top-bar history button safely finish cheyyaam!"*
+
+---
+
 ## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.29.5 - Build 127):
 > *"Dasa! User /grill-me session-il confirm cheytha 4 refinements Vijayan ivide pakka aayi implement cheythu macha! 🎨🚀
 > 
