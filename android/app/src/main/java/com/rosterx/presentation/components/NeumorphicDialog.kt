@@ -2,8 +2,12 @@ package com.rosterx.presentation.components
 
 import android.app.Activity
 import android.os.Build
+import android.view.View
+import android.view.Window
 import android.view.WindowManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,28 +28,42 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.rosterx.ui.neumorphic.NeumorphicTokens
 import com.rosterx.ui.neumorphic.neumorphicFloating
+import com.rosterx.ui.theme.LocalIsDarkTheme
 
 /**
  * Applies a modern hardware-accelerated frosted blur to the dialog's backdrop window
- * with a luminous, light tint (dimAmount = 0.15f) instead of heavy dark dimming.
+ * with a luminous, light tint (dimAmount = 0.45f) with fallback for OEM firmware.
  */
 @Composable
 fun ApplyDialogBlurBehind(
-    blurRadiusPx: Int = 45,
-    dimAmount: Float = 0.15f
+    blurRadiusPx: Int = 60,
+    dimAmount: Float = 0.45f
 ) {
     val view = LocalView.current
-    val dialogWindow = (view.parent as? DialogWindowProvider)?.window
-        ?: (view.rootView as? DialogWindowProvider)?.window
-        ?: (view.context as? Activity)?.window
+    val dialogWindow = remember(view) {
+        var parent: Any? = view.parent
+        var foundWindow: Window? = null
+        while (parent != null) {
+            if (parent is DialogWindowProvider) {
+                foundWindow = parent.window
+                break
+            }
+            parent = (parent as? View)?.parent
+        }
+        foundWindow
+            ?: (view.rootView as? DialogWindowProvider)?.window
+            ?: (view.context as? Activity)?.window
+    }
 
     SideEffect {
         dialogWindow?.let { window ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                window.attributes = window.attributes.apply {
-                    blurBehindRadius = blurRadiusPx
-                }
+                try {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                    window.attributes = window.attributes.apply {
+                        blurBehindRadius = blurRadiusPx
+                    }
+                } catch (_: Exception) {}
             }
             window.setDimAmount(dimAmount)
         }
@@ -67,18 +86,28 @@ fun NeumorphicDialog(
         properties = properties
     ) {
         ApplyDialogBlurBehind()
+        val isDark = LocalIsDarkTheme.current
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
+                .background(if (isDark) Color(0x990A0F1A) else Color(0xB8F1F5F9))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onDismissRequest() },
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = modifier
                     .fillMaxWidth(0.92f)
                     .wrapContentHeight()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {}
                     .neumorphicFloating(shape = NeumorphicTokens.ShapeContainer)
+                    .background(NeumorphicTokens.Surface, NeumorphicTokens.ShapeContainer)
                     .padding(contentPadding),
                 content = content
             )

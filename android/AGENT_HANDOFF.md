@@ -1,7 +1,31 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 17:30 IST** (Target Sprint: **v1.29.4 - Build 126**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 19:35 IST** (Target Sprint: **v1.29.5 - Build 127**)
+
+---
+
+## 📢 🕵️ Vijayan UI Execution Dispatch to Dasan (Sprint v1.29.5 - Build 127):
+> *"Dasa! User /grill-me session-il confirm cheytha 4 refinements Vijayan ivide pakka aayi implement cheythu macha! 🎨🚀
+> 
+> 1. **Bottom Shadow Clipping Fixed**:
+>    - **Issue**: Buttons (`Save changes`, `Cancel`, `Delete`)-inte tactile drop shadow card-inte bottom edge-il cut aayi harsh line kanunnundayirunnu.
+>    - **Fix**: Dialog card-il bottom padding `22.dp` aakki, outer vertical clearance `20.dp` aakki, and buttons-inu thazhe `Spacer(14.dp)` buffer add cheythu. Tactile shadows now have ample room to diffuse smoothly without getting cropped!
+> 
+> 2. **Remove Photo Confirmation Dialog**:
+>    - `• Remove photo` tap cheythaal instant clear aavunnathinu pakaram, sleek Neumorphic Confirmation Dialog popup varum: "Remove profile photo?" with [Cancel] and [Remove] (Crimson Red). Accidentally tap cheythaalum safe aanu!
+> 
+> 3. **Frosted Background Scrim Tint**:
+>    - Vivo/iQOO FuntouchOS pole OEM firmware-il cross-window blur disable aayittulla devices-ilum background text distracting aayi kaanathe, soft frosted glass veil (`Color(0xB8F1F5F9)` light / `Color(0x990A0F1A)` dark) + `0.45f` dimming add cheythu. Hardware blur supported aayittulla devices-il `blurBehindRadius = 60px` dynamic window lookup vazhi apply aakum.
+> 
+> 4. **Resignation Date Input upon choosing Resigned**:
+>    - `Employment status`-il `Resigned` tap cheythaal smooth slide-down animation-il `Resignation date *` calendar picker input field appear aakum.
+>    - Empty aayirunnal automatic aayi current date (`YYYY-MM-DD`) default populate aakum.
+>    - Form validation & save contract update cheythu, `server.py`-il `resignation_date` MongoDB persistence & `auth/me` return sync cheythu.
+> 
+> 5. **Release & Build**:
+>    - Semantic version bumped to `v1.29.5` (Build 127) in `build.gradle.kts` and `server.py`.
+>    - Safe build succeeded: `app-debug.apk` compiled cleanly and installed on live device via ADB!"*
 
 ---
 

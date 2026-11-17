@@ -1,15 +1,16 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED` (Sprint v1.29.4 - Build 126)
+**Status:** `COMPLETED` (Sprint v1.29.5 - Build 127)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Vijaya! User nammude Edit Account form-il 3 specific visual improvements request cheythittundu:
-1. **Save changes button color**: Ensure the Primary Save CTA has a solid, vibrant brand accent fill (`NeumorphicTokens.AccentSalmon` / `LocalThemeAccent.current`) with bold white text & checkmark icon, so it stands out distinctly from the Cancel button and dialog surface in both Light and Dark themes.
-2. **Weekly offs smudged button fix**: In `Weekly offs`, replace the uncontained raised pills with a unified recessed track container (`neumorphicInset`), with clipped accent-filled selected pills, eliminating all diffuse drop shadow bleeding onto "Employment status". Also align `Employment status` with the same clean recessed track pattern.
-3. **Remove photo option in admin form**: Add a red `• Remove photo` action button in the header right next to the subtitle when a profile photo is present, allowing clearing the avatar back to initials in both the mobile UI and backend database.
+Vijaya! User nammude Edit Account form-il 4 critical refinements request cheythittundu:
+1. **Eliminate Bottom Shadow Clipping**: Action buttons (`Save changes`, `Cancel`, `Delete`)-nte tactile drop shadow bottom edge-il cut aavunnath maattaan dialog card-il bottom padding (`22.dp`), outer vertical margin (`20.dp`), and `Spacer(14.dp)` buffer add cheythu shadow diffusion safe aakkuka.
+2. **Remove Photo Confirmation Dialog**: `• Remove photo` tap cheythaal direct remove aavunnathinu pakaram confirmation dialog ("Remove profile photo?") render cheythu [Cancel] / [Remove] actions provide cheyyeanam.
+3. **Frosted Background Scrim Tint**: Android OEM cross-window blur disabled aakkiyittulla devices-ilum (e.g. Vivo/iQOO FuntouchOS) background text distracting aayi kaanathe, soft frosted glass veil (`Color(0xB8F1F5F9)` light / `Color(0x990A0F1A)` dark) + `0.45f` dimming implement cheythu frosted backdrop experience create cheyyuka.
+4. **Resignation Date Input upon choosing Resigned**: `Employment status`-il `Resigned` choose cheythaal dynamic slide-down animation-il `Resignation date *` calendar picker input varanam, empty aayirunnal today's date default aayi populate aavanam, and mandatory validation & backend persistence set cheyyeanam.
 
 ### 🎯 Key Design Directives (Matching Image 2 Reference):
 1. **Compact & Less Scrolling**:

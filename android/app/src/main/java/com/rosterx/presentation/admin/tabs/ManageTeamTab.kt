@@ -49,6 +49,12 @@ import com.rosterx.ui.neumorphic.neumorphicInset
 import com.rosterx.ui.neumorphic.neumorphicFloating
 import com.rosterx.ui.neumorphic.neumorphicClickable
 import com.rosterx.ui.neumorphic.NeumorphicTokens
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.rosterx.ui.theme.LocalIsDarkTheme
 import androidx.compose.foundation.border
 
@@ -103,7 +109,9 @@ fun ManageTeamTab(
         var birthdayInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.birthday ?: "") }
         var roleInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.role ?: EngineerRole.ENGINEER) }
         var statusInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.status ?: EngineerStatus.ACTIVE) }
+        var resignationDateInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.resignationDate ?: "") }
         var profilePictureInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.profilePicture) }
+        var showRemovePhotoConfirmDialog by remember { mutableStateOf(false) }
         val allDays = listOf("SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")
         var selectedOffs by remember(editingEngineer) {
             mutableStateOf(editingEngineer?.defaultWeeklyOffs?.map { it.uppercase() }?.toSet() ?: setOf("SUNDAY", "MONDAY"))
@@ -153,92 +161,110 @@ fun ManageTeamTab(
             },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            ApplyDialogBlurBehind()
+            ApplyDialogBlurBehind(blurRadiusPx = 60, dimAmount = 0.45f)
             val isDark = LocalIsDarkTheme.current
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .padding(vertical = 12.dp)
-                    .neumorphicFloating(shape = RoundedCornerShape(24.dp))
-                    .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
-                    .padding(horizontal = 18.dp, vertical = 16.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Header Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .fillMaxSize()
+                    .background(if (isDark) Color(0x990A0F1A) else Color(0xB8F1F5F9))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
                     ) {
-                        // Avatar with camera badge
-                        Box(contentAlignment = Alignment.BottomEnd) {
-                            UserAvatar(
-                                name = nameInput.ifBlank { "User" },
-                                profilePicture = profilePictureInput,
-                                size = 44.dp
-                            )
-                            if (!isReadOnly) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .clip(CircleShape)
-                                        .background(NeumorphicTokens.AccentSalmon)
-                                        .clickable {
-                                            teamPhotoPickerLauncher.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PhotoCamera,
-                                        contentDescription = "Change photo",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                }
-                            }
+                        if (!isSaving) {
+                            editingEngineer = null
+                            showEditDialog = false
                         }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isReadOnly) "Account profile" else if (editingEngineer == null) "Register new account" else "Edit account",
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 17.sp,
-                                color = NeumorphicTokens.TextMain
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = if (editingEngineer == null) "Create system access" else (nameInput.ifBlank { "Update credentials" }),
-                                    fontSize = 11.sp,
-                                    color = NeumorphicTokens.TextMuted,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.95f)
+                        .padding(horizontal = 6.dp, vertical = 20.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {}
+                        .neumorphicFloating(shape = RoundedCornerShape(24.dp))
+                        .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
+                        .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 22.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Header Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Avatar with camera badge
+                            Box(contentAlignment = Alignment.BottomEnd) {
+                                UserAvatar(
+                                    name = nameInput.ifBlank { "User" },
+                                    profilePicture = profilePictureInput,
+                                    size = 44.dp
                                 )
-                                if (!isReadOnly && !profilePictureInput.isNullOrBlank()) {
-                                    Text(
-                                        text = "• Remove photo",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFFEF4444),
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.clickable {
-                                            profilePictureInput = null
-                                            Toast.makeText(context, "Photo removed", Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
+                                if (!isReadOnly) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clip(CircleShape)
+                                            .background(NeumorphicTokens.AccentSalmon)
+                                            .clickable {
+                                                teamPhotoPickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                                )
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PhotoCamera,
+                                            contentDescription = "Change photo",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(11.dp)
+                                        )
+                                    }
                                 }
                             }
-                        }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isReadOnly) "Account profile" else if (editingEngineer == null) "Register new account" else "Edit account",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 17.sp,
+                                    color = NeumorphicTokens.TextMain
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (editingEngineer == null) "Create system access" else (nameInput.ifBlank { "Update credentials" }),
+                                        fontSize = 11.sp,
+                                        color = NeumorphicTokens.TextMuted,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    if (!isReadOnly && !profilePictureInput.isNullOrBlank()) {
+                                        Text(
+                                            text = "• Remove photo",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFFEF4444),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.clickable {
+                                                showRemovePhotoConfirmDialog = true
+                                            }
+                                        )
+                                    }
+                                }
+                            }
 
                         // Close button
                         Box(
@@ -568,7 +594,15 @@ fun ManageTeamTab(
                                                 Modifier
                                             }
                                         )
-                                        .clickable { if (!isReadOnly && !isSaving) statusInput = statusOption }
+                                        .clickable {
+                                            if (!isReadOnly && !isSaving) {
+                                                statusInput = statusOption
+                                                if (statusOption == EngineerStatus.RESIGNED && resignationDateInput.isBlank()) {
+                                                    val cal = Calendar.getInstance()
+                                                    resignationDateInput = String.format(Locale.US, "%04d-%02d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+                                                }
+                                            }
+                                        }
                                         .padding(horizontal = 12.dp, vertical = 6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -580,6 +614,42 @@ fun ManageTeamTab(
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    // Animated Resignation Date input field
+                    AnimatedVisibility(
+                        visible = statusInput == EngineerStatus.RESIGNED,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(top = 2.dp)) {
+                            NeumorphicFormInput(
+                                value = resignationDateInput,
+                                onValueChange = { resignationDateInput = it },
+                                label = "Resignation date *",
+                                placeholder = "YYYY-MM-DD",
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Event,
+                                        contentDescription = "Pick date",
+                                        tint = NeumorphicTokens.TextMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                readOnly = true,
+                                onClick = {
+                                    openDatePicker(
+                                        resignationDateInput.ifBlank {
+                                            val cal = Calendar.getInstance()
+                                            String.format(Locale.US, "%04d-%02d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+                                        }
+                                    ) { selectedDate ->
+                                        resignationDateInput = selectedDate
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
 
@@ -640,7 +710,9 @@ fun ManageTeamTab(
                         }
 
                         if (!isReadOnly) {
-                            val canSave = nameInput.isNotBlank() && emailInput.isNotBlank() && !isSaving
+                            val canSave = nameInput.isNotBlank() && emailInput.isNotBlank() &&
+                                (statusInput != EngineerStatus.RESIGNED || resignationDateInput.isNotBlank()) &&
+                                !isSaving
                             Box(
                                 modifier = Modifier
                                     .weight(1.5f)
@@ -680,6 +752,7 @@ fun ManageTeamTab(
                                             status = statusInput,
                                             defaultWeeklyOffs = if (roleInput == EngineerRole.ENGINEER || roleInput == EngineerRole.APPRENTICE) selectedOffs.toList() else emptyList(),
                                             joinDate = joinDateInput.ifBlank { "2026-01-01" },
+                                            resignationDate = if (statusInput == EngineerStatus.RESIGNED) resignationDateInput.trim().ifBlank { null } else null,
                                             birthday = birthdayInput.ifBlank { null },
                                             password = passwordInput.trim().ifBlank { null },
                                             originalUsername = origUsername,
@@ -761,10 +834,93 @@ fun ManageTeamTab(
                             }
                         }
                     }
+
+                    // Bottom buffer to guarantee zero shadow clipping for action buttons
+                    Spacer(modifier = Modifier.height(14.dp))
                 }
             }
         }
     }
+
+    // Remove Profile Photo Confirmation Dialog
+    if (showRemovePhotoConfirmDialog) {
+        Dialog(
+            onDismissRequest = { showRemovePhotoConfirmDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ApplyDialogBlurBehind(blurRadiusPx = 50, dimAmount = 0.5f)
+            val isDark = LocalIsDarkTheme.current
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(if (isDark) Color(0x990A0F1A) else Color(0xB8F1F5F9))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                        showRemovePhotoConfirmDialog = false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                        .neumorphicFloating(shape = RoundedCornerShape(20.dp))
+                        .background(NeumorphicTokens.Surface, RoundedCornerShape(20.dp))
+                        .padding(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Remove profile photo?",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Text(
+                            text = "Are you sure you want to remove this profile photo? The avatar will revert to initials (${nameInput.ifBlank { "User" }.split(" ").mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString("")}).",
+                            fontSize = 12.5.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            lineHeight = 17.sp
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .neumorphicClickable(shape = RoundedCornerShape(10.dp)) {
+                                        showRemovePhotoConfirmDialog = false
+                                    }
+                                    .background(NeumorphicTokens.Surface, RoundedCornerShape(10.dp))
+                                    .border(1.dp, if (isDark) Color(0x1FFFFFFF) else Color(0x1F94A3B8), RoundedCornerShape(10.dp))
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Cancel", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = NeumorphicTokens.TextMuted)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .neumorphicClickable(shape = RoundedCornerShape(10.dp)) {
+                                        profilePictureInput = ""
+                                        showRemovePhotoConfirmDialog = false
+                                        Toast.makeText(context, "Photo removed", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .background(Color(0xFFEF4444), RoundedCornerShape(10.dp))
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Remove", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
     // Delete Confirmation Dialog
     if (showDeleteConfirmDialog && editingEngineer != null) {

@@ -41,7 +41,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.29.4"
+SERVER_VERSION = "1.29.5"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2945,7 +2945,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 try:
                     user_doc = ATLAS_DB.engineers.find_one({"username": str(claims["username"]).strip().lower()}, {"_id": 0, "password": 0})
                     if user_doc:
-                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "birthday", "default_weekly_offs"):
+                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "resignation_date", "birthday", "default_weekly_offs"):
                             if k in user_doc:
                                 response_user[k] = user_doc[k]
                     if response_user.get("name"):
@@ -4139,12 +4139,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     # Remove legacy id fields to keep username as the sole unique key
                     eng.pop("engineer_id", None)
                     eng.pop("id", None)
+                    unset_fields = {"id": "", "engineer_id": ""}
 
                     raw_status = str(eng.get("status") or "").strip().lower()
                     if raw_status in ("active", "notice_period", "onboarding"):
                         eng["status"] = "Active"
+                        eng.pop("resignation_date", None)
+                        unset_fields["resignation_date"] = ""
                     elif raw_status in ("resigned", "retired"):
                         eng["status"] = "Resigned"
+                        if not eng.get("resignation_date"):
+                            eng["resignation_date"] = time.strftime("%Y-%m-%d", time.gmtime())
 
                     # Enforce empty weekly offs for Leadership (Admin & Manager)
                     eng_role = str(eng.get("role") or "").strip().lower()
@@ -4159,7 +4164,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             del eng["password"]
 
                     # Handle profile picture if provided
-                    unset_fields = {"id": "", "engineer_id": ""}
                     if "profile_picture" in eng:
                         raw_pic = eng.get("profile_picture")
                         if raw_pic and isinstance(raw_pic, str) and raw_pic.strip():
