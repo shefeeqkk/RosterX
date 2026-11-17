@@ -1,42 +1,34 @@
 # 📋 Execution Plan for Dasan (Backend & Core Orchestration)
 
-**Status:** `COMPLETED` (Sprint v1.30.0 - Build 128 Audit Log History Engine implemented & verified with live Atlas DB seeding)
+**Status:** `READY FOR DASAN` (Sprint v1.31.0 - Build 129)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Dasa! Nammude Credential Tracker-il Admin-num Manager-kkum maathram access ulla **Audit Log History Engine** implement cheyyaan Gafoorka blueprint lock aakki vechittundu.
+Dasa! Nammude Broadcast Console-il preloaded dummy templates remove cheythu, user create cheyyunna **pure custom templates** maathram retain cheyyaanum, dynamic `@name` recipient personalization support cheyyaanumulla blueprint Gafoorka set aakki vechittundu.
 
-### 🎯 Key Directives:
-1. **Audit Logs Persistence (`server.py`)**:
-   - Store all credential tracker update, renewal, creation, and deletion events in a dedicated MongoDB collection: `ATLAS_DB.credential_tracker_logs`.
-   - Each log entry must record:
-     - `tracker_id`, `server_name`, `username` (account)
-     - `action` (`"UPDATE"`, `"CREATE"`, `"DELETE"`) — *Note: 'Renewed' and 'Updated' are unified under `"UPDATE"` to eliminate redundancy.*
-     - `action_label` (`"Password Date Updated"`, `"Tracker Created"`, `"Tracker Deleted"`)
-     - `updated_by` (username) and `updated_by_name` (proper full name from `engineers` collection)
-     - `previous_date` (old `last_updated_date`) and `new_date` (new `last_updated_date`)
-     - `validity_days`, `expiry_date`
-     - `summary` (e.g. `"Password updated to 16-Oct-2026 (Valid for 45 days, expires 30-Nov-2026)"`)
-     - `timestamp` (epoch) and `datetime_str` (IST formatted: e.g. `"17-Nov-2026, 09:29 PM"`)
-2. **Hook Into All Mutation Handlers**:
-   - `_handle_create_credential_tracker` -> record `CREATE`
-   - `_handle_update_credential_tracker` -> record `UPDATE` (comparing diffs)
-   - `_handle_renew_credential_tracker` -> record `RENEW` (capturing previous vs new date)
-   - `_handle_delete_credential_tracker` -> record `DELETE`
-3. **Auto-Seed Existing Trackers**:
-   - On server start or migration check:
-     If `ATLAS_DB.credential_tracker_logs.count_documents({}) == 0`:
-     Iterate through all active trackers in `ATLAS_DB.credential_trackers`:
-     Create baseline `CREATE` log entry (`created_by`, `created_at`), and if `updated_at > created_at`, create an `UPDATE` or `RENEW` entry (`updated_by`, `updated_at`, `last_updated_date`) so the logs viewer immediately displays historical baseline data!
-4. **Dedicated Endpoint**:
-   - `GET /api/credentials/trackers/logs`:
-     - Access Control: `claims = self.require_auth(["admin", "manager"])`
-     - Query parameters supported: `tracker_id` (optional), `action` (optional), `search` (optional), `limit` (default 100).
-     - Returns `{ "success": True, "logs": [...], "count": len(...) }` sorted by `timestamp` descending.
-5. **Version Bump**:
-   - `server.py`: `SERVER_VERSION = "1.30.0"`.
+### 🎯 Key Directives for Dasan:
+1. **Purge Preloaded Dummy Templates (`server.py`)**:
+   - In `GET /api/broadcast/templates`:
+     - **Remove** auto-upserting `DEFAULT_BROADCAST_TEMPLATES`.
+     - In MongoDB `ATLAS_DB.broadcast_templates`, purge any default preloaded templates with legacy titles (`"Shift Operations Announcement"`, `"Urgent Operational Handover"`, `"Scheduled System Maintenance"`, `"Shift Coverage Swap Request"`).
+     - Return only user-created custom templates: `{ "success": True, "templates": user_templates, "count": len(user_templates) }`. If none exist, return empty list `[]`.
+2. **Support Saving Custom Templates**:
+   - Ensure `POST /api/broadcast/templates` allows Admins and Managers to save templates with:
+     - `name`: string (e.g. template title or name)
+     - `title`: string
+     - `message`: string
+     - `priority`: string (optional, defaults to "broadcast")
+     - `target`: string/dict (optional)
+     - Returns `{ "success": True, "message": "Template saved successfully", "template": ... }`.
+   - Ensure `POST /api/broadcast/templates/delete` properly deletes a custom template by `id`.
+3. **Dynamic `@name` Personalization Support**:
+   - When a broadcast notification is dispatched to multiple users or everyone:
+     - If the broadcast message contains `@name` (or `{name}`):
+       - Personalize each recipient's notification & email by replacing `@name` with that specific recipient's first name / display name (e.g. `Dear Shefeeq,` instead of raw `@name`).
+4. **Version Bump**:
+   - Update `SERVER_VERSION = "1.31.0"` in `server.py`.
 
 ---
 
@@ -46,11 +38,8 @@ Dasa! Nammude Credential Tracker-il Admin-num Manager-kkum maathram access ulla 
 - `server.py`
 
 ### 🛠️ Execution & Verification:
-1. Implement `record_credential_tracker_log(action, tracker, claims, previous_tracker=None, custom_summary=None)`.
-2. Hook into `_handle_create_credential_tracker`, `_handle_update_credential_tracker`, `_handle_renew_credential_tracker`, `_handle_delete_credential_tracker`.
-3. Implement `GET /api/credentials/trackers/logs` with role guard (`["admin", "manager"]`).
-4. Implement baseline auto-seeder for existing trackers.
-5. Run python verification script:
-   - Call `GET /api/credentials/trackers/logs` with admin/manager token.
-   - Verify logs are returned with all account & server details, who updated, and previous/new dates.
-6. Commit changes and update `AGENT_HANDOFF.md`.
+1. Update `GET /api/broadcast/templates` to stop injecting `DEFAULT_BROADCAST_TEMPLATES`.
+2. Delete legacy default templates from `ATLAS_DB.broadcast_templates`.
+3. Test template CRUD: create a custom template, fetch templates list, delete template.
+4. Test `@name` token replacement in notification broadcast engine.
+5. Commit changes and update `AGENT_HANDOFF.md`.

@@ -1,7 +1,45 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 21:15 IST** (Target Sprint: **v1.30.0 - Build 128**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 22:20 IST** (Target Sprint: **v1.31.0 - Build 129**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.31.0 - Build 129):
+> *"Dasa, Vijaya! Gafoorka nammude Broadcast Console modernization-te full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎯 User Requirement:
+> > 1. Make the broadcast tab in admin and manager UI updated neumorphic with compact and responsive styles.
+> > 2. Make unified standardised interactive editor with '@' triggering mentions like @name, @all, and username mentions. Remove quick chips and make it a subtle description about these.
+> > 3. Remove preloaded templates and add option to add to templates while editing.
+> 
+> ### 🔍 Aligned Architecture from /grill-me:
+> 1. **Top Segmented Navigation**:
+>    - `[ 📢 Compose Broadcast ]`  |  `[ 📜 Broadcast History (count) ]`
+>    - Portrait mobile-il clean separation between editor and history feed; landscape/tablet-il side-by-side dual pane!
+> 
+> 2. **Compose Editor Overhaul (`NotificationsTab.kt` - Vijayan's Territory)**:
+>    - **Templates Overhaul**: Preloaded dummy templates removed! In header, a sleek Neumorphic **`[ 💾 Save as Template ]`** button allows saving the current broadcast into MongoDB custom templates. Custom templates render as a compact horizontal pill strip above the title only when saved.
+>    - **Inputs (Neumorphic Inset)**: Sunken wells for Title and Message editor (`Modifier.neumorphicInset(...)`).
+>    - **Interactive `@` Mention Dropdown**: Typing `@` triggers popup with:
+>      - `@name` (Dynamic recipient personalization: each engineer sees their own name)
+>      - `@all` (Alert entire team)
+>      - Specific teammates: Avatar + Full Name + `@username`.
+>    - **Quick Chips Removed**: Removed redundant chip toolbar (`{name}`, `@all`, `@ Mention...`). Replaced with subtle helper note below editor:
+>      `💡 Tip: Type @ to insert dynamic @name, alert @all, or mention specific teammates.`
+>    - **Channels & Priority**: Compact toggle pills for `In-App`, `Push (FCM)`, `Email` and Priority.
+>    - **Dispatch Action**: Neumorphic primary button `[ 📤 Dispatch Broadcast ]`.
+> 
+> 3. **Backend Support (`server.py` - Dasan's Territory)**:
+>    - In `GET /api/broadcast/templates`: Remove auto-upserting `DEFAULT_BROADCAST_TEMPLATES`; return only user-created custom templates from `ATLAS_DB.broadcast_templates`.
+>    - In broadcast notification processing: Support dynamic `@name` token resolution, replacing `@name` with the recipient's first name/display name in personalized emails and in-app feeds.
+>    - Version bump: `SERVER_VERSION = "1.31.0"`.
+> 
+> 4. **Mobile App Build**:
+>    - Version bump: `versionName = "1.31.0"`, `versionCode = 129`.
+>    - Safe build: `cmd /c "cd android && safe_build.bat assembleDebug"`.
+> 
+> Dasa and Vijaya: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
 ---
 

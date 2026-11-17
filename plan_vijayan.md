@@ -1,134 +1,95 @@
 # 📋 Execution Plan for Vijayan (UI & Jetpack Compose)
 
-**Status:** `COMPLETED & VERIFIED` (Sprint v1.30.0 - Build 128)
+**Status:** `READY FOR VIJAYAN` (Sprint v1.31.0 - Build 129)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Vijaya! Credential Tracker-il **Admin and Manager-kk maathram** password update/renewal history kaanaanulla **Single Audit Logs Viewer** architect cheythu blueprint ready aakki vechittundu.
-
-### 🎯 Key Design Directives:
-1. **Access Control**:
-   - Strictly restricted to `isManagerOrAdmin == true`. Regular engineers should not see the logs button or viewer.
-2. **Top-Bar Action Button**:
-   - In `CredentialTrackerScreen.kt` TopAppBar actions:
-     Next to `Refresh` and `+ Add Tracker`, place an **Audit Logs Button** (`Icons.Default.History`) with subtle Neumorphic styling, visible only if `isManagerOrAdmin == true`.
-3. **Single Neumorphic Audit Modal (`CredentialTrackerLogsSheet.kt`)**:
-   - Full-featured Neumorphic Bottom Sheet or Dialog showing an aggregated timeline of updates across **all accounts and servers**:
-     - Header: Title `"Credential Update Logs"`, subtitle `"Authoritative audit trail of updates & renewals"`, Close button & Refresh button.
-     - Search Bar: Quick search by server name, account username, or engineer who updated.
-     - Action Filter Chips: `ALL`, `UPDATED`, `CREATED`, `DELETED` (*'Renewed' and 'Updated' are unified under `UPDATED` to eliminate redundancy*).
-     - Log Card Timeline:
-       - Server & Account pill: `[NMS Server] • root`
-       - Action Badge:
-         - `UPDATED` (Indigo `#6366F1` pill with `Icons.Default.Edit` / `Autorenew`)
-         - `CREATED` (Teal `#059669` pill with `Icons.Default.Add`)
-         - `DELETED` (Rose `#EF4444` pill with `Icons.Default.Delete`)
-       - Who Updated: Avatar / user icon + Name + `@username` (e.g. `Shefeeq K K (@shefeeqkk)`)
-       - Date Transition Diff:
-         `Previous: 16-Oct-2026 ➔ New: 17-Nov-2026`
-       - Summary: `Password updated to 17-Nov-2026 (Valid for 45 days, expires 01-Jan-2027)`
-       - IST Timestamp: `17-Nov-2026, 09:29 PM IST`
+Vijaya! User Broadcast Tab-il major modernisation request cheythittundu:
+1. **Neumorphic & Compact Responsive Layout**:
+   - Tab-nte mukalil Neumorphic Segmented Control vekkuka:
+     `[ 📢 Compose Broadcast ]`  |  `[ 📜 Broadcast History (count) ]`
+   - Ithumoolam editor-um history-yum separate aayi, ultra-compact, focused, and zero vertical clutter aayi maatum (landscape-il side-by-side responsive layout).
+2. **Unified Interactive Editor with `@` Mentions**:
+   - Message editor-il `@` type cheyyumbol inline autocomplete popup trigger aakanam:
+     - `@name` (Icon `Person`: "Dynamic Recipient Name — Personalizes to each recipient's name")
+     - `@all` (Icon `Groups`: "Alert entire operational team")
+     - Specific teammates: Avatar + Full Name + `@username`.
+   - **Quick Chips Toolbar Removed**: `{name}`, `@all`, `@ Mention...` chip toolbar poornamaayi remove cheyyuka!
+   - **Subtle Helper Description**: Editor-nu thazhe subtle helper text add cheyyuka:
+     `💡 Tip: Type @ to insert dynamic @name, alert @all, or mention specific teammates.`
+3. **Template Overhaul**:
+   - **Preloaded Dummy Templates Removed**: Hardcoded `defaultTemplates` list poornamaayi remove cheyyuka!
+   - **"Save as Template" Action**: Editor header-il sleek Neumorphic **"Save as Template"** button (`[ 💾 Save as Template ]` or Bookmark icon) add cheyyuka. Tapping prompts or saves Title + Message as a custom reusable template.
+   - **Custom Saved Templates Strip**: Custom templates exist cheyyunnundengil maathram title-nu mukalil compact horizontal pill strip aayi show cheyyuka (with delete 'x' action). Template illengil clean aayi hide cheyyuka.
 
 ---
 
 ## 2. Scope of Work for Vijayan
 
-### 1. Data Layer (`RosterApiService.kt` & `RosterRepositoryImpl.kt`)
-- Define DTOs in `com.rosterx.data.remote`:
+### 1. Structure & Navigation (`NotificationsTab.kt`)
+- At the top of `NotificationsTab`:
   ```kotlin
-  data class CredentialTrackerLogDto(
-      val id: String = "",
-      @SerializedName("tracker_id") val trackerId: String = "",
-      @SerializedName("server_name") val serverName: String = "",
-      val username: String = "",
-      val action: String = "",
-      @SerializedName("action_label") val actionLabel: String = "",
-      @SerializedName("updated_by") val updatedBy: String = "",
-      @SerializedName("updated_by_name") val updatedByName: String = "",
-      @SerializedName("previous_date") val previousDate: String? = null,
-      @SerializedName("new_date") val newDate: String? = null,
-      @SerializedName("validity_days") val validityDays: Int? = null,
-      @SerializedName("expiry_date") val expiryDate: String? = null,
-      val summary: String = "",
-      val timestamp: Long = 0L,
-      @SerializedName("datetime_str") val datetimeStr: String = ""
-  )
-
-  data class CredentialTrackerLogsResponse(
-      val success: Boolean = false,
-      val logs: List<CredentialTrackerLogDto> = emptyList(),
-      val count: Int = 0
-  )
+  var activeTabSection by rememberSaveable { mutableIntStateOf(0) } // 0: Compose, 1: History
   ```
-- In `RosterApiService.kt`:
-  ```kotlin
-  @GET("api/credentials/trackers/logs")
-  suspend fun getCredentialTrackerLogs(): Response<CredentialTrackerLogsResponse>
-  ```
-- In `RosterRepository.kt` & `RosterRepositoryImpl.kt`:
-  Add `suspend fun getCredentialTrackerLogs(): Result<List<CredentialTrackerLogDto>>`.
+- Neumorphic Segmented Control:
+  - Tab 0: `📢 Compose Broadcast`
+  - Tab 1: `📜 Broadcast History (${notifications.size})`
+- Responsive layout:
+  - If screen width >= 600dp (Landscape/Tablet): Render Compose on Left pane, History on Right pane.
+  - If screen width < 600dp (Portrait Mobile): Switch cleanly between Tab 0 and Tab 1.
 
-### 2. ViewModel Integration (`EngineerPortalViewModel.kt`)
-- In `EngineerPortalState`:
-  ```kotlin
-  val credentialTrackerLogs: List<CredentialTrackerLogDto> = emptyList(),
-  val isLoadingCredentialLogs: Boolean = false
-  ```
-- In `EngineerPortalViewModel`:
-  ```kotlin
-  fun loadCredentialTrackerLogs(silent: Boolean = false) {
-      viewModelScope.launch {
-          _state.value = _state.value.copy(isLoadingCredentialLogs = !silent)
-          val result = repository.getCredentialTrackerLogs()
-          result.onSuccess { logs ->
-              _state.value = _state.value.copy(credentialTrackerLogs = logs, isLoadingCredentialLogs = false)
-          }.onFailure {
-              _state.value = _state.value.copy(isLoadingCredentialLogs = false)
-          }
-      }
-  }
-  ```
+### 2. Modernize Compose Section (`NotificationsTab.kt`)
+- **Card**: Molded Neumorphic surface (`NeumorphicTokens.Surface`, corner radius `20.dp`).
+- **Templates Strip**:
+  - Remove `defaultTemplates`!
+  - If `state.broadcastTemplates.isNotEmpty()`: Render compact horizontal strip of saved custom template pills with subtle delete 'x' icon.
+- **Header Actions**:
+  - Title: `"New Broadcast Announcement"`
+  - Right: Neumorphic action button **`[ 💾 Save as Template ]`** (saves current Title & Message via `viewModel.saveBroadcastTemplate(...)`).
+- **Channels & Target Row**:
+  - Delivery Channel toggle pills:
+    `[ 📱 In-App ]` `[ 🔔 Push (FCM) ]` `[ 📧 Email ]`
+  - Priority selector pills:
+    `[ Info ]` `[ Shift Update ]` `[ Urgent ]` `[ Broadcast ]`
+  - Target audience selector:
+    `[ Everyone ]` `[ Shift Groups ]` `[ Specific Engineers ]`
+- **Inputs (Neumorphic Inset Basins)**:
+  - Title field: Sunken well (`Modifier.neumorphicInset(...)`).
+  - Message editor: Sunken multiline well with comfortable typing.
+  - **Remove quick mention chips toolbar** (`SuggestionChip` for `{name}`, `@all`, `@ Mention...`).
+  - **Subtle helper description** below editor:
+    `Text("💡 Tip: Type @ to insert dynamic @name, alert @all, or mention specific teammates.", fontSize = 11.sp, color = NeumorphicTokens.TextMuted)`
+  - **Live `@` Mention Autocomplete Popup**:
+    - Triggers as user types `@`.
+    - Lists:
+      1. `@name` (Dynamic recipient personalization)
+      2. `@all` (Team-wide notification)
+      3. Teammates matching query with avatar, full name, and `@username`.
+    - Selecting an item inserts `@tag ` and places cursor right after it.
+- **Bottom Action**:
+  - Primary Neumorphic Send Button: **`[ 📤 Dispatch Broadcast ]`** with active sending spinner.
 
-### 3. Modern Neumorphic Component (`CredentialTrackerLogsSheet.kt`)
-- Create `android/app/src/main/java/com/rosterx/presentation/portal/credentials/CredentialTrackerLogsSheet.kt`.
-- Present as `ModalBottomSheet` or Neumorphic Dialog:
-  - Header: Title, subtitle, Close, and Refresh button.
-  - Search field: `NeumorphicTextField` searching server, account, or updater name.
-  - Action Chips: `ALL`, `RENEWED`, `UPDATED`, `CREATED`.
-  - Empty state: Neumorphic card with "No audit logs found".
-  - Scrollable LazyColumn of log cards with crisp typographic hierarchy and Neumorphic elevation.
+### 3. Modernize History Section
+- Display list of past broadcasts in Neumorphic cards:
+  - Header: Title, priority badge, relative IST timestamp.
+  - Channels used: `In-App`, `Push`, `Email` status badges.
+  - Target summary: e.g. "To: Everyone" or "To: @shefeeqkk".
+  - Retract action button (for active broadcasts).
 
-### 4. Wire Up in `CredentialTrackerScreen.kt`
-- Add state: `var showLogsSheet by remember { mutableStateOf(false) }`.
-- In `TopAppBar` actions:
-  ```kotlin
-  if (isManagerOrAdmin) {
-      IconButton(onClick = {
-          viewModel.loadCredentialTrackerLogs()
-          showLogsSheet = true
-      }) {
-          Icon(
-              imageVector = Icons.Default.History,
-              contentDescription = "Audit Logs",
-              tint = NeumorphicTokens.AccentSalmon
-          )
-      }
-  }
-  ```
-- Render `CredentialTrackerLogsSheet(show = showLogsSheet, onDismiss = { showLogsSheet = false }, logs = state.credentialTrackerLogs, isLoading = state.isLoadingCredentialLogs, onRefresh = { viewModel.loadCredentialTrackerLogs() })`.
-
-### 5. Post-Build Activities (Mandatory)
+### 4. Post-Build Activities (Mandatory)
 - Version bump in `android/app/build.gradle.kts`:
-  - `versionName = "1.30.0"`
-  - `versionCode = 128`
+  - `versionName = "1.31.0"`
+  - `versionCode = 129`
 - Execute safe build:
-  - `cd android && .\safe_build.bat assembleDebug`
+  - `cmd /c "cd android && safe_build.bat assembleDebug"`
 - Install on device via ADB:
   - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
 - Verification:
-  - Open Credential Tracker in Admin and Manager profiles. Verify "History" icon appears in top bar.
-  - Tap icon: verify single audit sheet opens with all servers & accounts listed.
-  - Verify who updated, previous/new dates, and IST timestamps are displayed cleanly.
+  - Open Broadcast tab in Admin and Manager profiles.
+  - Verify Segmented Control toggles between `Compose` and `History`.
+  - Type `@` in message: verify `@name`, `@all`, and usernames appear in autocomplete.
+  - Verify quick chips toolbar is removed and replaced by subtle tip description.
+  - Verify hardcoded templates are gone; compose message, tap `Save as Template`, verify it saves and appears as a custom pill.
 - Commit changes and update `AGENT_HANDOFF.md`.
