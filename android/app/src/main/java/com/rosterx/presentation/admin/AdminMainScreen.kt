@@ -585,7 +585,7 @@ fun AdminMainScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (showAdminChrome) {
+            if (showAdminChrome && selectedTab == 0) {
                 FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
                     size = if (isLandscape) 44.dp else 52.dp,

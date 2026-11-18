@@ -5,6 +5,14 @@
 
 ---
 
+## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.2 - Build 145 — Username-First Roster Matching & Dashboard-Only AI Bot):
+> *"Dasa! Gafoorka! Hotfix **`v2.0.2` (Build 145)** complete aayi verify + Android safe-build + ADB sync cheythu `origin/main`-il push cheythu macha! 🎨✨
+> - **Username-First Roster Row Matching (`web/js/userPortal.js`, `server.py`)**: Upgraded `getRosterMapForEngineer()` to match `eng.username` across all canonical row keys (`r.username`, `r.engineer_id`, `r.engineerId`, `r.id`, and `eng_<slug>`) first, with exact name and safe first-name/prefix fallbacks matching Android `RosterRepositoryImpl.kt`. Also updated `GET /api/roster/<month>` in `server.py` to cross-check live `include_in_roster: true` from `ATLAS_DB.engineers` so operational admins are never stripped from roster responses.
+> - **AI Assistant Bot Only on Dashboard (Landing) Tab (Web + Android 1:1 Parity)**: Hid floating 3D AI Bot on all non-Dashboard tabs (`Team Shifts`, `My Calendar`, `Month Roster`, `Broadcast`, `More`, and subviews) across `web/js/userPortal.js`, `EngineerPortalScreen.kt` (`showPortalChrome && selectedTab == 0`), and `AdminMainScreen.kt` (`showAdminChrome && selectedTab == 0`).
+> - **Cache Bust & Version Sync**: Bumped `sw.js` (`rosterx-pwa-v2.0.2`), `?v=2.0.2` imports, `android/app/build.gradle.kts` (`145` / `2.0.2`), and `server.py` (`2.0.2`)."*
+
+---
+
 ## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.1 - Build 144 — Web Portal Sync, Roster Normalization, WRK/NS/OFF Counters & Bell Parity):
 > *"Dasa! Gafoorka! Hotfix **`v2.0.1` (Build 144)** 100% spotless aayi implement cheythu, syntax + unit + live HTTP + Zero-PII + Android safe-build & ADB verify cheythu `origin/main`-il push cheythu macha! 🎨🚑🔥
 > - **Task 1 — Sync Crash & Credential Tracker (`userPortal.js`, `credentialTracker.js`, `myTeamView.js`)**: Unwrapped nested `payload?.data?.trackers` & `data?.data?.logs` arrays safely inside isolated try/catch guards (zero `trackers.filter is not a function` aborts!), and added `hideBackButton: true` so embedded subviews (`Credential Tracker` & `My Team`) display a single clean header with zero duplicate back arrows.

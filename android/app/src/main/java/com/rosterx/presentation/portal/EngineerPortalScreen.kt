@@ -1432,7 +1432,7 @@ fun EngineerPortalScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (showPortalChrome) {
+            if (showPortalChrome && selectedTab == 0) {
                 com.rosterx.presentation.components.FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
                     size = if (isLandscape) 44.dp else 52.dp,

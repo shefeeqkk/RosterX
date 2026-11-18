@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.0.1"
+SERVER_VERSION = "2.0.2"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -3558,14 +3558,36 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             try:
                 doc = ATLAS_DB.rosters.find_one({"_id": month_id})
                 if doc:
-                    # Exclude pure management accounts and manager/admin from duty shifts
+                    # Honor explicit include_in_roster=True from the live engineers collection
+                    explicit_roster_keys = set()
+                    try:
+                        for eng_doc in ATLAS_DB.engineers.find({"include_in_roster": True}, {"username": 1, "name": 1, "full_name": 1}):
+                            for field in ("username", "name", "full_name"):
+                                val = str(eng_doc.get(field) or "").strip().lower()
+                                if val:
+                                    explicit_roster_keys.add(val)
+                    except Exception:
+                        pass
+
+                    # Exclude pure management/system accounts while honoring explicit include_in_roster=True
+                    def _include_row(e):
+                        if not isinstance(e, dict):
+                            return False
+                        if e.get("include_in_roster") is True or e.get("includeInRoster") is True:
+                            return True
+                        for field in ("username", "engineer_id", "engineerId", "id", "name", "full_name"):
+                            val = str(e.get(field) or "").strip().lower()
+                            if val and val in explicit_roster_keys:
+                                return True
+                        return not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")
+
                     if "engineers" in doc and isinstance(doc["engineers"], list):
-                        doc["engineers"] = [e for e in doc["engineers"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
+                        doc["engineers"] = [e for e in doc["engineers"] if _include_row(e)]
                         for e in doc["engineers"]:
                             if isinstance(e, dict) and e.get("name"):
                                 e["name"] = to_proper_name(e["name"])
                     if "roster" in doc and isinstance(doc["roster"], list):
-                        doc["roster"] = [e for e in doc["roster"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
+                        doc["roster"] = [e for e in doc["roster"] if _include_row(e)]
                         for e in doc["roster"]:
                             if isinstance(e, dict) and e.get("name"):
                                 e["name"] = to_proper_name(e["name"])

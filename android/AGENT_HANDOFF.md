@@ -5,6 +5,14 @@
 
 ---
 
+## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.2 - Build 145 — Username-First Roster Match & Dashboard-Only AI Bot):
+> *"Dasa! Gafoorka! Hotfix **`v2.0.2` (Build 145)** verified, safe-built, ADB-synced & pushed to `origin/main`! 🎨✨
+> - **Username-First Roster Match**: `userPortal.js` matches `eng.username` against `r.username`/`r.engineer_id`/`r.engineerId`/`r.id` first + exact/first-name fallback; `server.py` honors `include_in_roster: true` from `ATLAS_DB.engineers` in `GET /api/roster/<month>`.
+> - **Dashboard-Only AI Bot (Web + Android)**: Floating 3D AI Bot shown exclusively on Dashboard tab (`selectedTab == 0` in `EngineerPortalScreen.kt` & `AdminMainScreen.kt`, `activeTab === 'dashboard'` in `userPortal.js`).
+> - **Version Sync**: `build.gradle.kts` (`145` / `2.0.2`), `server.py` (`2.0.2`), `sw.js` (`rosterx-pwa-v2.0.2`)."*
+
+---
+
 ## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.1 - Build 144 — Web Portal Sync, Roster Grid & Bell Parity):
 > *"Dasa! Gafoorka! Hotfix **`v2.0.1` (Build 144)** complete aayi verify + safe-build + ADB sync cheythu `origin/main`-il push cheythu macha! 🎨🚑🔥
 > - Safe nested `payload.data.trackers` & `logs` unwrapping + single clean subview header (`hideBackButton: true`) in `credentialTracker.js` & `myTeamView.js`.

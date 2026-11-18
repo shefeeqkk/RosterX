@@ -13,14 +13,14 @@
  *   Profile & Settings (Tenure/Birthday, Weekly Offs, Edit Profile + Remove Photo, 6 Brand Palettes)
  */
 
-import { authService } from './authService.js?v=2.0.1';
-import { AtlasService } from './atlasService.js?v=2.0.1';
-import { themeController } from './themeController.js?v=2.0.1';
-import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.1';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.1';
-import { CredentialTrackerController } from './credentialTracker.js?v=2.0.1';
-import { MyTeamViewController } from './myTeamView.js?v=2.0.1';
-import { sortEngineersByWeekOffs } from './constants.js?v=2.0.1';
+import { authService } from './authService.js?v=2.0.2';
+import { AtlasService } from './atlasService.js?v=2.0.2';
+import { themeController } from './themeController.js?v=2.0.2';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.2';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.2';
+import { CredentialTrackerController } from './credentialTracker.js?v=2.0.2';
+import { MyTeamViewController } from './myTeamView.js?v=2.0.2';
+import { sortEngineersByWeekOffs } from './constants.js?v=2.0.2';
 import {
   registerPwaServiceWorker,
   mountIosInstallBanner,
@@ -28,9 +28,9 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js?v=2.0.1';
+} from './pwaHelper.js?v=2.0.2';
 
-const APP_VERSION = '2.0.1';
+const APP_VERSION = '2.0.2';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -462,20 +462,62 @@ class RosterXUserPortal {
     const list = (Array.isArray(rosterDoc.engineers) && rosterDoc.engineers.length > 0)
       ? rosterDoc.engineers
       : (Array.isArray(rosterDoc.roster) ? rosterDoc.roster : []);
-    const uname = String(eng.username || '').trim().toLowerCase();
-    const ename = String(eng.name || '').trim().toLowerCase();
-    const full = String(eng.full_name || eng.fullName || '').trim().toLowerCase();
-    const matched = list.find((r) => {
+    if (list.length === 0) return {};
+
+    const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const compact = (s) => norm(s).replace(/[^a-z0-9]/g, '');
+
+    // Build canonical username / identifier keys for this engineer
+    const engIdKeys = new Set(
+      [eng.username, eng.id, eng.engineer_id, eng.engineerId]
+        .map(norm)
+        .filter(Boolean)
+    );
+    const ename = norm(eng.name);
+    const full = norm(eng.full_name || eng.fullName);
+    const engNames = [ename, full].filter(Boolean);
+    const engFirsts = [...new Set(engNames.map((n) => n.split(' ')[0]).filter((f) => f.length >= 2))];
+    const engCompacts = new Set([...engIdKeys, ...engNames.map(compact), ...engNames.map((n) => `eng_${compact(n)}`)].filter(Boolean));
+
+    const getRowIdKeys = (r) =>
+      [r.username, r.engineer_id, r.engineerId, r.id]
+        .map(norm)
+        .filter(Boolean);
+
+    // Tier 1: Direct Username / Canonical ID Match (handles r.username, r.engineer_id, r.id)
+    let matched = list.find((r) => {
       if (!r || typeof r !== 'object') return false;
-      const ru = String(r.username || '').trim().toLowerCase();
-      const rn = String(r.name || '').trim().toLowerCase();
-      const rf = String(r.full_name || r.fullName || '').trim().toLowerCase();
-      return (
-        (uname && ru && ru === uname) ||
-        (ename && (rn === ename || rf === ename)) ||
-        (full && (rn === full || rf === full))
-      );
+      const rowIds = getRowIdKeys(r);
+      return rowIds.some((rid) => engIdKeys.has(rid) || engCompacts.has(rid));
     });
+
+    // Tier 2: Exact Name / Full Name Match (case- & whitespace-insensitive)
+    if (!matched && engNames.length > 0) {
+      matched = list.find((r) => {
+        if (!r || typeof r !== 'object') return false;
+        const rn = norm(r.name);
+        const rf = norm(r.full_name || r.fullName);
+        return engNames.some((n) => (rn && rn === n) || (rf && rf === n));
+      });
+    }
+
+    // Tier 3: Safe First-Name / Prefix Fallback (mirrors Android RosterRepositoryImpl & WidgetProvider)
+    if (!matched && engNames.length > 0) {
+      matched = list.find((r) => {
+        if (!r || typeof r !== 'object') return false;
+        const rn = norm(r.name);
+        const rf = norm(r.full_name || r.fullName);
+        const rowNames = [rn, rf].filter(Boolean);
+        return rowNames.some((rowName) => {
+          const rowFirst = rowName.split(' ')[0];
+          return (
+            engFirsts.some((f) => rowName === f || (rowFirst.length >= 2 && rowFirst === f)) ||
+            engNames.some((n) => (n.length >= 3 && rowName.startsWith(`${n} `)) || (rowName.length >= 3 && n.startsWith(`${rowName} `)))
+          );
+        });
+      });
+    }
+
     const rawShifts = matched?.shifts;
     const map = {};
     if (Array.isArray(rawShifts)) {
@@ -546,12 +588,21 @@ class RosterXUserPortal {
     document.querySelectorAll('.rx-subview').forEach((s) => s.classList.add('rx-hidden'));
     document.getElementById(`panel_${tabId}`)?.classList.remove('rx-hidden');
 
+    this.syncAiFabVisibility();
     this.renderActiveView();
+  }
+
+  syncAiFabVisibility() {
+    const fab = document.getElementById('btnRosterAiFab');
+    if (!fab) return;
+    const show = this.activeTab === 'dashboard' && !this.activeSubView;
+    fab.classList.toggle('rx-hidden', !show);
   }
 
   openSubView(viewName) {
     this.activeSubView = viewName;
     this.navShell.setSubViewOpen(true);
+    this.syncAiFabVisibility();
 
     document.getElementById('btnSubViewBack')?.classList.remove('rx-hidden');
     document.getElementById('rxBrandLogo')?.classList.add('rx-hidden');
