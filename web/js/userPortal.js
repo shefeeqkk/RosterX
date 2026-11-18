@@ -13,14 +13,14 @@
  *   Profile & Settings (Tenure/Birthday, Weekly Offs, Edit Profile + Remove Photo, 6 Brand Palettes)
  */
 
-import { authService } from './authService.js?v=2.0.2';
-import { AtlasService } from './atlasService.js?v=2.0.2';
-import { themeController } from './themeController.js?v=2.0.2';
-import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.2';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.2';
-import { CredentialTrackerController } from './credentialTracker.js?v=2.0.2';
-import { MyTeamViewController } from './myTeamView.js?v=2.0.2';
-import { sortEngineersByWeekOffs } from './constants.js?v=2.0.2';
+import { authService } from './authService.js?v=2.0.3';
+import { AtlasService } from './atlasService.js?v=2.0.3';
+import { themeController } from './themeController.js?v=2.0.3';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.3';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.3';
+import { CredentialTrackerController } from './credentialTracker.js?v=2.0.3';
+import { MyTeamViewController } from './myTeamView.js?v=2.0.3';
+import { sortEngineersByWeekOffs } from './constants.js?v=2.0.3';
 import {
   registerPwaServiceWorker,
   mountIosInstallBanner,
@@ -28,9 +28,9 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js?v=2.0.2';
+} from './pwaHelper.js?v=2.0.3';
 
-const APP_VERSION = '2.0.2';
+const APP_VERSION = '2.0.3';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -1339,14 +1339,14 @@ class RosterXUserPortal {
                   </tr>
                 `;
               }).join('')}
-              <tr>
+              <tr class="rx-coverage-row">
                 <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">DAY COVERAGE (≥3)</th>
                 ${dayHeaders.map(({ d }) => `<td style="background:rgba(2,132,199,0.12);color:${hasAnyShifts && dayCov[d] < 3 ? '#DC2626' : '#0284C7'};">${dayCov[d]}</td>`).join('')}
                 <td style="background:var(--nm-surface-contrast);"></td>
                 <td style="background:var(--nm-surface-contrast);"></td>
                 <td style="background:var(--nm-surface-contrast);"></td>
               </tr>
-              <tr>
+              <tr class="rx-coverage-row">
                 <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">NIGHT COVERAGE (1)</th>
                 ${dayHeaders.map(({ d }) => `<td style="background:rgba(99,102,241,0.12);color:${hasAnyShifts && nightCov[d] !== 1 ? '#DC2626' : '#4F46E5'};">${nightCov[d]}</td>`).join('')}
                 <td style="background:var(--nm-surface-contrast);"></td>

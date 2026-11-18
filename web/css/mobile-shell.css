@@ -608,11 +608,11 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
 .rx-roster-table thead {
   position: sticky;
   inset-block-start: 0;
-  z-index: 3;
+  z-index: 5;
 }
 
 .rx-roster-table thead th {
-  background: var(--nm-surface-contrast);
+  background: var(--nm-surface-contrast, #E2E8F0);
   color: var(--nm-text);
   padding: 6px 4px;
   text-align: center;
@@ -624,17 +624,19 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
 .rx-roster-table thead th:first-child {
   position: sticky;
   inset-inline-start: 0;
-  z-index: 4;
+  z-index: 7;
+  background: var(--nm-surface-contrast, #E2E8F0);
   text-align: left;
   padding-left: 10px;
   min-width: 132px;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.08);
 }
 
 .rx-roster-table tbody th {
   position: sticky;
   inset-inline-start: 0;
-  z-index: 2;
-  background: var(--nm-surface);
+  z-index: 3;
+  background: var(--nm-surface, #EEF2F6);
   color: var(--nm-text);
   text-align: left;
   padding: 6px 10px;
@@ -642,6 +644,17 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
   white-space: nowrap;
   border-bottom: 1px solid var(--nm-border);
   border-right: 1px solid var(--nm-border);
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+
+.rx-roster-table tbody tr.rx-coverage-row th {
+  background: var(--nm-surface-contrast, #E2E8F0) !important;
+  z-index: 4;
+}
+
+html.dark .rx-roster-table thead th:first-child,
+html.dark .rx-roster-table tbody th {
+  box-shadow: 2px 0 8px rgba(2, 6, 23, 0.35);
 }
 
 .rx-roster-table tbody td {

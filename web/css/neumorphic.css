@@ -9,17 +9,16 @@
 :root {
   /* ==========================================
      1. Monochromatic Canvas & Surface Baseline
+     (Base tokens --nm-surface-contrast, --nm-shadow-light, --nm-shadow-dark,
+      --nm-accent-glow, --nm-text-muted, --nm-transition are defined in tokens.css)
      ========================================== */
   --nm-surface: var(--nm-canvas);
   --nm-surface-rgb: 238, 242, 246;
-  --nm-surface-contrast: var(--nm-surface-contrast);
 
   /* ==========================================
      2. Dual-Opposite Light-Source Coordinates (135° Key Light)
      ========================================== */
-  --nm-shadow-light: var(--nm-shadow-light);
   --nm-shadow-light-subtle: var(--nm-shadow-light);
-  --nm-shadow-dark: var(--nm-shadow-dark);
   --nm-shadow-dark-subtle: var(--nm-shadow-dark);
   --nm-shadow-dark-ambient: var(--nm-shadow-dark);
 
@@ -49,7 +48,7 @@
   --nm-accent-start: var(--nm-accent-coral);
   --nm-accent-end: var(--nm-accent-salmon);
   --nm-accent-gradient: linear-gradient(135deg, var(--nm-accent-start) 0%, var(--nm-accent-end) 100%);
-  --nm-accent-glow: 0 8px 20px var(--nm-accent-glow);
+  --nm-accent-glow-shadow: 0 8px 20px var(--nm-accent-glow);
   --nm-accent-active: inset 3px 3px 6px rgba(0, 0, 0, 0.3), inset -3px -3px 6px rgba(255, 255, 255, 0.3);
 
   /* Secondary Accents (NOC Status Identifiers) */
@@ -61,7 +60,6 @@
      6. Typography & High-Contrast Guard
      ========================================== */
   --nm-text-main: var(--nm-text);
-  --nm-text-muted: var(--nm-text-muted);
   --nm-text-light: var(--nm-text-faint);
   --nm-text-accent: var(--nm-accent-salmon);
   --nm-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -69,7 +67,6 @@
   /* ==========================================
      7. Tactile Motion & Kinetics
      ========================================== */
-  --nm-transition: var(--nm-transition);
   --nm-transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --nm-ease-bounce: var(--nm-spring);
 }
