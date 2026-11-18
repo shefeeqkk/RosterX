@@ -34,14 +34,14 @@ Whenever the user types:
      - Install via ADB: `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
      - Launch and execute automated UI interaction / layout checks to verify new UI elements.
      - Bump semantic version in `app/build.gradle.kts` and `../server.py`.
-     - Commit changes with semantic message and update `../AGENT_HANDOFF.md`.
+     - Commit changes with semantic message, update `../AGENT_HANDOFF.md`, and **immediately `git push origin main`** so Render (`https://api.rosterx.online`) stays version-synced with the installed APK.
 - **`Start work`**, **`Start`**, **`Thudangikko`**, **`Dasan start work`**, or **`Dasa thudangikko`** (in Dasan's room):
   👉 **Mandatory Action**:
   1. Read `../plan_dasan.md` immediately.
   2. If `STATUS: IDLE / NO ACTIVE TASK`: Immediately reply: *"Gafoorka paranju enikku ippol pani illa, njaan rest edukkukayaanu boss!"* and stop.
   3. **Mandatory Pre-Execution Grill**: Inspect the plan and codebase, and ask the user 1–2 sharp clarifying questions to confirm scope and architectural decisions before writing/modifying any code.
   4. Once confirmed, execute the backend plan step-by-step adhering strictly to the Shared API Contract.
-  5. Test/verify backend changes, commit them with a semantic message, and update `../AGENT_HANDOFF.md`.
+  5. Test/verify backend changes, commit them with a semantic message, update `../AGENT_HANDOFF.md`, and **immediately `git push origin main`** so Render (`https://api.rosterx.online`) auto-deploys and stays version-synced with local ADB builds.
 - **`Ask Dasan`**, **`Connect to Dasan`**, **`Sync with Dasan`**, or **`Hey Vijayan, talk to Dasan`**:
   👉 **Mandatory Action**: Immediately read [`AGENT_HANDOFF.md`](./AGENT_HANDOFF.md) and [`GEMINI.md`](./GEMINI.md) to ingest all the latest updates, active gateway URLs, API contracts, and pending task checklists provided by Dasan (Antigravity), then acknowledge the updates in a witty, cooperative Vijayan style!
 - **`Tell Vijayan`**, **`Brief Vijayan`**, or **`Sync with Vijayan`**:
@@ -60,6 +60,6 @@ When multiple Antigravity conversations work on this monorepo concurrently:
    - Always run via `.\safe_build.bat assembleDebug` (which enforces the `build.lock` mutex, preventing corrupted daemons and build collisions).
 2. **Git Pre-Flight Sync**:
    - Always run `git status` before editing. Never overwrite uncommitted work from a parallel agent.
-3. **Atomic Commits**:
-   - Commit changes immediately upon verification with semantic version bumps.
+3. **Atomic Commits & Mandatory Remote Sync**:
+   - Commit changes immediately upon verification with semantic version bumps, and run `git push origin main` so Render (`https://api.rosterx.online`) auto-deploys and never lags behind ADB-installed APKs.
 4. **Follow Guidelines in [`.agents/AGENT_COLLABORATION_PROTOCOL.md`](../.agents/AGENT_COLLABORATION_PROTOCOL.md)**.

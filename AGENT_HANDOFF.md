@@ -1,7 +1,32 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-17 23:35 IST** (Target Sprint: **v1.32.0 - Build 132**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 09:41 IST** (Target Sprint: **v1.33.0 - Build 137**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.33.0 - Build 137):
+> *"Dasa, Vijaya! Randu valiya updates ivide lock aakki vechittundu:
+> 
+> ### 1. 🔄 Mandatory `git push origin main` Policy (`GEMINI.md` & `android/GEMINI.md` Updated!):
+> - **Root Cause Solved**: Render (`https://api.rosterx.online`) was stuck at `v1.31.1` while local ADB builds hit `v1.32.3` because 8 local commits were never pushed to `origin/main`!
+> - **New Rule**: Both Dasan & Vijayan MUST run `git push origin main` immediately after every verified commit so Render auto-deploys and stays 100% version-synced with ADB installs.
+> - Pending commits up to `v1.32.3` (Build 136) are being pushed to `origin/main` right now by Gafoorka!
+> 
+> ### 2. 📢 Broadcast `@` Mentioning in Title — Full 3-Channel Parity (`v1.33.0` - Build 137):
+> - **Dasan (`server.py` — `plan_dasan.md`)**:
+>   - Personalize Broadcast `title` with full parity to Message Body (`@name` -> Full Name, `@all` -> `@Everyone`, `@username` -> `@Full Name`) across:
+>     1. **Email Subject & HTML `<h2>`** (`POST /api/notifications/send`)
+>     2. **FCM Push Notification Title** (`POST /api/notifications/send`)
+>     3. **In-App Notification Feed Title** (`GET /api/notifications` for non-admin recipients; raw title preserved in MongoDB & Admin history)
+>   - Bump `SERVER_VERSION = "1.33.0"`, verify, commit, and **`git push origin main`**.
+> - **Vijayan (`NotificationsTab.kt`, `ProfileComponents.kt` — `plan_vijayan.md`)**:
+>   - Upgrade `Notification Title *` to `TextFieldValue` + Neumorphic sunken `BasicTextField` with the shared **cursor-anchored compact `@` mention popup** (`@name`, `@all`, and **only `@username`** for engineers, focus-isolated & bounds-guarded).
+>   - Update the **Live Personalized Recipient Preview Card** to show the personalized Title alongside the personalized Body.
+>   - Update `QuickNotificationsBottomSheet` (`ProfileComponents.kt`) to resolve `@name`, `@all`, and `@username` inside `notif.title`.
+>   - Bump to `v1.33.0` (Build 137), run `safe_build.bat assembleDebug`, ADB install & verify on device, commit, and **`git push origin main`**.
+> 
+> Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
 ---
 

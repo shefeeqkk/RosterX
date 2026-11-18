@@ -1,39 +1,34 @@
 # 📋 Execution Plan for Dasan (Backend & Core Orchestration)
 
-**Status:** `COMPLETED` (Sprint v1.32.0 - Build 133 Auto-Purge & Clean Sweep for Expired Celebrations + Orphaned Dismissed-ID Pruning verified live on MongoDB Atlas)
+**Status:** `READY FOR DASAN` (Sprint v1.33.0 - Build 137 Broadcast Title `@` Mention Personalization + Mandatory Auto-Push Sync)
 
 ---
 
 ## 1. Architectural Mandates from Gafoor (System Architect 🕶️)
 
-Dasa! Nammude user oru valiya issue report cheythittundu: Birthday-yum Work Anniversary-yum aaya notifications aa divasam kazhinjaalum drawer-il ninnu maaranilla! "Yesterday, 05:52 PM" ennum paranju linger aayi nilkkukayaanu.
-Grill-me session-il user clear aayi paranju:
-1. **Hard Purge in MongoDB**: Aa calendar date (IST midnight) kazhinjaal, MongoDB notifications collection-il ninnu past celebration documents poornamaayi **permanently delete** cheyyanam (`delete_many`).
-2. **Clean Sweep (Remove Everywhere)**: User-nte notification drawer-il ninnu maathramalla, Admin/Manager-nte Broadcast History-il ninnum clean sweep aayi maarikkollanam.
+Dasa! Nammude Broadcast Composer-il ippol Message Body-il maathramaanu `@name`, `@all`, and `@username` personalization work cheyyunnathu. User-nte puthiya demand: **Broadcast Title-ilum `@` mentioning full parity-ode work aakanam!**
+Athupole nammude **new workspace policy** (updated in `GEMINI.md`): Verified commit kazhinjaal **mandatory `git push origin main`** run cheyyuka, so Render (`https://api.rosterx.online`) automatically sync aayi App & Backend version mismatch zero aakum!
 
 ### 🎯 Key Directives for Dasan:
-1. **Dedicated Celebration Auto-Purge Function (`purge_expired_celebrations`) in `server.py`**:
-   - Calculate current IST date (`today_str = now_ist.strftime("%Y-%m-%d")`) and start of today in IST timestamp:
-     ```python
-     start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist_tz).timestamp()
-     ```
-   - Target celebration records:
-     - Identification: `category: "celebration"` OR `celebration_id` exists OR `celebration_type` exists.
-     - Condition for expiration: `timestamp < start_of_today_ist` OR `celebration_id` does NOT start with `celeb_{today_str}_`.
-   - In MongoDB `ATLAS_DB.notifications`:
-     - Run `delete_many` to permanently delete these expired celebration documents.
-   - In `SERVER_NOTIFICATIONS` (in-memory deque):
-     - Filter out expired celebration items.
-2. **Integrate Purge Engine into Lifecycle**:
-   - In `GET /api/notifications`:
-     - Call `purge_expired_celebrations()` before fetching notifications.
-     - Defensively filter the fetched `notifs` list so that no past celebration is returned under ANY circumstances.
-   - In `check_and_trigger_celebrations(force=False)`:
-     - Run `purge_expired_celebrations()` at the beginning of the function before evaluating today's milestone checks.
-   - In `_daily_celebration_cron()`:
-     - Run `purge_expired_celebrations()` every day at 08:30 IST and on initial boot.
-3. **Version Bump**:
-   - Bump `SERVER_VERSION = "1.32.0"` in `server.py`.
+1. **Unified Personalization Helper (`_personalize_broadcast_text`) in `server.py`**:
+   - Avoid duplicating regexes across Title & Body. Create a clean helper in `POST /api/notifications/send` and `GET /api/notifications` that resolves:
+     - `@name` / `{name}` / `{their name}` → recipient's **Full Name** (e.g. `Shefeeq K K`)
+     - `{username}` / `@{username}` → recipient's username
+     - `@all` / `@everyone` / `@team` → `@Everyone` (plain text) or styled badge (HTML email body)
+     - `@<username>` → `@<Full Name>` via `name_by_user` / `name_by_id` lookup (plain text for Email Subject & FCM Push Title, styled badge or `@Full Name` in Email HTML `<h2>`)
+2. **Apply Personalization to Broadcast `title` Across ALL 3 Channels**:
+   - **Email (Resend)** inside `POST /api/notifications/send`:
+     - **Email Subject**: Personalize `title` in plain text (`p_title_plain`) → `f"📢 [{priority.upper()}] {p_title_plain}"`.
+     - **Email HTML `<h2>`**: Personalize `title` (`html_p_title` or `p_title_plain`) so the email heading is equally customized per recipient!
+   - **FCM Push Notification** inside `POST /api/notifications/send`:
+     - Personalize `title` per recipient (`p_title_plain`) → `f"📢 [{priority.upper()}] {p_title_plain}"`.
+   - **In-App Notification Feed** inside `GET /api/notifications`:
+     - When `!is_admin`: Personalize `item["title"]` for `@name`, `{name}`, `@all`, and `@username` using the caller's Full Name + engineer lookup map (exact parity with `item["raw_message"]`).
+     - Keep original raw `title` intact in MongoDB `ATLAS_DB.notifications` (and for Admin/Manager history view) so Admins can see the raw template tokens while engineers see their personalized title!
+3. **Version Bump & Mandatory Push**:
+   - Update `SERVER_VERSION = "1.33.0"` in `server.py`.
+   - Test Email subject/HTML, FCM title, and `GET /api/notifications` title resolution with a quick verification script.
+   - Commit with semantic message, update `AGENT_HANDOFF.md`, and **run `git push origin main`** so Render deploys `v1.33.0` immediately!
 
 ---
 
@@ -42,77 +37,20 @@ Grill-me session-il user clear aayi paranju:
 ### 📁 Primary File:
 - `server.py`
 
-### 🛠️ Step-by-Step Implementation:
-1. **Define `purge_expired_celebrations()`**:
-   ```python
-   def purge_expired_celebrations():
-       """
-       Hard Purge Engine:
-       Permanently deletes celebration notices from ATLAS_DB.notifications and
-       SERVER_NOTIFICATIONS where the celebration event date is strictly before today's IST date.
-       """
-       global ATLAS_DB, SERVER_NOTIFICATIONS
-       try:
-           ist_tz = timezone(timedelta(hours=5, minutes=30))
-           now_ist = datetime.now(ist_tz)
-           today_str = now_ist.strftime("%Y-%m-%d")
-           start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist_tz).timestamp()
-
-           deleted_count = 0
-           if ATLAS_DB is not None:
-               celeb_filter = {
-                   "$and": [
-                       {
-                           "$or": [
-                               {"category": "celebration"},
-                               {"celebration_id": {"$exists": True}},
-                               {"celebration_type": {"$exists": True}}
-                           ]
-                       },
-                       {
-                           "$or": [
-                               {"timestamp": {"$lt": start_of_today_ist}},
-                               {"celebration_id": {"$regex": r"^celeb_(?!" + re.escape(today_str) + r")"}}
-                           ]
-                       }
-                   ]
-               }
-               res = ATLAS_DB.notifications.delete_many(celeb_filter)
-               deleted_count = res.deleted_count
-               if deleted_count > 0:
-                   log_server(f"[PURGE] Permanently deleted {deleted_count} expired celebration notifications from MongoDB.")
-
-           # Purge in-memory deque as well
-           if SERVER_NOTIFICATIONS:
-               SERVER_NOTIFICATIONS = collections.deque(
-                   [
-                       n for n in SERVER_NOTIFICATIONS
-                       if not (
-                           (n.get("category") == "celebration" or n.get("celebration_id") or n.get("celebration_type"))
-                           and (
-                               n.get("timestamp", 0) < start_of_today_ist
-                               or (str(n.get("celebration_id", "")).startswith("celeb_") and not str(n.get("celebration_id", "")).startswith(f"celeb_{today_str}"))
-                           )
-                       )
-                   ],
-                   maxlen=SERVER_NOTIFICATIONS.maxlen
-               )
-           return deleted_count
-       except Exception as e:
-           log_server(f"[PURGE ERROR] Failed to purge expired celebrations: {e}")
-           return 0
-   ```
-2. **Invoke Purge Engine**:
-   - In `check_and_trigger_celebrations(force=False)`:
-     Call `purge_expired_celebrations()` right after computing `today_str`.
-   - In `GET /api/notifications`:
-     Call `purge_expired_celebrations()` before fetching `db_notifs`.
-     Also apply defensive in-memory filter on `notifs` list for both regular engineers and admins!
-3. **Verify with Python test**:
-   - Create a dummy celebration notification with yesterday's timestamp/ID.
-   - Run `purge_expired_celebrations()`.
-   - Verify it is deleted and not returned by `GET /api/notifications`.
-4. **Commit & Update Handoff**:
-   - Update `SERVER_VERSION = "1.32.0"`.
-   - Commit with message `feat(celebrations): hard purge expired celebration notifications past midnight IST v1.32.0 (Build 132)`.
-   - Update `AGENT_HANDOFF.md`.
+### 🛠️ Implementation Checklist:
+1. **In `POST /api/notifications/send` (`lines ~5160-5252`)**:
+   - For **Email loop**:
+     - Compute `p_title_plain` (replaces `@name`, `{name}`, `{username}`, `@all` → `@Everyone`, `@<username>` → `@<Full Name>`).
+     - Compute `html_p_title` (HTML-safe or inline styled mention pill for `<h2>` heading).
+     - Pass `f"📢 [{priority.upper()}] {p_title_plain}"` as email subject and `{html_p_title}` inside `<h2>`.
+   - For **FCM Push loop**:
+     - Compute `p_title_plain` per recipient using the exact same rules as `p_body`.
+     - Pass `f"📢 [{priority.upper()}] {p_title_plain}"` as the FCM title.
+2. **In `GET /api/notifications` (`lines ~3715-3735`)**:
+   - Build a lightweight `name_by_user` lookup map (from `ATLAS_DB.engineers` or `DEFAULT_SERVER_ENGINEERS`).
+   - For non-admin callers, resolve `@name` / `{name}` / `@all` / `@<username>` in **both** `item["title"]` and `item["raw_message"]`.
+3. **Verify & Deploy**:
+   - Run automated Python verification covering:
+     - Title `"Urgent for @name: @shefeeqkk & @all please review"` → resolves properly per recipient in plain text, HTML, and `GET /api/notifications`.
+   - Bump `SERVER_VERSION = "1.33.0"`.
+   - Commit, update `AGENT_HANDOFF.md`, and **`git push origin main`**.
