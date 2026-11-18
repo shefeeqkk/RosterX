@@ -1,91 +1,76 @@
-# 📋 Execution Plan for Dasan (Backend, Web & Production Hygiene)
+# 📋 Execution Plan for Dasan (Backend & Infrastructure)
 
-**Status:** `COMPLETED` (Sprint v1.33.0 - Build 137 Broadcast Title `@` Mentions + 100% Cloudflared Removal + Zero-PII DB-Driven Roster Metadata + Zero-Knowledge Onboarding verified & pushed)
+**Status:** `READY FOR DASAN` (Sprint v1.34.0 - Build 139 Android Verified App Links + Deep-Link Email CTAs + In-App Update Metadata)
 
 ---
 
 ## 🔐 Mandatory Production Rule from Gafoor (System Architect 🕶️)
 > **Public GitHub Repo + Auto-Deploying Render Production Server:**
-> - **ZERO hardcoded personal names, usernames, emails, phone numbers, passwords, or secrets** anywhere in code, comments, templates, or tests! Always use env vars, MongoDB fields, or synthetic examples (`user@example.com`, `Team Member`, `member_username`).
-> - **Mandatory `git push origin main`** immediately after verified commits so Render (`https://api.rosterx.online`) stays version-synced.
+> - **ZERO hardcoded personal names, usernames, emails, passwords, or secrets** anywhere in code, comments, or tests.
+> - **Mandatory `git push origin main`** immediately after verification so Render (`https://api.rosterx.online`) auto-deploys cleanly.
 
 ---
 
-## 1. Task 1 — Broadcast Title `@` Mention Personalization (`server.py`)
-1. **Unified Personalization Helper (`_personalize_broadcast_text`)**:
-   - Create a reusable helper shared by Title and Body across `POST /api/notifications/send` and `GET /api/notifications` that resolves:
-     - `@name` / `{name}` / `{their name}` → recipient's **Full Name**
-     - `{username}` / `@{username}` → recipient's username
-     - `@all` / `@everyone` / `@team` → `@Everyone` (plain text) or styled badge (HTML)
-     - `@<username>` → `@<Full Name>` via `name_by_user` / `name_by_id` lookup
-2. **Apply to Broadcast `title` Across All 3 Channels**:
-   - **Email (Resend)** (`POST /api/notifications/send`):
-     - Subject: `f"📢 [{priority.upper()}] {p_title_plain}"`
-     - HTML `<h2>`: `{html_p_title}`
-   - **FCM Push** (`POST /api/notifications/send`):
-     - Push title: `f"📢 [{priority.upper()}] {p_title_plain}"`
-   - **In-App Feed** (`GET /api/notifications`):
-     - For non-admin callers, resolve `@name`, `{name}`, `@all`, and `@<username>` in **both** `item["title"]` and `item["raw_message"]`.
-     - Preserve raw `title` in MongoDB `ATLAS_DB.notifications` and Admin history views.
+## 1. Task 1 — Android Digital Asset Links (`GET /.well-known/assetlinks.json`)
+Enables Android's **"Open by default" → Verified link (`api.rosterx.online`)** so RosterX links open straight into the native Android app without a browser chooser dialog.
+
+### Technical Specification (`server.py`, `render.yaml`, `.env.example`):
+1. **Endpoint `GET /.well-known/assetlinks.json` (PUBLIC — no auth required!)**:
+   - Read comma-separated SHA-256 certificate fingerprints from environment variable `ANDROID_APP_LINK_SHA256` (also check `.env`).
+   - Normalize each fingerprint: strip whitespace, uppercase, ignore empty strings.
+   - Return HTTP `200` with `Content-Type: application/json` and `Cache-Control: public, max-age=3600`:
+     ```json
+     [
+       {
+         "relation": ["delegate_permission/common.handle_all_urls"],
+         "target": {
+           "namespace": "android_app",
+           "package_name": "com.rosterx",
+           "sha256_cert_fingerprints": ["<FINGERPRINT_1>", "..."]
+         }
+       }
+     ]
+     ```
+   - Never hardcode keystore fingerprints in source code — document `ANDROID_APP_LINK_SHA256` in `.env.example` and add `ANDROID_APP_LINK_SHA256` (`sync: false`) in `render.yaml`.
 
 ---
 
-## 2. Task 2 — 100% Zero-Trace Cloudflared Tunnel Removal
-Remove EVERY Cloudflared / `trycloudflare.com` reference from backend, config, and scripts:
-1. **`server.py`**:
-   - Delete `PUBLIC_TUNNEL_URL`, `TUNNEL_PROC`, `find_cloudflared_path()`, `save_public_tunnel_url()` (`public_tunnel_url.txt` writer), and `start_cloudflared_tunnel()`.
-   - Remove `.trycloudflare.com` from CORS origin allowlist (keep localhost, `.onrender.com`, and `rosterx.online`).
-   - Clean `/api/server-info` and status JSON responses (remove `tunnel_active` / `PUBLIC_TUNNEL_URL` references; expose official production/LAN URL cleanly).
-   - Remove `--tunnel` / `--no-tunnel` CLI flags, `ENABLE_TUNNEL` env var handling, and `enable_tunnel` parameter from `run_server()`.
-2. **`render.yaml`**:
-   - Update `startCommand: python server.py --no-open` (remove `--no-tunnel`).
-   - Remove `ENABLE_TUNNEL` env var entry.
-3. **Delete Unused Tunnel Scripts**:
-   - Remove `tools/start_tunnel.bat` and `tools/start_tunnel.ps1` via `git rm`.
-4. **`.gitignore`**:
-   - Remove obsolete `public_tunnel_url.txt` line.
+## 2. Task 2 — Graceful Desktop Fallback for Deep Links (`GET /open/*`)
+- When a user taps `https://api.rosterx.online/open/roster`, `/open/notifications`, `/open/credentials`, or `/open/profile`:
+  - **On Android (with RosterX installed)**: Android App Links intercepts the URL and opens the exact screen inside the native app.
+  - **On Desktop / Browser (without the app)**: `server.py` MUST NOT return 404! Add a clean handler for `/open` and `/open/*` that responds with `302 Found` (`Location: /` — or `/#roster`, `/#notifications`, `/#credentials`, `/#profile`) so desktop users seamlessly land on the RosterX Web Portal!
 
 ---
 
-## 3. Task 3 — Zero-PII & DB-Driven Roster Metadata (`server.py` + `admin-web/`)
-1. **Shared API Contract (`ATLAS_DB.engineers`)**:
-   - Ensure engineer GET/POST/PUT endpoints preserve & accept optional DB metadata fields:
-     - `include_in_roster` (`bool`, optional)
-     - `display_order` (`int`, optional)
-     - `swap_code` (`str`, optional)
-2. **Scrub All Remaining Hardcoded Team Names/Usernames in `admin-web/` & `server.py`**:
-   - `admin-web/js/app.js` & `admin-web/js/userPortal.js`:
-     - Replace hardcoded operational-admin username checks with DB-driven `include_in_roster` check + generic fallback (exclude `manager` role and generic system accounts like `admin`/`sysadmin`/`administrator`, never personal usernames).
-     - Replace real email/name examples in comments with generic `user@example.com`.
-   - `admin-web/js/constants.js`:
-     - Replace hardcoded name-to-swap-code `if` block in `getEngineerSwapCode(engName, allEngineers)` with:
-       1. Use `eng.swap_code` if provided from DB,
-       2. Otherwise algorithmic generator: `'SW'` + 1st letter (or 2 letters / first+last initials when multiple active engineers share the same starting letter).
-     - Replace hardcoded `KNOWN_ORDER` name dictionary in `getEngineerOrderWeight(eng)` with:
-       1. `eng.display_order` (or `eng.displayOrder`) if set in DB,
-       2. Numeric ID fallback (`eng.id`),
-       3. Alphabetical name tie-breaker.
-   - `admin-web/index.html`, `admin-web/js/excelService.js`, `admin-web/js/rosterAiAssistant.js`, `admin-web/js/rosterAiEngine.js`, `admin-web/README.md`, `server.py` line 333 comment:
-     - Replace all remaining real employee names and corporate email examples with generic synthetic placeholders (`Team Member`, `Member A`, `user@example.com`).
+## 3. Task 3 — Clickable "Open in RosterX App" Deep-Link CTAs in Automated Emails (`server.py`)
+- Define `APP_PUBLIC_BASE_URL = os.environ.get("APP_PUBLIC_BASE_URL", "https://api.rosterx.online").rstrip("/")`.
+- Add a clean, branded pill button (`Open in RosterX App →`) inside RosterX's automated HTML emails:
+  1. **Broadcast Emails** (`POST /api/notifications/send`) → `f"{APP_PUBLIC_BASE_URL}/open/notifications"`
+  2. **Credential Expiry Alert Emails** (daily credential monitor) → `f"{APP_PUBLIC_BASE_URL}/open/credentials"`
+  3. **Welcome / Onboarding Emails** (`POST /api/engineers` new account) → `f"{APP_PUBLIC_BASE_URL}/open/profile"` (or root `f"{APP_PUBLIC_BASE_URL}/"`)
+  4. **Roster / Shift Emails** (if applicable) → `f"{APP_PUBLIC_BASE_URL}/open/roster"`
 
 ---
 
-## 4. Task 4 — Zero-Knowledge Account Onboarding & Block Admin Password Overwrites (`server.py` + `admin-web/`)
-Security fix: Admins/Managers must NEVER be able to change or know any user's or manager's password from Team Management!
-1. **Backend Enforcement (`server.py` — `POST /api/engineers`)**:
-   - Check whether the target account already exists in `ATLAS_DB.engineers` (by `eng_user` or `old_user`).
-   - **Existing Account**: Strictly `eng.pop("password", None)` — NEVER overwrite an existing user's or manager's password hash via `POST /api/engineers`! (Users/managers change their own password only via self-service Profile `POST /api/auth/change-password` or `"Forgot password?"` OTP.)
-   - **Brand-New Account**: Ignore any client-supplied password; auto-generate a cryptographically secure random password (`secrets.token_urlsafe(24)`), store its hash via `hash_password(...)` (never return it in the HTTP response), and if `eng_email` is present, dispatch a clean **Welcome to RosterX** email with their username instructing them to set their private password via **"Forgot password?" (Email OTP)** on the login screen.
-2. **Admin Web Modal (`admin-web/index.html` & `admin-web/js/app.js`)**:
-   - Remove `#formEngPassword` (`Initial Password *`) input & visibility toggle from the Add/Edit Team Member modal and never send `password` in `POST /api/engineers` from the web portal. Add a subtle security note: *"Users set and manage their own password privately via Forgot Password (OTP)."*
+## 4. Task 4 — In-App Update Metadata in `GET /api/server-info` (`server.py`, `render.yaml`, `.env.example`)
+- Enhance `GET /api/server-info` response (keeping all existing keys intact for backwards compatibility) with:
+  ```json
+  {
+    "version": "1.34.0",
+    "latest_android_version": "1.34.0",
+    "min_supported_version": "1.30.0",
+    "apk_download_url": "https://github.com/shefeeqkk/RosterX/releases/latest"
+  }
+  ```
+- Read `APK_DOWNLOAD_URL` from environment variable (defaulting to `https://github.com/shefeeqkk/RosterX/releases/latest`) and `MIN_SUPPORTED_VERSION` (optional env var, default `"1.0.0"`). Document both in `.env.example` and `render.yaml`.
 
 ---
 
 ## 5. Verification, Version Bump & Mandatory Push
 1. Run `python -m py_compile server.py` and verify:
-   - Broadcast title personalization across Email, FCM, and `GET /api/notifications`.
-   - Zero `cloudflared` / `trycloudflare` / `public_tunnel_url` matches in `server.py`, `render.yaml`, `tools/`.
-   - Zero hardcoded personal names/emails/passwords in `server.py` and `admin-web/`.
-   - `POST /api/engineers` refuses to overwrite existing account passwords and auto-generates random password hash + welcome email on new account creation.
-2. Bump `SERVER_VERSION = "1.33.0"` in `server.py`.
-3. Commit with semantic message, update `AGENT_HANDOFF.md`, and **run `git push origin main`** so Render (`https://api.rosterx.online`) deploys immediately!
+   - `GET /.well-known/assetlinks.json` returns valid JSON array with `com.rosterx` and parsed `ANDROID_APP_LINK_SHA256` fingerprints.
+   - `GET /open/credentials`, `/open/notifications`, `/open/roster`, `/open/profile` return clean `302` redirect to `/` (no 404).
+   - `GET /api/server-info` returns `latest_android_version`, `min_supported_version`, and `apk_download_url`.
+   - Zero hardcoded PII or secrets anywhere.
+2. Bump `SERVER_VERSION = "1.34.0"` in `server.py`.
+3. Commit with semantic message, update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!

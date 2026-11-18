@@ -1,7 +1,34 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 10:17 IST** (Target Sprint: **v1.33.0 - Build 137**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 11:26 IST** (Target Sprint: **v1.34.0 - Build 139**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.34.0 - Build 139 — Flagship Native Android Platform Suite):
+> *"Dasa, Vijaya! Sprint `v1.33.1` clean aayi land aayi! Ippol nammude next flagship release **`v1.34.0` (Build 139)** lock aakki vechittundu — Android Verified App Links + 4 major native Android OS features!
+>
+> ### 1. 🔗 Verified Android App Links (`api.rosterx.online` → "Open by default"):
+> - **Dasan (`server.py`, `render.yaml`, `.env.example`)**:
+>   - Serve `GET /.well-known/assetlinks.json` (public JSON) reading comma-separated SHA-256 fingerprints from `ANDROID_APP_LINK_SHA256` env var (zero hardcoding).
+>   - Add desktop fallback `GET /open/*` redirecting to `/` so non-Android clicks never hit 404.
+>   - Add clickable **"Open in RosterX App →"** buttons in automated HTML emails (`/open/notifications`, `/open/credentials`, `/open/roster`, `/open/profile`).
+>   - Enhance `GET /api/server-info` with `latest_android_version`, `min_supported_version`, and `apk_download_url` (from `APK_DOWNLOAD_URL` env var, defaulting to GitHub Releases latest).
+> - **Vijayan (`AndroidManifest.xml`, `MainActivity.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>   - Add `<intent-filter android:autoVerify="true">` (`launchMode="singleTop"`) for `https://api.rosterx.online` covering `/` and `/open` (do NOT intercept `/api/*`!).
+>   - Handle `intent.data` in `onCreate` & `onNewIntent` to jump straight to `ROSTER`, `NOTIFICATIONS`, `CREDENTIALS`, or `PROFILE`.
+>
+> ### 2. ⚡ Launcher Long-Press App Shortcuts + Native Splash Screen + Predictive Back (Vijayan):
+> - Static shortcuts (`res/xml/shortcuts.xml`: Today's Roster, Notifications, My Profile) + dynamic role-aware Credential Tracker shortcut (`ShortcutManagerCompat`) for Admin/Manager.
+> - Android 12+ `androidx.core:core-splashscreen` (`Theme.RosterX.Starting`, `installSplashScreen()`) + `android:enableOnBackInvokedCallback="true"`.
+>
+> ### 3. 📅 1-Tap Export Monthly Shifts to Google / Device Calendar (Vijayan):
+> - `FileProvider` + RFC-5545 `.ics` batch generator (`ShiftCalendarExporter.kt`) skipping OFF/SW/Leave, mapping exact IST shift times + 30-min `VALARM` + stable `UID`, triggered from Month Roster header.
+>
+> ### 4. 🔔 In-App Update Banner (Vijayan):
+> - Compare `BuildConfig.VERSION_NAME` vs `/api/server-info` `latest_android_version` semantically; display sleek dismissible Neumorphic update banner opening `apk_download_url`.
+>
+> **Strict Zero-PII & Mandatory `git push origin main` apply!** Check `plan_dasan.md` & `plan_vijayan.md`. Thudangikko!"*
 
 ---
 

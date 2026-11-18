@@ -1,7 +1,18 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 10:17 IST** (Target Sprint: **v1.33.0 - Build 137**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 11:26 IST** (Target Sprint: **v1.34.0 - Build 139**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.34.0 - Build 139 — Flagship Native Android Platform Suite):
+> *"Vijaya! Sprint **`v1.34.0` (Build 139)** locked in `../plan_vijayan.md` — 5 flagship native Android upgrades:
+> 1. **🔗 Verified Android App Links (`api.rosterx.online`)**: `launchMode="singleTop"` + `<intent-filter android:autoVerify="true">` for `/` and `/open` (NOT `/api/*`!), routing `/open/roster`, `/open/notifications`, `/open/credentials`, `/open/profile` in `onCreate` & `onNewIntent`.
+> 2. **⚡ Launcher Long-Press App Shortcuts**: Static `res/xml/shortcuts.xml` (Roster, Notifications, Profile) + dynamic role-aware Credential Tracker shortcut (`ShortcutManagerCompat`) for Admin/Manager.
+> 3. **✨ Android 12+ Native Splash Screen & Predictive Back**: `androidx.core:core-splashscreen` (`Theme.RosterX.Starting`, `installSplashScreen()`) + `android:enableOnBackInvokedCallback="true"`.
+> 4. **📅 1-Tap Export Monthly Shifts to Calendar**: `FileProvider` + RFC-5545 `.ics` batch generator (`ShiftCalendarExporter.kt`) with IST shift windows, 30-min `VALARM`, stable `UID`, triggered from Month Roster header.
+> 5. **🔔 In-App Update Banner**: Semantic version check against `/api/server-info` (`latest_android_version`, `apk_download_url`) with sleek dismissible Neumorphic banner.
+> Remember: Strict Zero-PII policy, bump to `v1.34.0` (Build 139), `safe_build.bat assembleDebug`, ADB verify (`pm get-app-links com.rosterx` + deep-link test), commit & **`git push origin main`**!"*
 
 ---
 
