@@ -414,9 +414,9 @@ html.dark dialog.rx-modal::backdrop {
     width: 46px;
     height: 46px;
     margin-top: -18px;
-    background: var(--nm-surface);
-    color: var(--nm-accent);
-    box-shadow: var(--nm-shadow-raised);
+    background: var(--nm-accent-gradient);
+    color: #ffffff;
+    box-shadow: 0 6px 16px var(--nm-accent-glow), 0 2px 6px rgba(15, 23, 42, 0.18);
     font-size: 21px;
   }
 
@@ -525,9 +525,9 @@ html.dark dialog.rx-modal::backdrop {
   .rx-rail-tab.is-active .rx-rail-bubble {
     width: 36px;
     height: 36px;
-    background: var(--nm-surface);
-    box-shadow: var(--nm-shadow-raised-subtle);
-    color: var(--nm-accent);
+    background: var(--nm-accent-gradient);
+    box-shadow: 0 4px 12px var(--nm-accent-glow), 0 2px 5px rgba(15, 23, 42, 0.18);
+    color: #ffffff;
   }
 
   .rx-rail-tab.is-active .rx-rail-label {

@@ -30,7 +30,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.0.5';
 
-const APP_VERSION = '2.0.5';
+const APP_VERSION = '2.0.6';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
