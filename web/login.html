@@ -6,19 +6,33 @@
 
   <meta charset="UTF-8">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#EEF2F6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="RosterX">
 
-  <title>Login — RosterX Operations & NOC Portal</title>
+  <title>Login — RosterX Operations &amp; NOC Portal</title>
 
   <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/mobile-shell.css">
 
-  <!-- Instant Theme Guard: Zero-Flicker Execution Before Render -->
+  <!-- Instant Theme & Palette Guard: Zero-Flicker Execution Before Render -->
   <script>
     (function() {
       try {
         var theme = localStorage.getItem('rosterx_theme') || 'system';
+        var palette = localStorage.getItem('rosterx_palette') || 'tory_blue';
         var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-palette', palette);
+        var csMeta = document.querySelector('meta[name="color-scheme"]');
+        if (csMeta) csMeta.content = theme === 'system' ? 'light dark' : theme;
+        var tcMeta = document.querySelector('meta[name="theme-color"]');
+        if (tcMeta) tcMeta.content = isDark ? '#1E293B' : '#EEF2F6';
         if (isDark) {
           document.documentElement.classList.add('dark');
         } else {
@@ -88,13 +102,14 @@
 
           sessionStorage.setItem('rosterx_last_redirect', String(now));
 
-          if (user.role === 'admin' || user.role === 'manager') {
+          var hash = window.location.hash || '';
+          if (user.role === 'admin') {
 
-            window.location.replace('index.html');
+            window.location.replace('index.html' + hash);
 
           } else {
 
-            window.location.replace('user-portal.html');
+            window.location.replace('user-portal.html' + hash);
 
           }
 
@@ -992,13 +1007,14 @@
 
           setTimeout(() => {
 
-            if (user.role === 'admin' || user.role === 'manager') {
+            const hash = window.location.hash || '';
+            if (user.role === 'admin') {
 
-              window.location.href = 'index.html';
+              window.location.href = 'index.html' + hash;
 
             } else {
 
-              window.location.href = 'user-portal.html';
+              window.location.href = 'user-portal.html' + hash;
 
             }
 
@@ -1287,7 +1303,10 @@
 
   <script type="module">
     import { themeController } from './js/themeController.js';
+    import { registerPwaServiceWorker, mountIosInstallBanner } from './js/pwaHelper.js';
     themeController.init();
+    registerPwaServiceWorker();
+    mountIosInstallBanner();
   </script>
 
 </body>

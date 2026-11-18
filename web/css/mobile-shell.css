@@ -1,0 +1,732 @@
+/**
+ * RosterX — Unified iOS PWA & Mobile-First Android-Parity Shell (mobile-shell.css)
+ *
+ * Implements:
+ * 1. iOS edge-to-edge safe-area insets (Dynamic Island, notch, home indicator)
+ * 2. Mobile Portrait (< 768px): Android-matching 5-Tab Fluid Neumorphic Bottom Dock
+ * 3. Mobile Landscape (max-height: 520px & orientation: landscape):
+ *    - Ultra-slim 42px Top Bar
+ *    - Left Vertical FluidNeumorphicNavRail (72px + safe-area-inset-left)
+ *    - Full-Screen Landscape Month Roster (body.rx-fullscreen-roster)
+ *    - 2-Pane My Calendar (all 5–6 weeks fit on screen!) & 2-Column Grids
+ * 4. Authentic Frosted-Blur Native <dialog> Modals (zero white outer halo)
+ * 5. Sticky Semantic Responsive Tables (Month Roster)
+ * 6. Reusable Neumorphic Cards, Wells, Reminder Pills, & 6-Palette Appearance Picker
+ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: calc(4.25rem + env(safe-area-inset-top, 0px));
+  scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+body {
+  background-color: var(--nm-canvas);
+  color: var(--nm-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   1. Reusable Neumorphic Surfaces & Controls (1:1 Android Parity)
+   ========================================================================== */
+.rx-card {
+  background: var(--nm-surface);
+  border-radius: 22px;
+  box-shadow: var(--nm-shadow-raised);
+  padding: 16px;
+}
+
+.rx-card-subtle {
+  background: var(--nm-surface);
+  border-radius: 16px;
+  box-shadow: var(--nm-shadow-raised-subtle);
+  padding: 12px;
+}
+
+.rx-well {
+  background: var(--nm-input-surface);
+  border-radius: 18px;
+  box-shadow: var(--nm-shadow-inset-subtle);
+  padding: 14px;
+}
+
+.rx-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-block-size: var(--target-size);
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--nm-accent-gradient);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13.5px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px var(--nm-accent-glow);
+  transition: var(--nm-transition);
+}
+
+.rx-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.rx-btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.rx-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rx-btn-surface {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-block-size: var(--target-size);
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--nm-surface);
+  color: var(--nm-text);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: var(--nm-shadow-raised-subtle);
+  transition: var(--nm-transition);
+}
+
+.rx-btn-surface:active:not(:disabled) {
+  box-shadow: var(--nm-shadow-inset-subtle);
+}
+
+.rx-icon-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-inline-size: var(--target-size);
+  min-block-size: var(--target-size);
+  border: 0;
+  border-radius: 9999px;
+  background: var(--nm-surface);
+  color: var(--nm-text-muted);
+  box-shadow: var(--nm-shadow-raised-subtle);
+  cursor: pointer;
+  transition: var(--nm-transition);
+}
+
+.rx-icon-pill:active {
+  box-shadow: var(--nm-shadow-inset-subtle);
+}
+
+.rx-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-block-size: 38px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--nm-surface);
+  color: var(--nm-text);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: var(--nm-shadow-raised-subtle);
+  cursor: pointer;
+  transition: var(--nm-transition);
+}
+
+.rx-chip-btn.is-active {
+  background: var(--nm-accent-gradient);
+  color: #ffffff;
+  box-shadow: 0 3px 10px var(--nm-accent-glow);
+}
+
+.rx-field-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nm-text-muted);
+  margin-bottom: 6px;
+}
+
+/* 6-Palette Appearance Selector */
+.rx-mode-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rx-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rx-palette-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 40px;
+  padding: 8px 12px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: var(--nm-surface);
+  color: var(--nm-text);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: var(--nm-shadow-raised-subtle);
+  cursor: pointer;
+  transition: var(--nm-transition);
+}
+
+.rx-palette-btn.is-active {
+  border-color: var(--nm-accent);
+  background: var(--nm-accent-soft);
+  color: var(--nm-accent);
+  box-shadow: none;
+}
+
+.rx-palette-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+/* ==========================================================================
+   2. Authentic Frosted-Blur Native <dialog> Modals (Zero White Outer Halo!)
+   ========================================================================== */
+dialog.rx-modal {
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 26px;
+  background: var(--nm-surface);
+  color: var(--nm-text);
+  width: min(92vw, 520px);
+  max-height: min(90dvh, 780px);
+  box-shadow: var(--nm-shadow-floating);
+  overflow: hidden;
+}
+
+dialog.rx-modal::backdrop {
+  background: rgba(241, 245, 249, 0.68);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html.dark dialog.rx-modal::backdrop {
+  background: rgba(10, 15, 26, 0.66);
+}
+
+.rx-modal-scroll {
+  max-height: min(88dvh, 760px);
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rx-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rx-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.rx-modal-badge-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-shadow-raised-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--nm-accent);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   3. iOS Safari "Add to Home Screen" Install Banner
+   ========================================================================== */
+.rx-ios-install-banner {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  pointer-events: auto;
+}
+
+.rx-ios-install-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-shadow-floating);
+  border: 1px solid var(--nm-border);
+}
+
+.rx-ios-install-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.rx-ios-install-copy {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--nm-text-muted);
+}
+
+.rx-ios-install-copy strong {
+  color: var(--nm-text);
+  font-size: 12.5px;
+}
+
+.rx-ios-install-close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--nm-input-surface);
+  color: var(--nm-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   4. Mobile Portrait: Android-Matching 5-Tab Fluid Neumorphic Bottom Dock
+   ========================================================================== */
+.rx-mobile-bottom-nav {
+  display: none;
+}
+
+.rx-landscape-nav-rail {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  .rx-desktop-only-nav {
+    display: none !important;
+  }
+
+  .rx-topbar-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  .rx-mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    background: var(--nm-surface);
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    padding: 6px max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 2px;
+  }
+
+  html.dark .rx-mobile-bottom-nav {
+    box-shadow: 0 -8px 24px rgba(2, 6, 23, 0.65), inset 0 1px 0 rgba(148, 163, 184, 0.15);
+  }
+
+  .rx-nav-tab {
+    flex: 1;
+    min-inline-size: 0;
+    min-block-size: 56px;
+    border: 0;
+    background: transparent;
+    color: var(--nm-text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 2px;
+    cursor: pointer;
+    position: relative;
+    transition: var(--nm-spring);
+  }
+
+  .rx-nav-tab-bubble {
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    transition: var(--nm-spring);
+  }
+
+  .rx-nav-tab-label {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .rx-nav-tab.is-active {
+    color: var(--nm-accent);
+  }
+
+  .rx-nav-tab.is-active .rx-nav-tab-bubble {
+    width: 46px;
+    height: 46px;
+    margin-top: -18px;
+    background: var(--nm-surface);
+    color: var(--nm-accent);
+    box-shadow: var(--nm-shadow-raised);
+    font-size: 21px;
+  }
+
+  .rx-nav-tab.is-active .rx-nav-tab-label {
+    font-weight: 800;
+    color: var(--nm-accent);
+  }
+
+  main.rx-main-shell {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ==========================================================================
+   5. Mobile Landscape (short viewport): Slim 42px Top Bar + Left Vertical Rail
+      + Full-Screen Landscape Month Roster (matches Android v1.36.0!)
+   ========================================================================== */
+@media (orientation: landscape) and (max-height: 540px) {
+  .rx-desktop-only-nav,
+  .rx-mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .rx-topbar-safe {
+    min-height: 42px !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: 0 !important;
+    padding-left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(10px, env(safe-area-inset-right, 0px)) !important;
+  }
+
+  .rx-topbar-inner {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .rx-topbar-subtitle {
+    display: none !important;
+  }
+
+  .rx-landscape-nav-rail {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    position: fixed;
+    top: calc(42px + env(safe-area-inset-top, 0px));
+    left: 0;
+    bottom: 0;
+    width: calc(72px + env(safe-area-inset-left, 0px));
+    padding: 6px 6px max(6px, env(safe-area-inset-bottom, 0px)) calc(4px + env(safe-area-inset-left, 0px));
+    z-index: 44;
+    background: var(--nm-surface);
+    border-top-right-radius: 22px;
+    border-bottom-right-radius: 22px;
+    box-shadow: 4px 0 14px rgba(15, 23, 42, 0.14);
+  }
+
+  html.dark .rx-landscape-nav-rail {
+    box-shadow: 4px 0 16px rgba(2, 6, 23, 0.58);
+  }
+
+  .rx-rail-tab {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--nm-text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 2px;
+  }
+
+  .rx-rail-bubble {
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    transition: var(--nm-spring);
+  }
+
+  .rx-rail-label {
+    font-size: 8.5px;
+    font-weight: 600;
+    line-height: 1.05;
+    text-align: center;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .rx-rail-tab.is-active {
+    color: var(--nm-accent);
+  }
+
+  .rx-rail-tab.is-active .rx-rail-bubble {
+    width: 36px;
+    height: 36px;
+    background: var(--nm-surface);
+    box-shadow: var(--nm-shadow-raised-subtle);
+    color: var(--nm-accent);
+  }
+
+  .rx-rail-tab.is-active .rx-rail-label {
+    font-weight: 800;
+  }
+
+  main.rx-main-shell {
+    margin-left: calc(74px + env(safe-area-inset-left, 0px)) !important;
+    padding-top: 8px !important;
+    padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Dedicated Full-Screen Landscape Month Roster (matches Android isFullScreenRoster!) */
+  body.rx-fullscreen-roster .rx-topbar-safe,
+  body.rx-fullscreen-roster .rx-landscape-nav-rail,
+  body.rx-fullscreen-roster .rx-ai-fab {
+    display: none !important;
+  }
+
+  body.rx-fullscreen-roster main.rx-main-shell {
+    margin-left: 0 !important;
+    padding: max(4px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-right, 0px)) max(4px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  /* 2-Pane Landscape My Calendar: Full month fits on left, Sync & Legend on right */
+  .rx-calendar-split {
+    display: grid !important;
+    grid-template-columns: 1.38fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .rx-calendar-cell {
+    min-height: 36px !important;
+    padding: 3px 2px !important;
+  }
+
+  /* 2-Column Landscape Grids */
+  .rx-land-grid-2 {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    align-items: start;
+  }
+
+  dialog.rx-modal {
+    width: min(86vw, 540px);
+    max-height: 92dvh;
+  }
+}
+
+/* ==========================================================================
+   6. Semantic Sticky Responsive Month Roster Table
+   ========================================================================== */
+.rx-roster-table-wrap {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(68dvh, 620px);
+  border-radius: 18px;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-shadow-raised-subtle);
+  -webkit-overflow-scrolling: touch;
+}
+
+body.rx-fullscreen-roster .rx-roster-table-wrap {
+  max-block-size: calc(100dvh - 54px);
+}
+
+.rx-roster-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11px;
+}
+
+.rx-roster-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 3;
+}
+
+.rx-roster-table thead th {
+  background: var(--nm-surface-contrast);
+  color: var(--nm-text);
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 800;
+  border-bottom: 1px solid var(--nm-border);
+  border-right: 1px solid var(--nm-border);
+}
+
+.rx-roster-table thead th:first-child {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 4;
+  text-align: left;
+  padding-left: 10px;
+  min-width: 132px;
+}
+
+.rx-roster-table tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 2;
+  background: var(--nm-surface);
+  color: var(--nm-text);
+  text-align: left;
+  padding: 6px 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--nm-border);
+  border-right: 1px solid var(--nm-border);
+}
+
+.rx-roster-table tbody td {
+  padding: 4px 3px;
+  text-align: center;
+  min-width: 36px;
+  font-weight: 800;
+  border-bottom: 1px solid var(--nm-border);
+  border-right: 1px solid var(--nm-border);
+}
+
+/* ==========================================================================
+   7. Personal My Calendar Grid & Today Breathing Glow
+   ========================================================================== */
+.rx-cal-weekdays,
+.rx-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.rx-cal-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--nm-text-muted);
+  padding-bottom: 4px;
+}
+
+.rx-calendar-cell {
+  border: 0;
+  border-radius: 10px;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.rx-calendar-cell:active {
+  transform: scale(0.95);
+}
+
+.rx-calendar-cell.is-today {
+  outline: 2.5px solid var(--nm-accent);
+  box-shadow: 0 0 14px var(--nm-accent-glow);
+}
+
+.rx-calendar-day {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.rx-calendar-code {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   8. Compact Floating AI Bot Positioning (Portrait vs Landscape)
+   ========================================================================== */
+.rx-ai-fab {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  z-index: 42;
+}
+
+@media (min-width: 768px) {
+  .rx-ai-fab {
+    bottom: 22px;
+    right: 22px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .rx-ai-fab {
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    transform: scale(0.84);
+    transform-origin: bottom right;
+  }
+}

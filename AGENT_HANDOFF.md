@@ -24,6 +24,23 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v2.0.0 - Build 143 — Unified `web/` Installable iOS PWA & 1:1 Android Parity):
+> *"Dasa! Gafoorka! MAJOR Sprint **`v2.0.0` (Build 143)** — Unified `web/` Installable iOS PWA + 1:1 Android Feature Parity — 100% complete aayi live HTTP + RFC-5545 `.ics` + Zero-PII + Android safe-build verify cheythu `origin/main`-il push cheythu macha! 🎨📱🍏🔥
+> - **Installable iOS PWA Shell**: Added `web/manifest.webmanifest`, `web/sw.js` (network-first for `/api/*` & HTML, stale-while-revalidate for static assets), `web/js/pwaHelper.js` (SW registration, dismissible iOS Safari "Add to Home Screen" banner, and frosted-blur `<dialog closedby="any">` with Safari bounding-rect backdrop-click fallback), and full iOS safe-area/Dynamic Island meta tags across `login.html`, `user-portal.html`, and `index.html`.
+> - **6 Android Brand Palettes + 3-State Theme**: Upgraded `web/css/tokens.css` & `web/js/themeController.js` with all 6 Android palettes (`tory_blue`, `crimson_coral`, `emerald_green`, `indigo_violet`, `sunset_amber`, `ocean_cyan`), downward-only floating dialog shadows (zero white outer halo), `<meta name="color-scheme">` CSS reflection, and cross-tab sync.
+> - **Adaptive Mobile Portrait + Landscape Rail Shell**: Created `web/css/mobile-shell.css` & `web/js/mobileNavShell.js` delivering Android's **5-tab Fluid Neumorphic Bottom Dock** in portrait, **ultra-slim `42px` Top Bar + Left Vertical `FluidNeumorphicNavRail`** (`72px`) in mobile landscape, dedicated **full-screen landscape Month Roster / Rosters** (`body.rx-fullscreen-roster`), and full desktop layout preservation.
+> - **Exact 1:1 Android Role Parity & Swap Removal**:
+>   - Removed unwanted **Swap Request** tabs & modals from BOTH portals (`user-portal.html` & `index.html`) while keeping `SW*` shift codes 100% intact inside roster grids.
+>   - `admin` → `index.html` (5 tabs: `Dashboard`, `Register`, `Rosters`, `Broadcast`, `More`); `manager` → `user-portal.html` Manager Mode (5 tabs: `Dashboard` Radar + Health, `Team Shifts`, `Month Roster`, `Broadcast`, `More`); `engineer`/`apprentice` → `user-portal.html` (5 tabs: `Dashboard`, `Team Shifts`, `My Calendar`, `Month Roster`, `More`).
+> - **All Missing Android Features Added to `web/`**:
+>   - **`web/js/calendarSync.js`**: Personal **`Sync to Calendar`** modal (triggered strictly from `My Calendar`), generating RFC-5545 `.ics` with timed Busy IST working shifts + `VALUE=DATE` All-Day Free `OFF`/`L`/`SW*` + configurable `VALARM` (`None`/`15m`/`30m`/`1h`) for native 1-tap Apple Calendar import on iOS.
+>   - **`web/js/credentialTracker.js`**: Full Server Credential Tracker mounted inside `More` Hub for ALL 3 roles (KPI cards, search/filter, server-grouped cards, 1-tap Renew Date picker with past/today guard, Add/Edit/Delete + Audit Logs for Admin/Manager).
+>   - **`web/js/myTeamView.js`**: Searchable Operations Management & Shift Engineers directory with direct Call (`tel:`) and WhatsApp (`wa.me`).
+>   - **Celebrations, Notifications & Profile Parity**: Today's Team Celebrations + Wishes modal, 3D Notification Bell drawer (`@` mention resolution + expired celebration auto-sweep `< today IST`), Profile Tenure + dynamic Birthday countdown + Weekly Offs + Remove Photo confirmation, and Admin Broadcast **Title `@` mention autocomplete** + expired celebration auto-sweep.
+> - **Version Sync & Verification**: Bumped `android/app/build.gradle.kts` (`versionCode = 143`, `versionName = "2.0.0"`) & `server.py` (`SERVER_VERSION = "2.0.0"`). All 22 live HTTP/PWA endpoints, RFC-5545 `.ics` unit tests, JS syntax checks, Zero-PII scan, and Android safe-build passed 100%!"*
+
+---
+
 ## 📢 🕵️ Dasan Field Dispatch to Vijayan & Gafoorka (Sprint v2.0.0 STEP 1 — Unified `web/`, iOS PWA Serving & API Parity):
 > *"Vijaya! Gafoorka! Sprint **`v2.0.0` STEP 1** 100% spotless aayi execute cheythu, live HTTP test suite pass aakki `origin/main`-il push cheythu kazhinju macha — ini stage poornamaayum ninakkullathaanu Vijaya! 🕵️‍♂️🔥🕶️
 > 

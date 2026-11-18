@@ -1,3504 +1,1883 @@
 /**
-
- * RosterX — NOC Operations Portal Controller (userPortal.js)
-
- * 
-
- * Features:
-
- * - 24/7 Operations Command view for NOC Engineers & Apprentices
-
- * - Live Operational Duty Briefing (Today: Oct 24, Tomorrow: Oct 25) remains persistent and unaffected by grid month browsing
-
- * - Month Dropdown positioned in Month Grid toolbar; changing month ONLY updates the Month Shift Master Grid
-
- * - Pixel-aligned Month Shift Master Grid with standard NOC color codes & Excel export
-
- * - User Profile & Account Data viewer with Change Password capability
-
- * - Interactive Cutout 3D Bot AI Assistant
-
+ * RosterX — Unified Engineer & Manager Web Portal Controller (userPortal.js)
+ *
+ * 1:1 Android App Parity (v2.0.0):
+ * - Engineer / Apprentice 5 Tabs: Dashboard, Team Shifts, My Calendar, Month Roster, More
+ * - Manager 5 Tabs: Dashboard (Shift Radar + Health), Team Shifts, Month Roster, Broadcast, More
+ * - Zero Swap Request tab/UI (SW* shift codes preserved cleanly in roster grids)
+ * - Adaptive iOS PWA Shell: 5-Tab Fluid Neumorphic Bottom Dock (portrait) +
+ *   Slim 42px Top Bar & Left Vertical Nav Rail (landscape) + Full-Screen Landscape Month Roster
+ * - Personal Sync to Calendar (.ics for iOS Apple Calendar / Google Calendar)
+ * - Operations Hub (More) -> Server Credential Tracker + My Team Directory
+ * - Team Celebrations + Wishes Modal, Notification Bell Drawer (@mentions + auto-sweep),
+ *   Profile & Settings (Tenure/Birthday, Weekly Offs, Edit Profile + Remove Photo, 6 Brand Palettes)
  */
 
-
-
 import { authService } from './authService.js';
-
 import { AtlasService } from './atlasService.js';
-
-import {
-
-  SHIFTS,
-
-  DEFAULT_ENGINEERS,
-
-  sortEngineersByWeekOffs,
-
-  shiftsMapToArray,
-
-  isOffCategory,
-
-  toProperCase
-
-} from './constants.js?v=1.0';
-
-import { ExcelService } from './excelService.js?v=3.2';
-import {
-  currentPeriodKey,
-  parsePeriodKey,
-  daysInMonth,
-  monthLabel,
-  monthNames,
-  periodRange,
-  populatePeriodSelect,
-  todayFormatted,
-  getIstNow
-} from './dateUtils.js';
 import { themeController } from './themeController.js';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js';
+import { CredentialTrackerController } from './credentialTracker.js';
+import { MyTeamViewController } from './myTeamView.js';
+import {
+  registerPwaServiceWorker,
+  mountIosInstallBanner,
+  openNeumorphicDialog,
+  closeNeumorphicDialog,
+  escapeHtml,
+  getAuthHeaders
+} from './pwaHelper.js';
 
+const APP_VERSION = '2.0.0';
 
-
-const STORAGE_KEYS = {
-
-  GRID_ROSTER_PREFIX: 'rosterx_grid_roster_',
-
-  ENGINEERS_LIST: 'rosterx_engineers_list',
-
-  CONSTRAINTS: 'rosterx_constraints'
-
+const SHIFT_META = {
+  FS:  { name: 'First Shift',    timing: '07:30 AM – 04:30 PM', bg: '#BBF7D0', fg: '#064E3B', order: 1 },
+  FG:  { name: 'First General',  timing: '08:30 AM – 05:30 PM', bg: '#166534', fg: '#FFFFFF', order: 2 },
+  G:   { name: 'General Shift',  timing: '09:30 AM – 06:30 PM', bg: '#BAE6FD', fg: '#0C4A6E', order: 3 },
+  SG:  { name: 'Second General', timing: '11:00 AM – 08:00 PM', bg: '#EA580C', fg: '#FFFFFF', order: 4 },
+  SS:  { name: 'Second Shift',   timing: '01:00 PM – 10:00 PM', bg: '#FED7AA', fg: '#7C2D12', order: 5 },
+  NS:  { name: 'Night Shift',    timing: '09:00 PM – 07:30 AM', bg: '#020617', fg: '#FFFFFF', order: 6 },
+  OFF: { name: 'Weekly Off',     timing: 'Rest Day',            bg: '#FEF08A', fg: '#854D0E', order: 7 },
+  L:   { name: 'Approved Leave', timing: 'Approved Leave',      bg: '#DC2626', fg: '#FFFFFF', order: 8 }
 };
 
+const STANDARD_LEGEND = ['FS', 'FG', 'G', 'SG', 'SS', 'NS', 'OFF', 'L'];
+const WEEKDAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+function getShiftVisual(rawCode) {
+  const code = String(rawCode || 'OFF').trim().toUpperCase();
+  if (SHIFT_META[code]) return { code, ...SHIFT_META[code] };
+  if (code.startsWith('SW')) {
+    return { code, name: 'Swap Off', timing: 'Rest Day', bg: '#FEF08A', fg: '#854D0E', order: 7 };
+  }
+  return { code: code || 'OFF', name: code || 'Rest', timing: 'Rest Day', bg: '#E2E8F0', fg: '#334155', order: 9 };
+}
 
-export class UserPortalController {
+function getIstNow() {
+  const now = new Date();
+  return new Date(now.getTime() + (330 + now.getTimezoneOffset()) * 60000);
+}
 
+function toIsoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function toPeriodKey(year, month) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function getInitials(name) {
+  const parts = String(name || 'TM').trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0] || 'TM').slice(0, 2).toUpperCase();
+}
+
+function formatDuration(sec) {
+  const s = Math.max(0, Math.floor(sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  return `${h}h ${String(m).padStart(2, '0')}m ${String(r).padStart(2, '0')}s`;
+}
+
+function isExpiredCelebration(notif, todayIstIso) {
+  if (!notif) return false;
+  const title = String(notif.title || '').toLowerCase();
+  const msg = String(notif.message || notif.raw_message || '').toLowerCase();
+  const type = String(notif.type || notif.priority || '').toLowerCase();
+  const isCeleb = type === 'celebration' || title.includes('birthday') || title.includes('anniversary') || msg.includes('happy birthday');
+  if (!isCeleb) return false;
+  const created = String(notif.created_at || notif.date || '').slice(0, 10);
+  return Boolean(created && /^\d{4}-\d{2}-\d{2}$/.test(created) && created < todayIstIso);
+}
+
+function resolveMentions(rawText, selfUser, engineers) {
+  if (!rawText) return '';
+  let out = String(rawText);
+  const selfName = selfUser?.full_name || selfUser?.name || 'Team Member';
+  out = out.replace(/@name\b/gi, selfName).replace(/@all\b/gi, 'Everyone');
+  (engineers || []).forEach((eng) => {
+    if (!eng?.username) return;
+    const escaped = eng.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`@${escaped}\\b`, 'gi');
+    out = out.replace(re, eng.full_name || eng.name || eng.username);
+  });
+  return out;
+}
+
+function computeTenureAndBirthday(joinDate, birthday) {
+  const today = getIstNow();
+  let tenureText = '--';
+  if (joinDate) {
+    const p = String(joinDate).trim().replace(/\//g, '-').split('-');
+    if (p.length === 3) {
+      const start = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+      if (!Number.isNaN(start.getTime()) && start <= today) {
+        let years = today.getFullYear() - start.getFullYear();
+        let months = today.getMonth() - start.getMonth();
+        let days = today.getDate() - start.getDate();
+        if (days < 0) {
+          months--;
+          const prevLast = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+          days += prevLast;
+        }
+        if (months < 0) {
+          years--;
+          months += 12;
+        }
+        tenureText = years > 0 ? `${years} yr ${months} mo` : `${months} mo ${days} d`;
+      }
+    }
+  }
+
+  let birthdayLabel = 'BIRTHDAY';
+  let birthdayValue = '--';
+  if (birthday) {
+    const clean = String(birthday).trim().replace(/\//g, '-');
+    const parts = clean.split('-');
+    const mm = parts.length === 3 ? Number(parts[1]) : parts.length === 2 ? Number(parts[0]) : NaN;
+    const dd = parts.length === 3 ? Number(parts[2]) : parts.length === 2 ? Number(parts[1]) : NaN;
+    if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+      const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      let nextBday = new Date(today.getFullYear(), mm - 1, dd);
+      if (nextBday < todayMidnight) nextBday = new Date(today.getFullYear() + 1, mm - 1, dd);
+      const diffDays = Math.round((nextBday - todayMidnight) / 86400000);
+      if (diffDays === 0) {
+        birthdayLabel = 'BIRTHDAY';
+        birthdayValue = 'Today! 🎉';
+      } else if (diffDays === 1) {
+        birthdayLabel = 'BIRTHDAY';
+        birthdayValue = 'Tomorrow! 🎂';
+      } else {
+        birthdayLabel = 'BIRTHDAY IN';
+        birthdayValue = `${diffDays} days`;
+      }
+    }
+  }
+  return { tenureText, birthdayLabel, birthdayValue };
+}
+
+class RosterXUserPortal {
   constructor() {
+    this.atlas = new AtlasService();
+    this.user = authService.enforceAuth('any');
+    if (!this.user) return;
+    if (this.user.role === 'admin') {
+      window.location.replace(`index.html${window.location.hash || ''}`);
+      return;
+    }
 
-    this.atlasService = new AtlasService();
+    this.isManager = String(this.user.role || '').toLowerCase() === 'manager';
+    this.engineers = [];
+    this.rosterCache = new Map();
+    this.notifications = [];
+    this.templates = [];
+    this.telemetry = null;
+    this.credSummary = { total: 0, expired: 0, expiringSoon: 0 };
+    this.dismissedCelebrations = new Set();
 
-    this.currentUser = null;
+    const now = getIstNow();
+    this.selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    this.gridYear = now.getFullYear();
+    this.gridMonth = now.getMonth() + 1;
+    this.rosterSearchQuery = '';
+    this.activeTab = 'dashboard';
+    this.activeSubView = null; // 'credentials' | 'my_team' | 'profile' | null
 
-    this.matchedEngineer = null;
+    // Manager Broadcast state
+    this.broadcastMode = 'compose';
+    this.broadcastAudience = 'everyone';
+    this.broadcastSpecificIds = new Set();
+    this.broadcastPriority = 'info';
+    this.broadcastChannels = { inApp: true, push: true, email: true };
+    this.broadcastTitle = '';
+    this.broadcastMessage = '';
 
+    // AI Chat state
+    this.aiMessages = [];
+    this.aiLoading = false;
 
+    this.tabs = this.isManager
+      ? [
+          { id: 'dashboard',    label: 'Dashboard',    icon: 'ph-squares-four' },
+          { id: 'team_shifts',  label: 'Team Shifts',  icon: 'ph-users-three' },
+          { id: 'month_roster', label: 'Month Roster', icon: 'ph-grid-four' },
+          { id: 'broadcast',    label: 'Broadcast',    icon: 'ph-megaphone' },
+          { id: 'more',         label: 'More',         icon: 'ph-dots-three' }
+        ]
+      : [
+          { id: 'dashboard',    label: 'Dashboard',    icon: 'ph-squares-four' },
+          { id: 'team_shifts',  label: 'Team Shifts',  icon: 'ph-users-three' },
+          { id: 'my_calendar',  label: 'My Calendar',  icon: 'ph-calendar-blank' },
+          { id: 'month_roster', label: 'Month Roster', icon: 'ph-grid-four' },
+          { id: 'more',         label: 'More',         icon: 'ph-dots-three' }
+        ];
 
-    // 1. Live Operational Anchor State (Today & Tomorrow & Team Board)
-    // Synchronized strictly to user device's local date & time
-    const localNow = new Date();
-    const curYear = localNow.getFullYear();
-    const curMonth = localNow.getMonth() + 1;
-    const totalDays = daysInMonth(curYear, curMonth);
-    let curDay = localNow.getDate();
-    if (curDay > totalDays) curDay = totalDays;
+    this.navShell = new MobileNavShell({
+      tabs: this.tabs,
+      rosterTabId: 'month_roster',
+      onTabSelected: (id) => this.switchTab(id)
+    });
 
-    const tomorrow = new Date(localNow);
-    tomorrow.setDate(localNow.getDate() + 1);
-    const tomDay = tomorrow.getDate();
+    this.credController = new CredentialTrackerController({
+      container: document.getElementById('subview_credentials'),
+      currentUser: this.user,
+      onBack: () => this.closeSubView(),
+      onSummaryUpdate: (summary) => {
+        this.credSummary = summary;
+        if (this.activeTab === 'more' && !this.activeSubView) this.renderMoreHub();
+      },
+      onToast: (msg, type) => this.toast(msg, type)
+    });
 
-    this.liveState = {
-      year: curYear,
-      month: curMonth,
-      todayDay: curDay,
-      tomorrowDay: tomDay,
-      totalDays: totalDays,
-      roster: []
-    };
+    this.teamController = new MyTeamViewController({
+      container: document.getElementById('subview_my_team'),
+      engineers: [],
+      onBack: () => this.closeSubView(),
+      onToast: (msg, type) => this.toast(msg, type)
+    });
 
-    // 2. Month Shift Grid State (Independently selected in the Grid section)
-    this.gridState = {
-      year: curYear,
-      month: curMonth,
-      totalDays: totalDays,
-      roster: [],
-      filterTerm: ''
-    };
-
-    this.engineersList = [];
-    this.constraints = {};
-    this.chatMessages = [];
+    this.init();
   }
 
   async init() {
+    registerPwaServiceWorker();
+    mountIosInstallBanner();
     themeController.init();
-    // 1. Enforce Authentication
-    this.currentUser = authService.enforceAuth('any');
-    if (!this.currentUser) return;
 
-    // 2. Instant Optimistic Data Load from Cache / Seed
-    this.loadEngineersList();
-    this.loadConstraints();
+    this.renderDesktopTabs();
+    this.navShell.mount();
+    this.bindGlobalEvents();
+    this.updateTopBarUser();
 
-    // Optimistically load cached live roster for the current month so table & hero are NEVER blank or stuck in loading
-    const activeKey = `${this.liveState.year}-${String(this.liveState.month).padStart(2, '0')}`;
-    const cacheKey = `${STORAGE_KEYS.GRID_ROSTER_PREFIX}${this.liveState.year}_${String(this.liveState.month).padStart(2, '0')}`;
-    try {
-      const stored = localStorage.getItem(cacheKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          this.liveState.roster = parsed;
-          this.gridState.roster = parsed;
-        }
-      }
-    } catch (e) {}
+    await this.refreshAllData();
 
-    // If still no roster, populate optimistic baseline from directory
-    if (!this.liveState.roster || this.liveState.roster.length === 0) {
-      const active = this.engineersList.filter(e => e.status !== 'Resigned' && !this.isPureMgmt(e));
-      this.liveState.roster = active.map(e => ({
-        id: e.id,
-        name: e.name,
-        shifts: new Array(this.liveState.totalDays).fill(''),
-        status: e.status || 'Active',
-        role: e.role || 'engineer',
-        default_weekly_offs: e.default_weekly_offs || ['Saturday', 'Sunday']
-      }));
-      this.gridState.roster = this.liveState.roster;
-    }
+    // Handle deep-link hash (#roster, #notifications, #credentials, #profile, #dashboard)
+    const deepTarget = consumeDeepLinkHash();
+    if (deepTarget === 'roster') this.switchTab('month_roster');
+    else if (deepTarget === 'notifications') {
+      if (this.isManager) this.switchTab('broadcast');
+      else this.openNotificationsDialog();
+    } else if (deepTarget === 'credentials') this.openSubView('credentials');
+    else if (deepTarget === 'profile') this.openSubView('profile');
+    else this.switchTab('dashboard');
 
-    this.matchCurrentUserToEngineer();
-
-    // Sync portalMonthSelect dropdown dynamically via dateUtils
-    const portalMonthEl = document.getElementById('portalMonthSelect');
-    if (portalMonthEl) {
-      populatePeriodSelect(portalMonthEl, { back: 2, forward: 6, selectedKey: activeKey, style: 'upper' });
-      portalMonthEl.value = activeKey;
-    }
-
-    // 3. Instant Optimistic Render (<5ms) - Never blank
-    this.renderHeaderUserInfo();
-    this.renderDashboardHero();
-    this.renderPersonalShiftCards();
-    this.renderTeamDutyBoard();
-    this.renderMonthGridHeaders();
-    this.renderMonthGridRoster();
-    this.renderMyMonthlyShifts();
-    this.renderTeamHandoverView();
-    this.populateSwapColleagues();
-    this.renderMySwapsHistory();
-
-    // 4. Setup Tab Controls, Modals & Timers
-    this.bindTabEvents();
-    this.bindEvents();
-    this.setupAccountProfileModal();
-    this.initAiAssistant();
-    this.startCountdownTimer();
-
-    // 5. Non-blocking Background Atlas Synchronization
-    (async () => {
-      try {
-        await this.syncEngineersFromAtlas();
-        await this.loadLiveRoster(this.liveState.year, this.liveState.month);
-        this.matchCurrentUserToEngineer();
-        await this.loadGridRoster(this.gridState.year, this.gridState.month);
-
-        this.renderHeaderUserInfo();
-        this.renderDashboardHero();
-        this.renderPersonalShiftCards();
-        this.renderTeamDutyBoard();
-        this.renderMonthGridHeaders();
-        this.renderMonthGridRoster();
-        this.renderMyMonthlyShifts();
-        this.renderTeamHandoverView();
-        this.populateSwapColleagues();
-        this.renderMySwapsHistory();
-        this.updateCountdownTimer();
-
-        // 5b. Operational Broadcast Notifications & Live Alerts (Android Parity)
-        this.bindBroadcastEvents();
-        await this.loadBroadcastNotifications();
-
-        const badge = document.getElementById('userPortalStatusBadge');
-        if (badge) badge.textContent = 'Atlas Connected';
-      } catch (err) {
-        console.warn('UserPortal Atlas background sync error:', err);
-      }
-    })();
-
-    // 6. Auto-refresh live operational status every minute
+    // Live 1-second shift countdown timer on Engineer Dashboard
     setInterval(() => {
-      this.renderDashboardHero();
-      this.renderPersonalShiftCards();
-      this.renderTeamDutyBoard();
-      this.updateCountdownTimer();
-    }, 60000);
-  }
-
-  // =========================================================================
-  // 📢 Operational Broadcast Notifications & Alerts (Android Parity)
-  // =========================================================================
-
-  bindBroadcastEvents() {
-    const clearBtn = document.getElementById('btnUserClearAllBroadcasts');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => this.clearAllNotifications());
-    }
-  }
-
-  async loadBroadcastNotifications() {
-    try {
-      const uRole = (this.currentUser?.role || '').toLowerCase();
-      const isAdminOrManager = uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
-      if (isAdminOrManager) {
-        this.activeBroadcasts = [];
-        this.renderBroadcastNotifications();
-        return;
+      if (!this.isManager && this.activeTab === 'dashboard' && !this.activeSubView) {
+        this.updateLiveTimersInDom();
       }
-
-      const res = await this.atlasService.getNotifications();
-      if (!res || !res.success || !res.notifications) return;
-
-      const dismissedSet = new Set(res.dismissed_notification_ids || []);
-      const myUsername = (this.currentUser?.username || '').toLowerCase();
-      const myId = (this.currentUser?.id || '').toLowerCase();
-      const myName = (this.currentUser?.name || '').toLowerCase();
-
-      this.activeBroadcasts = (res.notifications || []).filter(n => {
-        if (n.is_retracted) return false;
-        const nid = n.id || n._id;
-        if (dismissedSet.has(nid)) return false;
-
-        const target = n.target;
-        if (target === 'everyone' || target === 'all' || target === '*') return true;
-        if (Array.isArray(target)) {
-          return target.some(t => {
-            const norm = String(t).trim().toLowerCase();
-            return norm === myUsername || norm === myId || norm === myName;
-          });
-        }
-        if (typeof target === 'string') {
-          const norm = target.trim().toLowerCase();
-          return norm === myUsername || norm === myId || norm === myName;
-        }
-        return false;
-      });
-
-      this.renderBroadcastNotifications();
-
-      // Show toast if urgent notification exists
-      const hasUrgent = this.activeBroadcasts.some(n => (n.priority || '').toLowerCase() === 'urgent');
-      if (hasUrgent && typeof this.showToast === 'function') {
-        this.showToast('⚠️ Urgent operational announcement broadcasted. Please review.', 'error');
-      }
-    } catch (err) {
-      console.warn('Failed to load broadcast notifications:', err);
-    }
-  }
-
-  renderBroadcastNotifications() {
-    const container = document.getElementById('userBroadcastSection');
-    const feed = document.getElementById('userBroadcastFeed');
-    const countBadge = document.getElementById('userBroadcastCount');
-    if (!container || !feed) return;
-
-    if (!this.activeBroadcasts || this.activeBroadcasts.length === 0) {
-      container.classList.add('hidden');
-      feed.innerHTML = '';
-      return;
-    }
-
-    container.classList.remove('hidden');
-    if (countBadge) countBadge.textContent = this.activeBroadcasts.length;
-    feed.innerHTML = '';
-
-    const priorityThemes = {
-      urgent: {
-        border: 'border-l-4 border-l-red-500 border-red-200 dark:border-red-900/60',
-        bg: 'bg-red-50/70 dark:bg-red-950/30',
-        pill: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-200 dark:border-red-800 animate-pulse',
-        icon: 'ph-warning-circle text-red-500'
-      },
-      shift_update: {
-        border: 'border-l-4 border-l-amber-500 border-amber-200 dark:border-amber-900/60',
-        bg: 'bg-amber-50/70 dark:bg-amber-950/30',
-        pill: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-        icon: 'ph-calendar-check text-amber-500'
-      },
-      broadcast: {
-        border: 'border-l-4 border-l-purple-500 border-purple-200 dark:border-purple-900/60',
-        bg: 'bg-purple-50/70 dark:bg-purple-950/30',
-        pill: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-        icon: 'ph-megaphone text-purple-500'
-      },
-      info: {
-        border: 'border-l-4 border-l-blue-500 border-blue-200 dark:border-blue-900/60',
-        bg: 'bg-blue-50/70 dark:bg-blue-950/30',
-        pill: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-        icon: 'ph-info text-blue-500'
-      }
-    };
-
-    const myName = this.currentUser?.name || this.currentUser?.fullName || 'Engineer';
-    const myUsername = this.currentUser?.username || 'engineer';
-
-    const nameMap = {};
-    (this.engineersList || []).forEach(e => {
-      const u = (e.username || '').toLowerCase();
-      const id = (e.id || '').toLowerCase();
-      const fn = e.fullName || e.name || u;
-      if (u) nameMap[u] = fn;
-      if (id) nameMap[id] = fn;
-    });
-
-    this.activeBroadcasts.forEach(notif => {
-      const nid = notif.id || notif._id;
-      const prio = (notif.priority || 'info').toLowerCase();
-      const theme = priorityThemes[prio] || priorityThemes.info;
-
-      let formattedMsg = (notif.raw_message || '')
-        .replace(/\{\s*(?:Their\s+name|their\s+name|name)\s*\}/gi, myName)
-        .replace(/\{\s*username\s*\}/gi, myUsername)
-        .replace(/@\{\s*username\s*\}/gi, `@${myUsername}`);
-
-      formattedMsg = formattedMsg.replace(/@([a-zA-Z0-9_\-\.]+)/g, (match, username) => {
-        const u = username.toLowerCase();
-        if (u === 'all' || u === 'everyone' || u === 'team') {
-          return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold text-purple-700 bg-purple-100 dark:bg-purple-900/60 dark:text-purple-300">@Everyone (All Team)</span>`;
-        }
-        const fn = nameMap[u] || u;
-        return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold text-purple-700 bg-purple-100 dark:bg-purple-900/60 dark:text-purple-300">@${fn}</span>`;
-      });
-
-      const card = document.createElement('div');
-      card.id = `userNotifCard_${nid}`;
-      card.className = `glass-panel rounded-xl p-4 border transition-all duration-300 ${theme.border} ${theme.bg} shadow-xs space-y-2.5`;
-
-      let localTimeStr = notif.created_at || 'Recently';
-      if (notif.timestamp) {
-        try {
-          const d = new Date(notif.timestamp * 1000);
-          localTimeStr = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        } catch (_) {}
-      } else if (notif.created_at) {
-        try {
-          const raw = String(notif.created_at).trim();
-          const iso = raw.endsWith(' UTC') ? raw.replace(' UTC', 'Z').replace(' ', 'T') : raw;
-          const d = new Date(iso);
-          if (!isNaN(d.getTime())) {
-            localTimeStr = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-          }
-        } catch (_) {}
-      }
-
-      card.innerHTML = `
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${theme.pill} flex items-center gap-1">
-              <i class="ph ${theme.icon}"></i> ${notif.priority || 'INFO'}
-            </span>
-            <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">${notif.title || 'Operational Notice'}</h4>
-          </div>
-          <button type="button" class="btn-dismiss-single text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition cursor-pointer shrink-0" title="Dismiss this notice">
-            ✕
-          </button>
-        </div>
-        <div class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
-          ${formattedMsg}
-        </div>
-        <div class="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-200/50 dark:border-slate-800/50 pt-2 font-mono">
-          <span>From: <strong>${notif.sender || 'Operations Admin'}</strong></span>
-          <span>${localTimeStr}</span>
-        </div>
-      `;
-
-      card.querySelector('.btn-dismiss-single')?.addEventListener('click', () => {
-        this.dismissNotification(nid);
-      });
-
-      feed.appendChild(card);
-    });
-  }
-
-  async dismissNotification(id) {
-    const card = document.getElementById(`userNotifCard_${id}`);
-    if (card) {
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(-8px)';
-      setTimeout(() => {
-        this.activeBroadcasts = (this.activeBroadcasts || []).filter(n => (n.id || n._id) !== id);
-        this.renderBroadcastNotifications();
-      }, 250);
-    } else {
-      this.activeBroadcasts = (this.activeBroadcasts || []).filter(n => (n.id || n._id) !== id);
-      this.renderBroadcastNotifications();
-    }
-
-    try {
-      await this.atlasService.dismissNotification(id);
-    } catch (e) {
-      console.warn('Failed to dismiss notification on server:', e);
-    }
-  }
-
-  async clearAllNotifications() {
-    const container = document.getElementById('userBroadcastSection');
-    if (container) {
-      container.style.opacity = '0';
-      setTimeout(() => {
-        container.style.opacity = '1';
-        this.activeBroadcasts = [];
-        this.renderBroadcastNotifications();
-      }, 250);
-    } else {
-      this.activeBroadcasts = [];
-      this.renderBroadcastNotifications();
-    }
-
-    try {
-      await this.atlasService.dismissNotification('', true);
-    } catch (e) {
-      console.warn('Failed to clear all notifications on server:', e);
-    }
-  }
-
-
-
-  loadEngineersList() {
-
-    let list = null;
-
-    try {
-
-      const stored = localStorage.getItem(STORAGE_KEYS.ENGINEERS_LIST);
-
-      if (stored) list = JSON.parse(stored);
-
-    } catch (e) { }
-
-    if (!list || !Array.isArray(list) || list.length === 0) {
-
-      list = JSON.parse(JSON.stringify(DEFAULT_ENGINEERS));
-
-    }
-
-    this.engineersList = sortEngineersByWeekOffs(list);
-
-  }
-
-
-
-  async syncEngineersFromAtlas() {
-
-    try {
-
-      const docs = await this.atlasService.getEngineers();
-
-      if (Array.isArray(docs) && docs.length > 0) {
-
-        const merged = this.atlasService.mergeEngineers(docs, this.engineersList);
-
-        this.engineersList = sortEngineersByWeekOffs(merged);
-
-        localStorage.setItem(STORAGE_KEYS.ENGINEERS_LIST, JSON.stringify(this.engineersList));
-
-        if (typeof window !== 'undefined' && window.authService) {
-
-          window.authService.syncEngineersList(this.engineersList);
-
-        }
-
-      }
-
-    } catch (e) {
-
-      console.warn('UserPortal: failed to sync engineers from Atlas:', e);
-
-    }
-
-  }
-
-
-
-  loadConstraints() {
-
-    try {
-
-      const stored = localStorage.getItem(STORAGE_KEYS.CONSTRAINTS);
-
-      if (stored) this.constraints = JSON.parse(stored);
-
-    } catch (e) { }
-
-  }
-
-
-
-  /**
-
-   * Load Live Operational Roster (stays anchored to active period)
-
-   */
-
-  async loadLiveRoster(year, month) {
-
-    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-
-    const cacheKey = `${STORAGE_KEYS.GRID_ROSTER_PREFIX}${year}_${String(month).padStart(2, '0')}`;
-
-    let loaded = null;
-
-
-
-    // 1. Fetch remote published roster from MongoDB Atlas
-
-    try {
-
-      const remoteDoc = await this.atlasService.getRoster(monthKey);
-
-      if (remoteDoc && remoteDoc.engineers && remoteDoc.engineers.length > 0) {
-
-        loaded = remoteDoc.engineers.map(e => {
-
-          let shifts = e.shifts;
-
-          if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
-
-            shifts = shiftsMapToArray(shifts, this.liveState.totalDays);
-
-          }
-
-          const defEng = this.engineersList.find(x => x.name === e.name || x.id === e.engineer_id || x.id === e.id) || {};
-
-          return {
-
-            id: e.engineer_id || e.id || defEng.id || `eng_${e.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
-
-            name: e.name,
-
-            shifts: Array.isArray(shifts) ? [...shifts] : new Array(this.liveState.totalDays).fill(''),
-
-            status: e.status || defEng.status || 'Active',
-
-            role: e.role || defEng.role || 'engineer',
-
-            default_weekly_offs: defEng.default_weekly_offs || e.default_weekly_offs || ['Saturday', 'Sunday']
-
-          };
-
-        });
-
-        localStorage.setItem(cacheKey, JSON.stringify(loaded));
-
-      }
-
-    } catch (e) {
-
-      console.warn('UserPortal: failed to fetch live roster from Atlas:', e);
-
-    }
-
-
-
-    // 2. Direct relative fetch fallback
-
-    if (!loaded && typeof fetch !== 'undefined' && typeof window !== 'undefined' && window.location) {
-
-      try {
-
-        const directRes = await fetch(`/api/roster/${monthKey}`, { headers: { 'Accept': 'application/json' } });
-
-        if (directRes.ok) {
-
-          const directData = await directRes.json();
-
-          const doc = directData.document || directData.data || directData;
-
-          if (doc && doc.engineers && doc.engineers.length > 0) {
-
-            loaded = doc.engineers.map(e => {
-
-              let shifts = e.shifts;
-
-              if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
-
-                shifts = shiftsMapToArray(shifts, this.liveState.totalDays);
-
-              }
-
-              const defEng = this.engineersList.find(x => x.name === e.name || x.id === e.engineer_id || x.id === e.id) || {};
-
-              return {
-
-                id: e.engineer_id || e.id || defEng.id || `eng_${e.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
-
-                name: e.name,
-
-                shifts: Array.isArray(shifts) ? [...shifts] : new Array(this.liveState.totalDays).fill(''),
-
-                status: e.status || defEng.status || 'Active',
-
-                role: e.role || defEng.role || 'engineer',
-
-                default_weekly_offs: defEng.default_weekly_offs || e.default_weekly_offs || ['Saturday', 'Sunday']
-
-              };
-
-            });
-
-            localStorage.setItem(cacheKey, JSON.stringify(loaded));
-
-          }
-
-        }
-
-      } catch (eDirect) { }
-
-    }
-
-
-
-    // 3. Fallback to LocalStorage (must have valid shifts)
-
-    if (!loaded) {
-
-      try {
-
-        const stored = localStorage.getItem(cacheKey);
-
-        if (stored) {
-
-          const parsed = JSON.parse(stored);
-
-          const hasValid = Array.isArray(parsed) && parsed.length > 0 &&
-
-            parsed.some(e => Array.isArray(e.shifts) && e.shifts.some(s => s && String(s).trim() !== ''));
-
-          if (hasValid) loaded = parsed;
-
-        }
-
-      } catch (e) { }
-
-    }
-
-
-
-    // 4. Fallback: Dynamic blank roster with active directory personnel
-
-    if (!loaded) {
-
-      const active = this.engineersList.filter(e => e.status !== 'Resigned' && !this.isPureMgmt(e));
-
-      loaded = active.map(e => ({
-
-        id: e.id,
-
-        name: e.name,
-
-        shifts: new Array(this.liveState.totalDays).fill(''),
-
-        status: e.status || 'Active',
-
-        role: e.role || 'engineer',
-
-        default_weekly_offs: e.default_weekly_offs || ['Saturday', 'Sunday']
-
-      }));
-
-    }
-
-
-
-    this.liveState.roster = sortEngineersByWeekOffs(loaded);
-
-  }
-
-
-
-  /**
-
-   * Load Grid Roster for the Month Grid section ONLY
-
-   */
-
-  async loadGridRoster(year, month) {
-
-    this.gridState.year = year;
-
-    this.gridState.month = month;
-
-    this.gridState.totalDays = new Date(year, month, 0).getDate();
-
-
-
-    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-
-    const cacheKey = `${STORAGE_KEYS.GRID_ROSTER_PREFIX}${year}_${String(month).padStart(2, '0')}`;
-
-    let loaded = null;
-
-
-
-    // 1. Fetch remote published roster from MongoDB Atlas
-
-    try {
-
-      const remoteDoc = await this.atlasService.getRoster(monthKey);
-
-      if (remoteDoc && remoteDoc.engineers && remoteDoc.engineers.length > 0) {
-
-        loaded = remoteDoc.engineers.map(e => {
-
-          let shifts = e.shifts;
-
-          if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
-
-            shifts = shiftsMapToArray(shifts, this.gridState.totalDays);
-
-          }
-
-          const defEng = this.engineersList.find(x => x.name === e.name || x.id === e.engineer_id || x.id === e.id) || {};
-
-          return {
-
-            id: e.engineer_id || e.id || defEng.id || `eng_${e.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
-
-            name: e.name,
-
-            shifts: Array.isArray(shifts) ? [...shifts] : new Array(this.gridState.totalDays).fill(''),
-
-            status: e.status || defEng.status || 'Active',
-
-            role: e.role || defEng.role || 'engineer',
-
-            default_weekly_offs: defEng.default_weekly_offs || e.default_weekly_offs || ['Saturday', 'Sunday']
-
-          };
-
-        });
-
-        localStorage.setItem(cacheKey, JSON.stringify(loaded));
-
-      }
-
-    } catch (e) {
-
-      console.warn('UserPortal: failed to fetch grid roster from Atlas:', e);
-
-    }
-
-
-
-    // 2. Direct relative fetch fallback
-
-    if (!loaded && typeof fetch !== 'undefined' && typeof window !== 'undefined' && window.location) {
-
-      try {
-
-        const directRes = await fetch(`/api/roster/${monthKey}`, { headers: { 'Accept': 'application/json' } });
-
-        if (directRes.ok) {
-
-          const directData = await directRes.json();
-
-          const doc = directData.document || directData.data || directData;
-
-          if (doc && doc.engineers && doc.engineers.length > 0) {
-
-            loaded = doc.engineers.map(e => {
-
-              let shifts = e.shifts;
-
-              if (shifts && !Array.isArray(shifts) && typeof shifts === 'object') {
-
-                shifts = shiftsMapToArray(shifts, this.gridState.totalDays);
-
-              }
-
-              const defEng = this.engineersList.find(x => x.name === e.name || x.id === e.engineer_id || x.id === e.id) || {};
-
-              return {
-
-                id: e.engineer_id || e.id || defEng.id || `eng_${e.name.toLowerCase().replace(/[\s\W]+/g, '')}`,
-
-                name: e.name,
-
-                shifts: Array.isArray(shifts) ? [...shifts] : new Array(this.gridState.totalDays).fill(''),
-
-                status: e.status || defEng.status || 'Active',
-
-                role: e.role || defEng.role || 'engineer',
-
-                default_weekly_offs: defEng.default_weekly_offs || e.default_weekly_offs || ['Saturday', 'Sunday']
-
-              };
-
-            });
-
-            localStorage.setItem(cacheKey, JSON.stringify(loaded));
-
-          }
-
-        }
-
-      } catch (eDirect) { }
-
-    }
-
-
-
-    // 3. Fallback to LocalStorage (must have valid shifts)
-
-    if (!loaded) {
-
-      try {
-
-        const stored = localStorage.getItem(cacheKey);
-
-        if (stored) {
-
-          const parsed = JSON.parse(stored);
-
-          const hasValid = Array.isArray(parsed) && parsed.length > 0 &&
-
-            parsed.some(e => Array.isArray(e.shifts) && e.shifts.some(s => s && String(s).trim() !== ''));
-
-          if (hasValid) loaded = parsed;
-
-        }
-
-      } catch (e) { }
-
-    }
-
-
-
-    // 4. Fallback: Dynamic blank roster with active directory personnel
-
-    if (!loaded) {
-
-      const active = this.engineersList.filter(e => e.status !== 'Resigned' && !this.isPureMgmt(e));
-
-      loaded = active.map(e => ({
-
-        id: e.id,
-
-        name: e.name,
-
-        shifts: new Array(this.gridState.totalDays).fill(''),
-
-        status: e.status || 'Active',
-
-        role: e.role || 'engineer',
-
-        default_weekly_offs: e.default_weekly_offs || ['Saturday', 'Sunday']
-
-      }));
-
-    }
-
-
-
-    this.gridState.roster = sortEngineersByWeekOffs(loaded);
-
-  }
-
-
-
-  isPureMgmt(e) {
-    if (!e) return false;
-    const incFlag = e.include_in_roster !== undefined ? e.include_in_roster : e.includeInRoster;
-    if (typeof incFlag === 'boolean') return !incFlag;
-    const u = String(e.username || e.id || '').trim().toLowerCase();
-    const n = String(e.name || '').trim().toLowerCase();
-    const r = String(e.role || '').trim().toLowerCase();
-    return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' || u === 'administrator' ||
-           r === 'manager' || (r === 'admin' && (u === 'admin' || n.includes('system admin') || n.includes('administrator')));
-  }
-
-  /**
-   * Match current logged in user to an engineer in the roster
-   */
-  matchCurrentUserToEngineer() {
-    const u = this.currentUser;
-    if (!u) return;
-
-    const uName = String(u.name || '').trim().toUpperCase();
-    const uFull = String(u.full_name || '').trim().toUpperCase();
-    const uUser = String(u.username || '').trim().toUpperCase();
-    const uId = String(u.engineerId || u.id || '').trim().toUpperCase();
-
-    const pool = (this.liveState.roster && this.liveState.roster.length > 0)
-      ? this.liveState.roster
-      : (this.engineersList || []);
-
-    let match = pool.find(e => {
-      const eName = String(e.name || '').trim().toUpperCase();
-      const eFull = String(e.full_name || '').trim().toUpperCase();
-      const eUser = String(e.username || '').trim().toUpperCase();
-      const eId = String(e.id || e.engineer_id || '').trim().toUpperCase();
-
-      return (uId && eId && (eId === uId || eId.includes(uId))) ||
-             (uName && eName && (eName === uName || eName.includes(uName) || uName.includes(eName))) ||
-             (uFull && eName && (eName === uFull || uFull.includes(eName) || eName.includes(uFull))) ||
-             (uUser && eUser && eUser === uUser) ||
-             (uUser && eName && (eName.includes(uUser) || uUser.includes(eName.toLowerCase())));
-    });
-
-    if (!match && this.engineersList && this.engineersList.length > 0) {
-      match = this.engineersList.find(e => {
-        const eName = String(e.name || '').trim().toUpperCase();
-        const eFull = String(e.full_name || '').trim().toUpperCase();
-        const eUser = String(e.username || '').trim().toUpperCase();
-        return (uName && eName && (eName === uName || eName.includes(uName))) ||
-               (uUser && eUser && eUser === uUser) ||
-               (uFull && eFull && (eFull === uFull || eFull.includes(uFull)));
-      });
-    }
-
-    const isMgmt = (u.role === 'admin' || u.role === 'manager' || u.is_admin || uUser === 'ADMIN' || uUser === 'MANAGER' || uName === 'ADMIN' || uName === 'MANAGER');
-    if (isMgmt) {
-      // Management accounts exist strictly for supervisory oversight - never assigned to working desk shifts
-      match = {
-        id: uId || `mgmt_${uUser.toLowerCase() || 'admin'}`,
-        name: u.name || u.full_name || (u.role === 'manager' ? 'Operations Manager' : 'System Administrator'),
-        username: u.username || (u.role === 'manager' ? 'manager' : 'admin'),
-        shifts: new Array(this.liveState.totalDays).fill(''),
-        status: 'Active',
-        role: u.role || 'admin',
-        isManagement: true
-      };
-    } else if (!match) {
-      // NEVER assign another person's identity to the logged-in engineer!
-      match = {
-        id: uId || `eng_${uUser.toLowerCase() || 'user'}`,
-        name: u.name || u.full_name || u.username || 'Engineer',
-        username: u.username || '',
-        shifts: new Array(this.liveState.totalDays).fill(''),
-        status: 'Active',
-        role: u.role || 'engineer',
-        default_weekly_offs: u.default_weekly_offs || ['Monday', 'Tuesday']
-      };
-    }
-
-    this.matchedEngineer = match;
-  }
-
-
-
-  renderHeaderUserInfo() {
-
-    const nameEl = document.getElementById('userDisplayName');
-
-    const roleEl = document.getElementById('userRoleBadge');
-
-    const avatarImg = document.getElementById('userProfileAvatarImg');
-    const avatarText = document.getElementById('userProfileAvatarText');
-
-    if (avatarImg && avatarText) {
-      const pic = this.currentUser?.profile_picture;
-      if (pic) {
-        avatarImg.src = pic;
-        avatarImg.classList.remove('hidden');
-        avatarText.classList.add('hidden');
-      } else {
-        avatarImg.classList.add('hidden');
-        avatarText.classList.remove('hidden');
-        const initials = (this.currentUser?.name || this.currentUser?.username || 'U').substring(0, 2).toUpperCase();
-        avatarText.textContent = initials;
-      }
-    }
-
-    if (nameEl) nameEl.textContent = toProperCase(this.currentUser.name || this.currentUser.username);
-
-    if (roleEl) {
-      const role = (this.currentUser.role || 'engineer').toUpperCase();
-      roleEl.textContent = role === 'ADMIN' ? 'ADMINISTRATOR' : (role === 'MANAGER' ? 'OPERATIONS MANAGER' : (role === 'APPRENTICE' ? 'APPRENTICE' : 'NOC ENGINEER'));
-      if (role === 'ADMIN') {
-        roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30';
-      } else if (role === 'MANAGER') {
-        roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
-      } else if (role === 'APPRENTICE') {
-        roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-      } else {
-        roleEl.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
-      }
-    }
-
-    const mgmtBtn = document.getElementById('btnManagementConsole');
-    if (mgmtBtn) {
-      const uRole = (this.currentUser?.role || '').toLowerCase();
-      if (uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin) {
-        mgmtBtn.classList.remove('hidden');
-        mgmtBtn.classList.add('flex');
-      } else {
-        mgmtBtn.classList.add('hidden');
-        mgmtBtn.classList.remove('flex');
-      }
-    }
-
-  }
-
-
-
-  /**
-
-   * Determine exact real-time operational duty status for an engineer
-
-   * ONLY reports "On Duty" if current clock time is strictly within the active shift hours
-
-   */
-
-  getRealtimeDutyStatus(engineer, dayNumber, now = new Date()) {
-
-    if (!engineer) {
-
-      return { isOnDuty: false, activeCode: '', label: 'Unscheduled', statusHtml: '<span class="text-xs text-slate-500 font-mono">--</span>' };
-
-    }
-
-
-
-    const curMins = now.getHours() * 60 + now.getMinutes();
-
-    const todayCode = this.getShiftForDay(engineer, dayNumber) || 'OFF';
-
-
-
-    // Yesterday's shift code (needed for NS overnight duty before 07:30 AM)
-
-    const yesterdayCode = dayNumber > 1 ? this.getShiftForDay(engineer, dayNumber - 1) : '';
-
-
-
-    // Shift Schedule Definitions (in minutes from midnight)
-
-    const SHIFT_RANGES = {
-
-      FS: { start: 7 * 60 + 30, end: 16 * 60 + 30, startStr: '07:30 AM' },
-
-      FG: { start: 8 * 60 + 30, end: 17 * 60 + 30, startStr: '08:30 AM' },
-
-      G: { start: 9 * 60 + 30, end: 18 * 60 + 30, startStr: '09:30 AM' },
-
-      SG: { start: 11 * 60, end: 20 * 60, startStr: '11:00 AM' },
-
-      SS: { start: 13 * 60, end: 22 * 60, startStr: '01:00 PM' },
-
-      NS: { start: 21 * 60, end: 7 * 60 + 30, startStr: '09:00 PM' }
-
-    };
-
-
-
-    // 1. Check Night Shift (spans overnight from 09:00 PM to 07:30 AM)
-
-    // Overnight early morning (between midnight 00:00 and 07:30 AM):
-
-    if (curMins < 7 * 60 + 30) {
-
-      if (yesterdayCode === 'NS') {
-
-        return {
-
-          isOnDuty: true,
-
-          activeCode: 'NS',
-
-          label: 'On Duty (NS)',
-
-          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-indigo-900 dark:text-indigo-200 font-bold bg-indigo-100 dark:bg-indigo-950/80 px-2.5 py-1 rounded-full border border-indigo-300 dark:border-indigo-500/60 shadow-xs"><span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙</span>`
-
-        };
-
-      }
-
-    }
-
-    // Night evening (from 09:00 PM onwards):
-
-    if (curMins >= 21 * 60) {
-
-      if (todayCode === 'NS') {
-
-        return {
-
-          isOnDuty: true,
-
-          activeCode: 'NS',
-
-          label: 'On Duty (NS)',
-
-          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-indigo-900 dark:text-indigo-200 font-bold bg-indigo-100 dark:bg-indigo-950/80 px-2.5 py-1 rounded-full border border-indigo-300 dark:border-indigo-500/60 shadow-xs"><span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙</span>`
-
-        };
-
-      }
-
-    }
-
-
-
-    // 2. Check Day Shifts (FS, FG, G, SG, SS)
-
-    const range = SHIFT_RANGES[todayCode];
-
-    if (range && todayCode !== 'NS') {
-
-      if (curMins >= range.start && curMins < range.end) {
-
-        return {
-
-          isOnDuty: true,
-
-          activeCode: todayCode,
-
-          label: `On Duty (${todayCode})`,
-
-          statusHtml: `<span class="inline-flex items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-500/60 shadow-xs"><span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> On Duty (${todayCode}) 🟢</span>`
-
-        };
-
-      }
-
-    }
-
-
-
-    // 3. Not currently on duty:
-
-    if (isOffCategory(todayCode) || todayCode === 'OFF') {
-
-      return {
-
-        isOnDuty: false,
-
-        activeCode: todayCode,
-
-        label: 'Weekly Off',
-
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-amber-800 dark:text-amber-400 font-medium bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1 rounded-full border border-amber-300 dark:border-amber-800/40">Weekly Off</span>`
-
-      };
-
-    }
-
-
-
-    if (todayCode === 'L') {
-
-      return {
-
-        isOnDuty: false,
-
-        activeCode: 'L',
-
-        label: 'On Leave',
-
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-rose-800 dark:text-rose-400 font-medium bg-rose-100 dark:bg-rose-950/40 px-2.5 py-1 rounded-full border border-rose-300 dark:border-rose-800/40">On Leave</span>`
-
-      };
-
-    }
-
-
-
-    // Shift upcoming later today
-
-    if (range && curMins < range.start) {
-
-      return {
-
-        isOnDuty: false,
-
-        activeCode: todayCode,
-
-        label: `Off Duty (Starts ${range.startStr})`,
-
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/70 px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-700/60 font-medium">Off Duty • Starts ${range.startStr}</span>`
-
-      };
-
-    }
-
-
-
-    // Shift finished earlier today
-
-    if (range && curMins >= range.end && todayCode !== 'NS') {
-
-      return {
-
-        isOnDuty: false,
-
-        activeCode: todayCode,
-
-        label: 'Shift Ended',
-
-        statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/60 px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-800 font-medium">Shift Ended • Off Duty</span>`
-
-      };
-
-    }
-
-
-
-    return {
-
-      isOnDuty: false,
-
-      activeCode: todayCode,
-
-      label: 'Off Duty',
-
-      statusHtml: `<span class="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-700/60 font-medium">Off Duty</span>`
-
-    };
-
-  }
-
-
-
-  /**
-
-   * Render hero welcome section — persistently anchored to Today
-
-   */
-
-  renderDashboardHero() {
-
-    const welcomeName = document.getElementById('heroWelcomeName');
-
-    const dateText = document.getElementById('heroCurrentDate');
-
-    const shiftBadge = document.getElementById('heroDutyBadge');
-
-
-
-    const displayName = (this.matchedEngineer ? this.matchedEngineer.name : this.currentUser.name) || 'Engineer';
-
-    if (welcomeName) welcomeName.textContent = toProperCase(displayName);
-
-
-
-    // Anchor: Today's live calendar date in IST
-    if (dateText) dateText.textContent = todayFormatted('long');
-
-    const now = getIstNow();
-    const opDay = this.liveState.todayDay || now.getDate();
-    const dutyStatus = this.getRealtimeDutyStatus(this.matchedEngineer, opDay, now);
-
-    const uRole = (this.currentUser?.role || '').toLowerCase();
-    const isMgmt = this.matchedEngineer?.isManagement || uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
-
-    if (shiftBadge) {
-      if (isMgmt) {
-        const roleLabel = (uRole === 'manager') ? 'Operations Manager' : 'System Administrator';
-        shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700/60 flex items-center gap-2 shadow-xs';
-        shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> Supervisory Access (${roleLabel})`;
-      } else if (dutyStatus.isOnDuty) {
-
-        if (dutyStatus.activeCode === 'NS') {
-
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-100 dark:bg-indigo-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-500/40 flex items-center gap-2 shadow-xs';
-
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> On Duty (NS) 🌙`;
-
-        } else {
-
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-500/40 flex items-center gap-2 shadow-xs';
-
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> On Duty (${dutyStatus.activeCode}) 🟢`;
-
-        }
-
-      } else {
-
-        const todayShiftCode = this.getShiftForDay(this.matchedEngineer, opDay);
-
-        if (isOffCategory(todayShiftCode)) {
-
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 flex items-center gap-2 shadow-xs';
-
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400"></span> Weekly Off (${todayShiftCode})`;
-
-        } else if (todayShiftCode) {
-
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-2 shadow-xs';
-
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500 dark:bg-slate-400"></span> ${dutyStatus.label}`;
-
-        } else {
-
-          shiftBadge.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700 flex items-center gap-2 shadow-xs';
-
-          shiftBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500"></span> Unscheduled`;
-
-        }
-
-      }
-
-    }
-
-  }
-
-
-
-  getShiftForDay(engineer, dayNumber) {
-
-    if (!engineer || !engineer.shifts) return 'OFF';
-
-    const idx = dayNumber - 1;
-
-    return engineer.shifts[idx] || '';
-
-  }
-
-
-
-  /**
-
-   * Render personal Today & Tomorrow cards + monthly metrics — persistently anchored to Today
-
-   */
-
-  renderPersonalShiftCards() {
-
-    const opDay = this.liveState.todayDay;
-
-    const nextDay = this.liveState.tomorrowDay;
-
-    const eng = this.matchedEngineer;
-
-    if (!eng) return;
-
-    const uRole = (this.currentUser?.role || '').toLowerCase();
-    const isMgmt = eng.isManagement || uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
-
-    if (isMgmt) {
-      const todayCardStatusBadge = document.getElementById('todayCardStatusBadge');
-      if (todayCardStatusBadge) {
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950/80 text-indigo-900 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800/60 flex items-center gap-1 shadow-xs';
-        todayCardStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span> Supervisory Active';
-      }
-      const todayCodeEl = document.getElementById('todayShiftCode');
-      const todayNameEl = document.getElementById('todayShiftName');
-      const todayTimingsEl = document.getElementById('todayShiftTimings');
-      const todayDescEl = document.getElementById('todayShiftDesc');
-      if (todayCodeEl) {
-        todayCodeEl.textContent = 'MGMT';
-        todayCodeEl.style.backgroundColor = '#4f46e5';
-        todayCodeEl.style.color = '#ffffff';
-      }
-      if (todayNameEl) todayNameEl.textContent = 'Supervisory / Administrative Duty';
-      if (todayTimingsEl) todayTimingsEl.textContent = 'Operational Oversight & Desk Management';
-      if (todayDescEl) todayDescEl.textContent = 'Dedicated management access. Oversee live shift operations and team coordination.';
-
-      const tomorrowCodeEl = document.getElementById('tomorrowShiftCode');
-      const tomorrowNameEl = document.getElementById('tomorrowShiftName');
-      const tomorrowTimingsEl = document.getElementById('tomorrowShiftTimings');
-      const tomorrowDescEl = document.getElementById('tomorrowShiftDesc');
-      if (tomorrowCodeEl) {
-        tomorrowCodeEl.textContent = 'MGMT';
-        tomorrowCodeEl.style.backgroundColor = '#4f46e5';
-        tomorrowCodeEl.style.color = '#ffffff';
-      }
-      if (tomorrowNameEl) tomorrowNameEl.textContent = 'Supervisory / Administrative Duty';
-      if (tomorrowTimingsEl) tomorrowTimingsEl.textContent = 'Operational Oversight & Desk Management';
-      if (tomorrowDescEl) tomorrowDescEl.textContent = 'Continuous administrative oversight and escalation point.';
-
-      const dayCountEl = document.getElementById('cardMetricDay');
-      const nightCountEl = document.getElementById('cardMetricNight');
-      const offCountEl = document.getElementById('cardMetricOff');
-      const totalCountEl = document.getElementById('cardMetricTotal');
-      if (dayCountEl) dayCountEl.textContent = '--';
-      if (nightCountEl) nightCountEl.textContent = '--';
-      if (offCountEl) offCountEl.textContent = '--';
-      if (totalCountEl) totalCountEl.textContent = 'Supervisory';
-      const cardRestDay = document.getElementById('cardUpcomingRestDay');
-      if (cardRestDay) cardRestDay.textContent = 'Supervisory Role - Non-Roster Schedule';
-      return;
-    }
-
-
-
-    const todayDateObj = new Date(this.liveState.year, this.liveState.month - 1, opDay);
-
-    const todayMonthStr = todayDateObj.toLocaleDateString('en-US', { month: 'short' });
-
-    const tomDateObj = new Date(this.liveState.year, this.liveState.month - 1, opDay);
-
-    tomDateObj.setDate(tomDateObj.getDate() + 1);
-
-    const tomMonthStr = tomDateObj.toLocaleDateString('en-US', { month: 'short' });
-
-
-
-    // Card Titles
-
-    const title1 = document.getElementById('todayCardTitle');
-
-    const title2 = document.getElementById('tomorrowCardTitle');
-
-    if (title1) title1.innerHTML = `<i class="ph ph-clock text-cyan-400 text-sm"></i> Today's Shift (${todayMonthStr} ${opDay})`;
-
-    if (title2) title2.innerHTML = `<i class="ph ph-calendar-plus text-indigo-400 text-sm"></i> Tomorrow's Shift (${tomMonthStr} ${nextDay})`;
-
-
-
-    // Today Card Live Operational Status Badge
-
-    const todayCardStatusBadge = document.getElementById('todayCardStatusBadge');
-
-    if (todayCardStatusBadge) {
-
-      const dutyStatus = this.getRealtimeDutyStatus(eng, opDay);
-
-      if (dutyStatus.isOnDuty) {
-
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1 shadow-xs';
-
-        todayCardStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> Active Now';
-
-      } else if (dutyStatus.activeCode === 'OFF' || isOffCategory(dutyStatus.activeCode)) {
-
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60';
-
-        todayCardStatusBadge.textContent = 'Weekly Off';
-
-      } else {
-
-        todayCardStatusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700';
-
-        todayCardStatusBadge.textContent = dutyStatus.label || 'Scheduled';
-
-      }
-
-    }
-
-
-
-    const todayCode = this.getShiftForDay(eng, opDay) || 'OFF';
-
-    const tomorrowCode = this.getShiftForDay(eng, nextDay) || 'OFF';
-
-
-
-    const todayInfo = SHIFTS[todayCode] || { name: todayCode, timings: 'Operational Duty', bg: '#334155', text: '#ffffff', desc: 'Assigned duty' };
-
-    const tomorrowInfo = SHIFTS[tomorrowCode] || { name: tomorrowCode, timings: 'Operational Duty', bg: '#334155', text: '#ffffff', desc: 'Assigned duty' };
-
-
-
-    // Today's Shift Card DOM
-
-    const todayCodeEl = document.getElementById('todayShiftCode');
-
-    const todayNameEl = document.getElementById('todayShiftName');
-
-    const todayTimingsEl = document.getElementById('todayShiftTimings');
-
-    const todayDescEl = document.getElementById('todayShiftDesc');
-
-
-
-    if (todayCodeEl) {
-
-      todayCodeEl.textContent = todayCode;
-
-      todayCodeEl.style.backgroundColor = todayInfo.bg;
-
-      todayCodeEl.style.color = todayInfo.text;
-
-    }
-
-    if (todayNameEl) todayNameEl.textContent = todayInfo.name;
-
-    if (todayTimingsEl) todayTimingsEl.textContent = todayInfo.timings;
-
-    if (todayDescEl) todayDescEl.textContent = todayInfo.description || todayInfo.desc || 'Standard scheduled operational assignment.';
-
-
-
-    // Tomorrow's Shift Card DOM
-
-    const tomorrowCodeEl = document.getElementById('tomorrowShiftCode');
-
-    const tomorrowNameEl = document.getElementById('tomorrowShiftName');
-
-    const tomorrowTimingsEl = document.getElementById('tomorrowShiftTimings');
-
-    const tomorrowDescEl = document.getElementById('tomorrowShiftDesc');
-
-
-
-    if (tomorrowCodeEl) {
-
-      tomorrowCodeEl.textContent = tomorrowCode;
-
-      tomorrowCodeEl.style.backgroundColor = tomorrowInfo.bg;
-
-      tomorrowCodeEl.style.color = tomorrowInfo.text;
-
-    }
-
-    if (tomorrowNameEl) tomorrowNameEl.textContent = tomorrowInfo.name;
-
-    if (tomorrowTimingsEl) tomorrowTimingsEl.textContent = tomorrowInfo.timings;
-
-    if (tomorrowDescEl) {
-
-      const restReq = tomorrowInfo.minRestHours ? `Rest requirement: ${tomorrowInfo.minRestHours}h` : 'Standard rotation sequence.';
-
-      tomorrowDescEl.textContent = `${tomorrowInfo.description || tomorrowInfo.desc || 'Scheduled duty'}. ${restReq}`;
-
-    }
-
-
-
-    // Monthly Metrics (Live Month)
-
-    let dayCount = 0;
-
-    let nightCount = 0;
-
-    let offCount = 0;
-
-
-
-    if (Array.isArray(eng.shifts)) {
-
-      eng.shifts.forEach(s => {
-
-        if (!s) return;
-
-        if (s === 'NS') nightCount++;
-
-        else if (isOffCategory(s)) offCount++;
-
-        else dayCount++;
-
-      });
-
-    }
-
-
-
-    const metricDayEl = document.getElementById('metricDayCount');
-
-    const metricNightEl = document.getElementById('metricNightCount');
-
-    const metricOffEl = document.getElementById('metricOffCount');
-
-    const metricTotalEl = document.getElementById('metricTotalDuty');
-
-
-
-    if (metricDayEl) metricDayEl.textContent = dayCount;
-
-    if (metricNightEl) metricNightEl.textContent = nightCount;
-
-    if (metricOffEl) metricOffEl.textContent = offCount;
-
-    if (metricTotalEl) metricTotalEl.textContent = (dayCount + nightCount);
-
-  }
-
-
-
-  /**
-
-   * Render 24/7 Team Duty Schedule — persistently shows Today & Tomorrow for everyone
-
-   */
-
-  renderTeamDutyBoard() {
-
-    const tableBody = document.getElementById('teamDutyTableBody');
-
-    if (!tableBody) return;
-
-
-
-    const opDay = this.liveState.todayDay;
-
-    const nextDay = this.liveState.tomorrowDay;
-
-
-
-    const todayDateObj = new Date(this.liveState.year, this.liveState.month - 1, opDay);
-
-    const todayMonthStr = todayDateObj.toLocaleDateString('en-US', { month: 'short' });
-
-    const tomDateObj = new Date(this.liveState.year, this.liveState.month - 1, opDay);
-
-    tomDateObj.setDate(tomDateObj.getDate() + 1);
-
-    const tomMonthStr = tomDateObj.toLocaleDateString('en-US', { month: 'short' });
-
-
-
-    const h1 = document.getElementById('teamHeaderToday');
-
-    const h2 = document.getElementById('teamHeaderTomorrow');
-
-    if (h1) h1.textContent = `Today's Shift (${todayMonthStr} ${opDay})`;
-
-    if (h2) h2.textContent = `Tomorrow's Shift (${tomMonthStr} ${nextDay})`;
-
-
-
-    const loggedInId = this.matchedEngineer ? this.matchedEngineer.id : null;
-
-    const loggedInName = this.matchedEngineer ? this.matchedEngineer.name : '';
-
-    const now = new Date();
-
-
-
-    const rowsHtml = this.liveState.roster.map(eng => {
-
-      const isMe = (loggedInId && eng.id === loggedInId) || (eng.name === loggedInName);
-
-      const todayCode = this.getShiftForDay(eng, opDay) || 'OFF';
-
-      const tomorrowCode = this.getShiftForDay(eng, nextDay) || 'OFF';
-
-
-
-      const todayShiftMeta = SHIFTS[todayCode] || { bg: '#334155', text: '#ffffff', timings: 'Standard Duty' };
-
-      const tomorrowShiftMeta = SHIFTS[tomorrowCode] || { bg: '#334155', text: '#ffffff', timings: 'Standard Duty' };
-
-
-
-      const trClass = isMe
-
-        ? 'bg-emerald-50/80 dark:bg-gradient-to-r dark:from-emerald-950/70 dark:via-slate-900/90 dark:to-emerald-950/70 border-l-4 border-l-emerald-500 border-y border-emerald-300 dark:border-emerald-500/30 font-semibold shadow-xs relative'
-
-        : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 transition border-b border-slate-200 dark:border-slate-800';
-
-
-
-      const userStar = isMe
-
-        ? `<i class="ph-fill ph-star text-amber-500 dark:text-amber-400 text-xs ml-1.5 shrink-0" title="Your Schedule"></i>`
-
-        : '';
-
-
-
-      const roleBadge = eng.role === 'apprentice'
-
-        ? `<span class="text-[10px] text-amber-700 dark:text-amber-400 font-mono">(Apprentice)</span>`
-
-        : `<span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">(NOC Eng)</span>`;
-
-
-
-      const offs = (eng.default_weekly_offs || ['Saturday', 'Sunday']).join(', ');
-
-      const dutyStatus = this.getRealtimeDutyStatus(eng, opDay, now);
-
-
-
-      return `
-
-        <tr class="${trClass}">
-
-          <td class="py-3 px-4 text-left">
-
-            <div class="flex items-center gap-2">
-
-              <div class="w-8 h-8 rounded-full ${isMe ? 'bg-emerald-500 text-white font-black ring-2 ring-emerald-400 shadow-sm' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'} flex items-center justify-center text-xs font-bold shrink-0">
-
-                ${eng.name.slice(0, 2).toUpperCase()}
-
-              </div>
-
-              <div>
-
-                <div class="text-sm font-bold ${isMe ? 'text-emerald-700 dark:text-emerald-300 flex items-center' : 'text-slate-900 dark:text-slate-100'}">
-
-                  ${eng.name} ${userStar}
-
-                </div>
-
-                <div class="text-xs text-slate-500 dark:text-slate-400">
-
-                  ${roleBadge} • Offs: <span class="text-slate-700 dark:text-slate-300 font-semibold">${offs}</span>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </td>
-
-
-
-          <!-- Today Shift Cell -->
-
-          <td class="py-3 px-4 text-center">
-
-            <div class="inline-flex flex-col items-center">
-
-              <span class="px-3 py-1 rounded-lg text-xs font-extrabold shadow-sm" style="background-color: ${todayShiftMeta.bg}; color: ${todayShiftMeta.text};">
-
-                ${todayCode}
-
-              </span>
-
-              <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
-
-                ${todayShiftMeta.timings || ''}
-
-              </span>
-
-            </div>
-
-          </td>
-
-
-
-          <!-- Tomorrow Shift Cell -->
-
-          <td class="py-3 px-4 text-center">
-
-            <div class="inline-flex flex-col items-center">
-
-              <span class="px-3 py-1 rounded-lg text-xs font-extrabold shadow-sm" style="background-color: ${tomorrowShiftMeta.bg}; color: ${tomorrowShiftMeta.text};">
-
-                ${tomorrowCode}
-
-              </span>
-
-              <span class="text-[10px] text-slate-400 mt-0.5 font-mono">
-
-                ${tomorrowShiftMeta.timings || ''}
-
-              </span>
-
-            </div>
-
-          </td>
-
-
-
-          <!-- Operational Status Cell: ONLY On Duty if current clock time is in shift window -->
-
-          <td class="py-3 px-4 text-right pr-6">
-
-            ${dutyStatus.statusHtml}
-
-          </td>
-
-        </tr>
-
-      `;
-
-    }).join('');
-
-
-
-    tableBody.innerHTML = rowsHtml;
-
-  }
-
-
-
-  /**
-
-   * Render headers for Month Shift Grid using gridState (Selected Month)
-
-   */
-
-  renderMonthGridHeaders() {
-
-    const datesRow = document.getElementById('gridHeaderDatesRow');
-
-    const daysRow = document.getElementById('gridHeaderDaysRow');
-
-    if (!datesRow || !daysRow) return;
-
-
-
-    const periodTag = monthLabel(`${this.gridState.year}-${String(this.gridState.month).padStart(2, '0')}`, 'code');
-
-
-
-    let row1 = `
-
-      <th rowspan="2" class="sticky left-0 z-30 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-left font-bold text-xs text-slate-800 dark:text-slate-300 px-3 py-2 name-col-portal" style="width:195px; min-width:195px; max-width:195px;">
-
-        <div class="flex items-center gap-1.5"><i class="ph ph-users text-cyan-600 dark:text-cyan-400 text-sm"></i> ENGINEER</div>
-
-      </th>
-
-    `;
-
-
-
-    let row2 = ``;
-
-
-
-    for (let day = 1; day <= this.gridState.totalDays; day++) {
-
-      const dateObj = new Date(this.gridState.year, this.gridState.month - 1, day);
-
-      const dowIndex = dateObj.getDay();
-
-      const dowName = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][dowIndex];
-
-      const isWeekend = (dowIndex === 0 || dowIndex === 6);
-
-
-
-      const cellBg1 = isWeekend ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200';
-
-      const cellBg2 = isWeekend ? 'bg-red-100/70 dark:bg-red-950/60 text-red-800 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400';
-
-
-
-      row1 += `
-
-        <th class="border border-slate-300 dark:border-slate-700 py-1.5 px-0 text-center font-bold text-xs ${cellBg1} cell-box-portal" style="width:44px; min-width:44px; max-width:44px;">
-
-          ${day}
-
-        </th>
-
-      `;
-
-
-
-      row2 += `
-
-        <th class="border border-slate-300 dark:border-slate-700 py-1 px-0 text-center text-[10px] font-semibold ${cellBg2} cell-box-portal" style="width:44px; min-width:44px; max-width:44px;">
-
-          ${dowName}
-
-        </th>
-
-      `;
-
-    }
-
-
-
-    row1 += `
-
-      <th class="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Working Duty Shifts">WRK</th>
-
-      <th class="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Night Shifts">NS</th>
-
-      <th class="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-1 py-1 text-xs stat-col-portal" style="width:48px; min-width:48px; max-width:48px;" title="Total Weekly Offs">OFF</th>
-
-    `;
-
-
-
-    row2 += `
-
-      <th colspan="3" class="border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[10px] py-1 text-center font-bold uppercase">STATS</th>
-
-    `;
-
-
-
-    datesRow.innerHTML = row1;
-
-    daysRow.innerHTML = row2;
-
-  }
-
-
-
-  /**
-
-   * Render Month Shift Grid using gridState (Selected Month ONLY)
-
-   */
-
-  renderMonthGridRoster() {
-
-    const tableBody = document.getElementById('monthGridTableBody');
-
-    if (!tableBody) return;
-
-
-
-    const loggedInId = this.matchedEngineer ? this.matchedEngineer.id : null;
-
-    const loggedInName = this.matchedEngineer ? this.matchedEngineer.name : '';
-
-    const filter = (this.gridState.filterTerm || '').trim().toUpperCase();
-
-
-
-    const isViewingLiveMonth = (this.gridState.year === 2026 && this.gridState.month === 10);
-
-    const activeOpDay = isViewingLiveMonth ? this.liveState.todayDay : 0;
-
-
-
-    const filtered = this.gridState.roster.filter(eng => {
-
-      if (!filter) return true;
-
-      return eng.name.toUpperCase().includes(filter);
-
-    });
-
-
-
-    const rowsHtml = filtered.map(eng => {
-
-      const isMe = (loggedInId && eng.id === loggedInId) || (eng.name === loggedInName);
-
-
-
-      const trClass = isMe
-
-        ? 'bg-emerald-50/80 dark:bg-gradient-to-r dark:from-emerald-950/60 dark:via-slate-900 dark:to-emerald-950/60 border-l-4 border-l-emerald-500 border-y border-emerald-300 dark:border-emerald-500/30 font-bold shadow-xs'
-
-        : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 transition border-b border-slate-200 dark:border-slate-800';
-
-
-
-      let cellsHtml = '';
-
-      let wrkCount = 0;
-
-      let nsCount = 0;
-
-      let offCount = 0;
-
-
-
-      for (let day = 1; day <= this.gridState.totalDays; day++) {
-
-        const code = this.getShiftForDay(eng, day) || '';
-
-        const shiftMeta = SHIFTS[code] || { bg: '#1e293b', text: '#94a3b8', name: code };
-
-
-
-        const sClean = (code || '').trim().toUpperCase();
-        if (['FS', 'FG', 'G', 'SG', 'SS', 'NS'].includes(sClean)) wrkCount++;
-        if (sClean === 'NS') nsCount++;
-        if (sClean === 'OFF' || sClean === 'L' || sClean.startsWith('SW')) offCount++;
-
-
-
-        const isToday = (day === activeOpDay);
-
-        const borderPulse = isToday ? 'ring-2 ring-cyan-400/80 z-10' : '';
-
-
-
-        cellsHtml += `
-
-          <td 
-
-            class="border border-slate-800 text-center text-xs font-extrabold select-none p-0 cell-box-portal ${borderPulse}"
-
-            style="width:44px; min-width:44px; max-width:44px; height:38px; background-color: ${shiftMeta.bg || '#1e293b'}; color: ${shiftMeta.text || '#ffffff'};"
-
-            title="Day ${day}: ${code} - ${shiftMeta.name || ''} (${shiftMeta.timings || ''})"
-
-          >
-
-            ${code}
-
-          </td>
-
-        `;
-
-      }
-
-
-
-      return `
-
-        <tr class="${trClass}">
-
-          <!-- Sticky Engineer Name Column -->
-
-          <td class="sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-b border-slate-200 dark:border-slate-700 px-3 py-2 text-left text-xs whitespace-nowrap shadow-xs name-col-portal overflow-hidden" style="width:195px; min-width:195px; max-width:195px;">
-
-            <div class="flex items-center gap-1.5 overflow-hidden">
-
-              <span class="w-2 h-2 rounded-full shrink-0 ${isMe ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-slate-400 dark:bg-slate-500'}"></span>
-
-              <span class="truncate ${isMe ? 'text-emerald-700 dark:text-emerald-300 font-extrabold flex items-center gap-1' : 'text-slate-800 dark:text-slate-200 font-bold'}">
-
-                ${eng.name} ${isMe ? '<i class="ph-fill ph-star text-amber-500 dark:text-amber-400 text-xs shrink-0 inline"></i>' : ''}
-
-              </span>
-
-            </div>
-
-          </td>
-
-
-
-          <!-- Day Shift Cells -->
-
-          ${cellsHtml}
-
-
-
-          <!-- Stats Columns -->
-
-          <td class="border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-slate-50 dark:bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
-
-            ${wrkCount}
-
-          </td>
-
-          <td class="border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-slate-50 dark:bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
-
-            ${nsCount}
-
-          </td>
-
-          <td class="border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-amber-700 dark:text-amber-300 bg-slate-50 dark:bg-slate-900/80 px-1 py-1 stat-col-portal" style="width:48px; min-width:48px; max-width:48px;">
-
-            ${offCount}
-
-          </td>
-
-        </tr>
-
-      `;
-
-    }).join('');
-
-
-
-    tableBody.innerHTML = rowsHtml;
-
-  }
-
-
-
-  // ==============================================================
-
-  // ACCOUNT PROFILE & CHANGE PASSWORD MODAL LOGIC
-
-  // ==============================================================
-
-  setupAccountProfileModal() {
-
-    const userBtn = document.getElementById('userProfileBtn');
-
-    const modal = document.getElementById('accountProfileModal');
-
-    const btnClose = document.getElementById('btnCloseAccountModal');
-
-    const tabProfile = document.getElementById('tabBtnProfile');
-
-    const tabSecurity = document.getElementById('tabBtnSecurity');
-
-    const contentProfile = document.getElementById('accountTabProfile');
-
-    const contentSecurity = document.getElementById('accountTabSecurity');
-
-
-
-    if (!userBtn || !modal) return;
-
-
-
-    const openModal = () => {
-
-      const u = this.currentUser || {};
-
-      const eng = this.matchedEngineer || {};
-
-      const engMeta = this.engineersList.find(e => (eng.id && e.id === eng.id) || (e.name && (e.name === eng.name || e.name === u.name))) || eng;
-
-
-
-      const latestName = engMeta.name || u.name || u.username;
-
-      const latestFullName = engMeta.full_name || u.full_name || latestName;
-
-      const latestEmail = engMeta.email || u.email || `${u.username}@example.com`;
-
-      const latestPhone = engMeta.phone || u.phone || '—';
-
-
-
-      document.getElementById('modalAccountName').textContent = latestName;
-
-      document.getElementById('profileFullName').textContent = latestFullName;
-
-      document.getElementById('profileUsername').textContent = u.username || 'staff';
-
-      document.getElementById('profileEmail').textContent = latestEmail;
-
-      document.getElementById('profilePhone').textContent = latestPhone;
-
-      const userRole = (engMeta.role || u.role || 'NOC Engineer').toLowerCase();
-      document.getElementById('profileRole').textContent = userRole.toUpperCase();
-
-      const offsContainer = document.getElementById('profileOffsContainer');
-      if (userRole === 'admin' || userRole === 'manager') {
-        if (offsContainer) offsContainer.classList.add('hidden');
-      } else {
-        if (offsContainer) offsContainer.classList.remove('hidden');
-        const offsEl = document.getElementById('profileOffs');
-        if (offsEl) {
-          offsEl.textContent = (engMeta.default_weekly_offs || eng.default_weekly_offs || ['Saturday', 'Sunday']).join(', ');
-        }
-      }
-      const joinEl = document.getElementById('profileJoinDate');
-      if (joinEl) joinEl.textContent = engMeta.join_date || u.join_date || '—';
-      const bdayEl = document.getElementById('profileBirthday');
-      if (bdayEl) bdayEl.textContent = engMeta.birthday || u.birthday || '—';
-
-      const modalImg = document.getElementById('modalAccountAvatarImg');
-      const modalText = document.getElementById('modalAccountAvatarText');
-      const btnRemove = document.getElementById('btnRemovePortalAvatar');
-      const pic = this.currentUser?.profile_picture || engMeta.profile_picture;
-      if (pic && modalImg && modalText) {
-        modalImg.src = pic;
-        modalImg.classList.remove('hidden');
-        modalText.classList.add('hidden');
-        if (btnRemove) btnRemove.classList.remove('hidden');
-      } else if (modalImg && modalText) {
-        modalImg.classList.add('hidden');
-        modalText.classList.remove('hidden');
-        if (btnRemove) btnRemove.classList.add('hidden');
-      }
-
-      document.getElementById('currentPassInput').value = '';
-
-      document.getElementById('newPassChangeInput').value = '';
-
-      document.getElementById('confirmPassChangeInput').value = '';
-
-      document.getElementById('changePassAlert').classList.add('hidden');
-
-
-
-      tabProfile.click();
-
-      modal.classList.remove('hidden');
-
-    };
-
-
-
-    userBtn.addEventListener('click', openModal);
-
-    btnClose?.addEventListener('click', () => modal.classList.add('hidden'));
-
-    const inputAvatar = document.getElementById('inputPortalAvatar');
-    const btnRemoveAvatar = document.getElementById('btnRemovePortalAvatar');
-    const statusEl = document.getElementById('avatarUploadStatus');
-
-    if (inputAvatar) {
-      inputAvatar.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (statusEl) statusEl.textContent = 'Processing...';
-
-        try {
-          const reader = new FileReader();
-          reader.onload = async (ev) => {
-            const img = new Image();
-            img.onload = async () => {
-              const canvas = document.createElement('canvas');
-              const maxDim = 256;
-              const minDim = Math.min(img.width, img.height);
-              canvas.width = maxDim;
-              canvas.height = maxDim;
-              const ctx = canvas.getContext('2d');
-              const sx = (img.width - minDim) / 2;
-              const sy = (img.height - minDim) / 2;
-              ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, maxDim, maxDim);
-              const base64Uri = canvas.toDataURL('image/jpeg', 0.85);
-
-              if (statusEl) statusEl.textContent = 'Uploading...';
-              const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
-              const res = await fetch('/api/users/profile-picture', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ profile_picture: base64Uri })
-              });
-              const data = await res.json();
-              if (data.success) {
-                this.currentUser.profile_picture = data.profile_picture || base64Uri;
-                localStorage.setItem('rosterx_auth_user', JSON.stringify(this.currentUser));
-                this.renderHeaderUserInfo();
-                const modalImg = document.getElementById('modalAccountAvatarImg');
-                const modalText = document.getElementById('modalAccountAvatarText');
-                if (modalImg && modalText) {
-                  modalImg.src = this.currentUser.profile_picture;
-                  modalImg.classList.remove('hidden');
-                  modalText.classList.add('hidden');
-                }
-                if (btnRemoveAvatar) btnRemoveAvatar.classList.remove('hidden');
-                if (statusEl) {
-                  statusEl.textContent = 'Updated!';
-                  setTimeout(() => { statusEl.textContent = ''; }, 3000);
-                }
-              } else {
-                if (statusEl) statusEl.textContent = 'Failed: ' + (data.message || 'Error');
-              }
-            };
-            img.src = ev.target.result;
-          };
-          reader.readAsDataURL(file);
-        } catch (err) {
-          if (statusEl) statusEl.textContent = 'Error: ' + err.message;
-        }
-      });
-    }
-
-    if (btnRemoveAvatar) {
-      btnRemoveAvatar.addEventListener('click', async () => {
-        if (!confirm('Are you sure you want to remove your profile picture? Your initials monogram will be displayed instead.')) return;
-        if (statusEl) statusEl.textContent = 'Removing...';
-        try {
-          const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
-          const res = await fetch('/api/users/profile-picture', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ profile_picture: null })
-          });
-          const data = await res.json();
-          if (data.success) {
-            delete this.currentUser.profile_picture;
-            localStorage.setItem('rosterx_auth_user', JSON.stringify(this.currentUser));
-            this.renderHeaderUserInfo();
-            const modalImg = document.getElementById('modalAccountAvatarImg');
-            const modalText = document.getElementById('modalAccountAvatarText');
-            if (modalImg && modalText) {
-              modalImg.classList.add('hidden');
-              modalText.classList.remove('hidden');
-            }
-            btnRemoveAvatar.classList.add('hidden');
-            if (statusEl) {
-              statusEl.textContent = 'Removed';
-              setTimeout(() => { statusEl.textContent = ''; }, 3000);
-            }
-          }
-        } catch (err) {
-          if (statusEl) statusEl.textContent = 'Error: ' + err.message;
-        }
-      });
-    }
-
-    const handleEditPortalName = async () => {
-      const currentName = this.currentUser?.name || this.currentUser?.full_name || '';
-      const newName = prompt('Enter your updated Full Name:', currentName);
-      if (newName === null) return;
-      const trimmed = newName.trim();
-      if (!trimmed || trimmed.length < 2 || trimmed.length > 60) {
-        alert('Name must be between 2 and 60 characters.');
-        return;
-      }
-      if (trimmed === currentName) return;
-
-      try {
-        const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
-        const res = await fetch('/api/users/profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ name: trimmed })
-        });
-        const data = await res.json();
-        if (data.success) {
-          this.currentUser.name = data.name || trimmed;
-          this.currentUser.full_name = data.name || trimmed;
-          localStorage.setItem('rosterx_auth_user', JSON.stringify(this.currentUser));
-          this.renderHeaderUserInfo();
-          const modalTitle = document.getElementById('modalAccountName');
-          if (modalTitle) modalTitle.textContent = this.currentUser.name;
-          const fullEl = document.getElementById('profileFullName');
-          if (fullEl) fullEl.textContent = this.currentUser.name;
-        } else {
-          alert('Failed to update name: ' + (data.message || 'Unknown error'));
-        }
-      } catch (err) {
-        alert('Error updating name: ' + err.message);
-      }
-    };
-
-    const btnEditName = document.getElementById('btnEditPortalName');
-    const btnEditFullName = document.getElementById('btnEditPortalFullName');
-    btnEditName?.addEventListener('click', handleEditPortalName);
-    btnEditFullName?.addEventListener('click', handleEditPortalName);
-
-
-
-    tabProfile?.addEventListener('click', () => {
-
-      tabProfile.className = 'pb-2 px-3 text-xs font-bold text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 cursor-pointer';
-
-      tabSecurity.className = 'pb-2 px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-b-2 border-transparent cursor-pointer';
-
-      contentProfile.classList.remove('hidden');
-
-      contentSecurity.classList.add('hidden');
-
-    });
-
-
-
-    tabSecurity?.addEventListener('click', () => {
-
-      tabSecurity.className = 'pb-2 px-3 text-xs font-bold text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 cursor-pointer';
-
-      tabProfile.className = 'pb-2 px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-b-2 border-transparent cursor-pointer';
-
-      contentSecurity.classList.remove('hidden');
-
-      contentProfile.classList.add('hidden');
-
-    });
-
-
-
-    const setupEye = (toggleId, inputId, eyeId) => {
-
-      const toggle = document.getElementById(toggleId);
-
-      const input = document.getElementById(inputId);
-
-      const eye = document.getElementById(eyeId);
-
-      if (toggle && input) {
-
-        toggle.addEventListener('click', () => {
-
-          if (input.type === 'password') {
-
-            input.type = 'text';
-
-            if (eye) eye.className = 'ph ph-eye-slash text-sm text-cyan-400';
-
-          } else {
-
-            input.type = 'password';
-
-            if (eye) eye.className = 'ph ph-eye text-sm';
-
-          }
-
-        });
-
-      }
-
-    };
-
-
-
-    setupEye('toggleCurrentPass', 'currentPassInput', 'eyeCurrentPass');
-
-    setupEye('toggleNewPass', 'newPassChangeInput', 'eyeNewPass');
-
-
-
-    const btnSubmit = document.getElementById('btnSubmitChangePass');
-
-    const alertBox = document.getElementById('changePassAlert');
-
-    const alertText = document.getElementById('changePassAlertText');
-
-
-
-    btnSubmit?.addEventListener('click', async () => {
-
-      const currentPass = document.getElementById('currentPassInput').value.trim();
-
-      const newPass = document.getElementById('newPassChangeInput').value.trim();
-
-      const confirmPass = document.getElementById('confirmPassChangeInput').value.trim();
-
-
-
-      alertBox.classList.remove('hidden');
-
-
-
-      if (!currentPass || !newPass || !confirmPass) {
-
-        alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-rose-950/70 border border-rose-500/50 text-rose-200';
-
-        alertText.textContent = 'Please fill in all password fields.';
-
-        return;
-
-      }
-
-
-
-      if (newPass !== confirmPass) {
-
-        alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-rose-950/70 border border-rose-500/50 text-rose-200';
-
-        alertText.textContent = 'New Password and Confirm New Password do not match.';
-
-        return;
-
-      }
-
-
-
-      btnSubmit.disabled = true;
-
-      btnSubmit.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> Updating...';
-
-
-
-      const res = await authService.changePassword(this.currentUser.username, currentPass, newPass);
-
-
-
-      btnSubmit.disabled = false;
-
-      btnSubmit.innerHTML = '<i class="ph ph-key text-sm"></i><span>Update Account Password</span>';
-
-
-
-      if (!res.success) {
-
-        alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-rose-950/70 border border-rose-500/50 text-rose-200';
-
-        alertText.textContent = res.error || 'Failed to update password.';
-
-      } else {
-
-        alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-emerald-950/70 border border-emerald-500/50 text-emerald-200';
-
-        alertText.textContent = '✅ ' + res.message;
-
-        document.getElementById('currentPassInput').value = '';
-
-        document.getElementById('newPassChangeInput').value = '';
-
-        document.getElementById('confirmPassChangeInput').value = '';
-
-      }
-
-    });
-
-  }
-
-
-
-  bindEvents() {
-
-    // Sign out button
-
-    const btnSignOut = document.getElementById('btnSignOut');
-
-    if (btnSignOut) {
-
-      btnSignOut.addEventListener('click', () => {
-
-        authService.logout();
-
-      });
-
-    }
-
-
-
-    // Month Selector Change: ONLY updates the Month Shift Master Grid!
-
-    // Today, Tomorrow, and Team Duty board remain untouched.
-
-    const monthSelect = document.getElementById('portalMonthSelect');
-
-    if (monthSelect) {
-
-      monthSelect.addEventListener('change', async (e) => {
-
-        const [yStr, mStr] = e.target.value.split('-');
-
-        const year = parseInt(yStr, 10);
-
-        const month = parseInt(mStr, 10);
-
-
-
-        // Update ONLY gridState and re-render Month Grid!
-
-        await this.loadGridRoster(year, month);
-
-        this.renderMonthGridHeaders();
-
-        this.renderMonthGridRoster();
-
-      });
-
-    }
-
-
-
-    // Month Navigation Arrows (Previous / Next Month)
-
-    const btnPortalPrevMonth = document.getElementById('btnPortalPrevMonth');
-
-    const btnPortalNextMonth = document.getElementById('btnPortalNextMonth');
-
-    const navigatePortalMonth = (delta) => {
-
-      if (!monthSelect) return;
-
-      const curIdx = monthSelect.selectedIndex;
-
-      const newIdx = curIdx + delta;
-
-      if (newIdx >= 0 && newIdx < monthSelect.options.length) {
-
-        monthSelect.selectedIndex = newIdx;
-
-        monthSelect.dispatchEvent(new Event('change'));
-
-      }
-
-    };
-
-    btnPortalPrevMonth?.addEventListener('click', () => navigatePortalMonth(-1));
-
-    btnPortalNextMonth?.addEventListener('click', () => navigatePortalMonth(1));
-
-
-
-    // Search / Filter Input for Month Grid
-
-    const searchInput = document.getElementById('portalSearchInput');
-
-    if (searchInput) {
-
-      searchInput.addEventListener('input', (e) => {
-
-        this.gridState.filterTerm = e.target.value;
-
-        this.renderMonthGridRoster();
-
-      });
-
-    }
-
-
-
-    // Export Month Grid Button
-
-    const btnExport = document.getElementById('btnPortalExportMonthGrid');
-
-    if (btnExport) {
-
-      btnExport.addEventListener('click', async () => {
-
-        try {
-
-          const s = window.ExcelService || ExcelService;
-
-          await s.exportRosterToExcel(
-
-            this.gridState.roster,
-
-            this.gridState.year,
-
-            this.gridState.month,
-
-            this.gridState.totalDays,
-
-            this.constraints
-
-          );
-
-        } catch (err) {
-
-          alert('Error downloading Excel file: ' + err.message);
-
-        }
-
-      });
-
-    }
-
-
-
-    // Export Month Grid as HD PNG Image
-
-    const btnExportPng = document.getElementById('btnPortalExportPng');
-
-    if (btnExportPng) {
-
-      btnExportPng.addEventListener('click', async () => {
-
-        try {
-
-          const s = window.ExcelService || ExcelService;
-
-          await s.exportMonthGridToPng(
-
-            this.gridState.roster,
-
-            this.gridState.year,
-
-            this.gridState.month,
-
-            this.gridState.totalDays,
-
-            this.constraints
-
-          );
-
-        } catch (err) {
-
-          alert('Error downloading PNG image: ' + err.message);
-
-        }
-
-      });
-
-    }
-
-  }
-
-
-
-  // ==============================================================
-
-  // OPERATIONS AI ASSISTANT (FLOATING 3D BOT)
-
-  // ==============================================================
-
-  initAiAssistant() {
-
-    const botTrigger = document.getElementById('floatingAiBotTrigger');
-
-    const chatDrawer = document.getElementById('aiChatDrawer');
-
-    const btnCloseChat = document.getElementById('btnCloseAiChat');
-
-    const chatInput = document.getElementById('aiChatInput');
-
-    const btnSend = document.getElementById('btnSendAiChat');
-
-
-
-    if (!botTrigger || !chatDrawer) return;
-
-
-
-    botTrigger.addEventListener('click', () => {
-
-      chatDrawer.classList.toggle('hidden');
-
-      if (!chatDrawer.classList.contains('hidden')) {
-
-        if (this.chatMessages.length === 0) {
-
-          this.sendBotGreeting();
-
-        }
-
-        chatInput?.focus();
-
-      }
-
-    });
-
-
-
-    btnCloseChat?.addEventListener('click', () => {
-
-      chatDrawer.classList.add('hidden');
-
-    });
-
-
-
-    const handleSend = () => {
-
-      const q = chatInput.value.trim();
-
-      if (!q) return;
-
-      chatInput.value = '';
-
-      this.handleUserQuestion(q);
-
-    };
-
-
-
-    btnSend?.addEventListener('click', handleSend);
-
-    chatInput?.addEventListener('keydown', (e) => {
-
-      if (e.key === 'Enter') {
-
-        e.preventDefault();
-
-        handleSend();
-
-      }
-
-    });
-
-
-
-    document.querySelectorAll('.ai-prompt-chip').forEach(chip => {
-
-      chip.addEventListener('click', () => {
-
-        const prompt = chip.getAttribute('data-prompt');
-
-        if (prompt) {
-
-          this.handleUserQuestion(prompt);
-
-        }
-
-      });
-
-    });
-
-  }
-
-
-
-  markdownToHtml(md) {
-    if (!md) return '';
-    return md
-      .replace(/^### (.*$)/gim, '<h3 class="text-xs font-bold text-cyan-700 dark:text-cyan-300 mt-2 mb-1">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-sm font-bold text-cyan-700 dark:text-cyan-300 mt-2 mb-1">$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1 class="text-base font-bold text-cyan-700 dark:text-cyan-300 mt-2 mb-1">$1</h1>')
-      .replace(/\*\*(.*?)\*\*/gim, '<strong class="text-slate-900 dark:text-white font-bold">$1</strong>')
-      .replace(/\*(.*?)\*/gim, '<em class="text-slate-700 dark:text-slate-300 italic">$1</em>')
-      .replace(/`([^`]+)`/gim, '<code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-cyan-800 dark:text-cyan-300 font-mono text-[10px]">$1</code>')
-      .replace(/^\s*-\s+(.*$)/gim, '<li class="ml-3 list-disc text-slate-800 dark:text-slate-200">$1</li>')
-      .replace(/\n\n+/gim, '<br><br>')
-      .replace(/\n/gim, '<br>');
-  }
-
-  sendBotGreeting() {
-    const uName = (this.matchedEngineer ? this.matchedEngineer.name : this.currentUser.name) || 'there';
-    const opDay = this.liveState.todayDay || new Date().getDate();
-    const nextDay = this.liveState.tomorrowDay || (opDay + 1);
-    const curMName = monthNames('short')[(this.liveState.month || (getIstNow().getMonth() + 1)) - 1] || 'Nov';
-    const myToday = this.getShiftForDay(this.matchedEngineer, opDay) || 'OFF';
-    const myTomorrow = this.getShiftForDay(this.matchedEngineer, nextDay) || 'OFF';
-
-    const greeting = `
-      Hello <strong>${uName}</strong>! 👋<br><br>
-      I'm your <strong>RosterX Operations Assistant</strong> powered by Grounded Gemini AI. Here is your current duty briefing:
-      <ul class="list-disc pl-4 mt-1.5 space-y-1 text-xs">
-        <li><strong>Today (${curMName} ${opDay}):</strong> Shift <span class="text-cyan-700 dark:text-cyan-300 font-bold">${myToday}</span></li>
-        <li><strong>Tomorrow (${curMName} ${nextDay}):</strong> Shift <span class="text-cyan-700 dark:text-cyan-300 font-bold">${myTomorrow}</span></li>
-      </ul>
-      <p class="mt-2 text-slate-600 dark:text-slate-300">Ask me in plain natural language:<br>
-      • <em>"Who all are in shift now?"</em><br>
-      • <em>"When is my next night shift?"</em><br>
-      • <em>"Who is on night duty today?"</em></p>
-    `;
-
-    this.appendBotMessage(greeting);
-  }
-
-  appendUserMessage(text) {
-    this.chatMessages.push({ role: 'user', content: text });
-    const container = document.getElementById('aiMessagesContainer');
-    if (!container) return;
-
-    const div = document.createElement('div');
-    div.className = 'flex justify-end';
-    div.innerHTML = `
-      <div class="max-w-[80%] rounded-2xl rounded-tr-xs bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-3 text-xs shadow-md">
-        ${this.escapeHtml(text)}
-      </div>
-    `;
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-  }
-
-  appendBotMessage(html) {
-    this.chatMessages.push({ role: 'assistant', content: html });
-    const container = document.getElementById('aiMessagesContainer');
-    if (!container) return;
-
-    const div = document.createElement('div');
-    div.className = 'flex items-start gap-2.5';
-    div.innerHTML = `
-      <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center shrink-0">
-        <img src="assets/bot-3d-cutout.png" alt="Bot" class="w-6 h-6 object-contain" />
-      </div>
-      <div class="max-w-[85%] rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 p-3 text-xs shadow-md leading-relaxed">
-        ${html}
-      </div>
-    `;
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-  }
-
-  async handleUserQuestion(query) {
-    this.appendUserMessage(query);
-
-    const container = document.getElementById('aiMessagesContainer');
-    let thinkingEl = null;
-    if (container) {
-      thinkingEl = document.createElement('div');
-      thinkingEl.className = 'flex items-center gap-2 text-cyan-400 text-xs italic p-2';
-      thinkingEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span> Consulting Grounded AI Operations Agent...';
-      container.appendChild(thinkingEl);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    try {
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('rosterx_auth_token')) || '';
-      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/chat/assistant', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: query,
-          current_user: this.currentUser,
-          platform: 'Web Portal'
-        })
-      });
-
-      if (thinkingEl) thinkingEl.remove();
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.reply) {
-          const html = this.markdownToHtml(data.reply);
-          this.appendBotMessage(html);
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('[AI Chat] Backend query error, using local fallback:', err);
-    }
-
-    if (thinkingEl) thinkingEl.remove();
-
-    this.appendBotMessage(
-      `### 🤖 RosterX Operations Assistant<br><br>` +
-      `I can help coordinate your operational shift schedule live from Atlas! Try asking:<br>` +
-      `• <em>"Who all are in shift now?"</em><br>` +
-      `• <em>"When is my next night shift?"</em><br>` +
-      `• <em>"What is my shift today and tomorrow?"</em>`
-    );
-  }
-
-  // ==============================================================
-  // TAB ARCHITECTURE & DOCK CONTROLLER
-  // ==============================================================
-
-  bindTabEvents() {
-    const desktopTabBtns = document.querySelectorAll('.user-nav-tab-btn');
-    const mobileTabBtns = document.querySelectorAll('.user-mobile-nav-btn');
-
-    desktopTabBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const tab = btn.getAttribute('data-tab');
-        if (tab) this.switchUserTab(tab);
-      });
-    });
-
-    mobileTabBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const tab = btn.getAttribute('data-tab');
-        if (tab) this.switchUserTab(tab);
-      });
-    });
-  }
-
-  switchUserTab(tabId) {
-    // 1. Update Desktop Tab Button styling
-    const desktopBtns = document.querySelectorAll('.user-nav-tab-btn');
-    desktopBtns.forEach(b => {
-      const match = b.getAttribute('data-tab') === tabId;
-      if (match) {
-        b.className = 'user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-cyan-600 text-white cursor-pointer';
-      } else {
-        b.className = 'user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs';
-      }
-    });
-
-    // 2. Update Mobile Tab Button styling
-    const mobileBtns = document.querySelectorAll('.user-mobile-nav-btn');
-    mobileBtns.forEach(b => {
-      const match = b.getAttribute('data-tab') === tabId;
-      const dot = b.querySelector('.active-dot');
-      if (match) {
-        b.classList.remove('text-slate-400');
-        b.classList.add('text-cyan-400');
-        if (dot) dot.classList.remove('hidden');
-      } else {
-        b.classList.remove('text-cyan-400');
-        b.classList.add('text-slate-400');
-        if (dot) dot.classList.add('hidden');
-      }
-    });
-
-    // 3. Show selected tab panel, hide others
-    const panels = document.querySelectorAll('.user-tab-panel');
-    panels.forEach(p => {
-      if (p.id === `userTabContent_${tabId}`) {
-        p.classList.remove('hidden');
-      } else {
-        p.classList.add('hidden');
-      }
-    });
-
-    // 4. Component-specific triggers
-    if (tabId === 'my_schedule') {
-      this.renderMyMonthlyShifts();
-      this.updateCountdownTimer();
-    } else if (tabId === 'team_handover') {
-      this.renderTeamHandoverView();
-    } else if (tabId === 'request_swap') {
-      this.populateSwapColleagues();
-      this.renderMySwapsHistory();
-    } else if (tabId === 'monthly_overview') {
-      this.renderMonthGridHeaders();
-      this.renderMonthGridRoster();
-    }
-  }
-
-  // ==============================================================
-  // TAB 1: PERSONAL MONTHLY SHIFTS & COUNTDOWN TIMER
-  // ==============================================================
-
-  renderMyMonthlyShifts() {
-    const container = document.getElementById('myMonthlyShiftsContainer');
-    if (!container) return;
-
-    const roster = this.liveState.roster || [];
-    const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
-    const myId = (this.currentUser?.id || this.currentUser?.username || '').trim().toLowerCase();
-
-    const myRow = roster.find(r => {
-      const rId = String(r.id || '').trim().toLowerCase();
-      const rName = String(r.name || '').trim().toLowerCase();
-      return (myId && rId === myId) || (myName && rName === myName) || rName.includes(myId) || (myId && rId.includes(myId));
-    }) || roster[0] || null;
-
-    const totalDays = this.liveState.totalDays;
-    const year = this.liveState.year;
-    const month = this.liveState.month;
-    const todayNum = this.liveState.todayDay;
-
-    const badgeEl = document.getElementById('myMonthShiftBadge');
-    if (badgeEl) {
-      badgeEl.textContent = monthLabel(`${year}-${String(month).padStart(2, '0')}`, 'upper');
-    }
-
-    const shiftColors = {
-      FS: 'bg-emerald-100 text-emerald-900 border-emerald-300',
-      FG: 'bg-emerald-800 text-white border-emerald-900',
-      G: 'bg-sky-100 text-sky-900 border-sky-300',
-      SG: 'bg-orange-600 text-white border-orange-700',
-      SS: 'bg-orange-100 text-orange-950 border-orange-300',
-      NS: 'bg-slate-950 text-white border-slate-700',
-      OFF: 'bg-amber-100 text-amber-900 border-amber-300',
-      SWOFF: 'bg-amber-100 text-amber-900 border-amber-300',
-      L: 'bg-rose-100 text-rose-900 border-rose-300'
-    };
-
-    const shiftTimings = {
-      FS: '07:30 – 16:30',
-      FG: '08:30 – 17:30',
-      G: '09:30 – 18:30',
-      SG: '11:00 – 20:00',
-      SS: '13:00 – 22:00',
-      NS: '21:00 – 07:30 (+1)',
-      OFF: 'Full Rest Day',
-      SWOFF: 'Swapped Rest Day',
-      L: 'Scheduled Leave'
-    };
-
-    let html = `
-      <table class="w-full text-left border-collapse text-xs">
-        <thead>
-          <tr class="bg-slate-100 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
-            <th class="py-2.5 px-4 font-bold">Day & Date</th>
-            <th class="py-2.5 px-4 font-bold text-center">Shift Code</th>
-            <th class="py-2.5 px-4 font-bold">Operational Timing</th>
-            <th class="py-2.5 px-4 font-bold text-right pr-4">Duty Status</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60">
-    `;
-
-    for (let day = 1; day <= totalDays; day++) {
-      const dateObj = new Date(year, month - 1, day);
-      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-      const dateStr = `${dayName}, ${month}/${String(day).padStart(2, '0')}`;
-      const code = (myRow && myRow.shifts && myRow.shifts[day - 1]) ? myRow.shifts[day - 1].trim().toUpperCase() : 'OFF';
-      const badgeStyle = shiftColors[code] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700';
-      const timing = shiftTimings[code] || '--:-- – --:--';
-      const isToday = (day === todayNum);
-      const rowClass = isToday
-        ? 'bg-cyan-50 dark:bg-cyan-950/40 border-l-4 border-l-cyan-600 dark:border-l-cyan-400 font-bold'
-        : (day % 2 === 0 ? 'bg-slate-50/80 dark:bg-slate-900/30' : 'bg-transparent');
-
-      html += `
-        <tr class="${rowClass} hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition">
-          <td class="py-2 px-4 flex items-center gap-2">
-            <span class="w-6 text-slate-500 dark:text-slate-400 font-mono text-[11px]">${String(day).padStart(2, '0')}</span>
-            <span class="${isToday ? 'text-cyan-700 dark:text-cyan-300 font-extrabold' : 'text-slate-800 dark:text-slate-200 font-bold'}">${dateStr}</span>
-            ${isToday ? '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-cyan-600 dark:bg-cyan-400 text-white dark:text-slate-950 ml-1.5 animate-pulse">TODAY</span>' : ''}
-          </td>
-          <td class="py-2 px-4 text-center">
-            <span class="inline-block px-2.5 py-0.5 rounded font-black text-[11px] border shadow-xs ${badgeStyle}">
-              ${code || 'OFF'}
-            </span>
-          </td>
-          <td class="py-2 px-4 font-mono text-slate-600 dark:text-slate-400 text-[11px]">
-            ${timing}
-          </td>
-          <td class="py-2 px-4 text-right pr-4">
-            ${code === 'NS' ? '<span class="text-indigo-700 dark:text-indigo-400 text-[10px] font-bold">Solo Night Duty</span>' :
-          (code === 'OFF' || code === 'SWOFF' ? '<span class="text-amber-700 dark:text-amber-400 text-[10px] font-semibold">Scheduled Rest</span>' :
-            (code === 'L' ? '<span class="text-rose-700 dark:text-rose-400 text-[10px] font-semibold">Approved Leave</span>' :
-              '<span class="text-emerald-700 dark:text-emerald-400 text-[10px] font-semibold">Standard Shift</span>'))}
-          </td>
-        </tr>
-      `;
-    }
-
-    html += `
-        </tbody>
-      </table>
-    `;
-
-    container.innerHTML = html;
-  }
-
-  startCountdownTimer() {
-    this.updateCountdownTimer();
-    if (this._countdownInterval) clearInterval(this._countdownInterval);
-    this._countdownInterval = setInterval(() => {
-      this.updateCountdownTimer();
     }, 1000);
   }
 
-  updateCountdownTimer() {
-    const labelEl = document.getElementById('shiftCountdownLabel');
-    const timeEl = document.getElementById('shiftCountdownTime');
-    const restNoticeLabelEl = document.getElementById('restDayNoticeLabel');
-    const restNoticeValEl = document.getElementById('restDayNoticeValue');
-    const cardRestDayEl = document.getElementById('cardUpcomingRestDay');
-    if (!timeEl) return;
+  bindGlobalEvents() {
+    document.getElementById('btnOpenProfile')?.addEventListener('click', () => this.openSubView('profile'));
+    document.getElementById('btnSubViewBack')?.addEventListener('click', () => this.closeSubView());
+    document.getElementById('btnOpenNotifications')?.addEventListener('click', () => this.openNotificationsDialog());
+    document.getElementById('btnRefreshPortal')?.addEventListener('click', () => this.refreshAllData(true));
+    document.getElementById('btnRosterAiFab')?.addEventListener('click', () => this.openAiAssistantDialog());
 
-    const uRole = (this.currentUser?.role || '').toLowerCase();
-    const isAdminOrManager = this.matchedEngineer?.isManagement || uRole === 'admin' || uRole === 'manager' || this.currentUser?.is_admin || this.currentUser?.username?.toLowerCase() === 'admin' || this.currentUser?.username?.toLowerCase() === 'manager';
-
-    if (isAdminOrManager) {
-      if (labelEl) labelEl.textContent = 'Operational Duty:';
-      timeEl.textContent = 'Administrative / Supervisory';
-      timeEl.className = 'font-bold text-indigo-700 dark:text-indigo-300 tracking-wide';
-
-      if (restNoticeLabelEl) restNoticeLabelEl.textContent = 'Active On Desk:';
-      if (restNoticeValEl) {
-        const now = getIstNow();
-        const opDay = this.liveState.todayDay || now.getDate();
-        let onDutyCount = 0;
-        (this.liveState.roster || []).forEach(eng => {
-          if (this.getRealtimeDutyStatus(eng, opDay, now).isOnDuty) onDutyCount++;
-        });
-        restNoticeValEl.textContent = `${onDutyCount} Engineers On Duty`;
-        restNoticeValEl.className = 'font-bold text-emerald-700 dark:text-emerald-400 tracking-wide';
-      }
-      if (cardRestDayEl) cardRestDayEl.textContent = 'Supervisory Account - No Shift Duty Required';
-      return;
+    // Hide bell for management accounts (exact Android parity)
+    if (this.isManager) {
+      document.getElementById('btnOpenNotifications')?.classList.add('rx-hidden');
     }
 
-    const roster = this.liveState.roster || [];
-    const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
-    const myId = (this.currentUser?.id || this.currentUser?.username || '').trim().toLowerCase();
-
-    const myRow = roster.find(r => {
-      const rId = String(r.id || '').trim().toLowerCase();
-      const rName = String(r.name || '').trim().toLowerCase();
-      return (myId && rId === myId) || (myName && rName === myName) || rName.includes(myId) || (myId && rId.includes(myId));
-    }) || null;
-
-    const todayNum = this.liveState.todayDay || new Date().getDate();
-    const code = (myRow && myRow.shifts && myRow.shifts[todayNum - 1]) ? myRow.shifts[todayNum - 1].trim().toUpperCase() : 'OFF';
-
-    const now = new Date();
-    const curHours = now.getHours();
-    const curMinutes = now.getMinutes();
-    const curSeconds = now.getSeconds();
-    const curTotalSec = curHours * 3600 + curMinutes * 60 + curSeconds;
-
-    const windows = {
-      FS: { start: 7.5 * 3600, end: 16.5 * 3600, name: 'First Shift' },
-      FG: { start: 8.5 * 3600, end: 17.5 * 3600, name: 'First General' },
-      G: { start: 9.5 * 3600, end: 18.5 * 3600, name: 'General Shift' },
-      SG: { start: 11 * 3600, end: 20 * 3600, name: 'Second General' },
-      SS: { start: 13 * 3600, end: 22 * 3600, name: 'Second Shift' },
-      NS: { start: 21 * 3600, end: (24 + 7.5) * 3600, name: 'Night Shift' }
-    };
-
-    const formatDelta = (sec) => {
-      const h = Math.floor(sec / 3600);
-      const m = Math.floor((sec % 3600) / 60);
-      const s = Math.floor(sec % 60);
-      return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
-    };
-
-    let shiftLabel = 'Next Shift Starts in:';
-    let shiftTime = 'No upcoming duty scheduled';
-    let shiftTimeClass = 'font-bold text-slate-400 tracking-wide';
-
-    if (windows[code]) {
-      const w = windows[code];
-      let adjCur = curTotalSec;
-      if (code === 'NS' && curTotalSec < 7.5 * 3600) {
-        adjCur += 24 * 3600;
-      }
-
-      if (adjCur >= w.start && adjCur < w.end) {
-        shiftLabel = 'Shift Ends in:';
-        shiftTime = formatDelta(w.end - adjCur);
-        shiftTimeClass = 'font-bold text-cyan-700 dark:text-cyan-300 tracking-wide';
-      } else if (adjCur < w.start) {
-        shiftLabel = 'Duty Starts in:';
-        shiftTime = formatDelta(w.start - adjCur);
-        shiftTimeClass = 'font-bold text-amber-700 dark:text-amber-300 tracking-wide';
-      }
-    }
-
-    const shifts = (myRow && myRow.shifts) || [];
-
-    // If duty for today has completed or today is OFF/Leave, find time until next duty starts
-    if (shiftTime === 'No upcoming duty scheduled' || (windows[code] && curTotalSec >= windows[code].end && code !== 'NS')) {
-      let nextDutyCode = null;
-      let daysAhead = 0;
-
-      for (let idx = todayNum; idx < shifts.length; idx++) {
-        const candidate = String(shifts[idx] || '').trim().toUpperCase();
-        if (windows[candidate]) {
-          nextDutyCode = candidate;
-          daysAhead = (idx - todayNum) + 1; // 1 = tomorrow, 2 = day after tomorrow, etc.
-          break;
-        }
-      }
-
-      if (nextDutyCode && windows[nextDutyCode]) {
-        const secondsUntilMidnight = Math.max(0, 24 * 3600 - curTotalSec);
-        const intermediateDaysSeconds = (daysAhead - 1) * 24 * 3600;
-        const nextShiftStartSeconds = windows[nextDutyCode].start;
-        const totalSecUntilNextDuty = secondsUntilMidnight + intermediateDaysSeconds + nextShiftStartSeconds;
-
-        shiftLabel = 'Next Shift Starts in:';
-        shiftTime = formatDelta(totalSecUntilNextDuty);
-        shiftTimeClass = 'font-bold text-cyan-700 dark:text-cyan-300 tracking-wide';
-      }
-    }
-
-    if (labelEl) labelEl.textContent = shiftLabel;
-    if (timeEl) {
-      timeEl.textContent = shiftTime;
-      timeEl.className = shiftTimeClass;
-    }
-
-    // --- Dynamic Upcoming Rest Day Calculation (Item 5) ---
-    const todayShiftCode = (shifts[todayNum - 1] || '').trim().toUpperCase();
-    let restLabel = 'Next Rest Day:';
-    let restValue = 'Scheduled Next Cycle';
-
-    if (todayShiftCode === 'OFF' || todayShiftCode.startsWith('OFF') || todayShiftCode === 'L') {
-      restLabel = 'Rest Day:';
-      restValue = 'Today (Full Rest)';
-    } else {
-      let restDaysAway = null;
-      let restDateFormatted = null;
-
-      for (let idx = todayNum; idx < shifts.length; idx++) {
-        const s = String(shifts[idx] || '').trim().toUpperCase();
-        if (s === 'OFF' || s.startsWith('OFF') || s === 'L') {
-          restDaysAway = (idx - todayNum) + 1; // 1 = tomorrow, 2 = day after tomorrow
-          const d = new Date(now.getFullYear(), now.getMonth(), idx + 1);
-          const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-          const monthName = d.toLocaleDateString('en-US', { month: 'short' });
-          restDateFormatted = `${dayName}, ${monthName} ${idx + 1}`;
-          break;
-        }
-      }
-
-      if (restDaysAway === 1) {
-        restLabel = 'Next Rest Day:';
-        restValue = `Tomorrow (${restDateFormatted})`;
-      } else if (restDaysAway === 2) {
-        restLabel = 'Next Rest Day:';
-        restValue = `In 2 Days (${restDateFormatted})`;
-      } else if (restDaysAway !== null) {
-        restLabel = 'Next Rest Day:';
-        restValue = `In ${restDaysAway} Days (${restDateFormatted})`;
-      }
-    }
-
-    if (restNoticeLabelEl) restNoticeLabelEl.textContent = restLabel;
-    if (restNoticeValEl) restNoticeValEl.textContent = restValue;
-    if (cardRestDayEl) cardRestDayEl.textContent = `${restLabel} ${restValue}`;
+    window.addEventListener('rosterx:themechange', () => {
+      if (this.activeSubView === 'profile') this.renderProfileView();
+    });
   }
 
-  // ==============================================================
-  // TAB 2: DESK HANDOVER & TEAM DUTY VIEW
-  // ==============================================================
-
-  renderTeamHandoverView() {
-    const morningEl = document.getElementById('teamHandoverMorning');
-    const secondEl = document.getElementById('teamHandoverSecond');
-    const nightEl = document.getElementById('teamHandoverNight');
-    const offEl = document.getElementById('teamHandoverOff');
-
-    if (!morningEl || !secondEl || !nightEl || !offEl) return;
-
-    const roster = this.liveState.roster || [];
-    const todayNum = this.liveState.todayDay || new Date().getDate();
-
-    const morning = [];
-    const second = [];
-    const night = [];
-    const off = [];
-
-    roster.forEach(eng => {
-      const code = (eng.shifts && eng.shifts[todayNum - 1]) ? eng.shifts[todayNum - 1].trim().toUpperCase() : 'OFF';
-      const name = eng.name || eng.full_name || 'Engineer';
-      const phone = eng.phone || '';
-      const email = eng.email || '';
-
-      const item = { name, code, phone, email };
-
-      if (['FS', 'FG', 'G', 'SG'].includes(code)) morning.push(item);
-      else if (code === 'SS') second.push(item);
-      else if (code === 'NS') night.push(item);
-      else off.push(item);
-    });
-
-    // Sort Morning Shift strictly by shift start timing: FS (07:30) -> FG (08:30) -> G (09:30) -> SG (11:00)
-    const morningShiftOrder = { 'FS': 1, 'FG': 2, 'G': 3, 'SG': 4 };
-    morning.sort((a, b) => {
-      const rankA = morningShiftOrder[a.code] || 99;
-      const rankB = morningShiftOrder[b.code] || 99;
-      if (rankA !== rankB) return rankA - rankB;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-
-    // Sort No Duty strictly by required priority: OFF -> SW* -> L -> others
-    const getNoDutyRank = (code) => {
-      if (code === 'OFF') return 1;
-      if (code && code.startsWith('SW')) return 2;
-      if (code === 'L') return 3;
-      return 4;
-    };
-    off.sort((a, b) => {
-      const rankA = getNoDutyRank(a.code);
-      const rankB = getNoDutyRank(b.code);
-      if (rankA !== rankB) return rankA - rankB;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-
-    second.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    night.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-    const renderSlotList = (arr, badgeClass) => {
-      if (!arr || arr.length === 0) {
-        return '<span class="text-slate-500 italic text-xs">No active personnel</span>';
-      }
-      return arr.map(eng => `
-        <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
-          <div class="flex items-center gap-1.5 truncate">
-            <span class="w-1.5 h-1.5 rounded-full ${badgeClass}"></span>
-            <span class="font-bold text-slate-800 dark:text-slate-200 text-xs truncate">${this.escapeHtml(eng.name)}</span>
-          </div>
-          <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-mono">${eng.code}</span>
-        </div>
-      `).join('');
-    };
-
-    morningEl.innerHTML = renderSlotList(morning, 'bg-emerald-400');
-    secondEl.innerHTML = renderSlotList(second, 'bg-orange-400');
-    nightEl.innerHTML = renderSlotList(night, 'bg-indigo-400');
-    offEl.innerHTML = renderSlotList(off, 'bg-amber-400');
+  toast(message, type = 'info') {
+    const host = document.getElementById('rxToastHost');
+    if (!host) return;
+    const el = document.createElement('div');
+    el.className = `rx-toast ${type === 'success' ? 'is-success' : type === 'error' ? 'is-error' : ''}`;
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 3400);
   }
 
-  // ==============================================================
-  // TAB 3: REQUEST SHIFT SWAP & SWAP QUEUE
-  // ==============================================================
-
-  populateSwapColleagues() {
-    const myDateSelect = document.getElementById('userSwapMyDate');
-    const colleagueSelect = document.getElementById('userSwapColleague');
-    const colleagueDateSelect = document.getElementById('userSwapColleagueDate');
-    if (!myDateSelect || !colleagueSelect || !colleagueDateSelect) return;
-
-    const totalDays = this.liveState.totalDays || daysInMonth(this.liveState.year, this.liveState.month);
-    const year = this.liveState.year || getIstNow().getFullYear();
-    const month = this.liveState.month || (getIstNow().getMonth() + 1);
-    const engineers = this.engineersList || [];
-    const myId = (this.currentUser?.id || this.currentUser?.username || '').trim().toLowerCase();
-
-    // Populate dates
-    if (myDateSelect.options.length <= 1) {
-      let dateOpts = '<option value="">Select your shift date...</option>';
-      let colDateOpts = '<option value="">Select target date...</option>';
-      for (let d = 1; d <= totalDays; d++) {
-        const dateObj = new Date(year, month - 1, d);
-        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-        const val = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const label = `${val} (${dayName})`;
-        dateOpts += `<option value="${val}">${label}</option>`;
-        colDateOpts += `<option value="${val}">${label}</option>`;
-      }
-      myDateSelect.innerHTML = dateOpts;
-      colleagueDateSelect.innerHTML = colDateOpts;
-    }
-
-    // Populate colleagues
-    let colOpts = '<option value="">Select colleague...</option>';
-    engineers.forEach(eng => {
-      const engId = (eng.id || eng.username || '').toLowerCase();
-      if (engId !== myId && eng.status !== 'Resigned' && eng.role !== 'admin' && eng.role !== 'manager') {
-        colOpts += `<option value="${this.escapeHtml(eng.name)}">${this.escapeHtml(eng.name)} (${eng.role || 'NOC'})</option>`;
-      }
+  renderDesktopTabs() {
+    const host = document.getElementById('rxDesktopTabs');
+    if (!host) return;
+    host.innerHTML = this.tabs.map((t) => `
+      <button type="button" class="rx-desktop-tab-btn" data-desktop-tab="${escapeHtml(t.id)}">
+        <i class="ph ${escapeHtml(t.icon)}" aria-hidden="true"></i>
+        <span>${escapeHtml(t.label)}</span>
+      </button>
+    `).join('');
+    host.querySelectorAll('[data-desktop-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => this.switchTab(btn.getAttribute('data-desktop-tab')));
     });
-    colleagueSelect.innerHTML = colOpts;
+  }
 
-    // Attach form submit handler if not already attached
-    const form = document.getElementById('userSwapForm');
-    if (form && !form._bound) {
-      form._bound = true;
-      form.addEventListener('submit', (e) => this.handleSwapSubmit(e));
+  updateTopBarUser() {
+    const selfEng = this.getSelfEngineer() || this.user;
+    const name = selfEng?.full_name || selfEng?.name || 'Member';
+    const first = String(name).trim().split(/\s+/)[0] || 'Member';
+    const firstEl = document.getElementById('rxTopFirstName');
+    const avatarEl = document.getElementById('rxTopAvatar');
+    if (firstEl) firstEl.textContent = first;
+    if (avatarEl) {
+      if (selfEng?.profile_picture) {
+        avatarEl.innerHTML = `<img src="${escapeHtml(selfEng.profile_picture)}" alt="${escapeHtml(name)}" />`;
+      } else {
+        avatarEl.textContent = getInitials(name);
+      }
     }
   }
 
-  handleSwapSubmit(e) {
-    e.preventDefault();
-    const myDate = document.getElementById('userSwapMyDate')?.value;
-    const colleague = document.getElementById('userSwapColleague')?.value;
-    const colleagueDate = document.getElementById('userSwapColleagueDate')?.value;
-    const category = document.getElementById('userSwapCategory')?.value || 'mutual';
-    const reason = document.getElementById('userSwapReason')?.value || '';
+  getSelfEngineer() {
+    const uname = String(this.user?.username || '').toLowerCase();
+    return this.engineers.find((e) => String(e.username || '').toLowerCase() === uname) || this.user;
+  }
 
-    if (!myDate || !colleague || !colleagueDate) {
-      alert('Please fill out all required fields (My Date, Colleague, and Colleague Date).');
-      return;
-    }
-
-    const swapRecord = {
-      id: 'swp_' + Date.now(),
-      created_at: new Date().toISOString(),
-      engineer_a: this.currentUser?.name || this.currentUser?.full_name || 'Engineer',
-      engineer_b: colleague,
-      date_a: myDate,
-      date_b: colleagueDate,
-      category,
-      reason,
-      status: 'Pending Operational Review'
-    };
-
+  async refreshAllData(showFeedback = false) {
     try {
-      const stored = JSON.parse(localStorage.getItem('rosterx_manual_swaps') || '[]');
-      stored.unshift(swapRecord);
-      localStorage.setItem('rosterx_manual_swaps', JSON.stringify(stored));
+      const [engRes, notifRes, credRes] = await Promise.allSettled([
+        this.atlas.getEngineers(),
+        this.atlas.getNotifications(),
+        fetch('/api/credentials', { headers: getAuthHeaders() }).then((r) => r.json())
+      ]);
+
+      if (engRes.status === 'fulfilled' && Array.isArray(engRes.value)) {
+        this.engineers = engRes.value;
+        const freshSelf = this.getSelfEngineer();
+        if (freshSelf) {
+          this.user = { ...this.user, ...freshSelf };
+          try { localStorage.setItem('rosterx_auth_user', JSON.stringify(this.user)); } catch (_) {}
+          this.credController.currentUser = this.user;
+        }
+        this.teamController.setEngineers(this.engineers);
+        this.updateTopBarUser();
+      }
+
+      if (notifRes.status === 'fulfilled') {
+        const list = notifRes.value?.notifications || notifRes.value?.data || [];
+        const todayIso = toIsoDate(getIstNow());
+        this.notifications = list.filter((n) => !isExpiredCelebration(n, todayIso));
+        this.updateNotificationBadge();
+      }
+
+      if (credRes.status === 'fulfilled' && credRes.value?.success) {
+        const trackers = credRes.value.trackers || credRes.value.data || [];
+        this.credSummary = {
+          total: trackers.length,
+          expired: trackers.filter((t) => String(t.status).toUpperCase() === 'EXPIRED').length,
+          expiringSoon: trackers.filter((t) => ['EXPIRING_SOON', 'EXPIRES_TODAY'].includes(String(t.status).toUpperCase())).length
+        };
+      }
+
+      if (this.isManager) {
+        const [telRes, tplRes] = await Promise.allSettled([
+          this.atlas.getServerTelemetry(),
+          this.atlas.getBroadcastTemplates()
+        ]);
+        if (telRes.status === 'fulfilled') this.telemetry = telRes.value?.data || telRes.value;
+        if (tplRes.status === 'fulfilled') this.templates = tplRes.value?.templates || tplRes.value?.data || [];
+      }
+
+      const now = getIstNow();
+      await this.ensureRosterLoaded(now.getFullYear(), now.getMonth() + 1);
+      await this.ensureRosterLoaded(this.gridYear, this.gridMonth);
+
+      this.renderActiveView();
+      if (showFeedback) this.toast('Synced latest shifts & status from Atlas', 'success');
     } catch (err) {
-      console.warn('Error saving swap locally:', err);
+      this.toast(`Sync warning: ${err.message}`, 'error');
     }
-
-    alert('Shift Swap Request submitted successfully! Handled by RosterX Swap-First Policy Engine.');
-    document.getElementById('userSwapForm')?.reset();
-    this.renderMySwapsHistory();
   }
 
-  renderMySwapsHistory() {
-    const list = document.getElementById('userSwapsQueueList');
-    if (!list) return;
-
-    let swaps = [];
+  async ensureRosterLoaded(year, month) {
+    const key = toPeriodKey(year, month);
+    if (this.rosterCache.has(key)) return this.rosterCache.get(key);
     try {
-      swaps = JSON.parse(localStorage.getItem('rosterx_manual_swaps') || '[]');
-    } catch (e) { }
+      const doc = await this.atlas.getRoster(key);
+      if (doc) {
+        this.rosterCache.set(key, doc);
+        return doc;
+      }
+    } catch (_) {}
+    this.rosterCache.set(key, { _id: key, year, month, engineers: [] });
+    return this.rosterCache.get(key);
+  }
 
-    const myName = (this.currentUser?.name || this.currentUser?.full_name || '').trim().toLowerCase();
-    const mySwaps = swaps.filter(s => {
-      const a = String(s.engineer_a || '').toLowerCase();
-      const b = String(s.engineer_b || '').toLowerCase();
-      return a.includes(myName) || b.includes(myName) || myName.includes(a);
+  getRosterMapForEngineer(rosterDoc, eng) {
+    if (!rosterDoc || !eng) return {};
+    const list = rosterDoc.engineers || [];
+    const uname = String(eng.username || '').trim().toLowerCase();
+    const ename = String(eng.name || '').trim().toLowerCase();
+    const full = String(eng.full_name || '').trim().toLowerCase();
+    const matched = list.find((r) => {
+      const ru = String(r.username || '').trim().toLowerCase();
+      const rn = String(r.name || '').trim().toLowerCase();
+      return (uname && ru === uname) || (ename && rn === ename) || (full && rn === full);
+    });
+    return matched?.shifts || {};
+  }
+
+  getRosterEngineers(rosterDoc) {
+    const raw = this.engineers.filter((e) => {
+      const role = String(e.role || 'engineer').toLowerCase();
+      const status = String(e.status || 'active').toLowerCase();
+      if (role === 'admin' || role === 'manager') return false;
+      if (e.include_in_roster === false) return false;
+      if (status === 'resigned') {
+        const map = this.getRosterMapForEngineer(rosterDoc, e);
+        return Object.keys(map).length > 0;
+      }
+      return true;
+    });
+    return raw.sort((a, b) => {
+      const oa = Number.isFinite(Number(a.display_order)) ? Number(a.display_order) : 999;
+      const ob = Number.isFinite(Number(b.display_order)) ? Number(b.display_order) : 999;
+      if (oa !== ob) return oa - ob;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }
+
+  updateNotificationBadge() {
+    const badge = document.getElementById('rxBellBadge');
+    if (!badge) return;
+    const count = this.notifications.length;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.classList.remove('rx-hidden');
+    } else {
+      badge.classList.add('rx-hidden');
+    }
+  }
+
+  switchTab(tabId) {
+    if (!this.tabs.some((t) => t.id === tabId)) tabId = this.tabs[0].id;
+    this.activeTab = tabId;
+    this.activeSubView = null;
+    this.navShell.setSubViewOpen(false);
+    this.navShell.setActive(tabId);
+
+    document.getElementById('btnSubViewBack')?.classList.add('rx-hidden');
+    document.getElementById('rxBrandLogo')?.classList.remove('rx-hidden');
+    document.getElementById('rxTopBarTitle').textContent = this.isManager ? 'RosterX Manager' : 'RosterX';
+    document.getElementById('rxTopBarActions')?.classList.remove('rx-hidden');
+    document.getElementById('rxDesktopNav')?.classList.remove('rx-hidden');
+
+    document.querySelectorAll('[data-desktop-tab]').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.getAttribute('data-desktop-tab') === tabId);
     });
 
-    if (mySwaps.length === 0) {
-      list.innerHTML = `
-        <div class="p-6 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center text-slate-500 text-xs">
-          <i class="ph ph-clipboard-text text-2xl text-slate-400 dark:text-slate-600 mb-1.5 block"></i>
-          No Active Records<br><span class="text-[10px] text-slate-500 dark:text-slate-600">Your submitted shift swap requests will appear here dynamically.</span>
+    document.querySelectorAll('.rx-tab-panel').forEach((p) => p.classList.add('rx-hidden'));
+    document.querySelectorAll('.rx-subview').forEach((s) => s.classList.add('rx-hidden'));
+    document.getElementById(`panel_${tabId}`)?.classList.remove('rx-hidden');
+
+    this.renderActiveView();
+  }
+
+  openSubView(viewName) {
+    this.activeSubView = viewName;
+    this.navShell.setSubViewOpen(true);
+
+    document.getElementById('btnSubViewBack')?.classList.remove('rx-hidden');
+    document.getElementById('rxBrandLogo')?.classList.add('rx-hidden');
+    document.getElementById('rxTopBarActions')?.classList.add('rx-hidden');
+    document.getElementById('rxDesktopNav')?.classList.add('rx-hidden');
+
+    const titleMap = {
+      credentials: 'Credential Tracker',
+      my_team: 'My Team Directory',
+      profile: 'Profile & Settings'
+    };
+    document.getElementById('rxTopBarTitle').textContent = titleMap[viewName] || 'RosterX';
+
+    document.querySelectorAll('.rx-tab-panel').forEach((p) => p.classList.add('rx-hidden'));
+    document.querySelectorAll('.rx-subview').forEach((s) => s.classList.add('rx-hidden'));
+    document.getElementById(`subview_${viewName}`)?.classList.remove('rx-hidden');
+
+    if (viewName === 'credentials') this.credController.load();
+    else if (viewName === 'my_team') this.teamController.render();
+    else if (viewName === 'profile') this.renderProfileView();
+  }
+
+  closeSubView() {
+    this.activeSubView = null;
+    this.switchTab(this.activeTab);
+  }
+
+  renderActiveView() {
+    if (this.activeSubView) {
+      if (this.activeSubView === 'profile') this.renderProfileView();
+      else if (this.activeSubView === 'my_team') this.teamController.render();
+      return;
+    }
+    if (this.activeTab === 'dashboard') {
+      if (this.isManager) this.renderManagerDashboard();
+      else this.renderEngineerDashboard();
+    } else if (this.activeTab === 'team_shifts') {
+      this.renderTeamShifts();
+    } else if (this.activeTab === 'my_calendar') {
+      this.renderMyCalendar();
+    } else if (this.activeTab === 'month_roster') {
+      this.renderMonthRoster();
+    } else if (this.activeTab === 'broadcast') {
+      this.renderManagerBroadcast();
+    } else if (this.activeTab === 'more') {
+      this.renderMoreHub();
+    }
+  }
+
+  // =========================================================================
+  // CELEBRATIONS HELPER (Today's Birthdays & Work Anniversaries)
+  // =========================================================================
+  getTodayCelebrations() {
+    const today = getIstNow();
+    const md = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const list = [];
+    this.engineers.forEach((eng) => {
+      if (String(eng.status || '').toLowerCase() === 'resigned') return;
+      const bday = String(eng.birthday || '').trim().replace(/\//g, '-');
+      const jDate = String(eng.join_date || '').trim().replace(/\//g, '-');
+      const isBday = bday.endsWith(md);
+      let annYears = 0;
+      if (jDate.endsWith(md) && /^\d{4}/.test(jDate)) {
+        const diff = today.getFullYear() - Number(jDate.slice(0, 4));
+        if (diff >= 1) annYears = diff;
+      }
+      if (isBday || annYears > 0) {
+        list.push({
+          username: eng.username,
+          name: eng.full_name || eng.name || 'Team Member',
+          isBday,
+          annYears,
+          isSelf: String(eng.username || '').toLowerCase() === String(this.user?.username || '').toLowerCase()
+        });
+      }
+    });
+    return list;
+  }
+
+  renderCelebrationsBannerHtml() {
+    const celebs = this.getTodayCelebrations().filter((c) => !this.dismissedCelebrations.has(c.username));
+    if (!celebs.length) return '';
+    return celebs.map((c) => {
+      const label = c.isBday && c.annYears
+        ? `Happy Birthday & ${c.annYears}y Anniversary, ${c.name}! 🎉`
+        : c.isBday
+          ? `Happy Birthday, ${c.name}! 🎂`
+          : `Happy ${c.annYears}y Work Anniversary, ${c.name}! 🏆`;
+      return `
+        <div class="rx-card-subtle" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.38);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;" data-open-celeb="${escapeHtml(c.username)}">
+          <div style="display:flex;align-items:center;gap:10px;min-inline-size:0;">
+            <span style="font-size:22px;">${c.isBday ? '🎂' : '🏆'}</span>
+            <div style="min-inline-size:0;">
+              <div style="font-size:13px;font-weight:800;">${escapeHtml(label)}</div>
+              <div style="font-size:11px;color:var(--nm-accent);font-weight:600;">${c.isSelf ? 'Tap to open your celebration wishes!' : 'Celebrating with the team today'}</div>
+            </div>
+          </div>
+          <button type="button" data-dismiss-celeb="${escapeHtml(c.username)}" class="rx-icon-pill" aria-label="Dismiss" style="width:28px;height:28px;min-inline-size:28px;min-block-size:28px;">
+            <i class="ph ph-x"></i>
+          </button>
         </div>
       `;
-      return;
+    }).join('');
+  }
+
+  bindCelebrationEvents(root) {
+    root.querySelectorAll('[data-dismiss-celeb]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.dismissedCelebrations.add(btn.getAttribute('data-dismiss-celeb'));
+        this.renderActiveView();
+      });
+    });
+    root.querySelectorAll('[data-open-celeb]').forEach((card) => {
+      card.addEventListener('click', () => {
+        const uname = card.getAttribute('data-open-celeb');
+        const c = this.getTodayCelebrations().find((x) => x.username === uname);
+        if (!c) return;
+        const dlg = document.getElementById('rxCelebrationDialog');
+        dlg.innerHTML = `
+          <div class="rx-modal-scroll" style="text-align:center;">
+            <div style="font-size:48px;">${c.isBday ? '🎂🎉' : '🏆🎉'}</div>
+            <h2 id="rxCelebDialogTitle" style="margin:0;font-size:20px;font-weight:900;color:var(--nm-accent);">
+              ${c.isBday ? 'Happy Birthday!' : `Happy ${c.annYears} Year Anniversary!`}
+            </h2>
+            <p style="margin:0;font-size:14px;font-weight:700;">${escapeHtml(c.name)}</p>
+            <p style="margin:0;font-size:12.5px;color:var(--nm-text-muted);line-height:1.5;">
+              Wishing you a wonderful day filled with joy, health, and continued success from the entire RosterX Operations Team!
+            </p>
+            <button type="button" class="rx-btn-primary" data-rx-close style="width:100%;">Thank You!</button>
+          </div>
+        `;
+        dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
+        openNeumorphicDialog(dlg);
+      });
+    });
+  }
+
+  // =========================================================================
+  // TAB 1A: ENGINEER DASHBOARD
+  // =========================================================================
+  computeEngineerTimers(myShifts) {
+    const now = getIstNow();
+    const todayDay = now.getDate();
+    const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    const todayCode = String(myShifts[String(todayDay)] || 'OFF').toUpperCase();
+    const spec = SHIFT_SPECS[todayCode];
+
+    let shiftLabel = 'Next Shift Starts in:';
+    let shiftTime = '--';
+    let isRunning = false;
+
+    if (spec) {
+      const startSec = spec.startH * 3600 + spec.startM * 60;
+      const endSec = (spec.nextDay ? 24 : 0) * 3600 + spec.endH * 3600 + spec.endM * 60;
+      if (nowSec >= startSec && nowSec < endSec) {
+        isRunning = true;
+        shiftLabel = 'Shift Ends in:';
+        shiftTime = formatDuration(endSec - nowSec);
+      } else if (nowSec < startSec) {
+        shiftTime = formatDuration(startSec - nowSec);
+      }
     }
 
-    list.innerHTML = mySwaps.map(s => `
-      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
-        <div class="flex items-center justify-between">
-          <span class="font-bold text-slate-800 dark:text-slate-200">${this.escapeHtml(s.engineer_a)} ⇄ ${this.escapeHtml(s.engineer_b)}</span>
-          <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">${s.status || 'Pending'}</span>
+    if (shiftTime === '--') {
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      for (let d = todayDay + 1; d <= daysInMonth; d++) {
+        const c = String(myShifts[String(d)] || '').toUpperCase();
+        const s = SHIFT_SPECS[c];
+        if (s) {
+          const target = new Date(now.getFullYear(), now.getMonth(), d, s.startH, s.startM, 0);
+          shiftTime = formatDuration((target - now) / 1000);
+          break;
+        }
+      }
+    }
+
+    let restValue = 'Upcoming';
+    if (!spec) {
+      restValue = 'Today (Full Rest)';
+    } else {
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      for (let d = todayDay + 1; d <= daysInMonth; d++) {
+        const c = String(myShifts[String(d)] || 'OFF').toUpperCase();
+        if (!SHIFT_SPECS[c]) {
+          const dt = new Date(now.getFullYear(), now.getMonth(), d);
+          restValue = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          break;
+        }
+      }
+    }
+    return { shiftLabel, shiftTime, isRunning, restValue };
+  }
+
+  updateLiveTimersInDom() {
+    const now = getIstNow();
+    const doc = this.rosterCache.get(toPeriodKey(now.getFullYear(), now.getMonth() + 1));
+    const myShifts = this.getRosterMapForEngineer(doc, this.getSelfEngineer());
+    const t = this.computeEngineerTimers(myShifts);
+    const lbl = document.getElementById('rxDashShiftTimerLabel');
+    const val = document.getElementById('rxDashShiftTimerValue');
+    if (lbl) lbl.textContent = t.shiftLabel;
+    if (val) val.textContent = t.shiftTime;
+  }
+
+  renderEngineerDashboard() {
+    const panel = document.getElementById('panel_dashboard');
+    if (!panel) return;
+    const now = getIstNow();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const doc = this.rosterCache.get(toPeriodKey(now.getFullYear(), now.getMonth() + 1));
+    const selfEng = this.getSelfEngineer();
+    const myShifts = this.getRosterMapForEngineer(doc, selfEng);
+
+    const todayShift = getShiftVisual(myShifts[String(now.getDate())] || 'OFF');
+    const tomDoc = this.rosterCache.get(toPeriodKey(tomorrow.getFullYear(), tomorrow.getMonth() + 1)) || doc;
+    const tomShifts = this.getRosterMapForEngineer(tomDoc, selfEng);
+    const tomorrowShift = getShiftVisual(tomShifts[String(tomorrow.getDate())] || 'OFF');
+
+    let dayShifts = 0;
+    let nightShifts = 0;
+    let restDays = 0;
+    Object.values(myShifts).forEach((raw) => {
+      const c = String(raw || 'OFF').toUpperCase();
+      if (c === 'NS') nightShifts++;
+      else if (SHIFT_SPECS[c]) dayShifts++;
+      else restDays++;
+    });
+
+    const timers = this.computeEngineerTimers(myShifts);
+    const displayName = selfEng?.full_name || selfEng?.name || 'Engineer';
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const todayShort = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+    const tomShort = tomorrow.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+
+    const avatarHtml = selfEng?.profile_picture
+      ? `<img src="${escapeHtml(selfEng.profile_picture)}" alt="${escapeHtml(displayName)}" style="width:48px;height:48px;border-radius:999px;object-fit:cover;" />`
+      : `<div style="width:48px;height:48px;border-radius:999px;background:var(--nm-accent);color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;">${escapeHtml(getInitials(displayName))}</div>`;
+
+    panel.innerHTML = `
+      <div class="rx-land-grid-2" style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="min-inline-size:0;">
+                <div style="font-size:11.5px;font-weight:800;color:var(--nm-accent);">${escapeHtml(dateStr)}</div>
+                <h1 style="margin:3px 0 2px;font-size:20px;font-weight:900;">Welcome, ${escapeHtml(displayName)}! 👋</h1>
+                <div style="font-size:12px;color:var(--nm-text-muted);">Operational shift overview &amp; live duty briefing</div>
+              </div>
+              ${avatarHtml}
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div class="rx-well" style="padding:8px 12px;border-radius:12px;display:flex;align-items:center;gap:8px;font-size:12px;">
+                <i class="ph ph-timer" style="color:var(--nm-accent-cyan);font-size:16px;" aria-hidden="true"></i>
+                <span id="rxDashShiftTimerLabel" style="color:var(--nm-text-muted);font-weight:600;">${escapeHtml(timers.shiftLabel)}</span>
+                <strong id="rxDashShiftTimerValue" style="color:var(--nm-text);font-weight:800;">${escapeHtml(timers.shiftTime)}</strong>
+              </div>
+              <div style="padding:8px 12px;border-radius:12px;background:rgba(245,158,11,0.14);border:1px solid rgba(245,158,11,0.35);display:flex;align-items:center;gap:8px;font-size:12px;">
+                <i class="ph ph-sun" style="color:#D97706;font-size:16px;" aria-hidden="true"></i>
+                <span style="color:#B45309;font-weight:600;">Rest Day:</span>
+                <strong style="color:#92400E;font-weight:800;">${escapeHtml(timers.restValue)}</strong>
+              </div>
+            </div>
+          </div>
+
+          ${this.renderCelebrationsBannerHtml()}
         </div>
-        <div class="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
-          <span>Date: ${s.date_a || s.date}</span> ${s.date_b ? `⇄ <span>${s.date_b}</span>` : ''}
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
+              <div style="font-size:10px;font-weight:800;color:var(--nm-text-muted);letter-spacing:0.04em;">TODAY'S SHIFT (${escapeHtml(todayShort)})</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:48px;height:48px;border-radius:14px;background:${todayShift.bg};color:${todayShift.fg};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;">${escapeHtml(todayShift.code)}</div>
+                <div style="min-inline-size:0;">
+                  <div style="font-size:14px;font-weight:800;">${escapeHtml(todayShift.name)}</div>
+                  <div style="font-size:11.5px;font-weight:700;color:${SHIFT_SPECS[todayShift.code] ? '#4F46E5' : '#059669'};">${SHIFT_SPECS[todayShift.code] ? 'Active Duty' : 'Rest Day'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
+              <div style="font-size:10px;font-weight:800;color:var(--nm-text-muted);letter-spacing:0.04em;">TOMORROW'S SHIFT (${escapeHtml(tomShort)})</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:48px;height:48px;border-radius:14px;background:${tomorrowShift.bg};color:${tomorrowShift.fg};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;">${escapeHtml(tomorrowShift.code)}</div>
+                <div style="min-inline-size:0;">
+                  <div style="font-size:14px;font-weight:800;">${escapeHtml(tomorrowShift.name)}</div>
+                  <div style="font-size:11.5px;font-weight:700;color:${SHIFT_SPECS[tomorrowShift.code] ? '#4F46E5' : '#059669'};">${SHIFT_SPECS[tomorrowShift.code] ? 'Active Duty' : 'Rest Day'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="rx-card" style="display:flex;flex-direction:column;gap:8px;">
+              <div style="font-size:10px;font-weight:800;color:var(--nm-text-muted);">MONTHLY DUTIES</div>
+              <div style="display:flex;justify-content:space-around;text-align:center;">
+                <div>
+                  <div style="font-size:9.5px;font-weight:700;color:var(--nm-text-muted);">DAY SHIFTS</div>
+                  <div style="font-size:26px;font-weight:900;color:#0284C7;">${dayShifts}</div>
+                </div>
+                <div>
+                  <div style="font-size:9.5px;font-weight:700;color:var(--nm-text-muted);">NIGHT SHIFTS</div>
+                  <div style="font-size:26px;font-weight:900;color:#0284C7;">${nightShifts}</div>
+                </div>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:var(--nm-text-muted);">Total Assigned: ${dayShifts + nightShifts} days</div>
+            </div>
+
+            <div class="rx-card" style="display:flex;flex-direction:column;gap:8px;">
+              <div style="font-size:10px;font-weight:800;color:var(--nm-text-muted);">SCHEDULED REST DAYS</div>
+              <div style="text-align:center;">
+                <div style="font-size:9.5px;font-weight:700;color:var(--nm-text-muted);">Weekly Offs / Rest</div>
+                <div style="font-size:26px;font-weight:900;color:#D97706;">${restDays}</div>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#B45309;">Rest Day: ${escapeHtml(timers.restValue)}</div>
+            </div>
+          </div>
         </div>
-        ${s.reason ? `<div class="text-[10px] text-slate-500 italic">"${this.escapeHtml(s.reason)}"</div>` : ''}
       </div>
-    `).join('');
+    `;
+    this.bindCelebrationEvents(panel);
   }
 
-  escapeHtml(str) {
+  // =========================================================================
+  // TAB 1B: MANAGER DASHBOARD (Shift Radar + System Health — Android Manager Parity)
+  // =========================================================================
+  renderManagerDashboard() {
+    const panel = document.getElementById('panel_dashboard');
+    if (!panel) return;
+    const now = getIstNow();
+    const doc = this.rosterCache.get(toPeriodKey(now.getFullYear(), now.getMonth() + 1));
+    const selfEng = this.getSelfEngineer();
+    const displayName = selfEng?.full_name || selfEng?.name || 'Manager';
+    const rosterEngs = this.getRosterEngineers(doc);
 
-    return String(str).replace(/[&<>"']/g, (m) => ({
+    const groups = new Map();
+    rosterEngs.forEach((e) => {
+      const m = this.getRosterMapForEngineer(doc, e);
+      const vis = getShiftVisual(m[String(now.getDate())] || 'OFF');
+      if (!groups.has(vis.code)) groups.set(vis.code, { vis, members: [] });
+      groups.get(vis.code).members.push(e);
+    });
+    const sorted = Array.from(groups.values()).sort((a, b) => a.vis.order - b.vis.order);
 
-      '&': '&amp;',
+    const uptime = this.telemetry?.uptime_formatted || 'Online';
+    const pingMs = this.telemetry?.atlas?.ping_ms ?? '--';
+    const atlasStatus = this.telemetry?.atlas?.status || 'CONNECTED';
 
-      '<': '&lt;',
+    panel.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="rx-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:800;color:var(--nm-accent);">${escapeHtml(now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }))}</div>
+            <h1 style="margin:2px 0;font-size:19px;font-weight:900;">Welcome, ${escapeHtml(displayName)}! 👋</h1>
+            <div style="font-size:12px;color:var(--nm-text-muted);">Live operations telemetry &amp; today's team shift radar</div>
+          </div>
+          <div style="width:46px;height:46px;border-radius:999px;background:var(--nm-accent-soft);color:var(--nm-accent);display:flex;align-items:center;justify-content:center;font-weight:900;">${escapeHtml(getInitials(displayName))}</div>
+        </div>
 
-      '>': '&gt;',
+        ${this.renderCelebrationsBannerHtml()}
 
-      '"': '&quot;',
+        <div class="rx-land-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;">
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong style="font-size:13px;color:var(--nm-accent);">TODAY'S SHIFT RADAR</strong>
+              <span style="font-size:11px;font-weight:700;color:var(--nm-text-muted);">${rosterEngs.length} Active Staff</span>
+            </div>
+            ${sorted.map(({ vis, members }) => `
+              <div class="rx-well" style="padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <div style="display:flex;align-items:center;gap:8px;min-inline-size:0;">
+                  <span style="padding:3px 7px;border-radius:7px;background:${vis.bg};color:${vis.fg};font-size:10.5px;font-weight:900;">${escapeHtml(vis.code)}</span>
+                  <span style="font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${members.map((m) => escapeHtml(m.name)).join(', ')}</span>
+                </div>
+                <span style="font-size:11px;font-weight:800;color:var(--nm-text-muted);flex-shrink:0;">${members.length}</span>
+              </div>
+            `).join('')}
+          </div>
 
-      "'": '&#039;'
-
-    })[m]);
-
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong style="font-size:13px;color:var(--nm-accent);">SYSTEM &amp; ATLAS HEALTH</strong>
+              <span style="padding:3px 8px;border-radius:8px;background:rgba(16,185,129,0.14);color:#059669;font-size:10.5px;font-weight:800;">${escapeHtml(atlasStatus)}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div class="rx-well" style="padding:10px;">
+                <div style="font-size:10px;font-weight:700;color:var(--nm-text-muted);">SERVER UPTIME</div>
+                <div style="font-size:15px;font-weight:900;color:#059669;margin-top:3px;">${escapeHtml(uptime)}</div>
+              </div>
+              <div class="rx-well" style="padding:10px;">
+                <div style="font-size:10px;font-weight:700;color:var(--nm-text-muted);">ATLAS PING</div>
+                <div style="font-size:15px;font-weight:900;color:#0284C7;margin-top:3px;">${escapeHtml(String(pingMs))} ms</div>
+              </div>
+            </div>
+            <div class="rx-well" style="padding:10px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;font-weight:700;">Credential Trackers</span>
+              <span style="font-size:12px;font-weight:800;color:${this.credSummary.expired > 0 ? '#DC2626' : '#059669'};">${this.credSummary.total} Tracked • ${this.credSummary.expired} Expired</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    this.bindCelebrationEvents(panel);
   }
 
+  // =========================================================================
+  // TAB 2: TEAM SHIFTS (Daily Grouped View + Call & WhatsApp)
+  // =========================================================================
+  async renderTeamShifts() {
+    const panel = document.getElementById('panel_team_shifts');
+    if (!panel) return;
+    const d = this.selectedDate;
+    const doc = await this.ensureRosterLoaded(d.getFullYear(), d.getMonth() + 1);
+    const today = getIstNow();
+    const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diff = Math.round((d - todayMid) / 86400000);
+    const dayTag = diff === 0 ? 'TODAY' : diff === -1 ? 'YESTERDAY' : diff === 1 ? 'TOMORROW' : null;
+
+    const engs = this.getRosterEngineers(doc);
+    const groups = new Map();
+    engs.forEach((e) => {
+      const m = this.getRosterMapForEngineer(doc, e);
+      const vis = getShiftVisual(m[String(d.getDate())] || 'OFF');
+      if (!groups.has(vis.code)) groups.set(vis.code, { vis, members: [] });
+      groups.get(vis.code).members.push(e);
+    });
+    const sortedGroups = Array.from(groups.values()).sort((a, b) => a.vis.order - b.vis.order);
+
+    const selfUname = String(this.user?.username || '').toLowerCase();
+
+    panel.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="rx-card-subtle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;">
+          <button type="button" class="rx-icon-pill" id="btnPrevDay" aria-label="Previous Day"><i class="ph ph-arrow-left"></i></button>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;">
+            ${dayTag ? `<span style="padding:2px 8px;border-radius:8px;background:var(--nm-accent);color:#fff;font-size:10px;font-weight:900;">${dayTag}</span>` : ''}
+            <strong style="font-size:14px;">${escapeHtml(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' }))}</strong>
+            ${diff !== 0 ? `<button type="button" id="btnJumpToday" class="rx-chip-btn is-active" style="min-block-size:28px;padding:3px 9px;font-size:10.5px;">Today</button>` : ''}
+          </div>
+          <button type="button" class="rx-icon-pill" id="btnNextDay" aria-label="Next Day"><i class="ph ph-arrow-right"></i></button>
+        </div>
+
+        <div class="rx-land-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;">
+          ${sortedGroups.map(({ vis, members }) => `
+            <div class="rx-card" style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid var(--nm-divider);">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:36px;height:36px;border-radius:10px;background:${vis.bg};color:${vis.fg};font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;">${escapeHtml(vis.code)}</div>
+                  <div>
+                    <div style="font-size:14px;font-weight:800;">${escapeHtml(vis.name)}</div>
+                    <div style="font-size:11px;color:var(--nm-text-muted);">${escapeHtml(vis.timing)}</div>
+                  </div>
+                </div>
+                <span style="padding:3px 9px;border-radius:10px;background:var(--nm-accent-soft);color:var(--nm-accent);font-size:11px;font-weight:800;">${members.length} Eng</span>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                ${members.map((eng) => {
+                  const isMe = String(eng.username || '').toLowerCase() === selfUname;
+                  const name = eng.full_name || eng.name || 'Member';
+                  const tel = String(eng.phone || '').replace(/[^0-9+]/g, '');
+                  const digits = String(eng.phone || '').replace(/[^0-9]/g, '');
+                  const wa = digits.length === 10 ? `91${digits}` : digits;
+                  return `
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-radius:12px;background:${isMe ? 'var(--nm-accent-soft)' : 'var(--nm-input-surface)'};">
+                      <div style="display:flex;align-items:center;gap:8px;min-inline-size:0;">
+                        <span class="rx-avatar-circle">${eng.profile_picture ? `<img src="${escapeHtml(eng.profile_picture)}" alt="${escapeHtml(name)}" />` : escapeHtml(getInitials(name))}</span>
+                        <span style="font-size:13px;font-weight:${isMe ? '800' : '600'};color:${isMe ? 'var(--nm-accent)' : 'var(--nm-text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)} ${isMe ? '★' : ''}</span>
+                      </div>
+                      <div style="display:flex;gap:6px;flex-shrink:0;">
+                        ${tel ? `<a href="tel:${escapeHtml(tel)}" class="rx-icon-pill" aria-label="Call ${escapeHtml(name)}" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;background:rgba(5,150,105,0.13);color:#059669;box-shadow:none;text-decoration:none;"><i class="ph ph-phone"></i></a>` : ''}
+                        ${wa ? `<a href="https://wa.me/${escapeHtml(wa)}" target="_blank" rel="noopener" class="rx-icon-pill" aria-label="WhatsApp ${escapeHtml(name)}" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;background:rgba(37,211,102,0.15);color:#16A34A;box-shadow:none;text-decoration:none;"><i class="ph ph-whatsapp-logo"></i></a>` : ''}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    panel.querySelector('#btnPrevDay')?.addEventListener('click', () => {
+      this.selectedDate = new Date(this.selectedDate.getFullYear(), this.selectedDate.getMonth(), this.selectedDate.getDate() - 1);
+      this.renderTeamShifts();
+    });
+    panel.querySelector('#btnNextDay')?.addEventListener('click', () => {
+      this.selectedDate = new Date(this.selectedDate.getFullYear(), this.selectedDate.getMonth(), this.selectedDate.getDate() + 1);
+      this.renderTeamShifts();
+    });
+    panel.querySelector('#btnJumpToday')?.addEventListener('click', () => {
+      const n = getIstNow();
+      this.selectedDate = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+      this.renderTeamShifts();
+    });
+  }
+
+  // =========================================================================
+  // TAB 3: MY CALENDAR (Interactive Grid + Sync to Calendar .ics + Shift Legend)
+  // =========================================================================
+  async renderMyCalendar() {
+    const panel = document.getElementById('panel_my_calendar');
+    if (!panel) return;
+    const doc = await this.ensureRosterLoaded(this.gridYear, this.gridMonth);
+    const selfEng = this.getSelfEngineer();
+    const myShifts = this.getRosterMapForEngineer(doc, selfEng);
+
+    const monthStart = new Date(this.gridYear, this.gridMonth - 1, 1);
+    const monthLabel = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const daysInMonth = new Date(this.gridYear, this.gridMonth, 0).getDate();
+    const firstDow = (monthStart.getDay() + 6) % 7; // Mon=0..Sun=6
+    const today = getIstNow();
+
+    const dayShiftMapInt = {};
+    Object.entries(myShifts).forEach(([k, v]) => {
+      const n = Number(k);
+      if (Number.isInteger(n) && n >= 1 && n <= 31) dayShiftMapInt[n] = v;
+    });
+    const hasAnyDays = Object.keys(dayShiftMapInt).length > 0;
+
+    let cellsHtml = '';
+    for (let i = 0; i < firstDow; i++) cellsHtml += `<div></div>`;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const raw = myShifts[String(day)];
+      const vis = raw ? getShiftVisual(raw) : null;
+      const isToday = this.gridYear === today.getFullYear() && this.gridMonth === (today.getMonth() + 1) && day === today.getDate();
+      const bg = vis ? vis.bg : 'var(--nm-surface-contrast)';
+      const fg = vis ? vis.fg : 'var(--nm-text)';
+      cellsHtml += `
+        <button type="button" class="rx-calendar-cell ${isToday ? 'is-today' : ''}" data-cal-day="${day}" style="background:${bg};color:${fg};">
+          <span class="rx-calendar-day">${day}</span>
+          ${vis ? `<span class="rx-calendar-code">${escapeHtml(vis.code)}</span>` : ''}
+        </button>
+      `;
+    }
+
+    panel.innerHTML = `
+      <div class="rx-calendar-split" style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <button type="button" class="rx-icon-pill" id="btnCalPrevMonth" aria-label="Previous Month"><i class="ph ph-arrow-left"></i></button>
+            <strong style="font-size:17px;font-weight:900;">${escapeHtml(monthLabel)}</strong>
+            <button type="button" class="rx-icon-pill" id="btnCalNextMonth" aria-label="Next Month"><i class="ph ph-arrow-right"></i></button>
+          </div>
+
+          <div class="rx-cal-weekdays">
+            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((w) => `<div class="rx-cal-weekday">${w}</div>`).join('')}
+          </div>
+          <div class="rx-cal-grid">${cellsHtml}</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${hasAnyDays ? `
+            <div style="display:flex;justify-content:flex-end;">
+              <button type="button" id="btnSyncToCalendar" class="rx-btn-surface" style="color:var(--nm-accent);font-weight:800;width:100%;max-width:260px;">
+                <i class="ph ph-calendar-check" aria-hidden="true"></i>
+                <span>Sync to Calendar</span>
+              </button>
+            </div>
+          ` : ''}
+
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="font-size:11px;font-weight:900;color:var(--nm-accent);letter-spacing:0.05em;">SHIFT LEGEND &amp; TIMINGS</div>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+              ${STANDARD_LEGEND.map((code) => {
+                const m = SHIFT_META[code];
+                return `
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span style="min-width:34px;text-align:center;padding:2px 6px;border-radius:6px;background:${m.bg};color:${m.fg};font-size:10px;font-weight:900;">${code}</span>
+                      <strong style="font-weight:700;">${m.name}</strong>
+                    </div>
+                    <span style="font-size:11px;color:var(--nm-text-muted);">${m.timing}</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    panel.querySelector('#btnCalPrevMonth')?.addEventListener('click', () => {
+      if (this.gridMonth === 1) { this.gridMonth = 12; this.gridYear--; } else this.gridMonth--;
+      this.renderMyCalendar();
+    });
+    panel.querySelector('#btnCalNextMonth')?.addEventListener('click', () => {
+      if (this.gridMonth === 12) { this.gridMonth = 1; this.gridYear++; } else this.gridMonth++;
+      this.renderMyCalendar();
+    });
+    panel.querySelector('#btnSyncToCalendar')?.addEventListener('click', () => {
+      openCalendarSyncModal({
+        engineerName: selfEng?.full_name || selfEng?.name || 'Team Member',
+        username: selfEng?.username || 'member',
+        year: this.gridYear,
+        month: this.gridMonth,
+        dayShiftCodes: dayShiftMapInt,
+        onToast: (msg, type) => this.toast(msg, type)
+      });
+    });
+    panel.querySelectorAll('[data-cal-day]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const day = Number(btn.getAttribute('data-cal-day'));
+        this.selectedDate = new Date(this.gridYear, this.gridMonth - 1, day);
+        this.switchTab('team_shifts');
+      });
+    });
+  }
+
+  // =========================================================================
+  // TAB 4: MONTH ROSTER (Sticky Semantic Matrix + Full-Screen Landscape!)
+  // =========================================================================
+  async renderMonthRoster() {
+    const panel = document.getElementById('panel_month_roster');
+    if (!panel) return;
+    const doc = await this.ensureRosterLoaded(this.gridYear, this.gridMonth);
+    const daysInMonth = new Date(this.gridYear, this.gridMonth, 0).getDate();
+    const monthLabel = new Date(this.gridYear, this.gridMonth - 1, 1)
+      .toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+
+    const q = this.rosterSearchQuery.trim().toLowerCase();
+    const allEngs = this.getRosterEngineers(doc);
+    const filtered = !q ? allEngs : allEngs.filter((e) =>
+      String(e.name || '').toLowerCase().includes(q) ||
+      String(e.full_name || '').toLowerCase().includes(q)
+    );
+
+    const dayHeaders = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(this.gridYear, this.gridMonth - 1, d).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2).toUpperCase();
+      dayHeaders.push({ d, dow });
+    }
+
+    const dayCov = new Array(daysInMonth + 1).fill(0);
+    const nightCov = new Array(daysInMonth + 1).fill(0);
+    allEngs.forEach((e) => {
+      if (String(e.role || '').toLowerCase() === 'apprentice') return;
+      const m = this.getRosterMapForEngineer(doc, e);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const c = String(m[String(d)] || '').toUpperCase();
+        if (c === 'NS') nightCov[d]++;
+        else if (SHIFT_SPECS[c]) dayCov[d]++;
+      }
+    });
+
+    panel.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button type="button" class="rx-icon-pill" id="btnRosterPrev" aria-label="Previous Month" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;"><i class="ph ph-arrow-left"></i></button>
+            <strong style="font-size:14px;font-weight:900;color:var(--nm-accent);">${escapeHtml(monthLabel)}</strong>
+            <button type="button" class="rx-icon-pill" id="btnRosterNext" aria-label="Next Month" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;"><i class="ph ph-arrow-right"></i></button>
+          </div>
+          <div class="rx-well" style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;width:165px;">
+            <i class="ph ph-magnifying-glass" style="color:var(--nm-accent);font-size:14px;"></i>
+            <input type="search" id="rxRosterSearch" value="${escapeHtml(this.rosterSearchQuery)}" placeholder="Filter..." style="flex:1;border:0;background:transparent;color:var(--nm-text);font-size:12px;outline:none;min-inline-size:0;" />
+          </div>
+        </div>
+
+        <div class="rx-roster-table-wrap" tabindex="0" role="region" aria-label="Monthly Team Roster">
+          <table class="rx-roster-table">
+            <thead>
+              <tr>
+                <th>ENGINEER</th>
+                ${dayHeaders.map(({ d, dow }) => `<th><div>${d}</div><div style="font-size:9px;color:var(--nm-text-muted);">${dow}</div></th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map((eng) => {
+                const shifts = this.getRosterMapForEngineer(doc, eng);
+                const name = eng.full_name || eng.name || 'Member';
+                return `
+                  <tr>
+                    <th>${escapeHtml(name)}</th>
+                    ${dayHeaders.map(({ d }) => {
+                      const vis = getShiftVisual(shifts[String(d)] || 'OFF');
+                      return `<td style="background:${vis.bg};color:${vis.fg};">${escapeHtml(vis.code)}</td>`;
+                    }).join('')}
+                  </tr>
+                `;
+              }).join('')}
+              <tr>
+                <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">DAY COVERAGE (≥3)</th>
+                ${dayHeaders.map(({ d }) => `<td style="background:rgba(2,132,199,0.12);color:${dayCov[d] < 3 ? '#DC2626' : '#0284C7'};">${dayCov[d]}</td>`).join('')}
+              </tr>
+              <tr>
+                <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">NIGHT COVERAGE (1)</th>
+                ${dayHeaders.map(({ d }) => `<td style="background:rgba(99,102,241,0.12);color:${nightCov[d] !== 1 ? '#DC2626' : '#4F46E5'};">${nightCov[d]}</td>`).join('')}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    panel.querySelector('#btnRosterPrev')?.addEventListener('click', () => {
+      if (this.gridMonth === 1) { this.gridMonth = 12; this.gridYear--; } else this.gridMonth--;
+      this.renderMonthRoster();
+    });
+    panel.querySelector('#btnRosterNext')?.addEventListener('click', () => {
+      if (this.gridMonth === 12) { this.gridMonth = 1; this.gridYear++; } else this.gridMonth++;
+      this.renderMonthRoster();
+    });
+    const searchEl = panel.querySelector('#rxRosterSearch');
+    if (searchEl) {
+      searchEl.addEventListener('input', (e) => {
+        this.rosterSearchQuery = e.target.value;
+        this.renderMonthRoster();
+        const next = panel.querySelector('#rxRosterSearch');
+        if (next) { next.focus(); next.setSelectionRange(next.value.length, next.value.length); }
+      });
+    }
+  }
+
+  // =========================================================================
+  // TAB 4B (MANAGER): BROADCAST CONSOLE (Title & Body @Mentions + Templates + History)
+  // =========================================================================
+  renderManagerBroadcast() {
+    const panel = document.getElementById('panel_broadcast');
+    if (!panel) return;
+    const dutyEngs = this.engineers.filter((e) => String(e.status || '').toLowerCase() !== 'resigned' && !['admin', 'manager'].includes(String(e.role || '').toLowerCase()));
+    const previewEng = dutyEngs[0] || { name: 'Team Member', username: 'member_username' };
+
+    panel.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:11px;font-weight:800;color:var(--nm-accent);">TEAM BROADCAST CONSOLE</div>
+            <h2 style="margin:2px 0 0;font-size:18px;font-weight:900;">Multi-Channel Operations Dispatcher</h2>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="rx-chip-btn ${this.broadcastMode === 'compose' ? 'is-active' : ''}" data-bc-mode="compose">Compose</button>
+            <button type="button" class="rx-chip-btn ${this.broadcastMode === 'history' ? 'is-active' : ''}" data-bc-mode="history">History (${this.notifications.length})</button>
+          </div>
+        </div>
+
+        ${this.broadcastMode === 'compose' ? `
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
+            ${this.templates.length ? `
+              <div>
+                <div class="rx-field-label">SAVED TEMPLATES (${this.templates.length})</div>
+                <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+                  ${this.templates.map((tpl) => `
+                    <button type="button" class="rx-chip-btn" data-bc-tpl="${escapeHtml(tpl.id || tpl._id)}" style="white-space:nowrap;">
+                      <i class="ph ph-bookmark-simple"></i> ${escapeHtml(tpl.name || tpl.title)}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            <div>
+              <div class="rx-field-label">TARGET AUDIENCE</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <button type="button" class="rx-chip-btn ${this.broadcastAudience === 'everyone' ? 'is-active' : ''}" data-bc-aud="everyone">Everyone (${dutyEngs.length})</button>
+                <button type="button" class="rx-chip-btn ${this.broadcastAudience === 'specific' ? 'is-active' : ''}" data-bc-aud="specific">Specific (${this.broadcastSpecificIds.size})</button>
+              </div>
+              ${this.broadcastAudience === 'specific' ? `
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                  ${dutyEngs.map((e) => {
+                    const id = e.username || e.id;
+                    const sel = this.broadcastSpecificIds.has(id);
+                    return `<button type="button" class="rx-chip-btn ${sel ? 'is-active' : ''}" data-bc-eng="${escapeHtml(id)}" style="min-block-size:32px;padding:4px 10px;font-size:11px;">${escapeHtml(e.name)}</button>`;
+                  }).join('')}
+                </div>
+              ` : ''}
+            </div>
+
+            <div>
+              <div class="rx-field-label">DELIVERY CHANNELS</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                <button type="button" class="rx-chip-btn ${this.broadcastChannels.inApp ? 'is-active' : ''}" data-bc-ch="inApp">In-App</button>
+                <button type="button" class="rx-chip-btn ${this.broadcastChannels.push ? 'is-active' : ''}" data-bc-ch="push">Push (FCM)</button>
+                <button type="button" class="rx-chip-btn ${this.broadcastChannels.email ? 'is-active' : ''}" data-bc-ch="email">Email</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="rx-field-label">PRIORITY LEVEL</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+                ${[
+                  { id: 'info', label: 'Info' },
+                  { id: 'shift_update', label: 'Shift' },
+                  { id: 'urgent', label: 'Urgent' },
+                  { id: 'broadcast', label: 'Broadcast' }
+                ].map((p) => `<button type="button" class="rx-chip-btn ${this.broadcastPriority === p.id ? 'is-active' : ''}" data-bc-prio="${p.id}">${p.label}</button>`).join('')}
+              </div>
+            </div>
+
+            <div style="position:relative;">
+              <div class="rx-field-label">NOTIFICATION TITLE * (supports @name, @all, @username)</div>
+              <input type="text" id="rxBcTitle" value="${escapeHtml(this.broadcastTitle)}" placeholder="Enter broadcast title..." style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+              <div id="rxBcTitleMentions" class="rx-mention-popup rx-hidden"></div>
+            </div>
+
+            <div style="position:relative;">
+              <div class="rx-field-label">MESSAGE BODY * (supports @name, @all, @username)</div>
+              <textarea id="rxBcMessage" rows="3" placeholder="Type broadcast message..." style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;resize:vertical;">${escapeHtml(this.broadcastMessage)}</textarea>
+              <div id="rxBcMsgMentions" class="rx-mention-popup rx-hidden"></div>
+            </div>
+
+            ${(this.broadcastTitle || this.broadcastMessage) ? `
+              <div class="rx-well" style="display:flex;flex-direction:column;gap:4px;">
+                <div style="font-size:10px;font-weight:800;color:var(--nm-accent);">LIVE PREVIEW (AS ${escapeHtml(previewEng.name)})</div>
+                <strong style="font-size:13.5px;">${escapeHtml(resolveMentions(this.broadcastTitle, previewEng, dutyEngs) || '(Untitled)')}</strong>
+                <div style="font-size:12px;color:var(--nm-text-muted);white-space:pre-wrap;">${escapeHtml(resolveMentions(this.broadcastMessage, previewEng, dutyEngs))}</div>
+              </div>
+            ` : ''}
+
+            <button type="button" id="btnSendBroadcast" class="rx-btn-primary" style="width:100%;">
+              <i class="ph ph-paper-plane-tilt"></i> Dispatch Broadcast
+            </button>
+          </div>
+        ` : `
+          <div class="rx-land-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;">
+            ${this.notifications.length === 0 ? `<div class="rx-card" style="text-align:center;color:var(--nm-text-muted);">No broadcast history yet.</div>` : this.notifications.map((n) => {
+              const nid = n.id || n._id;
+              return `
+                <div class="rx-card-subtle" style="display:flex;flex-direction:column;gap:6px;">
+                  <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                    <strong style="font-size:13.5px;">${escapeHtml(n.title || 'Announcement')}</strong>
+                    <button type="button" class="rx-icon-pill" data-bc-retract="${escapeHtml(nid)}" aria-label="Retract" style="width:30px;height:30px;min-inline-size:30px;min-block-size:30px;color:#DC2626;"><i class="ph ph-trash"></i></button>
+                  </div>
+                  <div style="font-size:12px;color:var(--nm-text-muted);">${escapeHtml(n.message || n.raw_message || '')}</div>
+                  <div style="font-size:10.5px;color:var(--nm-text-faint);">${escapeHtml(n.created_at || '')}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+    `;
+
+    panel.querySelectorAll('[data-bc-mode]').forEach((b) => b.addEventListener('click', () => { this.broadcastMode = b.getAttribute('data-bc-mode'); this.renderManagerBroadcast(); }));
+    panel.querySelectorAll('[data-bc-aud]').forEach((b) => b.addEventListener('click', () => { this.broadcastAudience = b.getAttribute('data-bc-aud'); this.renderManagerBroadcast(); }));
+    panel.querySelectorAll('[data-bc-eng]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.getAttribute('data-bc-eng');
+      if (this.broadcastSpecificIds.has(id)) this.broadcastSpecificIds.delete(id); else this.broadcastSpecificIds.add(id);
+      this.renderManagerBroadcast();
+    }));
+    panel.querySelectorAll('[data-bc-ch]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.getAttribute('data-bc-ch');
+      this.broadcastChannels[k] = !this.broadcastChannels[k];
+      this.renderManagerBroadcast();
+    }));
+    panel.querySelectorAll('[data-bc-prio]').forEach((b) => b.addEventListener('click', () => { this.broadcastPriority = b.getAttribute('data-bc-prio'); this.renderManagerBroadcast(); }));
+    panel.querySelectorAll('[data-bc-tpl]').forEach((b) => b.addEventListener('click', () => {
+      const tpl = this.templates.find((t) => String(t.id || t._id) === b.getAttribute('data-bc-tpl'));
+      if (tpl) {
+        this.broadcastTitle = tpl.title || '';
+        this.broadcastMessage = tpl.message || '';
+        this.broadcastPriority = tpl.priority || 'info';
+        this.renderManagerBroadcast();
+      }
+    }));
+
+    const wireMentionInput = (inputId, popupId, field) => {
+      const input = panel.querySelector(`#${inputId}`);
+      const popup = panel.querySelector(`#${popupId}`);
+      if (!input || !popup) return;
+      input.addEventListener('input', () => {
+        this[field] = input.value;
+        const pos = input.selectionStart || 0;
+        const before = input.value.slice(0, pos);
+        const m = before.match(/@([a-zA-Z0-9._-]*)$/);
+        if (!m) { popup.classList.add('rx-hidden'); return; }
+        const q = m[1].toLowerCase();
+        const opts = [
+          { token: '@name', label: 'Recipient Name' },
+          { token: '@all', label: 'Everyone' },
+          ...dutyEngs.map((e) => ({ token: `@${e.username}`, label: e.full_name || e.name }))
+        ].filter((o) => o.token.toLowerCase().includes(q) || o.label.toLowerCase().includes(q)).slice(0, 6);
+        if (!opts.length) { popup.classList.add('rx-hidden'); return; }
+        popup.innerHTML = opts.map((o) => `<button type="button" class="rx-mention-item" data-tok="${escapeHtml(o.token)}"><span>${escapeHtml(o.token)}</span><span style="color:var(--nm-text-muted);font-weight:500;">${escapeHtml(o.label)}</span></button>`).join('');
+        popup.classList.remove('rx-hidden');
+        popup.querySelectorAll('[data-tok]').forEach((item) => {
+          item.addEventListener('click', () => {
+            const tok = item.getAttribute('data-tok');
+            const replaced = before.replace(/@([a-zA-Z0-9._-]*)$/, `${tok} `) + input.value.slice(pos);
+            input.value = replaced;
+            this[field] = replaced;
+            popup.classList.add('rx-hidden');
+            input.focus();
+          });
+        });
+      });
+    };
+    wireMentionInput('rxBcTitle', 'rxBcTitleMentions', 'broadcastTitle');
+    wireMentionInput('rxBcMessage', 'rxBcMsgMentions', 'broadcastMessage');
+
+    panel.querySelector('#btnSendBroadcast')?.addEventListener('click', async () => {
+      if (!this.broadcastTitle.trim() || !this.broadcastMessage.trim()) {
+        this.toast('Title and Message are required.', 'error');
+        return;
+      }
+      const target = this.broadcastAudience === 'everyone' ? 'everyone' : Array.from(this.broadcastSpecificIds);
+      if (Array.isArray(target) && target.length === 0) {
+        this.toast('Select at least one recipient.', 'error');
+        return;
+      }
+      try {
+        const res = await this.atlas.sendBroadcast({
+          title: this.broadcastTitle.trim(),
+          message: this.broadcastMessage.trim(),
+          target,
+          priority: this.broadcastPriority,
+          send_in_app: this.broadcastChannels.inApp,
+          send_push: this.broadcastChannels.push,
+          send_email: this.broadcastChannels.email
+        });
+        if (res?.success) {
+          this.broadcastTitle = '';
+          this.broadcastMessage = '';
+          this.toast('Broadcast dispatched!', 'success');
+          await this.refreshAllData();
+        } else {
+          this.toast(res?.message || 'Broadcast failed', 'error');
+        }
+      } catch (err) {
+        this.toast(err.message, 'error');
+      }
+    });
+
+    panel.querySelectorAll('[data-bc-retract]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const nid = btn.getAttribute('data-bc-retract');
+        if (!window.confirm('Retract this broadcast for all recipients?')) return;
+        const res = await this.atlas.retractBroadcast(nid);
+        if (res?.success) {
+          this.toast('Broadcast retracted', 'success');
+          await this.refreshAllData();
+        }
+      });
+    });
+  }
+
+  // =========================================================================
+  // TAB 5: MORE — OPERATIONS HUB (Credential Tracker + My Team)
+  // =========================================================================
+  renderMoreHub() {
+    const panel = document.getElementById('panel_more');
+    if (!panel) return;
+    const activeMembers = this.engineers.filter((e) =>
+      String(e.status || 'active').toLowerCase() !== 'resigned' &&
+      ['manager', 'engineer', 'apprentice'].includes(String(e.role || '').toLowerCase()) &&
+      String(e.username || '').toLowerCase() !== 'admin'
+    ).length;
+
+    const credBadge = this.credSummary.expired > 0
+      ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(220,38,38,0.14);color:#DC2626;font-size:11px;font-weight:800;">${this.credSummary.expired} Expired</span>`
+      : this.credSummary.expiringSoon > 0
+        ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(217,119,6,0.14);color:#D97706;font-size:11px;font-weight:800;">${this.credSummary.expiringSoon} Expiring Soon</span>`
+        : `<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">${this.credSummary.total > 0 ? `${this.credSummary.total} Active Trackers` : 'All Healthy'}</span>`;
+
+    panel.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <h1 style="margin:0;font-size:22px;font-weight:900;">Operations Hub</h1>
+          <div style="font-size:12.5px;color:var(--nm-text-muted);margin-top:2px;">Extended duty utilities &amp; automated server monitors</div>
+        </div>
+
+        <div class="rx-land-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+          <button type="button" id="btnHubCredentials" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="width:44px;height:44px;border-radius:999px;background:var(--nm-accent-soft);color:var(--nm-accent);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-key"></i></span>
+                <div>
+                  <div style="font-size:16px;font-weight:800;">Server Credential Tracker</div>
+                  <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Monitor root &amp; service account password validity with automated 9:00 AM IST alerts.</div>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+            </div>
+            <div>${credBadge}</div>
+          </button>
+
+          <button type="button" id="btnHubMyTeam" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="width:44px;height:44px;border-radius:999px;background:rgba(99,102,241,0.14);color:#6366F1;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-users-three"></i></span>
+                <div>
+                  <div style="font-size:16px;font-weight:800;">My Team</div>
+                  <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Team directory, hierarchy, and direct Call &amp; WhatsApp options.</div>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+            </div>
+            <div>
+              <span style="padding:3px 9px;border-radius:10px;background:rgba(99,102,241,0.14);color:#4F46E5;font-size:11px;font-weight:800;">${activeMembers} Active Members</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    `;
+
+    panel.querySelector('#btnHubCredentials')?.addEventListener('click', () => this.openSubView('credentials'));
+    panel.querySelector('#btnHubMyTeam')?.addEventListener('click', () => this.openSubView('my_team'));
+  }
+
+  // =========================================================================
+  // SUBSCREEN: PROFILE & SETTINGS (Tenure/Birthday, Weekly Offs, 6 Palettes, Edit/Remove Photo)
+  // =========================================================================
+  renderProfileView() {
+    const view = document.getElementById('subview_profile');
+    if (!view) return;
+    const eng = this.getSelfEngineer() || this.user;
+    const name = eng?.full_name || eng?.name || 'Team Member';
+    const role = String(eng?.role || 'engineer').toUpperCase();
+    const { tenureText, birthdayLabel, birthdayValue } = computeTenureAndBirthday(eng?.join_date, eng?.birthday);
+    const weeklyOffs = Array.isArray(eng?.default_weekly_offs) ? eng.default_weekly_offs.map((d) => String(d).toLowerCase()) : [];
+
+    view.innerHTML = `
+      <div class="rx-land-grid-2" style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="border-radius:24px;padding:18px;background:var(--nm-accent-gradient);color:#fff;box-shadow:0 8px 22px var(--nm-accent-glow);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="display:flex;align-items:center;gap:14px;min-inline-size:0;">
+              <div style="width:60px;height:60px;border-radius:999px;border:2.5px solid rgba(255,255,255,0.85);background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;overflow:hidden;flex-shrink:0;">
+                ${eng?.profile_picture ? `<img src="${escapeHtml(eng.profile_picture)}" alt="${escapeHtml(name)}" style="width:100%;height:100%;object-fit:cover;" />` : escapeHtml(getInitials(name))}
+              </div>
+              <div style="min-inline-size:0;">
+                <div style="font-size:18px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</div>
+                <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;">
+                  <span style="padding:2px 9px;border-radius:8px;background:#fff;color:var(--nm-accent);font-size:10px;font-weight:900;">${escapeHtml(role)}</span>
+                  <span style="padding:2px 9px;border-radius:8px;background:rgba(255,255,255,0.2);color:#fff;font-size:10.5px;font-weight:700;">@${escapeHtml(eng?.username || '')}</span>
+                </div>
+              </div>
+            </div>
+            <button type="button" id="btnOpenEditProfile" aria-label="Edit Profile" style="width:40px;height:40px;border:0;border-radius:12px;background:rgba(255,255,255,0.22);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
+              <i class="ph ph-pencil-simple"></i>
+            </button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="rx-card-subtle">
+              <div style="font-size:10.5px;font-weight:700;color:var(--nm-text-muted);">Tenure</div>
+              <div style="font-size:17px;font-weight:900;color:var(--nm-accent);margin-top:4px;">${escapeHtml(tenureText)}</div>
+            </div>
+            <div class="rx-card-subtle">
+              <div style="font-size:10.5px;font-weight:700;color:var(--nm-text-muted);">${escapeHtml(birthdayLabel)}</div>
+              <div style="font-size:17px;font-weight:900;color:var(--nm-accent);margin-top:4px;">${escapeHtml(birthdayValue)}</div>
+            </div>
+          </div>
+
+          ${!this.isManager ? `
+            <div class="rx-card">
+              <div class="rx-field-label">DEFAULT WEEKLY OFFS</div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">
+                ${WEEKDAYS_FULL.map((day) => {
+                  const active = weeklyOffs.includes(day.toLowerCase());
+                  return `<div style="text-align:center;padding:7px 2px;border-radius:10px;font-size:10.5px;font-weight:800;${active ? 'background:var(--nm-accent);color:#fff;box-shadow:0 2px 6px var(--nm-accent-glow);' : 'background:var(--nm-input-surface);color:var(--nm-text-muted);'}">${day.slice(0, 3)}</div>`;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:10px;">
+            <div class="rx-field-label" style="color:var(--nm-accent);">ACCOUNT DETAILS</div>
+            <div class="rx-well" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;">
+              <div><div style="font-size:10.5px;color:var(--nm-text-muted);">Domain Username</div><strong style="font-size:13.5px;">${escapeHtml(eng?.username || '--')}</strong></div>
+            </div>
+            <div class="rx-well" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;">
+              <div style="min-inline-size:0;"><div style="font-size:10.5px;color:var(--nm-text-muted);">Registered Email</div><strong style="font-size:13px;overflow-wrap:anywhere;">${escapeHtml(eng?.email || '--')}</strong></div>
+              ${eng?.email ? `<button type="button" id="btnCopyEmail" class="rx-icon-pill" aria-label="Copy Email" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;"><i class="ph ph-copy"></i></button>` : ''}
+            </div>
+            <div class="rx-well" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;">
+              <div><div style="font-size:10.5px;color:var(--nm-text-muted);">Contact Phone</div><strong style="font-size:13.5px;">${escapeHtml(eng?.phone || '--')}</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="rx-card" id="rxAppearanceCard">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div class="rx-field-label" style="margin:0;color:var(--nm-accent);">APPEARANCE &amp; THEME</div>
+              <span data-rx-appearance-summary style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:9px;background:var(--nm-accent-soft);color:var(--nm-accent);"></span>
+            </div>
+            ${themeController.renderAppearancePickerHtml()}
+          </div>
+
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="rx-field-label" style="margin:0;color:var(--nm-accent);">ABOUT ROSTERX &amp; SPECS</div>
+              <span style="padding:3px 9px;border-radius:8px;background:var(--nm-accent-soft);color:var(--nm-accent);font-size:11px;font-weight:900;">v${APP_VERSION}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Application</span><strong>RosterX Web / iOS PWA</strong></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Production Gateway</span><strong>api.rosterx.online</strong></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Timezone Anchor</span><strong>Asia/Kolkata (IST)</strong></div>
+          </div>
+
+          <button type="button" id="btnSignOutPortal" class="rx-btn-surface" style="width:100%;color:#DC2626;font-weight:800;">
+            <i class="ph ph-sign-out"></i> Sign Out
+          </button>
+        </div>
+      </div>
+    `;
+
+    themeController.bindAppearancePicker(view.querySelector('#rxAppearanceCard'));
+    themeController.updatePaletteUi();
+    view.querySelector('#btnOpenEditProfile')?.addEventListener('click', () => this.openEditProfileDialog());
+    view.querySelector('#btnCopyEmail')?.addEventListener('click', () => {
+      navigator.clipboard?.writeText(eng?.email || '').then(() => this.toast('Email copied to clipboard', 'success'));
+    });
+    view.querySelector('#btnSignOutPortal')?.addEventListener('click', () => authService.logout());
+  }
+
+  openEditProfileDialog() {
+    const eng = this.getSelfEngineer() || this.user;
+    const dlg = document.getElementById('rxEditProfileDialog');
+    let pendingPic = eng?.profile_picture || '';
+
+    const render = () => {
+      dlg.innerHTML = `
+        <div class="rx-modal-scroll">
+          <div class="rx-modal-header">
+            <div class="rx-modal-title-wrap">
+              <div class="rx-modal-badge-icon"><i class="ph ph-user-circle-gear"></i></div>
+              <div>
+                <h2 id="rxEditProfileTitle" style="margin:0;font-size:17px;font-weight:800;">Edit Profile</h2>
+                <div style="font-size:12px;color:var(--nm-text-muted);">Update display details &amp; profile photo</div>
+              </div>
+            </div>
+            <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close"><i class="ph ph-x"></i></button>
+          </div>
+
+          <div class="rx-well" style="display:flex;align-items:center;gap:12px;">
+            <div style="width:52px;height:52px;border-radius:999px;background:var(--nm-accent-soft);color:var(--nm-accent);display:flex;align-items:center;justify-content:center;font-weight:900;overflow:hidden;flex-shrink:0;">
+              ${pendingPic ? `<img src="${escapeHtml(pendingPic)}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;" />` : escapeHtml(getInitials(eng?.name))}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+              <label class="rx-btn-surface" style="padding:7px 12px;font-size:12px;width:fit-content;">
+                <i class="ph ph-camera"></i> Upload Photo
+                <input type="file" accept="image/*" id="rxPhotoFileInput" style="display:none;" />
+              </label>
+              ${pendingPic ? `<button type="button" id="btnPromptRemovePhoto" style="border:0;background:transparent;color:#DC2626;font-size:11.5px;font-weight:700;text-align:left;padding:0;cursor:pointer;">Remove photo</button>` : ''}
+            </div>
+          </div>
+
+          <form id="rxEditProfileForm" style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <div class="rx-field-label">FULL NAME</div>
+              <input type="text" name="name" value="${escapeHtml(eng?.full_name || eng?.name || '')}" required style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                <div class="rx-field-label">PHONE</div>
+                <input type="tel" name="phone" value="${escapeHtml(eng?.phone || '')}" placeholder="+1 555-0100" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+              </div>
+              <div>
+                <div class="rx-field-label">BIRTHDAY</div>
+                <input type="date" name="birthday" value="${escapeHtml(eng?.birthday || '')}" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+              </div>
+            </div>
+            <div>
+              <div class="rx-field-label">EMAIL</div>
+              <input type="email" name="email" value="${escapeHtml(eng?.email || '')}" placeholder="user@example.com" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+            </div>
+            <button type="submit" class="rx-btn-primary" style="width:100%;">Save Profile</button>
+          </form>
+        </div>
+      `;
+
+      dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
+      dlg.querySelector('#rxPhotoFileInput')?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const img = new Image();
+          img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            const scale = Math.min(1, 256 / Math.max(img.width, img.height));
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const resp = await fetch('/api/users/profile-picture', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({ username: eng.username, profile_picture: dataUrl })
+            });
+            const res = await resp.json();
+            if (resp.ok && res.success) {
+              pendingPic = dataUrl;
+              this.toast('Profile photo updated!', 'success');
+              await this.refreshAllData();
+              render();
+            } else {
+              this.toast(res.message || 'Photo upload failed', 'error');
+            }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      dlg.querySelector('#btnPromptRemovePhoto')?.addEventListener('click', () => {
+        const cDlg = document.getElementById('rxConfirmRemovePhotoDialog');
+        cDlg.innerHTML = `
+          <div class="rx-modal-scroll" style="text-align:center;">
+            <h3 id="rxRemovePhotoTitle" style="margin:0;font-size:17px;font-weight:800;">Remove Profile Photo?</h3>
+            <p style="margin:0;font-size:12.5px;color:var(--nm-text-muted);">Your avatar will revert to your initials monogram.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">
+              <button type="button" class="rx-btn-surface" data-rx-cancel>Cancel</button>
+              <button type="button" class="rx-btn-primary" data-rx-confirm style="background:#DC2626;">Remove</button>
+            </div>
+          </div>
+        `;
+        cDlg.querySelector('[data-rx-cancel]')?.addEventListener('click', () => closeNeumorphicDialog(cDlg));
+        cDlg.querySelector('[data-rx-confirm]')?.addEventListener('click', async () => {
+          const resp = await fetch('/api/users/profile-picture', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ username: eng.username, profile_picture: '' })
+          });
+          const res = await resp.json();
+          if (resp.ok && res.success) {
+            pendingPic = '';
+            closeNeumorphicDialog(cDlg);
+            this.toast('Profile photo removed', 'success');
+            await this.refreshAllData();
+            render();
+          } else {
+            this.toast(res.message || 'Could not remove photo', 'error');
+          }
+        });
+        openNeumorphicDialog(cDlg);
+      });
+
+      dlg.querySelector('#rxEditProfileForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = e.target;
+        try {
+          const resp = await fetch('/api/users/profile', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              username: eng.username,
+              name: f.name.value.trim(),
+              full_name: f.name.value.trim(),
+              phone: f.phone.value.trim(),
+              email: f.email.value.trim(),
+              birthday: f.birthday.value.trim()
+            })
+          });
+          const res = await resp.json();
+          if (resp.ok && res.success) {
+            this.toast('Profile updated!', 'success');
+            closeNeumorphicDialog(dlg);
+            await this.refreshAllData();
+          } else {
+            this.toast(res.message || 'Update failed', 'error');
+          }
+        } catch (err) {
+          this.toast(err.message, 'error');
+        }
+      });
+    };
+
+    render();
+    openNeumorphicDialog(dlg);
+  }
+
+  // =========================================================================
+  // NOTIFICATIONS BELL DRAWER (<dialog>)
+  // =========================================================================
+  openNotificationsDialog() {
+    const dlg = document.getElementById('rxNotificationsDialog');
+    const selfEng = this.getSelfEngineer();
+    const render = () => {
+      dlg.innerHTML = `
+        <div class="rx-modal-scroll">
+          <div class="rx-modal-header">
+            <div class="rx-modal-title-wrap">
+              <div class="rx-modal-badge-icon"><i class="ph-fill ph-bell-ringing"></i></div>
+              <div>
+                <h2 id="rxNotifDialogTitle" style="margin:0;font-size:17px;font-weight:800;">Notifications</h2>
+                <div style="font-size:12px;color:var(--nm-text-muted);">${this.notifications.length} active alert${this.notifications.length === 1 ? '' : 's'}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              ${this.notifications.length ? `<button type="button" class="rx-btn-surface" data-clear-all style="padding:6px 10px;font-size:11px;color:#DC2626;">Clear All</button>` : ''}
+              <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close"><i class="ph ph-x"></i></button>
+            </div>
+          </div>
+
+          ${this.notifications.length === 0 ? `
+            <div class="rx-well" style="text-align:center;padding:28px;color:var(--nm-text-muted);">You're all caught up! No active notifications.</div>
+          ` : `
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              ${this.notifications.map((n) => {
+                const nid = n.id || n._id;
+                const title = resolveMentions(n.title || 'Announcement', selfEng, this.engineers);
+                const msg = resolveMentions(n.message || n.raw_message || '', selfEng, this.engineers);
+                return `
+                  <div class="rx-well" style="display:flex;flex-direction:column;gap:6px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                      <strong style="font-size:13.5px;">${escapeHtml(title)}</strong>
+                      <button type="button" class="rx-icon-pill" data-dismiss-one="${escapeHtml(nid)}" aria-label="Dismiss notification" style="width:26px;height:26px;min-inline-size:26px;min-block-size:26px;"><i class="ph ph-x"></i></button>
+                    </div>
+                    <div style="font-size:12.5px;color:var(--nm-text-muted);white-space:pre-wrap;line-height:1.45;">${escapeHtml(msg)}</div>
+                    <div style="font-size:10.5px;color:var(--nm-text-faint);">${escapeHtml(n.created_at || '')}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      `;
+      dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
+      dlg.querySelector('[data-clear-all]')?.addEventListener('click', async () => {
+        await this.atlas.dismissNotification('', true);
+        this.notifications = [];
+        this.updateNotificationBadge();
+        render();
+      });
+      dlg.querySelectorAll('[data-dismiss-one]').forEach((b) => {
+        b.addEventListener('click', async () => {
+          const nid = b.getAttribute('data-dismiss-one');
+          this.notifications = this.notifications.filter((x) => String(x.id || x._id) !== nid);
+          this.updateNotificationBadge();
+          render();
+          await this.atlas.dismissNotification(nid, false);
+        });
+      });
+    };
+    render();
+    openNeumorphicDialog(dlg);
+  }
+
+  // =========================================================================
+  // FLOATING AI ASSISTANT DIALOG (/api/chat/assistant)
+  // =========================================================================
+  openAiAssistantDialog() {
+    let dlg = document.getElementById('rxAiChatDialog');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'rxAiChatDialog';
+      dlg.className = 'rx-modal';
+      dlg.setAttribute('closedby', 'any');
+      document.body.appendChild(dlg);
+    }
+
+    const render = () => {
+      dlg.innerHTML = `
+        <div class="rx-modal-scroll">
+          <div class="rx-modal-header">
+            <div class="rx-modal-title-wrap">
+              <div class="rx-modal-badge-icon"><i class="ph ph-robot"></i></div>
+              <div>
+                <h2 style="margin:0;font-size:16px;font-weight:800;">RosterX AI Assistant</h2>
+                <div style="font-size:11.5px;color:var(--nm-text-muted);">Live shift lookup &amp; operational briefing</div>
+              </div>
+            </div>
+            <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close"><i class="ph ph-x"></i></button>
+          </div>
+
+          <div class="rx-well" style="min-height:180px;max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
+            ${this.aiMessages.length === 0 ? `
+              <div style="font-size:12.5px;color:var(--nm-text-muted);">Ask anything about today's shift coverage, your upcoming shifts, or next rest day!</div>
+            ` : this.aiMessages.map((m) => `
+              <div style="align-self:${m.role === 'user' ? 'flex-end' : 'flex-start'};max-width:88%;padding:9px 12px;border-radius:14px;font-size:12.5px;line-height:1.45;white-space:pre-wrap;${m.role === 'user' ? 'background:var(--nm-accent);color:#fff;' : 'background:var(--nm-surface);color:var(--nm-text);'}">${escapeHtml(m.text)}</div>
+            `).join('')}
+            ${this.aiLoading ? `<div style="font-size:12px;color:var(--nm-text-muted);">Thinking...</div>` : ''}
+          </div>
+
+          <form id="rxAiForm" style="display:flex;gap:8px;">
+            <input type="text" name="prompt" placeholder="Ask RosterX AI..." required style="flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13px;" />
+            <button type="submit" class="rx-btn-primary" ${this.aiLoading ? 'disabled' : ''}>Send</button>
+          </form>
+        </div>
+      `;
+      dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
+      dlg.querySelector('#rxAiForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const prompt = e.target.prompt.value.trim();
+        if (!prompt || this.aiLoading) return;
+        this.aiMessages.push({ role: 'user', text: prompt });
+        this.aiLoading = true;
+        render();
+        try {
+          const resp = await fetch('/api/chat/assistant', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ prompt, message: prompt, platform: 'iOS/Web PWA' })
+          });
+          const data = await resp.json();
+          this.aiMessages.push({ role: 'ai', text: data.reply || data.response || data.message || 'No response.' });
+        } catch (err) {
+          this.aiMessages.push({ role: 'ai', text: `Error: ${err.message}` });
+        } finally {
+          this.aiLoading = false;
+          render();
+        }
+      });
+    };
+    render();
+    openNeumorphicDialog(dlg);
+  }
 }
 
-
-
-// Bootstrap
-
-const bootstrapUserPortal = () => {
-  if (!window.userPortalApp) {
-    window.userPortalApp = new UserPortalController();
-    window.userPortalApp.init();
-  }
-};
-
-if (document.readyState === 'loading') {
-  window.addEventListener('DOMContentLoaded', bootstrapUserPortal);
-} else {
-  bootstrapUserPortal();
-}
-
+document.addEventListener('DOMContentLoaded', () => {
+  window.rosterXPortal = new RosterXUserPortal();
+});

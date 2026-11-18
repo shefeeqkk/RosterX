@@ -1,1583 +1,355 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#EEF2F6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="RosterX" />
 
-  <meta charset="UTF-8">
+  <title>RosterX — Operations &amp; Shift Portal</title>
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
 
-  <title>NOC Operations Portal — RosterX</title>
-
-  <link rel="icon" type="image/png" href="assets/logo.png">
-
-  <!-- Immediate Anti-FOUC Auth Guard & Security Cloak -->
-
-  <style id="auth-cloak">
-
-    html, body {
-
-      visibility: hidden !important;
-
-      opacity: 0 !important;
-
-      background: #090d16 !important;
-
-    }
-
-  </style>
-
-  <!-- Instant Theme Guard: Zero-Flicker Execution Before Render -->
+  <!-- Anti-FOUC Theme & 6-Palette Guard -->
   <script>
-    (function() {
+    (function () {
       try {
         var theme = localStorage.getItem('rosterx_theme') || 'system';
+        var palette = localStorage.getItem('rosterx_palette') || 'tory_blue';
         var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.setAttribute('data-theme', theme);
-        if (isDark) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        document.documentElement.setAttribute('data-palette', palette);
+        var csMeta = document.querySelector('meta[name="color-scheme"]');
+        if (csMeta) csMeta.content = theme === 'system' ? 'light dark' : theme;
+        var tcMeta = document.querySelector('meta[name="theme-color"]');
+        if (tcMeta) tcMeta.content = isDark ? '#1E293B' : '#EEF2F6';
+        document.documentElement.classList.toggle('dark', isDark);
       } catch (e) {}
     })();
   </script>
 
-  <script>
-    (function() {
-      try {
-        var raw = localStorage.getItem('rosterx_auth_user');
-        var token = localStorage.getItem('rosterx_auth_token');
-        var user = raw ? JSON.parse(raw) : null;
-        if (!user || !token) {
-          localStorage.removeItem('rosterx_auth_user');
-          localStorage.removeItem('rosterx_auth_token');
-          window.location.replace('login.html?session_expired=1');
-          return;
-        }
-        var cloak = document.getElementById('auth-cloak');
-        if (cloak) cloak.remove();
-        document.documentElement.style.visibility = 'visible';
-        document.documentElement.style.opacity = '1';
-      } catch (e) {
-        localStorage.removeItem('rosterx_auth_user');
-        localStorage.removeItem('rosterx_auth_token');
-        window.location.replace('login.html?session_expired=1');
-      }
-    })();
-  </script>
-
-
-
-  <!-- Google Fonts: Inter & Outfit -->
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-
-
-
-  <!-- Tailwind CSS & Phosphor Icons -->
-
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- RosterX Neumorphic (Soft UI) Universal Design System Tokens & Styles -->
-  <link rel="stylesheet" href="css/tokens.css">
-  <link rel="stylesheet" href="css/neumorphic.css">
-
-  <script src="js/tailwind-neumorphic.js"></script>
-
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-
-
-  <!-- Excel Libraries for Export -->
-
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <script src="js/vendor/exceljs.min.js"></script>
-
-  <script>if (typeof ExcelJS === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"><\\/script>')</script>
-
-
+  <!-- RosterX Design System -->
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/neumorphic.css" />
+  <link rel="stylesheet" href="css/mobile-shell.css" />
 
   <style>
-
+    * { box-sizing: border-box; }
     body {
-
-      font-family: 'Inter', sans-serif;
-
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--nm-canvas);
+      color: var(--nm-text);
+      min-height: 100dvh;
     }
-
-    .font-outfit {
-
-      font-family: 'Outfit', sans-serif;
-
+    .rx-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: var(--nm-canvas);
+      border-bottom: 1px solid var(--nm-divider);
     }
-
-
-
-    /* Ambient Space Glow Background */
-
-    .bg-noc-space {
-
-      background: radial-gradient(circle at 10% 10%, rgba(14, 165, 233, 0.12) 0%, transparent 40%),
-
-                  radial-gradient(circle at 90% 15%, rgba(99, 102, 241, 0.14) 0%, transparent 40%),
-
-                  radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.10) 0%, transparent 45%),
-
-                  var(--nm-canvas, #090d16);
-
-      color: var(--nm-text, #f8fafc);
-
+    .rx-topbar-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      height: 58px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
-
-    html:not(.dark) .bg-noc-space {
-      background: radial-gradient(circle at 10% 10%, rgba(14, 165, 233, 0.06) 0%, transparent 40%),
-                  radial-gradient(circle at 90% 15%, rgba(99, 102, 241, 0.06) 0%, transparent 40%),
-                  radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.05) 0%, transparent 45%),
-                  #eef2f6;
-      color: #1e293b;
+    .rx-brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-inline-size: 0;
     }
-
-    /* Prevent mobile horizontal page overflow */
-    html, body {
-      max-width: 100vw;
-      overflow-x: hidden;
+    .rx-brand-logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      object-fit: contain;
     }
-
-    /* Clean swipable scroll containers */
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
+    .rx-brand-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--nm-accent);
+      letter-spacing: -0.02em;
     }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+    .rx-topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
     }
-
-    /* Custom Scrollbars */
-
-    ::-webkit-scrollbar {
-
-      width: 7px;
-
-      height: 7px;
-
-    }
-
-    ::-webkit-scrollbar-track {
-
-      background: var(--nm-surface, #0f172a);
-
-    }
-
-    ::-webkit-scrollbar-thumb {
-
-      background: #334155;
-
-      border-radius: 4px;
-
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-
-      background: #475569;
-
-    }
-
-
-
-    /* Glass Panels */
-
-    .glass-panel {
-
-      background: rgba(15, 23, 42, 0.75);
-
-      backdrop-filter: blur(16px);
-
-      -webkit-backdrop-filter: blur(16px);
-
-      border: 1px solid rgba(255, 255, 255, 0.08);
-
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-
-    }
-
-    /* ============================================================== */
-    /* Light Mode Universal Modernization Overrides                   */
-    /* ============================================================== */
-    html:not(.dark) {
-      color-scheme: light;
-      --nm-canvas: #eef2f6;
-      --nm-surface: #ffffff;
-      --nm-surface-contrast: #e2e8f0;
-      --nm-text: #1e293b;
-      --nm-text-muted: #64748b;
-      --nm-border: #e2e8f0;
-    }
-
-    html:not(.dark) body {
-      background-color: #eef2f6 !important;
-      color: #1e293b !important;
-    }
-
-    html:not(.dark) .bg-noc-space {
-      background: radial-gradient(circle at 10% 10%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
-                  radial-gradient(circle at 90% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-                  radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.06) 0%, transparent 45%),
-                  #eef2f6 !important;
-      color: #1e293b !important;
-    }
-
-    html:not(.dark) header {
-      background: rgba(255, 255, 255, 0.95) !important;
-      border-color: #cbd5e1 !important;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
-    }
-
-    html:not(.dark) header h1 {
-      color: #0f172a !important;
-    }
-
-    html:not(.dark) .glass-panel {
-      background: #ffffff !important;
-      border: 1px solid #e2e8f0 !important;
-      box-shadow: 0 4px 20px -2px rgba(146, 163, 184, 0.22) !important;
-      color: #1e293b !important;
-    }
-
-    /* Headings & Text that have text-white */
-    html:not(.dark) h1.text-white,
-    html:not(.dark) h2.text-white,
-    html:not(.dark) h3.text-white,
-    html:not(.dark) h4.text-white,
-    html:not(.dark) span.text-white,
-    html:not(.dark) div.text-white,
-    html:not(.dark) strong.text-white,
-    html:not(.dark) p.text-white {
-      color: #0f172a !important;
-    }
-
-    /* Target specific IDs that might have text-white */
-    html:not(.dark) #todayShiftName,
-    html:not(.dark) #tomorrowShiftName,
-    html:not(.dark) #metricTotalDuty,
-    html:not(.dark) #modalAccountName {
-      color: #0f172a !important;
-    }
-
-    /* Muted and secondary texts */
-    html:not(.dark) .text-slate-100,
-    html:not(.dark) .text-slate-200 {
-      color: #1e293b !important;
-    }
-
-    html:not(.dark) .text-slate-300 {
-      color: #334155 !important;
-    }
-
-    html:not(.dark) .text-slate-400 {
-      color: #475569 !important;
-    }
-
-    html:not(.dark) .text-slate-500 {
-      color: #64748b !important;
-    }
-
-    /* High-contrast status badges in light mode */
-    html:not(.dark) .text-cyan-300 {
-      color: #0284c7 !important;
-    }
-
-    html:not(.dark) .text-cyan-400 {
-      color: #0369a1 !important;
-    }
-
-    html:not(.dark) .text-indigo-300,
-    html:not(.dark) .text-indigo-400 {
-      color: #4338ca !important;
-    }
-
-    html:not(.dark) .text-emerald-300,
-    html:not(.dark) .text-emerald-400 {
-      color: #047857 !important;
-    }
-
-    html:not(.dark) .text-amber-300,
-    html:not(.dark) .text-amber-400 {
-      color: #b45309 !important;
-    }
-
-    html:not(.dark) .text-rose-300,
-    html:not(.dark) .text-rose-400 {
-      color: #b91c1c !important;
-    }
-
-    /* Soft light surfaces replacing dark boxes */
-    html:not(.dark) .bg-slate-900\/30,
-    html:not(.dark) .bg-slate-900\/40,
-    html:not(.dark) .bg-slate-900\/50,
-    html:not(.dark) .bg-slate-900\/60,
-    html:not(.dark) .bg-slate-900\/70,
-    html:not(.dark) .bg-slate-900\/80,
-    html:not(.dark) .bg-slate-900\/90,
-    html:not(.dark) .bg-slate-900\/95,
-    html:not(.dark) .bg-slate-900,
-    html:not(.dark) .bg-slate-950 {
-      background-color: #f8fafc !important;
-      border-color: #e2e8f0 !important;
-      color: #1e293b !important;
-    }
-
-    html:not(.dark) .bg-slate-800,
-    html:not(.dark) .bg-slate-800\/60,
-    html:not(.dark) .bg-slate-800\/70,
-    html:not(.dark) .bg-slate-800\/80,
-    html:not(.dark) .bg-slate-800\/90 {
-      background-color: #f1f5f9 !important;
-      border-color: #cbd5e1 !important;
-      color: #1e293b !important;
-    }
-
-    html:not(.dark) .bg-cyan-950,
-    html:not(.dark) .bg-cyan-950\/40,
-    html:not(.dark) .bg-cyan-950\/70,
-    html:not(.dark) .bg-cyan-950\/80 {
-      background-color: #e0f2fe !important;
-      border-color: #7dd3fc !important;
-      color: #0369a1 !important;
-    }
-
-    html:not(.dark) .bg-indigo-950,
-    html:not(.dark) .bg-indigo-950\/40,
-    html:not(.dark) .bg-indigo-950\/70,
-    html:not(.dark) .bg-indigo-950\/80 {
-      background-color: #e0e7ff !important;
-      border-color: #a5b4fc !important;
-      color: #4338ca !important;
-    }
-
-    html:not(.dark) .bg-emerald-950,
-    html:not(.dark) .bg-emerald-950\/40,
-    html:not(.dark) .bg-emerald-950\/70,
-    html:not(.dark) .bg-emerald-950\/80 {
-      background-color: #dcfce7 !important;
-      border-color: #86efac !important;
-      color: #15803d !important;
-    }
-
-    html:not(.dark) .bg-amber-950,
-    html:not(.dark) .bg-amber-950\/40,
-    html:not(.dark) .bg-amber-950\/70,
-    html:not(.dark) .bg-amber-950\/80 {
-      background-color: #fef3c7 !important;
-      border-color: #fcd34d !important;
-      color: #92400e !important;
-    }
-
-    html:not(.dark) .border-slate-800,
-    html:not(.dark) .border-slate-700 {
-      border-color: #e2e8f0 !important;
-    }
-
-    /* Form controls in Light Mode */
-    html:not(.dark) select,
-    html:not(.dark) textarea,
-    html:not(.dark) input[type="text"],
-    html:not(.dark) input[type="password"] {
-      background-color: #ffffff !important;
-      border-color: #cbd5e1 !important;
-      color: #0f172a !important;
-    }
-
-    html:not(.dark) select option {
-      background-color: #ffffff !important;
-      color: #0f172a !important;
-    }
-
-    /* Top Nav Tabs in Light Mode */
-    html:not(.dark) .user-nav-tab-btn:not([data-active="true"]):not(.bg-cyan-600) {
-      background-color: #ffffff !important;
-      border-color: #cbd5e1 !important;
-      color: #475569 !important;
-    }
-
-    html:not(.dark) .user-nav-tab-btn:not([data-active="true"]):not(.bg-cyan-600):hover {
-      background-color: #f1f5f9 !important;
-      color: #0f172a !important;
-    }
-
-    /* Mobile Bottom Dock in Light Mode */
-    html:not(.dark) nav.md\:hidden {
-      background-color: rgba(255, 255, 255, 0.95) !important;
-      border-color: #cbd5e1 !important;
-      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06) !important;
-    }
-
-    html:not(.dark) .user-mobile-nav-btn {
-      color: #64748b !important;
-    }
-
-    /* Top Header & Desktop Nav in Light Mode */
-    html:not(.dark) header {
-      background-color: rgba(255, 255, 255, 0.95) !important;
-      border-color: #cbd5e1 !important;
-    }
-
-    html:not(.dark) nav.hidden.md\:flex {
-      background-color: rgba(255, 255, 255, 0.92) !important;
-      border-color: #cbd5e1 !important;
-    }
-
-    /* Modal dialogs in Light Mode */
-    html:not(.dark) #userAccountModal > div,
-    html:not(.dark) #accountProfileModal > div,
-    html:not(.dark) #aiChatDrawer {
-      background-color: #ffffff !important;
-      border-color: #cbd5e1 !important;
-      color: #0f172a !important;
-    }
-
-    /* Table in Light Mode */
-    html:not(.dark) #teamDutyTable thead tr,
-    html:not(.dark) #userMonthGridTable thead tr,
-    html:not(.dark) #myMonthlyShiftsContainer thead tr {
-      background-color: #f1f5f9 !important;
-      border-color: #cbd5e1 !important;
-      color: #334155 !important;
-    }
-
-    html:not(.dark) #teamDutyTable tbody tr,
-    html:not(.dark) #userMonthGridTable tbody tr,
-    html:not(.dark) #myMonthlyShiftsContainer tbody tr {
-      border-color: #e2e8f0 !important;
-    }
-
-    html:not(.dark) #teamDutyTable tbody tr:hover,
-    html:not(.dark) #userMonthGridTable tbody tr:hover,
-    html:not(.dark) #myMonthlyShiftsContainer tbody tr:hover {
-      background-color: #f8fafc !important;
-    }
-
-
-
-    /* Floating Cutout 3D Bot Keyframes */
-
-    @keyframes bot-float {
-
-      0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 10px 18px rgba(6, 182, 212, 0.45)); }
-
-      50% { transform: translateY(-8px) scale(1.03); filter: drop-shadow(0 16px 26px rgba(6, 182, 212, 0.65)); }
-
-    }
-
-    .animate-bot-float {
-
-      animation: bot-float 4s ease-in-out infinite;
-
-    }
-
-
-
-    /* Strict Cell Geometry for Month Matrix Table */
-
-    .cell-box-portal {
-
-      width: 44px;
-
-      min-width: 44px;
-
-      max-width: 44px;
-
-      height: 38px;
-
-      font-size: 12px;
-
-      font-weight: 800;
-
+    .rx-bell-btn {
       position: relative;
-
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--nm-surface);
+      box-shadow: var(--nm-shadow-raised-subtle);
+      color: #D97706;
+      font-size: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
     }
-
-    .name-col-portal {
-
-      width: 195px;
-
-      min-width: 195px;
-
-      max-width: 195px;
-
+    .rx-bell-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: #DC2626;
+      color: #fff;
+      font-size: 9.5px;
+      font-weight: 900;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--nm-canvas);
     }
-
-    .stat-col-portal {
-
-      width: 48px;
-
-      min-width: 48px;
-
-      max-width: 48px;
-
+    .rx-avatar-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 10px 4px 5px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--nm-surface);
+      box-shadow: var(--nm-shadow-raised-subtle);
+      color: var(--nm-text);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
     }
-
-
-
-    /* Standard High-Contrast Shift Palette */
-
-    .shift-FS    { background-color: #bbf7d0; color: #064e3b; font-weight: 800; }
-
-    .shift-FG    { background-color: #166534; color: #ffffff; font-weight: 800; }
-
-    .shift-G     { background-color: #bae6fd; color: #0c4a6e; font-weight: 800; }
-
-    .shift-SG    { background-color: #ea580c; color: #ffffff; font-weight: 800; }
-
-    .shift-SS    { background-color: #fed7aa; color: #7c2d12; font-weight: 800; }
-
-    .shift-NS    { background-color: #020617; color: #ffffff; font-weight: 800; }
-
-    .shift-OFF   { background-color: #fef08a; color: #854d0e; font-weight: 800; }
-
-    .shift-SWOFF { background-color: #fef08a; color: #713f12; font-weight: 800; }
-
-    .shift-L     { background-color: #fecaca; color: #991b1b; font-weight: 800; }
-
+    .rx-avatar-circle {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: var(--nm-accent-soft);
+      color: var(--nm-accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .rx-avatar-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    /* Desktop Top Tab Bar */
+    .rx-desktop-nav {
+      background: var(--nm-surface);
+      border-bottom: 1px solid var(--nm-divider);
+      position: sticky;
+      top: 58px;
+      z-index: 35;
+    }
+    .rx-desktop-nav-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .rx-desktop-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .rx-desktop-tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--nm-surface);
+      color: var(--nm-text-muted);
+      box-shadow: var(--nm-shadow-raised-subtle);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--nm-transition);
+    }
+    .rx-desktop-tab-btn.is-active {
+      background: var(--nm-accent-gradient);
+      color: #fff;
+      box-shadow: 0 4px 12px var(--nm-accent-glow);
+    }
+    main.rx-main-shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 14px 16px 32px;
+    }
+    .rx-hidden { display: none !important; }
+    .rx-toast-host {
+      position: fixed;
+      top: calc(14px + env(safe-area-inset-top, 0px));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: min(92vw, 420px);
+      pointer-events: none;
+    }
+    .rx-toast {
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: var(--nm-surface);
+      color: var(--nm-text);
+      box-shadow: var(--nm-shadow-floating);
+      font-size: 12.5px;
+      font-weight: 700;
+      border-left: 4px solid var(--nm-accent);
+      pointer-events: auto;
+    }
+    .rx-toast.is-success { border-left-color: #10B981; }
+    .rx-toast.is-error   { border-left-color: #DC2626; }
+    /* Mention Dropdown */
+    .rx-mention-popup {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 50;
+      background: var(--nm-surface);
+      border-radius: 14px;
+      box-shadow: var(--nm-shadow-floating);
+      max-height: 180px;
+      overflow-y: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .rx-mention-item {
+      border: 0;
+      background: transparent;
+      color: var(--nm-text);
+      text-align: left;
+      padding: 7px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .rx-mention-item:hover {
+      background: var(--nm-accent-soft);
+      color: var(--nm-accent);
+    }
+    @media (orientation: landscape) and (max-height: 540px) {
+      .rx-brand-logo { width: 24px; height: 24px; }
+      .rx-brand-title { font-size: 15px; }
+      .rx-bell-btn { width: 32px; height: 32px; font-size: 17px; }
+      .rx-avatar-pill { padding: 3px 8px 3px 4px; font-size: 11px; }
+      .rx-avatar-circle { width: 20px; height: 20px; font-size: 9px; }
+    }
   </style>
-
 </head>
+<body>
+  <!-- Toast Container -->
+  <div id="rxToastHost" class="rx-toast-host" aria-live="polite"></div>
 
-<body class="bg-noc-space min-h-screen text-slate-100 flex flex-col antialiased selection:bg-cyan-500 selection:text-white">
-
-
-
-  <!-- ============================================================== -->
-
-  <!-- TOP NAVIGATION BAR -->
-
-  <!-- ============================================================== -->
-
-  <header class="bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-5 py-3 shadow-xs">
-
-    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-
-      
-
-      <!-- Brand & Official Logo -->
-
-      <div class="flex items-center gap-3">
-
-        <div class="relative w-10 h-10 shrink-0">
-
-          <img src="assets/logo.png" alt="RosterX Logo" class="w-full h-full object-contain drop-shadow" />
-
+  <!-- Top Bar (adapts automatically to 42px slim bar in landscape + iOS notch safe-area) -->
+  <header class="rx-topbar rx-topbar-safe no-print">
+    <div class="rx-topbar-inner">
+      <div class="rx-brand-wrap">
+        <button type="button" id="btnSubViewBack" class="rx-icon-pill rx-hidden" aria-label="Back" style="width:34px;height:34px;min-inline-size:34px;min-block-size:34px;">
+          <i class="ph ph-arrow-left" aria-hidden="true"></i>
+        </button>
+        <img id="rxBrandLogo" src="assets/logo.png" alt="RosterX Logo" class="rx-brand-logo" />
+        <div style="min-inline-size:0;">
+          <div id="rxTopBarTitle" class="rx-brand-title">RosterX</div>
         </div>
-
-        <div>
-
-          <div class="flex items-center gap-2">
-
-            <h1 class="text-base font-extrabold tracking-tight font-outfit text-slate-900 dark:text-white">
-
-              RosterX NOC Portal
-
-            </h1>
-
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/50 flex items-center gap-1">
-
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span> Live Operations
-
-            </span>
-
-          </div>
-
-        </div>
-
       </div>
 
-
-
-      <!-- Header Controls: Theme Toggle, User Pill, Sign Out -->
-      <div class="flex items-center gap-2.5">
-
-        <!-- 🌓 Theme Toggle (Light / Dark / System) -->
-        <button id="portalThemeToggle" class="theme-toggle-btn nm-theme-toggle flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs" title="Switch Theme (System / Light / Dark)">
-          <i class="theme-toggle-icon ph ph-desktop text-sm"></i>
-          <span class="theme-toggle-label text-xs font-mono hidden sm:inline">Auto</span>
+      <div class="rx-topbar-actions" id="rxTopBarActions">
+        <button type="button" id="btnOpenNotifications" class="rx-bell-btn" aria-label="Notifications">
+          <i class="ph-fill ph-bell-ringing" aria-hidden="true"></i>
+          <span id="rxBellBadge" class="rx-bell-badge rx-hidden">0</span>
         </button>
-
-        <!-- User Profile Pill (Clickable -> Opens Account Profile & Security Modal) -->
-
-        <div id="userProfileBtn" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 shadow-xs cursor-pointer transition group" title="View Account Profile & Change Password">
-
-          <div id="userProfileAvatarBox" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-black shadow-xs group-hover:scale-105 transition overflow-hidden">
-
-            <img id="userProfileAvatarImg" class="w-full h-full object-cover hidden" alt="Avatar" />
-
-            <span id="userProfileAvatarText"><i class="ph ph-user"></i></span>
-
-          </div>
-
-          <div class="text-left hidden sm:block">
-
-            <div id="userDisplayName" class="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition">Engineer</div>
-
-            <div id="userRoleBadge" class="text-[10px] text-cyan-700 dark:text-cyan-400 font-semibold leading-tight">NOC ENGINEER</div>
-
-          </div>
-
-          <i class="ph ph-caret-down text-slate-500 dark:text-slate-400 text-xs ml-0.5 group-hover:text-slate-900 dark:group-hover:text-white transition"></i>
-
-        </div>
-
-        <!-- Management Switch to Operations/Broadcast Console (Shown only for Admin & Manager) -->
-        <a id="btnManagementConsole" href="index.html" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 text-xs font-semibold transition cursor-pointer shadow-xs" title="Open Team Broadcast Console & Operations Roster">
-          <i class="ph ph-megaphone text-sm text-purple-600 dark:text-purple-400"></i>
-          <span class="hidden sm:inline">Broadcast Console</span>
-        </a>
-
-        <!-- Sign Out Button -->
-
-        <button id="btnSignOut" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 text-xs font-semibold transition cursor-pointer shadow-xs">
-
-          <i class="ph ph-sign-out text-sm"></i>
-
-          <span class="hidden sm:inline">Sign Out</span>
-
+        <button type="button" id="btnOpenProfile" class="rx-avatar-pill" aria-label="Open Profile and Settings">
+          <span id="rxTopAvatar" class="rx-avatar-circle">TM</span>
+          <span id="rxTopFirstName">Member</span>
         </button>
-
-
-
       </div>
-
     </div>
-
   </header>
 
-  <!-- ============================================================== -->
-  <!-- DESKTOP TOP NAVIGATION DOCK (> 1024px) -->
-  <!-- ============================================================== -->
-  <nav class="hidden md:flex bg-white/95 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 py-2 items-center no-print shadow-xs sticky top-[57px] z-30 backdrop-blur-md">
-    <div class="max-w-7xl w-full mx-auto flex items-center justify-between gap-4">
-      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-md bg-cyan-600 text-white cursor-pointer" data-tab="my_schedule">
-          <i class="ph ph-calendar-check text-base"></i> My Schedule
-        </button>
-        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="team_handover">
-          <i class="ph ph-users-three text-base"></i> Desk Handover & Team View
-        </button>
-        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="request_swap">
-          <i class="ph ph-arrows-left-right text-base"></i> Request Shift Swap
-        </button>
-        <button class="user-nav-tab-btn flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs" data-tab="monthly_overview">
-          <i class="ph ph-chart-donut text-base"></i> Monthly Overview
-        </button>
-      </div>
-      <div class="flex items-center gap-3 text-xs font-mono text-slate-600 dark:text-slate-400 shrink-0">
-        <span class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
-          <span id="userPortalStatusBadge">Atlas Connected</span>
+  <!-- Desktop Navigation Bar (hidden on mobile portrait/landscape where Fluid Neumorphic Nav owns navigation) -->
+  <nav id="rxDesktopNav" class="rx-desktop-nav rx-desktop-only-nav no-print" aria-label="Desktop navigation">
+    <div class="rx-desktop-nav-inner">
+      <div id="rxDesktopTabs" class="rx-desktop-tabs"></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span id="rxPortalConnectionPill" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;background:var(--nm-input-surface);font-size:11.5px;font-weight:700;color:var(--nm-text-muted);">
+          <span style="width:8px;height:8px;border-radius:999px;background:#10B981;"></span>
+          <span>Atlas Live</span>
         </span>
+        <button type="button" id="btnRefreshPortal" class="rx-btn-surface" style="padding:6px 11px;font-size:12px;">
+          <i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Refresh
+        </button>
       </div>
     </div>
   </nav>
 
-  <!-- ============================================================== -->
-  <!-- MOBILE FLOATING BOTTOM NAVIGATION DOCK (< 768px) -->
-  <!-- ============================================================== -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-2xl flex items-center justify-around">
-    <button class="user-mobile-nav-btn flex flex-col items-center justify-center p-2 text-cyan-400 relative" data-tab="my_schedule">
-      <i class="ph ph-calendar-check text-xl"></i>
-      <span class="text-[10px] font-bold mt-0.5">Schedule</span>
-      <span class="active-dot absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-[#FF5252]"></span>
-    </button>
-    <button class="user-mobile-nav-btn flex flex-col items-center justify-center p-2 text-slate-400 hover:text-slate-200 relative" data-tab="team_handover">
-      <i class="ph ph-users-three text-xl"></i>
-      <span class="text-[10px] font-bold mt-0.5">Team</span>
-      <span class="active-dot hidden absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-[#FF5252]"></span>
-    </button>
-    <button class="user-mobile-nav-btn flex flex-col items-center justify-center p-2 text-slate-400 hover:text-slate-200 relative" data-tab="request_swap">
-      <i class="ph ph-arrows-left-right text-xl"></i>
-      <span class="text-[10px] font-bold mt-0.5">Swap</span>
-      <span class="active-dot hidden absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-[#FF5252]"></span>
-    </button>
-    <button class="user-mobile-nav-btn flex flex-col items-center justify-center p-2 text-slate-400 hover:text-slate-200 relative" data-tab="monthly_overview">
-      <i class="ph ph-chart-donut text-xl"></i>
-      <span class="text-[10px] font-bold mt-0.5">Overview</span>
-      <span class="active-dot hidden absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-[#FF5252]"></span>
-    </button>
-  </nav>
+  <!-- Main Content Shell -->
+  <main class="rx-main-shell" id="rxMainContainer">
+    <!-- Tab Panels (1:1 Android parity — zero Swap Request tab!) -->
+    <section id="panel_dashboard" class="rx-tab-panel"></section>
+    <section id="panel_team_shifts" class="rx-tab-panel rx-hidden"></section>
+    <section id="panel_my_calendar" class="rx-tab-panel rx-hidden"></section>
+    <section id="panel_month_roster" class="rx-tab-panel rx-hidden"></section>
+    <section id="panel_broadcast" class="rx-tab-panel rx-hidden"></section>
+    <section id="panel_more" class="rx-tab-panel rx-hidden"></section>
 
-  <!-- ============================================================== -->
-  <!-- MAIN CONTENT CONTAINER -->
-  <!-- ============================================================== -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 pb-24 md:pb-6">
-
-    <!-- ============================================================== -->
-    <!-- TAB 1: MY SCHEDULE (Default Landing View) -->
-    <!-- ============================================================== -->
-    <section id="userTabContent_my_schedule" class="user-tab-panel space-y-4 sm:space-y-6">
-
-      <!-- HERO WELCOME DASHBOARD BANNER -->
-      <div class="glass-panel rounded-2xl p-4 sm:p-6 relative overflow-hidden">
-        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
-
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-950/80 border border-cyan-300 dark:border-cyan-800 text-[11px] font-semibold text-cyan-800 dark:text-cyan-300 mb-2">
-              <i class="ph ph-calendar-check text-xs"></i>
-              <span id="heroCurrentDate">Loading...</span>
-            </div>
-            <h2 class="text-xl sm:text-2xl font-black font-outfit text-slate-900 dark:text-white">
-              Welcome, <span id="heroWelcomeName" class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-400 dark:to-blue-400">Engineer</span>! 👋
-            </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Operational shift overview and live verified team duty briefing.
-            </p>
-            <div class="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
-              <!-- Shift Countdown Box -->
-              <div id="shiftCountdownBox" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-mono shadow-xs">
-                <i class="ph ph-timer text-cyan-600 dark:text-cyan-400 text-sm"></i>
-                <span id="shiftCountdownLabel" class="text-slate-500 dark:text-slate-400">Next Shift Starts in:</span>
-                <span id="shiftCountdownTime" class="font-bold text-cyan-700 dark:text-cyan-300 tracking-wide">Calculating...</span>
-              </div>
-
-              <!-- Upcoming Rest Day Notice Box -->
-              <div id="restDayNoticeBox" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/60 text-xs text-amber-800 dark:text-amber-300 font-mono shadow-xs">
-                <i class="ph ph-sun-horizon text-amber-600 dark:text-amber-400 text-sm"></i>
-                <span id="restDayNoticeLabel" class="text-slate-500 dark:text-slate-400">Next Rest Day:</span>
-                <span id="restDayNoticeValue" class="font-bold text-amber-700 dark:text-amber-300 tracking-wide">Calculating...</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <div id="heroDutyBadge" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 flex items-center gap-2 shadow-sm">
-              <span class="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse"></span>
-              Checking Duty Status...
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- OPERATIONAL BROADCAST NOTIFICATIONS BANNER (Android Parity) -->
-      <div id="userBroadcastSection" class="hidden space-y-3">
-        <div class="flex items-center justify-between px-1">
-          <div class="flex items-center gap-2">
-            <span class="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm font-bold shadow-2xs">
-              <i class="ph ph-megaphone text-sm"></i>
-            </span>
-            <span class="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300">
-              OPERATIONAL NOTIFICATIONS (<span id="userBroadcastCount">0</span>)
-            </span>
-          </div>
-          <button id="btnUserClearAllBroadcasts" type="button" class="text-xs font-bold text-purple-700 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300 flex items-center gap-1 cursor-pointer transition">
-            <i class="ph ph-checks text-sm"></i> Clear All
-          </button>
-        </div>
-        <div id="userBroadcastFeed" class="space-y-2.5">
-          <!-- Dynamically populated broadcast notification cards -->
-        </div>
-      </div>
-
-      <!-- PERSONAL SHIFT SPOTLIGHT (FEATURED & NEXT DAY) -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        <!-- CARD 1: FEATURED / TODAY'S SHIFT -->
-        <div id="todayShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-cyan-500 relative overflow-hidden group hover:border-slate-400 dark:hover:border-slate-600 transition shadow-sm">
-          <div class="flex items-center justify-between mb-3">
-            <span id="todayCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <i class="ph ph-clock text-cyan-600 dark:text-cyan-400 text-sm"></i> Duty Shift
-            </span>
-            <span id="todayCardStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">Scheduled</span>
-          </div>
-          <div class="flex items-baseline gap-3">
-            <span id="todayShiftCode" class="text-2xl font-black px-3 py-1 rounded-xl shadow-sm shift-FS">
-              --
-            </span>
-            <div>
-              <div id="todayShiftName" class="text-sm font-bold text-slate-900 dark:text-white">Loading...</div>
-              <div id="todayShiftTimings" class="text-xs font-mono text-cyan-700 dark:text-cyan-300 mt-0.5">--:-- AM – --:-- PM</div>
-            </div>
-          </div>
-          <p id="todayShiftDesc" class="text-xs text-slate-500 dark:text-slate-400 mt-3 line-clamp-2">
-            Scheduled operational duty assignment for current period.
-          </p>
-        </div>
-
-        <!-- CARD 2: NEXT DAY'S SHIFT -->
-        <div id="tomorrowShiftCard" class="glass-panel rounded-2xl p-5 border-l-4 border-l-indigo-500 relative overflow-hidden group hover:border-slate-400 dark:hover:border-slate-600 transition shadow-sm">
-          <div class="flex items-center justify-between mb-3">
-            <span id="tomorrowCardTitle" class="text-xs uppercase font-extrabold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <i class="ph ph-calendar-plus text-indigo-600 dark:text-indigo-400 text-sm"></i> Next Shift
-            </span>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">Next</span>
-          </div>
-          <div class="flex items-baseline gap-3">
-            <span id="tomorrowShiftCode" class="text-2xl font-black px-3 py-1 rounded-xl shadow-sm shift-G">
-              --
-            </span>
-            <div>
-              <div id="tomorrowShiftName" class="text-sm font-bold text-slate-900 dark:text-white">Loading...</div>
-              <div id="tomorrowShiftTimings" class="text-xs font-mono text-indigo-700 dark:text-indigo-300 mt-0.5">--:-- AM – --:-- PM</div>
-            </div>
-          </div>
-          <p id="tomorrowShiftDesc" class="text-xs text-slate-500 dark:text-slate-400 mt-3 line-clamp-2">
-            Upcoming rotation sequence for following day.
-          </p>
-        </div>
-
-        <!-- CARD 3: MONTHLY DUTY STATS -->
-        <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-emerald-500 flex flex-col justify-between shadow-sm">
-          <div>
-            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
-              <i class="ph ph-chart-donut text-emerald-600 dark:text-emerald-400 text-sm"></i> Monthly Duties
-            </span>
-            <div class="grid grid-cols-2 gap-2 mt-2">
-              <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center">
-                <div class="text-[10px] text-slate-600 dark:text-slate-400 uppercase font-semibold">Day Shifts</div>
-                <div id="metricDayCount" class="text-lg font-black text-emerald-600 dark:text-emerald-400">0</div>
-              </div>
-              <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center">
-                <div class="text-[10px] text-slate-600 dark:text-slate-400 uppercase font-semibold">Night Shifts</div>
-                <div id="metricNightCount" class="text-lg font-black text-indigo-600 dark:text-indigo-400">0</div>
-              </div>
-            </div>
-          </div>
-          <div class="text-[11px] text-slate-600 dark:text-slate-400 mt-2 text-center">
-            Total Assigned Duties: <strong id="metricTotalDuty" class="text-slate-900 dark:text-white">0</strong> days
-          </div>
-        </div>
-
-        <!-- CARD 4: SCHEDULED REST DAYS -->
-        <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-amber-500 flex flex-col justify-between shadow-sm">
-          <div>
-            <span class="text-xs uppercase font-extrabold tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
-              <i class="ph ph-sun-horizon text-amber-600 dark:text-amber-400 text-sm"></i> Scheduled Rest Days
-            </span>
-            <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
-              <div>
-                <div class="text-xs text-slate-800 dark:text-slate-200 font-bold">Weekly Offs (OFF)</div>
-                <div class="text-[10px] text-slate-600 dark:text-slate-400">Full 24h rest window</div>
-              </div>
-              <div id="metricOffCount" class="text-2xl font-black text-amber-600 dark:text-amber-400">0</div>
-            </div>
-          </div>
-          <div id="cardUpcomingRestDay" class="text-[11px] text-amber-700 dark:text-amber-400 font-semibold text-center mt-2">
-            Next Rest Day: Calculating...
-          </div>
-        </div>
-
-      </div>
-
-      <!-- MY MONTHLY ROTATION TIMELINE CARD -->
-      <div class="glass-panel rounded-2xl p-6 relative">
-        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div>
-            <h3 class="text-base font-bold font-outfit text-slate-900 dark:text-white flex items-center gap-2">
-              <i class="ph ph-calendar-check text-cyan-600 dark:text-cyan-400 text-lg"></i>
-              My Assigned Shifts This Month
-            </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Chronological daily breakdown of your operational shift duties and rest windows</p>
-          </div>
-          <div id="myMonthShiftBadge" class="text-xs font-mono font-bold text-cyan-800 dark:text-cyan-300 bg-cyan-100 dark:bg-slate-900 px-3 py-1 rounded-xl border border-cyan-200 dark:border-slate-700">
-            Loading...
-          </div>
-        </div>
-
-        <div id="myMonthlyShiftsContainer" class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 max-h-[420px]">
-          <!-- Dynamic Chronological Shift List injected via userPortal.js -->
-        </div>
-      </div>
-
-    </section>
-
-    <!-- ============================================================== -->
-    <!-- TAB 2: DESK HANDOVER & TEAM VIEW -->
-    <!-- ============================================================== -->
-    <section id="userTabContent_team_handover" class="user-tab-panel hidden space-y-6">
-
-      <!-- Header banner -->
-      <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-950/80 border border-cyan-300 dark:border-cyan-800 text-[11px] font-semibold text-cyan-800 dark:text-cyan-300 mb-2">
-              <i class="ph ph-handshake text-xs"></i> Shift Handover Coordination
-            </div>
-            <h2 class="text-xl font-black font-outfit text-slate-900 dark:text-white">
-              Desk Handover & Live Team Roster
-            </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Real-time colleague roster lookup across all shifts to streamline outgoing and incoming shift handovers.
-            </p>
-          </div>
-          <div class="text-right">
-            <span class="text-xs font-mono text-emerald-400 flex items-center gap-1.5 justify-end">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Real-time Atlas Sync
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Today's NOC Shift Breakdown Radar Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Morning Shift Slot -->
-        <div class="glass-panel rounded-2xl p-4 border-t-4 border-t-emerald-500">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-              <i class="ph ph-sun"></i> Morning Shift
-            </span>
-            <span class="text-[10px] font-mono text-slate-400">FS / FG / G / SG</span>
-          </div>
-          <div class="text-[11px] text-slate-500 mb-2">07:30 - 20:00 (Peak Operations)</div>
-          <div id="teamHandoverMorning" class="space-y-1.5 text-xs text-slate-300 min-h-[48px]">
-            <span class="text-slate-500 italic text-xs">Loading on-duty engineers...</span>
-          </div>
-        </div>
-
-        <!-- Afternoon Shift Slot -->
-        <div class="glass-panel rounded-2xl p-4 border-t-4 border-t-orange-500">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-orange-400 flex items-center gap-1">
-              <i class="ph ph-sunset"></i> Afternoon Shift
-            </span>
-            <span class="text-[10px] font-mono text-slate-400">SS</span>
-          </div>
-          <div class="text-[11px] text-slate-500 mb-2">13:00 - 22:00 (Evening Coverage)</div>
-          <div id="teamHandoverSecond" class="space-y-1.5 text-xs text-slate-300 min-h-[48px]">
-            <span class="text-slate-500 italic text-xs">Loading on-duty engineers...</span>
-          </div>
-        </div>
-
-        <!-- Night Shift Slot -->
-        <div class="glass-panel rounded-2xl p-4 border-t-4 border-t-indigo-500">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
-              <i class="ph ph-moon"></i> Night Shift
-            </span>
-            <span class="text-[10px] font-mono text-slate-400">NS (Solo Duty)</span>
-          </div>
-          <div class="text-[11px] text-slate-500 mb-2">21:00 - 07:30 (+1 Overnight)</div>
-          <div id="teamHandoverNight" class="space-y-1.5 text-xs text-slate-300 min-h-[48px]">
-            <span class="text-slate-500 italic text-xs">Loading on-duty engineers...</span>
-          </div>
-        </div>
-
-        <!-- No Duty / Rest Days -->
-        <div class="glass-panel rounded-2xl p-4 border-t-4 border-t-amber-400">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1">
-              <i class="ph ph-bed"></i> No Duty
-            </span>
-            <span class="text-[10px] font-mono text-slate-400">OFF / L / SW*</span>
-          </div>
-          <div class="text-[11px] text-slate-500 mb-2">Rest & Leave Mitigation</div>
-          <div id="teamHandoverOff" class="space-y-1.5 text-xs text-slate-300 min-h-[48px]">
-            <span class="text-slate-500 italic text-xs">Loading rest personnel...</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Team Duty Schedule Table -->
-      <div class="glass-panel rounded-2xl p-5 relative">
-        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div>
-            <h3 class="text-base font-bold font-outfit text-slate-900 dark:text-white flex items-center gap-2">
-              <i class="ph ph-users-three text-cyan-600 dark:text-cyan-400 text-lg"></i>
-              Team Duty Schedule
-            </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Real-time duty overview across all personnel. Your row is prominently highlighted.</p>
-          </div>
-          <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 font-semibold tracking-wide">
-              <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-              <i class="ph-fill ph-star text-amber-500 dark:text-amber-400 text-xs"></i> Your Schedule (Highlighted)
-            </span>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-          <table class="w-full text-left border-collapse" id="teamDutyTable">
-            <thead>
-              <tr class="bg-slate-100 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th class="py-3 px-4 font-bold text-left">Engineer</th>
-                <th class="py-3 px-4 font-bold text-center" id="teamHeaderToday">Current Duty</th>
-                <th class="py-3 px-4 font-bold text-center" id="teamHeaderTomorrow">Next Duty</th>
-                <th class="py-3 px-4 font-bold text-right pr-6">Operational Status</th>
-              </tr>
-            </thead>
-            <tbody id="teamDutyTableBody" class="divide-y divide-slate-200 dark:divide-slate-800 text-xs text-slate-700 dark:text-slate-300">
-              <!-- Dynamic Rows injected via userPortal.js -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- ============================================================== -->
-    <!-- TAB 3: REQUEST SHIFT SWAP -->
-    <!-- ============================================================== -->
-    <section id="userTabContent_request_swap" class="user-tab-panel hidden space-y-6">
-
-      <!-- Header banner -->
-      <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 text-[11px] font-semibold text-amber-800 dark:text-amber-300 mb-2">
-              <i class="ph ph-arrows-left-right text-xs"></i> Mutual Swap & Absence Requests
-            </div>
-            <h2 class="text-xl font-black font-outfit text-slate-900 dark:text-white">
-              Shift Swap Request Center
-            </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Submit peer-to-peer shift swap requests with automated fatigue & rest-guard policy checks.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- Left Column: Request Form -->
-        <div class="lg:col-span-7 glass-panel rounded-2xl p-6 space-y-4">
-          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-            <i class="ph ph-pencil-simple-line text-cyan-600 dark:text-cyan-400"></i> New Shift Swap Application
-          </h3>
-
-          <form id="userSwapForm" class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">My Shift Date (To Give Up)</label>
-                <select id="userSwapMyDate" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
-                  <option value="">Select your shift date...</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Swap With Colleague</label>
-                <select id="userSwapColleague" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
-                  <option value="">Select colleague...</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Colleague's Shift Date (To Take)</label>
-                <select id="userSwapColleagueDate" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
-                  <option value="">Select target date...</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Swap Category</label>
-                <select id="userSwapCategory" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer">
-                  <option value="mutual">Mutual 1-to-1 Shift Exchange</option>
-                  <option value="cover">Emergency Shift Cover</option>
-                  <option value="personal">Personal Leave Adjustment</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reason / Operational Justification</label>
-              <textarea id="userSwapReason" rows="3" placeholder="Explain the operational reason for this swap..." class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
-            </div>
-
-            <!-- Client-side Validation Alert Box -->
-            <div id="userSwapValidationAlert" class="hidden p-3 rounded-xl bg-amber-100 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
-              <i class="ph ph-warning text-base shrink-0"></i>
-              <span id="userSwapValidationText">Checking policy compatibility...</span>
-            </div>
-
-            <div class="flex items-center justify-end gap-3 pt-2">
-              <button type="submit" id="btnSubmitUserSwap" class="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer">
-                <i class="ph ph-paper-plane-right"></i> Submit Swap Request
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Right Column: My Swaps History & Status Queue -->
-        <div class="lg:col-span-5 glass-panel rounded-2xl p-6 space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-              <i class="ph ph-clock-counter-clockwise text-indigo-600 dark:text-indigo-400"></i> My Swap History
-            </h3>
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Live Atlas Queue</span>
-          </div>
-
-          <div id="userSwapsQueueList" class="space-y-2.5 max-h-[380px] overflow-y-auto">
-            <!-- Dynamically populated or 'No Active Records' placeholder -->
-            <div class="p-6 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center text-slate-500 text-xs">
-              <i class="ph ph-clipboard-text text-2xl text-slate-400 dark:text-slate-600 mb-1.5 block"></i>
-              No Active Records<br><span class="text-[10px] text-slate-400 dark:text-slate-600">Your submitted shift swap requests will appear here dynamically.</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-    </section>
-
-    <!-- ============================================================== -->
-    <!-- TAB 4: MONTHLY OVERVIEW -->
-    <!-- ============================================================== -->
-    <section id="userTabContent_monthly_overview" class="user-tab-panel hidden space-y-6">
-
-      <!-- SECTION: FULL MONTH SHIFT MASTER GRID -->
-      <div class="glass-panel rounded-2xl p-5 relative">
-        
-        <!-- Grid Toolbar -->
-        <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <div>
-            <h3 class="text-base font-bold font-outfit text-slate-900 dark:text-white flex items-center gap-2">
-              <i class="ph ph-table text-indigo-600 dark:text-indigo-400 text-lg"></i>
-              Month Shift Master Grid
-            </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Complete month operational matrix with standard NOC color codes</p>
-          </div>
-
-          <div class="flex items-center gap-3 flex-wrap">
-            <!-- Month Navigator with Left & Right Arrows -->
-            <div class="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
-              <button id="btnPortalPrevMonth" type="button" title="Previous Month" class="px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition border-r border-slate-300 dark:border-slate-800 cursor-pointer">
-                <i class="ph ph-caret-left font-bold text-sm"></i>
-              </button>
-              <div class="flex items-center gap-1.5 px-3 py-1 bg-slate-100/90 dark:bg-slate-900/90">
-                <i class="ph ph-calendar text-cyan-600 dark:text-cyan-400 text-sm"></i>
-                <select id="portalMonthSelect" class="bg-transparent text-xs font-bold text-slate-800 dark:text-white focus:outline-none cursor-pointer">
-                  <option value="">Loading...</option>
-                </select>
-              </div>
-              <button id="btnPortalNextMonth" type="button" title="Next Month" class="px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition border-l border-slate-300 dark:border-slate-800 cursor-pointer">
-                <i class="ph ph-caret-right font-bold text-sm"></i>
-              </button>
-            </div>
-
-            <!-- Filter Search -->
-            <div class="relative">
-              <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
-              <input 
-                type="text" 
-                id="portalSearchInput" 
-                placeholder="Filter engineer..."
-                class="pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-44"
-              />
-            </div>
-
-            <!-- Export to Excel Button -->
-            <button 
-              type="button" 
-              id="btnPortalExportMonthGrid"
-              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
-            >
-              <i class="ph ph-file-xls text-base"></i>
-              <span>Export to Excel</span>
-            </button>
-
-            <!-- Export to HD PNG Button -->
-            <button 
-              type="button" 
-              id="btnPortalExportPng"
-              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
-            >
-              <i class="ph ph-image text-base"></i>
-              <span>Export to PNG (HD)</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 31 Days Scrollable Matrix Table (Strict Fixed Table Layout) -->
-        <div class="overflow-x-auto relative rounded-xl border border-slate-800 max-h-[560px]">
-          <table class="border-collapse text-center text-xs select-none w-max min-w-full" id="monthGridTable" style="table-layout: fixed;">
-            
-            <!-- Sticky Dual Header -->
-            <thead class="sticky top-0 z-30 bg-slate-900 shadow-sm">
-              <tr id="gridHeaderDatesRow"></tr>
-              <tr id="gridHeaderDaysRow"></tr>
-            </thead>
-
-            <!-- Table Body -->
-            <tbody id="monthGridTableBody">
-              <!-- Injected by userPortal.js -->
-            </tbody>
-
-          </table>
-        </div>
-
-        <!-- Color Codes Legend -->
-        <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-3 text-[11px] font-semibold flex-wrap text-slate-400">
-          <span class="font-bold text-slate-300">Shift Codes Legend:</span>
-          <span class="px-2 py-0.5 rounded shift-FS">FS (07:30-16:30)</span>
-          <span class="px-2 py-0.5 rounded shift-FG">FG (08:30-17:30)</span>
-          <span class="px-2 py-0.5 rounded shift-G">G (09:30-18:30)</span>
-          <span class="px-2 py-0.5 rounded shift-SG">SG (11:00-20:00)</span>
-          <span class="px-2 py-0.5 rounded shift-SS">SS (13:00-22:00)</span>
-          <span class="px-2 py-0.5 rounded shift-NS">NS (21:00-07:30)</span>
-          <span class="px-2 py-0.5 rounded shift-OFF">OFF (Weekly Off)</span>
-        </div>
-
-      </div>
-
-    </section>
-
+    <!-- Full-View Subscreens (Credential Tracker, My Team, Profile & Settings) -->
+    <section id="subview_credentials" class="rx-subview rx-hidden"></section>
+    <section id="subview_my_team" class="rx-subview rx-hidden"></section>
+    <section id="subview_profile" class="rx-subview rx-hidden"></section>
   </main>
 
-
-
-  <!-- ============================================================== -->
-
-  <!-- MODAL: ACCOUNT PROFILE & SECURITY -->
-
-  <!-- ============================================================== -->
-
-  <div id="accountProfileModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-
-    <div class="glass-panel rounded-2xl w-full max-w-lg p-6 relative border border-slate-700 shadow-2xl">
-
-      
-
-      <!-- Close Button -->
-
-      <button id="btnCloseAccountModal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer">
-
-        <i class="ph ph-x text-lg"></i>
-
-      </button>
-
-
-
-      <!-- Modal Header -->
-      <div class="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div id="modalAccountAvatarBox" class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xl font-black shadow-md shrink-0 overflow-hidden relative">
-          <img id="modalAccountAvatarImg" class="w-full h-full object-cover hidden" alt="Avatar" />
-          <span id="modalAccountAvatarText"><i class="ph ph-user-circle"></i></span>
-        </div>
-        <div class="flex-1">
-          <div class="flex items-center gap-2">
-            <h3 class="text-base font-bold text-slate-900 dark:text-white font-outfit" id="modalAccountName">User Profile</h3>
-            <button type="button" id="btnEditPortalName" class="text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 p-1 rounded-md hover:bg-cyan-50 dark:hover:bg-cyan-950/40 transition cursor-pointer" title="Edit Full Name">
-              <i class="ph ph-pencil-simple text-sm"></i>
-            </button>
-          </div>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Account Credentials, Contact Data & Profile Picture</p>
-          <div class="flex items-center gap-2 mt-1.5">
-            <label for="inputPortalAvatar" class="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white cursor-pointer transition shadow-xs flex items-center gap-1">
-              <i class="ph ph-camera"></i> <span id="lblUploadPhoto">Change Photo</span>
-            </label>
-            <input type="file" id="inputPortalAvatar" accept="image/*" class="hidden" />
-            <button type="button" id="btnRemovePortalAvatar" class="px-2 py-1 text-[11px] font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 transition cursor-pointer hidden">
-              <i class="ph ph-trash"></i> Remove Photo
-            </button>
-            <span id="avatarUploadStatus" class="text-[10px] text-slate-500 font-medium"></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Account Navigation Tabs -->
-      <div class="flex border-b border-slate-200 dark:border-slate-800 mb-4 gap-2">
-        <button type="button" id="tabBtnProfile" class="pb-2 px-3 text-xs font-bold text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 cursor-pointer">
-          <i class="ph ph-identification-card mr-1"></i> Profile Information
-        </button>
-        <button type="button" id="tabBtnSecurity" class="pb-2 px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-b-2 border-transparent cursor-pointer">
-          <i class="ph ph-shield-key mr-1"></i> Security & Password
-        </button>
-      </div>
-
-      <!-- TAB 1: Profile Information -->
-      <div id="accountTabProfile" class="space-y-3.5">
-        <div class="grid grid-cols-2 gap-3 text-xs">
-          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Full Name</span>
-            <div class="flex items-center justify-between">
-              <span id="profileFullName" class="font-bold text-slate-900 dark:text-slate-100 text-xs">--</span>
-              <button type="button" id="btnEditPortalFullName" class="text-cyan-600 dark:text-cyan-400 text-xs hover:underline cursor-pointer"><i class="ph ph-pencil-simple"></i> Edit</button>
-            </div>
-          </div>
-          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Username / Staff ID</span>
-            <span id="profileUsername" class="font-mono font-bold text-cyan-600 dark:text-cyan-300 text-xs">--</span>
-          </div>
-          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Official Email</span>
-            <span id="profileEmail" class="font-semibold text-slate-700 dark:text-slate-200 text-xs break-all">--</span>
-          </div>
-          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Contact Phone</span>
-            <span id="profilePhone" class="font-semibold text-slate-700 dark:text-slate-200 text-xs">--</span>
-          </div>
-          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Operational Role</span>
-            <span id="profileRole" class="font-bold text-cyan-600 dark:text-cyan-400 text-xs">--</span>
-          </div>
-          <div id="profileOffsContainer" class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Scheduled Weekly Offs</span>
-            <span id="profileOffs" class="font-semibold text-amber-600 dark:text-amber-300 text-xs">--</span>
-          </div>
-          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Joining Date</span>
-            <span id="profileJoinDate" class="font-semibold text-slate-700 dark:text-slate-200 text-xs">--</span>
-          </div>
-          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Birthday 🎂</span>
-            <span id="profileBirthday" class="font-semibold text-amber-600 dark:text-amber-400 text-xs">--</span>
-          </div>
-        </div>
-
-      </div>
-
-
-
-      <!-- TAB 2: Change Password -->
-
-      <div id="accountTabSecurity" class="hidden space-y-3.5">
-
-        
-
-        <!-- Feedback Alert Banner -->
-
-        <div id="changePassAlert" class="hidden p-3 rounded-xl text-xs flex items-start gap-2">
-
-          <i class="ph ph-info text-base shrink-0 mt-0.5"></i>
-
-          <span id="changePassAlertText"></span>
-
-        </div>
-
-
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
-          <div class="relative">
-            <input 
-              type="password" 
-              id="currentPassInput" 
-              name="current-password"
-              autocomplete="current-password"
-              placeholder="Enter current password"
-              class="w-full pl-3.5 pr-10 py-2 bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-            <button type="button" id="toggleCurrentPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
-              <i class="ph ph-eye text-sm" id="eyeCurrentPass"></i>
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Password</label>
-          <div class="relative">
-            <input 
-              type="password" 
-              id="newPassChangeInput" 
-              name="new-password"
-              autocomplete="new-password"
-              placeholder="Min 4 characters"
-              class="w-full pl-3.5 pr-10 py-2 bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-            <button type="button" id="toggleNewPass" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
-              <i class="ph ph-eye text-sm" id="eyeNewPass"></i>
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
-          <div class="relative">
-            <input 
-              type="password" 
-              id="confirmPassChangeInput" 
-              name="confirm-password"
-              autocomplete="new-password"
-              placeholder="Confirm new password"
-              class="w-full pl-3.5 pr-10 py-2 bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
-        </div>
-
-
-
-        <button 
-
-          type="button" 
-
-          id="btnSubmitChangePass" 
-
-          class="w-full py-2.5 rounded-xl font-bold text-white text-xs bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 transition shadow-md cursor-pointer flex items-center justify-center gap-1.5"
-
-        >
-
-          <i class="ph ph-key text-sm"></i>
-
-          <span>Update Account Password</span>
-
-        </button>
-
-
-
-      </div>
-
-
-
-    </div>
-
-  </div>
-
-
-
-  <!-- ============================================================== -->
-
-  <!-- FLOATING CUTOUT 3D BOT AI ASSISTANT -->
-
-  <!-- ============================================================== -->
-
-  <div class="fixed bottom-28 md:bottom-8 right-4 md:right-8 z-50">
-    <!-- Bot Avatar Trigger Button (Pure Cutout 3D Bot, No Round Background) -->
-    <button 
-      type="button" 
-      id="floatingAiBotTrigger"
-      class="w-14 h-14 bg-transparent p-0 flex items-center justify-center cursor-pointer group hover:scale-110 transition relative focus:outline-none border-0 shadow-none"
-      title="Open RosterX Operations Assistant"
-    >
-      <img 
-        src="assets/bot-3d-cutout.png" 
-        alt="AI Bot" 
-        class="w-full h-full object-contain animate-bot-float drop-shadow-[0_8px_16px_rgba(6,182,212,0.4)]"
-      />
-      <!-- Active pulsing beacon -->
-      <span class="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-950 animate-ping"></span>
-      <span class="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-950"></span>
-    </button>
-  </div>
-
-  <!-- FLOATING CHAT DRAWER / POPUP -->
-  <div 
-    id="aiChatDrawer" 
-    class="hidden fixed bottom-44 md:bottom-28 right-4 md:right-8 w-96 max-w-[calc(100vw-32px)] glass-panel rounded-2xl border border-cyan-500/40 shadow-2xl z-50 flex flex-col overflow-hidden max-h-[540px]"
-  >
-
-    <!-- Chat Header -->
-
-    <div class="bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 p-3.5 border-b border-slate-700/80 flex items-center justify-between">
-
-      <div class="flex items-center gap-2.5">
-
-        <div class="w-8 h-8 rounded-xl bg-slate-800 border border-cyan-500/30 flex items-center justify-center shrink-0">
-
-          <img src="assets/bot-3d-cutout.png" alt="Bot Icon" class="w-7 h-7 object-contain" />
-
-        </div>
-
-        <div>
-
-          <h4 class="text-xs font-bold text-white font-outfit">RosterX AI Assistant</h4>
-
-          <span class="text-[10px] text-cyan-400 font-medium">NOC Operations Assistant</span>
-
-        </div>
-
-      </div>
-
-      <button id="btnCloseAiChat" class="text-slate-400 hover:text-white p-1 transition cursor-pointer">
-
-        <i class="ph ph-x text-base"></i>
-
-      </button>
-
-    </div>
-
-
-
-    <!-- Quick Prompt Chips -->
-
-    <div class="p-2.5 bg-slate-900/60 border-b border-slate-800 flex gap-1.5 overflow-x-auto text-[11px]">
-
-      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer" data-prompt="What is my shift today and tomorrow?">
-
-        📌 My Shifts
-
-      </button>
-
-      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 cursor-pointer" data-prompt="Who is on night duty today?">
-
-        🌙 Night Shift
-
-      </button>
-
-      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 cursor-pointer" data-prompt="Who is covering day shift tomorrow?">
-
-        ☀️ Day Duty
-
-      </button>
-
-      <button type="button" class="ai-prompt-chip shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer" data-prompt="How many OFF days do I have this month?">
-
-        🏖️ Off Days
-
-      </button>
-
-    </div>
-
-
-
-    <!-- Messages Container -->
-
-    <div id="aiMessagesContainer" class="p-3.5 space-y-3 overflow-y-auto flex-1 min-h-[220px] max-h-[300px]">
-
-      <!-- Messages dynamically populated by userPortal.js -->
-
-    </div>
-
-
-
-    <!-- Chat Input Box -->
-
-    <div class="p-3 bg-slate-900/90 border-t border-slate-800 flex items-center gap-2">
-
-      <input 
-
-        type="text" 
-
-        id="aiChatInput" 
-
-        placeholder="Ask about your shifts or team duties..."
-
-        class="flex-1 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
-      />
-
-      <button 
-
-        type="button" 
-
-        id="btnSendAiChat"
-
-        class="w-8 h-8 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center transition cursor-pointer shrink-0"
-
-      >
-
-        <i class="ph ph-paper-plane-right text-sm"></i>
-
-      </button>
-
-    </div>
-
-
-
-  </div>
-
-
-
-  <!-- Main User Portal Controller Module -->
-
-  <script type="module" src="js/userPortal.js?v=7.2"></script>
-
-
-
+  <!-- Floating AI Assistant Button -->
+  <button type="button" id="btnRosterAiFab" class="rx-ai-fab" aria-label="RosterX AI Assistant" style="border:0;background:transparent;padding:0;cursor:pointer;width:54px;height:54px;">
+    <img src="assets/bot-3d-cutout.png" alt="RosterX AI" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(15,23,42,0.22));" />
+  </button>
+
+  <!-- Native Frosted <dialog> Overlays -->
+  <dialog id="rxNotificationsDialog" class="rx-modal" closedby="any" aria-labelledby="rxNotifDialogTitle"></dialog>
+  <dialog id="rxCelebrationDialog" class="rx-modal" closedby="any" aria-labelledby="rxCelebDialogTitle"></dialog>
+  <dialog id="rxEditProfileDialog" class="rx-modal" closedby="any" aria-labelledby="rxEditProfileTitle"></dialog>
+  <dialog id="rxConfirmRemovePhotoDialog" class="rx-modal" closedby="any" aria-labelledby="rxRemovePhotoTitle"></dialog>
+
+  <script type="module" src="js/userPortal.js"></script>
 </body>
-
 </html>
-

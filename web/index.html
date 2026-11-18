@@ -5,43 +5,40 @@
 <head>
 
   <meta charset="UTF-8">
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>RosterX — Dynamic Admin Engine & AI Smart Roster Generator</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#E8ECF2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RosterX">
+  <title>RosterX — Admin Operations Console</title>
   <link rel="icon" type="image/png" href="assets/logo.png">
-
-  
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/logo.png">
+  <link rel="manifest" href="manifest.webmanifest">
 
   <!-- Immediate Anti-FOUC Auth Guard & Security Cloak -->
-
   <style id="auth-cloak">
-
     html, body {
-
       visibility: hidden !important;
-
       opacity: 0 !important;
-
       background: #0b0f19 !important;
-
     }
-
   </style>
 
-  <!-- Instant Theme Guard: Zero-Flicker Execution Before Render -->
+  <!-- Instant Theme & 6-Palette Guard: Zero-Flicker Execution Before Render -->
   <script>
     (function() {
       try {
         var theme = localStorage.getItem('rosterx_theme') || 'system';
+        var palette = localStorage.getItem('rosterx_brand_palette') || 'tory_blue';
         var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.setAttribute('data-theme', theme);
-        if (isDark) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        document.documentElement.setAttribute('data-palette', palette);
+        document.documentElement.classList.toggle('dark', isDark);
+        var csMeta = document.querySelector('meta[name="color-scheme"]');
+        if (csMeta) csMeta.content = theme === 'system' ? 'light dark' : theme;
+        var tcMeta = document.querySelector('meta[name="theme-color"]');
+        if (tcMeta) tcMeta.content = isDark ? '#0B0F1A' : '#E8ECF2';
       } catch (e) {}
     })();
   </script>
@@ -58,8 +55,8 @@
           window.location.replace('login.html?session_expired=1');
           return;
         }
-        if (user.role !== 'admin' && user.role !== 'manager') {
-          window.location.replace('user-portal.html');
+        if (user.role !== 'admin') {
+          window.location.replace('user-portal.html' + (window.location.hash || ''));
           return;
         }
         var cloak = document.getElementById('auth-cloak');
@@ -108,9 +105,10 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- RosterX Neumorphic (Soft UI) Universal Design System Tokens & Styles -->
-  <link rel="stylesheet" href="css/tokens.css">
-  <link rel="stylesheet" href="css/neumorphic.css">
+  <!-- RosterX Neumorphic (Soft UI) Universal Design System Tokens & Adaptive Mobile/iOS PWA Shell -->
+  <link rel="stylesheet" href="css/tokens.css?v=2.0">
+  <link rel="stylesheet" href="css/neumorphic.css?v=2.0">
+  <link rel="stylesheet" href="css/mobile-shell.css?v=2.0">
 
   <script src="js/tailwind-neumorphic.js"></script>
 
@@ -397,10 +395,10 @@
       color: #f8fafc !important;
     }
 
-    /* Prevent mobile horizontal page overflow */
+    /* Prevent horizontal scroll without breaking position:sticky */
     html, body {
-      max-width: 100vw;
-      overflow-x: hidden;
+      max-width: 100%;
+      overflow-x: clip;
     }
 
     /* Clean swipable scroll containers */
@@ -418,11 +416,8 @@
 
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans antialiased min-h-screen flex flex-col">
 
-
-
-  <!-- Top Navigation Bar (Clean & Uncluttered Header) -->
-
-  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-xs sticky top-0 z-40 no-print">
+  <!-- Top Navigation Bar (Adaptive Mobile Portrait / Ultra-Slim Landscape / Desktop) -->
+  <header class="rx-topbar-safe bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-xs sticky top-0 z-40 no-print">
 
     <div class="flex items-center gap-2.5 sm:gap-3">
 
@@ -508,26 +503,23 @@
 
   </header>
 
-  <!-- Top Horizontal Neumorphic Dock -->
-  <nav class="bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-2 sm:px-6 py-1.5 sm:py-2.5 flex items-center justify-between no-print shadow-xs gap-2 overflow-x-auto no-scrollbar">
+  <!-- Top Horizontal Neumorphic Dock (Desktop Only — Mobile/Landscape uses MobileNavShell) -->
+  <nav class="rx-desktop-only-nav bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-2 sm:px-6 py-1.5 sm:py-2.5 flex items-center justify-between no-print shadow-xs gap-2 overflow-x-auto no-scrollbar">
     <div class="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 shrink-0">
       <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition shadow-sm bg-indigo-600 text-white border border-indigo-700 dark:border-indigo-500 cursor-pointer whitespace-nowrap" data-tab="dashboard">
         <i class="ph ph-gauge text-base text-cyan-300"></i> Operations Dashboard
       </button>
+      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="team">
+        <i class="ph ph-users-three text-base text-blue-600 dark:text-blue-400"></i> Register & Team
+      </button>
       <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="matrix">
         <i class="ph ph-table text-base text-indigo-600 dark:text-indigo-400"></i> Roster Matrix
-      </button>
-      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="team">
-        <i class="ph ph-users-three text-base text-blue-600 dark:text-blue-400"></i> Team Directory
-      </button>
-      <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="swaps">
-        <i class="ph ph-arrows-left-right text-base text-amber-600 dark:text-amber-400"></i> Swaps & Leaves
       </button>
       <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="broadcast">
         <i class="ph ph-megaphone text-base text-purple-600 dark:text-purple-400"></i> Broadcast Console
       </button>
       <button class="nav-tab-btn flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 cursor-pointer shadow-xs whitespace-nowrap" data-tab="diagnostics">
-        <i class="ph ph-dots-three-circle text-base text-emerald-600 dark:text-emerald-400"></i> Hub & Diagnostics
+        <i class="ph ph-dots-three-circle text-base text-emerald-600 dark:text-emerald-400"></i> More Hub & Diagnostics
       </button>
     </div>
     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -565,8 +557,8 @@
     </div>
   </section>
 
-  <!-- Main Content Body (Compact Responsive Layout) -->
-  <main class="flex-1 p-2.5 sm:p-4 lg:p-5 max-w-[1720px] w-full mx-auto space-y-3 sm:space-y-4 lg:space-y-6" id="printArea">
+  <!-- Main Content Body (Adaptive Mobile Portrait / Landscape Rail / Desktop) -->
+  <main class="rx-main-shell flex-1 p-2.5 sm:p-4 lg:p-5 max-w-[1720px] w-full mx-auto space-y-3 sm:space-y-4 lg:space-y-6" id="printArea">
 
     <!-- ========================================================================= -->
     <!-- TAB 1: OPERATIONS DASHBOARD (Default Landing View)                        -->
@@ -1210,34 +1202,7 @@
       </div>
     </section>
 
-    <!-- ========================================================================= -->
-    <!-- TAB 4: SWAPS & LEAVE MANAGEMENT                                           -->
-    <!-- ========================================================================= -->
-    <section id="tabContent_swaps" class="tab-panel hidden space-y-4">
-      <div class="bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center text-lg font-bold">
-              <i class="ph ph-arrows-left-right"></i>
-            </div>
-            <div>
-              <h3 class="font-extrabold text-slate-900 text-base">Swaps & Leave Management Queue</h3>
-              <p class="text-xs text-slate-500">Live operational requests with automated rest-period compliance validation</p>
-            </div>
-          </div>
-          <button id="btnOpenSwapsModalFromTab" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 cursor-pointer">
-            <i class="ph ph-plus text-sm"></i> Add Mutual Swap
-          </button>
-        </div>
-        <div id="tabSwapsQueueList" class="space-y-2.5">
-          <!-- Injected via Javascript -->
-          <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
-            <i class="ph ph-arrows-clockwise text-2xl mb-1 text-slate-300 block"></i>
-            No Active Swap Records in Queue
-          </div>
-        </div>
-      </div>
-    </section>
+      <!-- Swap Request UI removed in v2.0.0 for 1:1 Android parity -->
 
     <!-- ========================================================================= -->
     <!-- TAB 4: AI SCHEDULING STUDIO                                               -->
@@ -1282,10 +1247,45 @@
     </section>
 
     <!-- ========================================================================= -->
-    <!-- TAB 5: SYSTEM DIAGNOSTICS & LOGS                                          -->
+    <!-- TAB 5: MORE HUB — SERVER CREDENTIAL TRACKER, APPEARANCE & DIAGNOSTICS     -->
     <!-- ========================================================================= -->
     <section id="tabContent_diagnostics" class="tab-panel hidden space-y-4">
-      <div class="bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-4">
+      <!-- Operations Hub Sub-Switcher (Server Credential Tracker / Diagnostics & Logs / Appearance) -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button type="button" data-admin-hub="credentials" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-sm flex items-center gap-1.5">
+          <i class="ph ph-key text-base"></i> Server Credential Tracker
+        </button>
+        <button type="button" data-admin-hub="diagnostics" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5">
+          <i class="ph ph-terminal-window text-base"></i> Server Diagnostics & Logs
+        </button>
+        <button type="button" data-admin-hub="appearance" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5">
+          <i class="ph ph-palette text-base"></i> Appearance & 6 Palettes
+        </button>
+      </div>
+
+      <!-- Sub-panel 1: Server Credential Tracker (1:1 Android Parity) -->
+      <div id="adminHubPanel_credentials" class="space-y-4">
+        <div id="adminCredentialTrackerHost"></div>
+      </div>
+
+      <!-- Sub-panel 2: Appearance & Brand Palettes (6 Android Palettes + 3-State Theme) -->
+      <div id="adminHubPanel_appearance" class="hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 shadow-sm p-5 space-y-4">
+          <div class="flex items-center gap-2.5 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg">
+              <i class="ph ph-palette"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-slate-900 dark:text-white text-base">Appearance & Brand Palette</h3>
+              <p class="text-xs text-slate-500">All 6 RosterX Android Neumorphic palettes synced with System / Light / Dark mode</p>
+            </div>
+          </div>
+          <div id="adminAppearanceHost"></div>
+        </div>
+      </div>
+
+      <!-- Sub-panel 3: Live Diagnostics & Host Terminal -->
+      <div id="adminHubPanel_diagnostics" class="hidden bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-xl bg-slate-900 text-emerald-400 flex items-center justify-center text-lg font-mono">
@@ -1496,12 +1496,13 @@
               </div>
             </div>
 
-            <!-- Subject / Title Input -->
-            <div>
+            <!-- Subject / Title Input with Live '@' Mention Support -->
+            <div class="relative">
               <label for="broadcastTitleInput" class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
-                Announcement Subject / Title
+                Announcement Subject / Title <span class="text-[10px] font-normal text-slate-400">(supports @mentions &amp; {name})</span>
               </label>
               <input id="broadcastTitleInput" type="text" value="Shift Operations Announcement" class="w-full px-3.5 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <div id="broadcastTitleMentionDropdown" class="hidden absolute z-50 left-0 top-full mt-1 w-64 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl shadow-xl p-1 space-y-1"></div>
             </div>
 
             <!-- Quick Mention & Token Helpers Toolbar -->
@@ -1525,7 +1526,7 @@
             <div class="relative">
               <textarea id="broadcastMessageInput" rows="6" class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y" placeholder="Type your broadcast announcement here... Use {name} for personal greeting or @username to mention a teammate.">Dear {name},
 
-Please review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any shift swap requests.
+Please review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any schedule questions.
 
 Best regards,
 Operations Desk</textarea>
@@ -2115,211 +2116,7 @@ Operations Desk</textarea>
 
 
 
-  <!-- ========================================================================= -->
-
-  <!-- MODAL 3: 🔄 Swaps & Absences Ledger (Module D: Swap-First Policy)           -->
-
-  <!-- ========================================================================= -->
-
-  <div id="swapsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
-
-    <div class="bg-white rounded-2xl border border-slate-300 shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
-
-      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-
-        <div class="flex items-center gap-2.5">
-
-          <div class="bg-amber-600 text-white p-2 rounded-xl">
-
-            <i class="ph ph-arrows-clockwise text-2xl"></i>
-
-          </div>
-
-          <div>
-
-            <h2 class="text-base font-bold text-slate-900">Swaps & Absences Ledger — "Swap-First" Policy</h2>
-
-            <p class="text-xs text-slate-500">Prioritize AI-negotiated peer swaps before unstaffed Leave (`L`)</p>
-
-          </div>
-
-        </div>
-
-        <button id="btnCloseSwapsModal" class="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-lg">
-
-          <i class="ph ph-x"></i>
-
-        </button>
-
-      </div>
-
-
-
-      <!-- Tab Switcher -->
-
-      <div class="flex border-b border-slate-200 bg-white px-6 text-xs font-semibold text-slate-600">
-
-        <button id="tabBtnMutualSwaps" class="px-4 py-2.5 border-b-2 border-amber-600 text-amber-700 font-bold flex items-center gap-1.5" data-tab="tabMutual">
-
-          <i class="ph ph-handshake"></i> Pre-Locked Mutual Swaps (Manual)
-
-        </button>
-
-        <button id="tabBtnSmartAbsences" class="px-4 py-2.5 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-1.5" data-tab="tabSmart">
-
-          <i class="ph ph-sparkle"></i> AI-Arbitrated Absence Requests
-
-        </button>
-
-      </div>
-
-
-
-      <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
-
-        
-
-        <!-- Tab 1: Mutual Swaps -->
-
-        <div id="tabMutual" class="tab-swaps-content space-y-3">
-
-          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
-
-            <h4 class="font-bold text-slate-800">Add Pre-Locked Mutual Swap Pair:</h4>
-
-            <div class="grid grid-cols-4 gap-2">
-
-              <div>
-
-                <label class="block text-[10px] text-slate-500">Day (Swap Date):</label>
-
-                <input type="number" id="mutSwapDay1" min="1" max="31" value="10" class="w-full border border-slate-300 rounded p-1 font-mono">
-
-              </div>
-
-              <div>
-
-                <label class="block text-[10px] text-slate-500">Engineer A (Gets Swap OFF):</label>
-
-                <select id="mutSwapEngA" class="w-full border border-slate-300 rounded p-1"></select>
-
-              </div>
-
-              <div>
-
-                <label class="block text-[10px] text-slate-500">Engineer B (Covers Shift):</label>
-
-                <select id="mutSwapEngB" class="w-full border border-slate-300 rounded p-1"></select>
-
-              </div>
-
-              <div>
-
-                <label class="block text-[10px] text-slate-500">Day (Re-Swap Payback):</label>
-
-                <input type="number" id="mutSwapDay2" min="1" max="31" value="22" class="w-full border border-slate-300 rounded p-1 font-mono">
-
-              </div>
-
-            </div>
-
-            <button id="btnAddMutualSwap" class="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-1.5 rounded-lg transition shadow">
-
-              Register Pre-Locked Mutual Swap Pair
-
-            </button>
-
-          </div>
-
-
-
-          <div>
-
-            <h4 class="font-bold text-slate-700 mb-2">Registered Mutual Swap Pairs:</h4>
-
-            <div id="mutualSwapsList" class="space-y-1.5">
-
-              <span class="text-slate-400 italic">No mutual swaps registered.</span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-
-
-        <!-- Tab 2: Smart Absence Requests -->
-
-        <div id="tabSmart" class="tab-swaps-content hidden space-y-3">
-
-          <div class="bg-purple-50 p-3.5 rounded-xl border border-purple-200 space-y-2 text-purple-900">
-
-            <h4 class="font-bold flex items-center gap-1.5">
-
-              <i class="ph ph-sparkle text-base text-purple-600"></i> Smart Swap-First Absence Request:
-
-            </h4>
-
-            <p class="text-[11px] text-purple-700">
-
-              Submit single absence requests. Gemini automatically searches for eligible peers to cover and sets reciprocal payback dates before defaulting to Leave (`L`).
-
-            </p>
-
-            <div class="grid grid-cols-3 gap-2">
-
-              <div>
-
-                <label class="block text-[10px] text-purple-700">Requesting Engineer:</label>
-
-                <select id="absReqEngineer" class="w-full border border-purple-300 rounded p-1 bg-white"></select>
-
-              </div>
-
-              <div>
-
-                <label class="block text-[10px] text-purple-700">Day of Absence (1–31):</label>
-
-                <input type="number" id="absReqDay" min="1" max="31" value="18" class="w-full border border-purple-300 rounded p-1 bg-white font-mono">
-
-              </div>
-
-              <div class="flex items-end">
-
-                <button id="btnAddAbsenceRequest" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 rounded transition shadow">
-
-                  Submit Absence Request
-
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-
-
-
-          <div>
-
-            <h4 class="font-bold text-slate-700 mb-2">Pending Absence Requests for AI Arbitration:</h4>
-
-            <div id="absenceRequestsList" class="space-y-1.5">
-
-              <span class="text-slate-400 italic">No absence requests registered.</span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
+  <!-- Swap Request Modal removed in v2.0.0 for 1:1 Android parity -->
 
 
 
@@ -4267,43 +4064,10 @@ Operations Desk</textarea>
 
 
 
-  <!-- Floating Neumorphic Bottom Dock (Mobile Viewports < 768px) -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 flex items-center justify-around shadow-[0_-4px_16px_rgba(0,0,0,0.08)] no-print">
-    <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-[#FF5252] font-bold py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="dashboard">
-      <i class="ph ph-gauge text-xl"></i>
-      <span class="text-[10px] mt-0.5">Console</span>
-      <span class="mobile-active-bubble w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
-    </button>
-    <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="matrix">
-      <i class="ph ph-table text-xl"></i>
-      <span class="text-[10px] mt-0.5">Roster</span>
-      <span class="mobile-active-bubble hidden w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
-    </button>
-    <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="team">
-      <i class="ph ph-users-three text-xl"></i>
-      <span class="text-[10px] mt-0.5">Team</span>
-      <span class="mobile-active-bubble hidden w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
-    </button>
-    <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="swaps">
-      <i class="ph ph-arrows-left-right text-xl"></i>
-      <span class="text-[10px] mt-0.5">Swaps</span>
-      <span class="mobile-active-bubble hidden w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
-    </button>
-    <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="broadcast">
-      <i class="ph ph-megaphone text-xl"></i>
-      <span class="text-[10px] mt-0.5">Broadcast</span>
-      <span class="mobile-active-bubble hidden w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
-    </button>
-    <button class="mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer" data-tab="diagnostics">
-      <i class="ph ph-dots-three-circle text-xl"></i>
-      <span class="text-[10px] mt-0.5">More</span>
-      <span class="mobile-active-bubble hidden w-1.5 h-1.5 rounded-full bg-[#FF5252] mt-0.5"></span>
-    </button>
-  </nav>
+  <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-
-  <script type="module" src="js/app.js?v=7.2"></script>
+  <script type="module" src="js/app.js?v=2.0"></script>
 
 </body>
 

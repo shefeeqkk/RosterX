@@ -1,29 +1,40 @@
 /**
  * RosterX — Unified Cross-Platform Design Tokens (tokens.css)
- * 
- * Auto-generated from design-tokens.json matching Android Compose NeumorphicTokens.kt
- * Modes: Light (#EEF2F6), Dark (#1E293B), System (auto-adapts to prefers-color-scheme)
+ *
+ * 1:1 parity with Android Compose NeumorphicTokens.kt:
+ * - 3-State Theme: System (default) / Light (#EEF2F6) / Dark (#1E293B)
+ * - 6 Dual-State Brand Palettes: Tory Blue, Crimson Coral, Emerald Green,
+ *   Indigo Violet, Sunset Amber, Ocean Cyan
+ * - Reflects <meta name="color-scheme"> back into CSS color-scheme
  */
 
 :root {
+  color-scheme: light dark;
+
   /* Default: Light Palette Baseline */
   --nm-canvas: #EEF2F6;
   --nm-surface: #EEF2F6;
   --nm-surface-contrast: #E2E8F0;
+  --nm-input-surface: #E2E8F0;
   --nm-surface-hover: #E7EDF3;
   --nm-text: #1E293B;
   --nm-text-muted: #64748B;
   --nm-text-faint: #94A3B8;
   --nm-shadow-dark: rgba(146, 163, 184, 0.55);
-  --nm-shadow-light: #FFFFFF;
-  --nm-border: rgba(226, 232, 240, 0.85);
+  --nm-shadow-light: rgba(255, 255, 255, 0.92);
+  --nm-border: rgba(203, 213, 225, 0.72);
   --nm-divider: rgba(203, 213, 225, 0.6);
   --nm-card-bg: #EEF2F6;
 
-  /* Accent & Kinetic Energy Colors */
-  --nm-accent-salmon: #FF5252;
-  --nm-accent-coral: #FF6B6B;
-  --nm-accent-glow: rgba(255, 82, 82, 0.35);
+  /* Dynamic Brand Accent (default: Tory Blue — matches Android DefaultPalette) */
+  --nm-accent: #174EAC;
+  --nm-accent-soft: rgba(23, 78, 172, 0.13);
+  --nm-accent-glow: rgba(23, 78, 172, 0.32);
+  --nm-accent-gradient: linear-gradient(135deg, color-mix(in srgb, var(--nm-accent) 78%, white), var(--nm-accent));
+
+  /* Backwards-compatible accent aliases */
+  --nm-accent-salmon: var(--nm-accent);
+  --nm-accent-coral: var(--nm-accent);
   --nm-accent-cyan: #0284C7;
   --nm-accent-cyan-light: #38BDF8;
   --nm-accent-emerald: #10B981;
@@ -42,104 +53,124 @@
   --nm-shadow-raised-subtle: 3px 3px 8px var(--nm-shadow-dark), -3px -3px 8px var(--nm-shadow-light);
   --nm-shadow-inset: inset 4px 4px 8px var(--nm-shadow-dark), inset -4px -4px 8px var(--nm-shadow-light);
   --nm-shadow-inset-subtle: inset 2px 2px 5px var(--nm-shadow-dark), inset -2px -2px 5px var(--nm-shadow-light);
-  --nm-shadow-floating: 14px 14px 28px var(--nm-shadow-dark), -14px -14px 28px var(--nm-shadow-light);
+  /* Floating Dialog Shadow: downward ambient + key shadow ONLY (zero white outer halo!) */
+  --nm-shadow-floating: 0 12px 32px rgba(15, 23, 42, 0.22), 0 4px 10px rgba(15, 23, 42, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.45);
 
   /* Animation & Motion */
   --nm-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --nm-spring: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Touch Target Baseline (WCAG 2.5.8 / 2.5.5) */
+  --target-size: 28px;
 }
 
+@media (pointer: coarse) {
+  :root {
+    --target-size: 44px;
+  }
+}
+
+/* Reflect <meta name="color-scheme"> override back into CSS color-scheme */
+:root:has(> head > meta[name="color-scheme"][content="dark"]) {
+  color-scheme: dark;
+}
+:root:has(> head > meta[name="color-scheme"][content="light"]) {
+  color-scheme: light;
+}
+
+/* 6 Brand Color Palettes — Light Mode */
+html[data-palette="tory_blue"]     { --nm-accent: #174EAC; --nm-accent-soft: rgba(23, 78, 172, 0.13);  --nm-accent-glow: rgba(23, 78, 172, 0.32); }
+html[data-palette="crimson_coral"] { --nm-accent: #FF5252; --nm-accent-soft: rgba(255, 82, 82, 0.14);  --nm-accent-glow: rgba(255, 82, 82, 0.35); }
+html[data-palette="emerald_green"] { --nm-accent: #059669; --nm-accent-soft: rgba(5, 150, 105, 0.14);  --nm-accent-glow: rgba(5, 150, 105, 0.32); }
+html[data-palette="indigo_violet"] { --nm-accent: #6366F1; --nm-accent-soft: rgba(99, 102, 241, 0.14); --nm-accent-glow: rgba(99, 102, 241, 0.34); }
+html[data-palette="sunset_amber"]  { --nm-accent: #D97706; --nm-accent-soft: rgba(217, 119, 6, 0.14);  --nm-accent-glow: rgba(217, 119, 6, 0.34); }
+html[data-palette="ocean_cyan"]    { --nm-accent: #0284C7; --nm-accent-soft: rgba(2, 132, 199, 0.14);  --nm-accent-glow: rgba(2, 132, 199, 0.32); }
+
 /* Explicit Dark Mode */
-html[data-theme="dark"] {
+html[data-theme="dark"],
+html.dark {
   --nm-canvas: #1E293B;
   --nm-surface: #1E293B;
   --nm-surface-contrast: #334155;
+  --nm-input-surface: #151F2E;
   --nm-surface-hover: #283548;
   --nm-text: #F8FAFC;
   --nm-text-muted: #94A3B8;
   --nm-text-faint: #64748B;
   --nm-shadow-dark: rgba(11, 17, 32, 0.80);
   --nm-shadow-light: rgba(71, 85, 105, 0.25);
-  --nm-border: rgba(51, 65, 85, 0.65);
-  --nm-divider: rgba(51, 65, 85, 0.5);
+  --nm-border: rgba(255, 255, 255, 0.12);
+  --nm-divider: rgba(51, 65, 85, 0.6);
   --nm-card-bg: #1E293B;
   --nm-accent-cyan: #38BDF8;
+  --nm-shadow-floating: 0 16px 36px rgba(2, 6, 23, 0.72), 0 4px 14px rgba(0, 0, 0, 0.50), inset 0 0 0 1px rgba(148, 163, 184, 0.18);
 }
+
+/* 6 Brand Color Palettes — Dark Mode (WCAG 4.5:1 lightened equivalents matching Android) */
+html.dark[data-palette="tory_blue"],     html.dark:not([data-palette]) { --nm-accent: #7294CC; --nm-accent-soft: rgba(114, 148, 204, 0.18); --nm-accent-glow: rgba(114, 148, 204, 0.34); }
+html.dark[data-palette="crimson_coral"] { --nm-accent: #FB7185; --nm-accent-soft: rgba(251, 113, 133, 0.18); --nm-accent-glow: rgba(251, 113, 133, 0.34); }
+html.dark[data-palette="emerald_green"] { --nm-accent: #34D399; --nm-accent-soft: rgba(52, 211, 153, 0.18);  --nm-accent-glow: rgba(52, 211, 153, 0.34); }
+html.dark[data-palette="indigo_violet"] { --nm-accent: #818CF8; --nm-accent-soft: rgba(129, 140, 248, 0.18); --nm-accent-glow: rgba(129, 140, 248, 0.34); }
+html.dark[data-palette="sunset_amber"]  { --nm-accent: #FBBF24; --nm-accent-soft: rgba(251, 191, 36, 0.18);  --nm-accent-glow: rgba(251, 191, 36, 0.34); }
+html.dark[data-palette="ocean_cyan"]    { --nm-accent: #38BDF8; --nm-accent-soft: rgba(56, 189, 248, 0.18);  --nm-accent-glow: rgba(56, 189, 248, 0.34); }
 
 /* Explicit Light Mode */
 html[data-theme="light"] {
   --nm-canvas: #EEF2F6;
   --nm-surface: #EEF2F6;
   --nm-surface-contrast: #E2E8F0;
+  --nm-input-surface: #E2E8F0;
   --nm-surface-hover: #E7EDF3;
   --nm-text: #1E293B;
   --nm-text-muted: #64748B;
   --nm-text-faint: #94A3B8;
   --nm-shadow-dark: rgba(146, 163, 184, 0.55);
-  --nm-shadow-light: #FFFFFF;
-  --nm-border: rgba(226, 232, 240, 0.85);
+  --nm-shadow-light: rgba(255, 255, 255, 0.92);
+  --nm-border: rgba(203, 213, 225, 0.72);
   --nm-divider: rgba(203, 213, 225, 0.6);
   --nm-card-bg: #EEF2F6;
   --nm-accent-cyan: #0284C7;
 }
 
-/* Automatic System Mode when theme is 'system' or unset */
+/* Automatic System Mode when theme is 'system' or unset (no-JS safe) */
 @media (prefers-color-scheme: dark) {
   html:not([data-theme="light"]) {
     --nm-canvas: #1E293B;
     --nm-surface: #1E293B;
     --nm-surface-contrast: #334155;
+    --nm-input-surface: #151F2E;
     --nm-surface-hover: #283548;
     --nm-text: #F8FAFC;
     --nm-text-muted: #94A3B8;
     --nm-text-faint: #64748B;
     --nm-shadow-dark: rgba(11, 17, 32, 0.80);
     --nm-shadow-light: rgba(71, 85, 105, 0.25);
-    --nm-border: rgba(51, 65, 85, 0.65);
-    --nm-divider: rgba(51, 65, 85, 0.5);
+    --nm-border: rgba(255, 255, 255, 0.12);
+    --nm-divider: rgba(51, 65, 85, 0.6);
     --nm-card-bg: #1E293B;
     --nm-accent-cyan: #38BDF8;
+    --nm-shadow-floating: 0 16px 36px rgba(2, 6, 23, 0.72), 0 4px 14px rgba(0, 0, 0, 0.50), inset 0 0 0 1px rgba(148, 163, 184, 0.18);
   }
 }
 
-/* ==========================================================================
-   Universal Theme Adaptation Rules (Tailwind & Neumorphic Hybrid)
-   ========================================================================== */
-html.dark {
-  color-scheme: dark;
-}
-
-html:not(.dark) {
-  color-scheme: light;
-}
-
 html.dark body {
-  background-color: var(--nm-canvas, #0B1120) !important;
+  background-color: var(--nm-canvas, #1E293B) !important;
   color: var(--nm-text, #F8FAFC) !important;
 }
 
 html:not(.dark) body {
-  background-color: var(--nm-canvas, #F8FAFC) !important;
-  color: var(--nm-text, #0F172A) !important;
+  background-color: var(--nm-canvas, #EEF2F6) !important;
+  color: var(--nm-text, #1E293B) !important;
 }
 
-/* Explicit form input styling */
-html.dark input[type="text"]:not(.bg-transparent),
-html.dark input[type="password"]:not(.bg-transparent),
-html.dark select:not(.bg-transparent),
-html.dark textarea:not(.bg-transparent) {
-  background-color: var(--nm-surface-contrast, #1E293B) !important;
-  border-color: var(--nm-border, #334155) !important;
-  color: var(--nm-text, #F8FAFC) !important;
+/* Balanced headings & safe text wrapping */
+h1, h2, h3 {
+  text-wrap: balance;
 }
-
-html:not(.dark) input[type="text"]:not(.bg-transparent),
-html:not(.dark) input[type="password"]:not(.bg-transparent),
-html:not(.dark) select:not(.bg-transparent),
-html:not(.dark) textarea:not(.bg-transparent) {
-  background-color: #FFFFFF !important;
-  border-color: #CBD5E1 !important;
-  color: #0F172A !important;
+body {
+  overflow-wrap: break-word;
 }
-
-
+img, video {
+  max-inline-size: 100%;
+  block-size: auto;
+}

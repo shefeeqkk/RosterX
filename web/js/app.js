@@ -68,8 +68,11 @@ import {
   todayFormatted,
   getIstNow
 } from './dateUtils.js';
-import { themeController } from './themeController.js';
-import { broadcastController } from './broadcastController.js';
+import { themeController } from './themeController.js?v=2.0';
+import { broadcastController } from './broadcastController.js?v=2.0';
+import { registerPwaServiceWorker, mountIosInstallBanner } from './pwaHelper.js?v=2.0';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0';
+import { CredentialTrackerController } from './credentialTracker.js?v=2.0';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -556,6 +559,8 @@ class RosterXApp {
 
   async init() {
     themeController.init();
+    registerPwaServiceWorker();
+    mountIosInstallBanner();
     this.cacheDomElements();
     this.bindEvents();
     this.setupAtlasSyncBadge();
@@ -662,6 +667,84 @@ class RosterXApp {
       getEngineers: () => this.state.engineersList || [],
       showToast: (msg, type) => this.showToast(msg, type)
     });
+
+    // 4. Adaptive Mobile Portrait Bottom Dock + Mobile Landscape Left Rail (5 Android Admin Tabs)
+    this.activeAdminHub = 'credentials';
+    this.mobileNavShell = new MobileNavShell({
+      tabs: [
+        { id: 'dashboard', label: 'Dashboard', icon: 'ph-gauge' },
+        { id: 'team', label: 'Register', icon: 'ph-users-three' },
+        { id: 'matrix', label: 'Rosters', icon: 'ph-table' },
+        { id: 'broadcast', label: 'Broadcast', icon: 'ph-megaphone' },
+        { id: 'diagnostics', label: 'More', icon: 'ph-dots-three-circle' }
+      ],
+      rosterTabId: 'matrix',
+      onTabSelected: (tabId) => this.switchTab(tabId)
+    });
+    this.mobileNavShell.mount();
+    this.mobileNavShell.setActive(this.activeTab);
+
+    // 5. Server Credential Tracker & 6-Palette Appearance inside Admin More Hub
+    const credHost = document.getElementById('adminCredentialTrackerHost');
+    if (credHost) {
+      this.credentialTracker = new CredentialTrackerController({
+        container: credHost,
+        currentUser: activeAuthUser || { role: 'admin', name: 'Admin' },
+        onToast: (msg, type) => this.showToast(msg, type)
+      });
+    }
+    this.mountAdminAppearancePicker();
+    this.bindAdminHubSwitcher();
+
+    // 6. Deep-link routing parity (/open/roster, /open/notifications, /open/credentials, /open/profile)
+    const deepLink = consumeDeepLinkHash();
+    if (deepLink === 'roster') {
+      this.switchTab('matrix');
+    } else if (deepLink === 'notifications') {
+      this.switchTab('broadcast');
+    } else if (deepLink === 'credentials') {
+      this.switchTab('diagnostics');
+      this.switchAdminHub('credentials');
+    } else if (deepLink === 'profile') {
+      document.getElementById('adminUserPill')?.click();
+    }
+  }
+
+  mountAdminAppearancePicker() {
+    const host = document.getElementById('adminAppearanceHost');
+    if (!host) return;
+    host.innerHTML = themeController.renderAppearancePickerHtml();
+    themeController.bindAppearancePicker(host);
+  }
+
+  bindAdminHubSwitcher() {
+    document.querySelectorAll('.admin-hub-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sub = btn.dataset.adminHub;
+        if (sub) this.switchAdminHub(sub);
+      });
+    });
+  }
+
+  switchAdminHub(sub) {
+    this.activeAdminHub = sub;
+    ['credentials', 'diagnostics', 'appearance'].forEach((id) => {
+      const panel = document.getElementById(`adminHubPanel_${id}`);
+      if (panel) panel.classList.toggle('hidden', id !== sub);
+    });
+    document.querySelectorAll('.admin-hub-btn').forEach((btn) => {
+      const active = btn.dataset.adminHub === sub;
+      btn.className = active
+        ? 'admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-sm flex items-center gap-1.5'
+        : 'admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5';
+    });
+    if (sub === 'credentials') {
+      this.credentialTracker?.load();
+    } else if (sub === 'diagnostics') {
+      this.loadDiagnosticsTerminal();
+    } else if (sub === 'appearance') {
+      this.mountAdminAppearancePicker();
+    }
   }
 
   // --- Dynamic Tab Architecture & Telemetry Controller ---
@@ -744,18 +827,10 @@ class RosterXApp {
       }
     });
 
-    // Update Mobile Bottom Dock
-    document.querySelectorAll('.mobile-dock-btn').forEach(btn => {
-      const isTarget = btn.dataset.tab === tabId;
-      const bubble = btn.querySelector('.mobile-active-bubble');
-      if (isTarget) {
-        btn.className = 'mobile-dock-btn flex flex-col items-center justify-center text-xs text-[#FF5252] font-bold py-1 min-w-[48px] min-h-[48px] cursor-pointer';
-        if (bubble) bubble.classList.remove('hidden');
-      } else {
-        btn.className = 'mobile-dock-btn flex flex-col items-center justify-center text-xs text-slate-400 py-1 min-w-[48px] min-h-[48px] cursor-pointer';
-        if (bubble) bubble.classList.add('hidden');
-      }
-    });
+    // Sync adaptive Mobile Bottom Dock & Landscape Left Rail
+    if (this.mobileNavShell) {
+      this.mobileNavShell.setActive(tabId);
+    }
 
     // Contextual refresh based on tab
     if (tabId === 'dashboard') {
@@ -765,10 +840,8 @@ class RosterXApp {
       this.renderRoster();
     } else if (tabId === 'team') {
       this.renderTeamTab();
-    } else if (tabId === 'swaps') {
-      this.renderSwapsTabQueue();
     } else if (tabId === 'diagnostics') {
-      this.loadDiagnosticsTerminal();
+      this.switchAdminHub(this.activeAdminHub || 'credentials');
     } else if (tabId === 'broadcast') {
       broadcastController.renderRecipientChips();
       broadcastController.populatePreviewEngineers();
@@ -4698,17 +4771,12 @@ class RosterXApp {
   // --- MODAL 3: Swaps & Absences Ledger (Module D) ---
 
   openSwapsModal() {
-
+    if (!this.dom.swapsModal) return;
     this.populateSwapsDropdowns();
-
     this.renderMutualSwapsList();
-
     this.renderAbsenceRequestsList();
-
     this.switchSwapsTab('tabMutual');
-
     this.dom.swapsModal.classList.remove('hidden');
-
   }
 
 

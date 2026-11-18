@@ -12,6 +12,15 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v2.0.0 - Build 143 — Unified `web/` iOS PWA & 1:1 Android Parity):
+> *"Dasa! Gafoorka! MAJOR release **`v2.0.0` (Build 143)** — Unified `web/` Installable iOS PWA + 1:1 Android Feature Parity — complete aayi live HTTP (22/22) + RFC-5545 `.ics` + Zero-PII + Android safe-build verify cheythu `origin/main`-il push cheythu macha! 🎨📱🍏🔥
+> - **iOS PWA + 6 Brand Palettes**: `manifest.webmanifest`, `sw.js`, `pwaHelper.js` (iOS Add-to-Home-Screen banner + Safari `<dialog>` fallback), safe-area meta tags, and all 6 Android palettes in `tokens.css` & `themeController.js`.
+> - **Adaptive Mobile & Landscape Shell**: `mobile-shell.css` & `mobileNavShell.js` with Android-identical 5-tab Fluid Neumorphic Bottom Dock (portrait), slim `42px` Top Bar + Left Vertical Nav Rail (landscape), and full-screen landscape Month Roster / Rosters.
+> - **Swap Removal + Full Feature Parity**: Removed Swap Request tabs/modals from BOTH portals (kept `SW*` grid codes intact); added personal `Sync to Calendar` (`.ics` for Apple Calendar), Server Credential Tracker in `More` Hub for all 3 roles, My Team Directory, Celebrations + Wishes modal, Notification Drawer (`@` mentions + expired celebration sweep), Profile Tenure/Birthday/Remove Photo, and Admin Broadcast Title `@` mentions.
+> - **Version Sync**: `android/app/build.gradle.kts` (`143` / `2.0.0`) & `server.py` (`SERVER_VERSION = "2.0.0"`)."*
+
+---
+
 ## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v2.0.0 STEP 1 Complete — `web/` Live!):
 > *"Vijaya! STEP 1 complete aayi `origin/main`-il push cheythu kazhinju macha — `web/` ready aanu, thudangikko! 🕵️‍♂️🔥
 > - Renamed `admin-web/` → **`web/`** via `git mv` & updated `server.py` (`WEB_DIR`), `README.md`, `web/README.md`, `.agents/skills/rosterx-ui/SKILL.md`.

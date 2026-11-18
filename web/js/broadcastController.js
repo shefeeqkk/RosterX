@@ -25,12 +25,13 @@ export class BroadcastController {
     this.history = [];
     this.previewEngineerId = null;
     
-    // Live '@' Mention popup state
+    // Live '@' Mention popup state (supports both Title and Body inputs)
     this.mentionSuggestions = [];
     this.selectedMentionIndex = 0;
     this.mentionQueryStart = -1;
     this.mentionQueryEnd = -1;
     this.isMentionDropdownOpen = false;
+    this.activeMentionField = 'message'; // 'title' | 'message'
   }
 
   getEngineerKey(eng) {
@@ -72,6 +73,7 @@ export class BroadcastController {
       
       // Message Form
       titleInput: document.getElementById('broadcastTitleInput'),
+      titleMentionDropdown: document.getElementById('broadcastTitleMentionDropdown'),
       messageInput: document.getElementById('broadcastMessageInput'),
       mentionDropdown: document.getElementById('broadcastMentionDropdown'),
       charCountEl: document.getElementById('broadcastCharCount'),
@@ -157,9 +159,16 @@ export class BroadcastController {
       radio.addEventListener('change', () => this.updatePreview());
     });
 
-    // 4. Title & Message Typing
-    this.dom.titleInput?.addEventListener('input', () => this.updatePreview());
-    this.dom.messageInput?.addEventListener('input', (e) => this.handleMessageInput(e));
+    // 4. Title & Message Typing (both support live '@' mention autocomplete)
+    this.dom.titleInput?.addEventListener('focus', () => { this.activeMentionField = 'title'; });
+    this.dom.titleInput?.addEventListener('input', (e) => this.handleFieldInput(e, 'title'));
+    this.dom.titleInput?.addEventListener('keydown', (e) => this.handleMessageKeydown(e));
+    this.dom.titleInput?.addEventListener('blur', () => {
+      setTimeout(() => this.closeMentionDropdown(), 200);
+    });
+
+    this.dom.messageInput?.addEventListener('focus', () => { this.activeMentionField = 'message'; });
+    this.dom.messageInput?.addEventListener('input', (e) => this.handleFieldInput(e, 'message'));
     this.dom.messageInput?.addEventListener('keydown', (e) => this.handleMessageKeydown(e));
     this.dom.messageInput?.addEventListener('blur', () => {
       // Delay closing to allow clicking suggestions
@@ -319,29 +328,60 @@ export class BroadcastController {
   // 2. Live '@' Mention Autocomplete Engine
   // =========================================================================
 
-  handleMessageInput(e) {
-    const textarea = this.dom.messageInput;
-    if (!textarea) return;
+  getActiveMentionInput() {
+    if (this.activeMentionField === 'title' && this.dom.titleInput) return this.dom.titleInput;
+    return this.dom.messageInput;
+  }
 
-    // Character counter
-    if (this.dom.charCountEl) {
-      this.dom.charCountEl.textContent = `${textarea.value.length} characters`;
+  getActiveMentionDropdown() {
+    if (this.activeMentionField === 'title' && this.dom.titleMentionDropdown) {
+      return this.dom.titleMentionDropdown;
+    }
+    return this.dom.mentionDropdown;
+  }
+
+  handleMentionTrigger() {
+    const input = this.getActiveMentionInput();
+    if (!input) return;
+    const pos = input.selectionStart ?? input.value.length;
+    const textBefore = input.value.slice(0, pos);
+    const mentionMatch = textBefore.match(/@([a-zA-Z0-9_\-\.]*)$/);
+    if (mentionMatch) {
+      this.mentionQueryStart = pos - mentionMatch[0].length;
+      this.mentionQueryEnd = pos;
+      this.showMentionDropdown(mentionMatch[1].toLowerCase());
+    }
+  }
+
+  handleFieldInput(e, fieldName) {
+    this.activeMentionField = fieldName;
+    const input = fieldName === 'title' ? this.dom.titleInput : this.dom.messageInput;
+    if (!input) return;
+
+    // Character counter for message body
+    if (fieldName === 'message' && this.dom.charCountEl) {
+      this.dom.charCountEl.textContent = `${input.value.length} characters`;
     }
 
     // Detect '@' at current cursor position
-    const textBeforeCursor = textarea.value.slice(0, textarea.selectionStart);
+    const pos = input.selectionStart ?? input.value.length;
+    const textBeforeCursor = input.value.slice(0, pos);
     const mentionMatch = textBeforeCursor.match(/@([a-zA-Z0-9_\-\.]*)$/);
 
     if (mentionMatch) {
       const query = mentionMatch[1].toLowerCase();
-      this.mentionQueryStart = textarea.selectionStart - mentionMatch[0].length;
-      this.mentionQueryEnd = textarea.selectionStart;
+      this.mentionQueryStart = pos - mentionMatch[0].length;
+      this.mentionQueryEnd = pos;
       this.showMentionDropdown(query);
     } else {
       this.closeMentionDropdown();
     }
 
     this.updatePreview();
+  }
+
+  handleMessageInput(e) {
+    return this.handleFieldInput(e, 'message');
   }
 
   handleMessageKeydown(e) {
@@ -401,7 +441,9 @@ export class BroadcastController {
   }
 
   renderMentionDropdown() {
-    const dd = this.dom.mentionDropdown;
+    this.dom.mentionDropdown?.classList.add('hidden');
+    this.dom.titleMentionDropdown?.classList.add('hidden');
+    const dd = this.getActiveMentionDropdown();
     if (!dd) return;
 
     dd.innerHTML = '';
@@ -452,7 +494,7 @@ export class BroadcastController {
   }
 
   highlightMentionItem() {
-    const items = this.dom.mentionDropdown?.querySelectorAll('.mention-item');
+    const items = this.getActiveMentionDropdown()?.querySelectorAll('.mention-item');
     items?.forEach((item, idx) => {
       if (idx === this.selectedMentionIndex) {
         item.className = 'mention-item px-3 py-2 rounded-lg text-xs flex items-center justify-between cursor-pointer transition select-none bg-purple-100 dark:bg-purple-900/60 text-purple-900 dark:text-purple-200 font-bold';
@@ -463,22 +505,22 @@ export class BroadcastController {
   }
 
   selectMention(item) {
-    const textarea = this.dom.messageInput;
-    if (!textarea) return;
+    const targetInput = this.getActiveMentionInput();
+    if (!targetInput) return;
 
     const uname = item.isTag ? item.tag : (item.username || (item.name || 'engineer').toLowerCase().replace(/[\s\W]+/g, ''));
     const mentionTag = `@${uname}`;
 
     const startIdx = (this.mentionQueryStart >= 0) ? this.mentionQueryStart : 0;
-    const endIdx = (this.mentionQueryEnd >= startIdx) ? this.mentionQueryEnd : textarea.selectionStart;
+    const endIdx = (this.mentionQueryEnd >= startIdx) ? this.mentionQueryEnd : (targetInput.selectionStart ?? targetInput.value.length);
 
-    const before = textarea.value.slice(0, startIdx);
-    const after = textarea.value.slice(endIdx);
+    const before = targetInput.value.slice(0, startIdx);
+    const after = targetInput.value.slice(endIdx);
 
-    textarea.value = `${before}${mentionTag} ${after}`;
+    targetInput.value = `${before}${mentionTag} ${after}`;
     const newCursorPos = before.length + mentionTag.length + 1;
-    textarea.setSelectionRange(newCursorPos, newCursorPos);
-    textarea.focus();
+    targetInput.setSelectionRange(newCursorPos, newCursorPos);
+    targetInput.focus();
 
     // Reset query range
     this.mentionQueryStart = -1;
@@ -499,21 +541,22 @@ export class BroadcastController {
 
   closeMentionDropdown() {
     this.dom.mentionDropdown?.classList.add('hidden');
+    this.dom.titleMentionDropdown?.classList.add('hidden');
     this.isMentionDropdownOpen = false;
     this.mentionQueryStart = -1;
     this.mentionQueryEnd = -1;
   }
 
   insertToken(token) {
-    const textarea = this.dom.messageInput;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
+    const targetInput = this.getActiveMentionInput();
+    if (!targetInput) return;
+    const start = targetInput.selectionStart ?? targetInput.value.length;
+    const end = targetInput.selectionEnd ?? start;
+    const text = targetInput.value;
 
-    textarea.value = text.slice(0, start) + token + text.slice(end);
-    textarea.setSelectionRange(start + token.length, start + token.length);
-    textarea.focus();
+    targetInput.value = text.slice(0, start) + token + text.slice(end);
+    targetInput.setSelectionRange(start + token.length, start + token.length);
+    targetInput.focus();
     this.updatePreview();
   }
 
@@ -604,7 +647,7 @@ export class BroadcastController {
     }
 
     if (this.dom.previewTitle) {
-      this.dom.previewTitle.textContent = rawTitle;
+      this.dom.previewTitle.innerHTML = this.resolveMessageContent(rawTitle, previewEng);
     }
 
     if (this.dom.previewBody) {
@@ -846,11 +889,46 @@ export class BroadcastController {
   // 6. Broadcast History, Read Receipts & Retraction
   // =========================================================================
 
+  isExpiredCelebration(notif) {
+    if (!notif) return false;
+    const title = String(notif.title || '').toLowerCase();
+    const type = String(notif.type || notif.category || notif.priority || '').toLowerCase();
+    const idStr = String(notif.id || notif._id || '').toLowerCase();
+    const isCeleb = (
+      type === 'celebration' ||
+      idStr.startsWith('celeb_') ||
+      title.includes('happy birthday') ||
+      title.includes('work anniversary') ||
+      Boolean(notif.is_celebration)
+    );
+    if (!isCeleb) return false;
+
+    const todayIst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    const explicitDate = String(notif.event_date || notif.celebration_date || notif.date || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(explicitDate)) {
+      return explicitDate < todayIst;
+    }
+    let dt = null;
+    if (notif.timestamp) {
+      const ts = typeof notif.timestamp === 'number' && notif.timestamp < 1e11 ? notif.timestamp * 1000 : Number(notif.timestamp);
+      if (!Number.isNaN(ts)) dt = new Date(ts);
+    }
+    if (!dt && notif.created_at) {
+      const raw = String(notif.created_at).trim();
+      const iso = raw.endsWith(' UTC') ? raw.replace(' UTC', 'Z').replace(' ', 'T') : raw;
+      const parsed = new Date(iso);
+      if (!Number.isNaN(parsed.getTime())) dt = parsed;
+    }
+    if (!dt || Number.isNaN(dt.getTime())) return false;
+    const notifIst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(dt);
+    return notifIst < todayIst;
+  }
+
   async loadHistory(forceToast = false) {
     if (!this.atlasService) return;
     const res = await this.atlasService.getNotifications();
     if (res && res.success && res.notifications) {
-      this.history = res.notifications;
+      this.history = res.notifications.filter(n => !this.isExpiredCelebration(n));
       this.renderHistory();
       if (forceToast) {
         this.showToast(`Loaded ${this.history.length} broadcast records`, 'success');
