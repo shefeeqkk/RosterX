@@ -8,10 +8,21 @@ Whenever performing modifications and applying changes to this project:
 
 ### Files to Update on Every Version Change:
 1. Android project: `android/app/build.gradle.kts`:
-   - `versionName`: update string to match semantic version (e.g., `"1.23.3"`).
-   - `versionCode`: increment integer by +1 (e.g., `82`).
-2. Server backend: `server.py` (`SERVER_VERSION = "1.23.3"`).
-3. Cloudflare tunnel sync: `android/app/src/main/assets/server_url.txt` and `public_tunnel_url.txt`.
+   - `versionName`: update string to match semantic version (e.g., `"1.33.0"`).
+   - `versionCode`: increment integer by +1 (e.g., `137`).
+2. Server backend: `server.py` (`SERVER_VERSION = "1.33.0"`).
+3. Production API endpoint: keep `android/app/src/main/assets/server_url.txt` pointing to the official Render production server (`https://api.rosterx.online/`).
+
+## 🔐 Strict Public Repository & Zero-Hardcoded-PII Policy (Mandatory)
+This is a **public GitHub repository** with **automatic continuous deployment to the Render production server** on every push to `main`. Every single line committed by Gafoor, Dasan, or Vijayan MUST meet professional, production-ready standards:
+1. **ZERO Hardcoded PII or Secrets**:
+   - **NEVER** hardcode real employee/personal names, real usernames, corporate or personal email addresses, phone numbers, passwords, API keys, JWT secrets, or local developer file paths anywhere in source code, comments, XML layouts, UI placeholders, AI prompt examples, or test scripts.
+   - Use **environment variables** (`.env` locally, Render Dashboard in production) for all credentials/secrets and **MongoDB Atlas fields** (e.g., `include_in_roster`, `display_order`, `swap_code`) for team-specific configuration.
+   - For placeholders, examples, and tests, strictly use generic synthetic values (e.g., `user@example.com`, `Team Member`, `member_username`, `+1 555-0100`).
+2. **No Legacy Tunnel Code**:
+   - Cloudflared / `trycloudflare.com` quick-tunnel code is permanently deprecated and forbidden. All production traffic routes through `https://api.rosterx.online/`.
+3. **Production-Safe Commits Only**:
+   - Because `git push origin main` triggers live Render deployment immediately, verify syntax, tests, and zero-PII hygiene before every push.
 
 ## 🔄 Multi-Conversation Antigravity Synchronization ("Gafoor", "Dasan" & "Vijayan")
 

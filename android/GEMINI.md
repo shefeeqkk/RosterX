@@ -8,10 +8,21 @@ Whenever performing modifications and applying changes to this project:
 
 ### Files to Update on Every Version Change:
 1. `app/build.gradle.kts`:
-   - `versionName`: update string to match the semantic version (e.g., `"1.23.3"`).
-   - `versionCode`: increment integer by +1 (e.g., `82`).
+   - `versionName`: update string to match the semantic version (e.g., `"1.33.0"`).
+   - `versionCode`: increment integer by +1 (e.g., `137`).
 2. Server backend: `../server.py` (`SERVER_VERSION`).
-3. Keep `app/src/main/assets/server_url.txt` synced with the active Cloudflare gateway URL.
+3. Keep `app/src/main/assets/server_url.txt` pointing to the official Render production API (`https://api.rosterx.online/`).
+
+## 🔐 Strict Public Repository & Zero-Hardcoded-PII Policy (Mandatory)
+This is a **public GitHub repository** with **automatic continuous deployment to the Render production server** on every push to `main`. Every single line committed MUST meet professional, production-ready standards:
+1. **ZERO Hardcoded PII or Secrets**:
+   - **NEVER** hardcode real employee/personal names, real usernames, corporate or personal email addresses, phone numbers, passwords, API keys, tokens, or local developer file paths anywhere in Kotlin code, XML layouts, comments, UI placeholders, AI prompt examples, or test scripts.
+   - Use **MongoDB Atlas / backend DTO fields** (`include_in_roster`, `display_order`, `swap_code`) for team-specific configuration — never hardcoded username allowlists or name-to-order maps.
+   - For placeholders and examples, strictly use generic synthetic values (e.g., `user@example.com`, `Team Member`, `member_username`).
+2. **No Legacy Tunnel Code**:
+   - Cloudflared / `trycloudflare.com` quick-tunnel code is permanently deprecated and forbidden. All production traffic routes through `https://api.rosterx.online/`.
+3. **Production-Safe Commits Only**:
+   - Verify build, UI, and zero-PII hygiene before pushing to `origin/main`.
 
 ## 🔄 Multi-Conversation Antigravity Synchronization ("Gafoor", "Dasan" & "Vijayan")
 

@@ -1,32 +1,31 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 09:41 IST** (Target Sprint: **v1.33.0 - Build 137**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 10:17 IST** (Target Sprint: **v1.33.0 - Build 137**)
 
 ---
 
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.33.0 - Build 137):
-> *"Dasa, Vijaya! Randu valiya updates ivide lock aakki vechittundu:
+> *"Dasa, Vijaya! High-priority production directives lock aakki vechittundu — read carefully before writing a single line of code:
 > 
-> ### 1. 🔄 Mandatory `git push origin main` Policy (`GEMINI.md` & `android/GEMINI.md` Updated!):
-> - **Root Cause Solved**: Render (`https://api.rosterx.online`) was stuck at `v1.31.1` while local ADB builds hit `v1.32.3` because 8 local commits were never pushed to `origin/main`!
-> - **New Rule**: Both Dasan & Vijayan MUST run `git push origin main` immediately after every verified commit so Render auto-deploys and stays 100% version-synced with ADB installs.
-> - Pending commits up to `v1.32.3` (Build 136) are being pushed to `origin/main` right now by Gafoorka!
+> ### 1. 🔐 STRICT PUBLIC REPO & ZERO-HARDCODED-PII RULE (`GEMINI.md` & `android/GEMINI.md` Updated!):
+> - **This is a PUBLIC GitHub repository that auto-deploys directly to the Render production server (`https://api.rosterx.online`) on every push!**
+> - **NEVER hardcode** personal names, real team usernames, emails, phone numbers, passwords, API keys, or secrets in code, comments, XML placeholders, AI prompts, or tests. Always use environment variables, MongoDB fields, or generic synthetic placeholders (`user@example.com`, `Team Member`, `member_username`).
+> - **Mandatory `git push origin main`** immediately after every verified commit so Render stays 100% version-synced with ADB installs.
 > 
-> ### 2. 📢 Broadcast `@` Mentioning in Title — Full 3-Channel Parity (`v1.33.0` - Build 137):
-> - **Dasan (`server.py` — `plan_dasan.md`)**:
->   - Personalize Broadcast `title` with full parity to Message Body (`@name` -> Full Name, `@all` -> `@Everyone`, `@username` -> `@Full Name`) across:
->     1. **Email Subject & HTML `<h2>`** (`POST /api/notifications/send`)
->     2. **FCM Push Notification Title** (`POST /api/notifications/send`)
->     3. **In-App Notification Feed Title** (`GET /api/notifications` for non-admin recipients; raw title preserved in MongoDB & Admin history)
->   - Bump `SERVER_VERSION = "1.33.0"`, verify, commit, and **`git push origin main`**.
-> - **Vijayan (`NotificationsTab.kt`, `ProfileComponents.kt` — `plan_vijayan.md`)**:
->   - Upgrade `Notification Title *` to `TextFieldValue` + Neumorphic sunken `BasicTextField` with the shared **cursor-anchored compact `@` mention popup** (`@name`, `@all`, and **only `@username`** for engineers, focus-isolated & bounds-guarded).
->   - Update the **Live Personalized Recipient Preview Card** to show the personalized Title alongside the personalized Body.
->   - Update `QuickNotificationsBottomSheet` (`ProfileComponents.kt`) to resolve `@name`, `@all`, and `@username` inside `notif.title`.
->   - Bump to `v1.33.0` (Build 137), run `safe_build.bat assembleDebug`, ADB install & verify on device, commit, and **`git push origin main`**.
+> ### 2. 📢 Broadcast `@` Mentioning in Title — Full 3-Channel Parity:
+> - **Dasan (`server.py`)**: Personalize Broadcast `title` (`@name` -> Full Name, `@all` -> `@Everyone`, `@username` -> `@Full Name`) across Email Subject & HTML `<h2>`, FCM Push Title, and `GET /api/notifications` (preserving raw title in MongoDB & Admin history).
+> - **Vijayan (`NotificationsTab.kt`, `ProfileComponents.kt`)**: Upgrade `Notification Title *` to `TextFieldValue` + shared focus-isolated, bounds-safe `CompactCursorMentionPopup` (`@name`, `@all`, `@username` only for engineers), resolve Title in Live Preview Card + Notification Drawer.
 > 
-> Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
+> ### 3. 🧹 100% Zero-Trace Cloudflared Tunnel Removal:
+> - **Dasan (`server.py`, `render.yaml`, `tools/`, `.gitignore`)**: Delete all Cloudflared functions, `PUBLIC_TUNNEL_URL`, `public_tunnel_url.txt` writer, `.trycloudflare.com` CORS, `--tunnel`/`--no-tunnel` CLI flags, `ENABLE_TUNNEL`, and `tools/start_tunnel.bat` + `tools/start_tunnel.ps1`. Update `render.yaml` `startCommand` to `python server.py --no-open`.
+> - **Vijayan (`LoginScreen.kt`, `UserSessionManager.kt`)**: Replace `trycloudflare.com` placeholder with `https://api.rosterx.online/api/` and remove all `trycloudflare.com` checks.
+> 
+> ### 4. 🗄️ DB-Driven Roster Metadata & Zero-PII Scrub (`include_in_roster`, `display_order`, `swap_code`):
+> - **Dasan (`server.py`, `admin-web/`)**: Support optional `include_in_roster`, `display_order`, `swap_code` in `/api/engineers`; remove all hardcoded team names/usernames/emails from `admin-web/js/app.js`, `userPortal.js`, `constants.js`, `index.html`, `excelService.js`, `rosterAi*.js`, `admin-web/README.md`, and `server.py` comments.
+> - **Vijayan (`Engineer.kt`, `EngineerPortalViewModel.kt`, `EngineerPortalScreen.kt`, `GeminiRosterService.kt`, widget XML/provider)**: Wire `includeInRoster`, `displayOrder`, `swapCode` DTO fields; remove hardcoded username allowlists and 10-member name-order map; scrub all personal names from prompts, comments, and widget XML.
+> 
+> Bump to **`v1.33.0` (Build 137)**, verify, commit, and **`git push origin main`**. Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
 ---
 
