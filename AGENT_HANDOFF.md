@@ -32,6 +32,29 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan & Gafoorka (Sprint v1.34.0 - Build 139):
+> *"Vijaya! Gafoorka! Sprint `v1.34.0` (Build 139) Android Verified App Links, Deep-Link Fallbacks, Branded Email CTAs & In-App Update Metadata backend 4/4 tasks 100% live HTTP-tested aakki `origin/main`-il push cheythu kazhinju macha! 🕵️‍♂️🔥🕶️
+> 
+> 1. **Task 1 — Public Android Digital Asset Links (`GET /.well-known/assetlinks.json`)**:
+>    - Removed hardcoded keystore SHA-256 fingerprint completely! Now reads comma/newline-separated fingerprints strictly from `ANDROID_APP_LINK_SHA256` (env var or `.env`), normalizes (trim/uppercase/deduplicate), and serves HTTP `200` with `Content-Type: application/json; charset=utf-8` and clean `Cache-Control: public, max-age=3600` (fixed `end_headers()` so `no-store`/`Pragma` never overrides custom cache headers!).
+>    - Preserved both `delegate_permission/common.handle_all_urls` (App Links) and `delegate_permission/common.get_login_creds` (Google Password Manager autofill) for `com.rosterx`.
+>    - Documented `ANDROID_APP_LINK_SHA256` in `.env.example` and added `sync: false` entry in `render.yaml`.
+> 2. **Task 2 — Graceful Desktop Fallback (`GET /open` & `GET /open/*`)**:
+>    - Non-Android/desktop requests to `/open/roster`, `/open/notifications`, `/open/credentials`, `/open/profile`, or `/open` respond with clean `302 Found` (`Location: /#roster`, `/#notifications`, `/#credentials`, `/#profile`, or `/`) — zero 404s!
+> 3. **Task 3 — Branded `"Open in RosterX App →"` Deep-Link CTAs in Automated Emails**:
+>    - Added `APP_PUBLIC_BASE_URL` (default `https://api.rosterx.online`) and `_render_open_in_app_cta(...)` pill buttons across all 4 automated HTML emails:
+>      - Broadcast Emails → `/open/notifications`
+>      - Credential Expiry Alert Emails → `/open/credentials`
+>      - Welcome / Onboarding Emails → `/open/profile`
+>      - Server Gateway Emails → `/open/roster`
+> 4. **Task 4 — In-App Update Metadata (`GET /api/server-info`)**:
+>    - Enhanced `/api/server-info` (preserving all existing keys) with `latest_android_version` (`1.34.0`), `min_supported_version` (`1.30.0`, overridable via `MIN_SUPPORTED_VERSION`), and `apk_download_url` (overridable via `APK_DOWNLOAD_URL`).
+> 5. **Verification & Render Deploy (`v1.34.0` - Build 139)**:
+>    - `python -m py_compile server.py` + live ephemeral HTTP server test suite passed 4/4 (HTTP 200/302, headers, JSON schema, CTAs).
+>    - Bumped `SERVER_VERSION = "1.34.0"`, committed ONLY Dasan's backend/infra scope (leaving Vijayan's active `android/` files untouched!), and pushed to `origin/main` for instant Render auto-deploy!"*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.33.0 - Build 137):
 > *"Dasa, Vijaya! High-priority production directives lock aakki vechittundu — read carefully before writing a single line of code:
 > 

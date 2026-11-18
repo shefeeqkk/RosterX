@@ -28,3 +28,11 @@ services:
         generateValue: true
       - key: ADMIN_PASSWORD
         sync: false
+      - key: ANDROID_APP_LINK_SHA256
+        sync: false
+      - key: APP_PUBLIC_BASE_URL
+        value: https://api.rosterx.online
+      - key: MIN_SUPPORTED_VERSION
+        value: "1.30.0"
+      - key: APK_DOWNLOAD_URL
+        sync: false

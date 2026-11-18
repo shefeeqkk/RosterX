@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.33.1"
+SERVER_VERSION = "1.34.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -148,7 +148,71 @@ ATLAS_DB_NAME = "rosterx"
 
 # Global Production Server & Network State
 PUBLIC_SERVER_URL = os.environ.get("PUBLIC_SERVER_URL", "https://api.rosterx.online").strip().rstrip("/")
+APP_PUBLIC_BASE_URL = os.environ.get("APP_PUBLIC_BASE_URL", PUBLIC_SERVER_URL or "https://api.rosterx.online").strip().rstrip("/")
 SERVER_PORT = 8000
+
+
+def get_android_app_link_fingerprints() -> list:
+    """
+    Read comma/newline-separated Android signing certificate SHA-256 fingerprints
+    from ANDROID_APP_LINK_SHA256 (environment variable or local .env).
+    Never hardcodes keystore fingerprints in source code.
+    """
+    raw = os.environ.get("ANDROID_APP_LINK_SHA256", "").strip()
+    if not raw:
+        try:
+            env_map = load_env_variables()
+            raw = str(env_map.get("ANDROID_APP_LINK_SHA256", "")).strip()
+        except Exception:
+            raw = ""
+    if not raw:
+        return []
+    seen = set()
+    result = []
+    for token in re.split(r"[,\n;]+", raw):
+        fp = token.strip().strip("'\"").upper()
+        if fp and fp not in seen:
+            seen.add(fp)
+            result.append(fp)
+    return result
+
+
+def get_app_update_metadata() -> dict:
+    """
+    Return Android in-app update discovery metadata for GET /api/server-info.
+    Reads overrides from environment variables / .env with clean defaults.
+    """
+    env_map = {}
+    try:
+        env_map = load_env_variables()
+    except Exception:
+        env_map = {}
+
+    def _get_val(key: str, default: str) -> str:
+        val = (os.environ.get(key) or env_map.get(key) or "").strip().strip("'\"")
+        return val if val else default
+
+    return {
+        "latest_android_version": _get_val("LATEST_ANDROID_VERSION", SERVER_VERSION),
+        "min_supported_version": _get_val("MIN_SUPPORTED_VERSION", "1.30.0"),
+        "apk_download_url": _get_val("APK_DOWNLOAD_URL", "https://github.com/shefeeqkk/RosterX/releases/latest"),
+    }
+
+
+def _render_open_in_app_cta(deep_path: str, label: str = "Open in RosterX App &rarr;") -> str:
+    """Render a branded deep-link CTA pill button for automated RosterX HTML emails."""
+    clean_seg = str(deep_path or "").strip().lstrip("/")
+    base = (os.environ.get("APP_PUBLIC_BASE_URL") or APP_PUBLIC_BASE_URL or "https://api.rosterx.online").strip().rstrip("/")
+    target_url = f"{base}/open/{clean_seg}" if clean_seg else f"{base}/open"
+    return (
+        f'<div style="text-align:center;margin:22px 0 8px;">'
+        f'<a href="{target_url}" target="_blank" '
+        f'style="display:inline-block;padding:11px 24px;border-radius:999px;'
+        f'background:linear-gradient(135deg,#2563eb 0%,#4f46e5 100%);color:#ffffff;'
+        f'font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.2px;'
+        f'box-shadow:0 4px 12px rgba(37,99,235,0.35);">{label}</a>'
+        f'</div>'
+    )
 
 IST_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
 
@@ -1833,7 +1897,8 @@ def check_and_dispatch_credential_alerts(force=False):
           {table_rows_str}
         </tbody>
       </table>
-      <p style="margin: 20px 0 0; font-size: 12px; color: #94A3B8; text-align: center;">
+      {_render_open_in_app_cta("credentials", "Open Credentials in RosterX App &rarr;")}
+      <p style="margin: 16px 0 0; font-size: 12px; color: #94A3B8; text-align: center;">
         You received this automated security notification because you are designated as a spokesperson or administrator for these credentials.
       </p>
     </div>
@@ -2028,10 +2093,11 @@ def send_startup_link_email(public_url, lan_ip, port, to_email=None):
               </p>
               <div style="background:#020617;border:1.5px solid #0284c7;border-radius:12px;padding:18px;margin:20px 0;">
                 <div style="color:#38bdf8;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Web Portal URL:</div>
-                <div style="margin-bottom:14px;"><a href="{public_url or '#'}" target="_blank" style="color:#ffffff;font-size:15px;font-weight:700;">{public_url or 'Tunnel not initialized'}</a></div>
+                <div style="margin-bottom:14px;"><a href="{public_url or '#'}" target="_blank" style="color:#ffffff;font-size:15px;font-weight:700;">{public_url or 'Production server active'}</a></div>
                 <div style="color:#a78bfa;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Android Base URL:</div>
                 <div style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:10px 12px;font-family:monospace;font-size:13px;color:#38bdf8;font-weight:700;">{api_url}</div>
               </div>
+              {_render_open_in_app_cta("roster", "Open Roster in RosterX App &rarr;")}
               <p style="margin:0;color:#64748b;font-size:12px;border-top:1px solid #1e293b;padding-top:14px;">
                 Dispatched at {timestamp_str} by RosterX v{SERVER_VERSION}.
               </p>
@@ -2131,6 +2197,7 @@ def send_welcome_onboarding_email(to_email: str, full_name: str, username: str):
       3. Enter your username (<code>{username}</code>) or this email address to receive a secure 6-digit Email OTP.<br/>
       4. Verify the OTP and choose your own private password.
     </p>
+    {_render_open_in_app_cta("profile", "Open in RosterX App &rarr;")}
     <div style="font-size:12px;color:#64748b;border-top:1px solid #1e293b;padding-top:14px;margin-top:20px;">
       Automated onboarding message from RosterX v{SERVER_VERSION}.
     </div>
@@ -2944,7 +3011,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, Cache-Control, Pragma, X-Forwarded-For, X-Forwarded-Proto, CF-Connecting-IP")
         self.send_header("Access-Control-Expose-Headers", "Authorization, Content-Length")
 
-    def send_json_response(self, data, status_code=200):
+    def send_json_response(self, data, status_code=200, extra_headers=None):
         """Helper to serialize and transmit JSON payload with CORS and socket drop protection."""
         try:
             payload = json.dumps(data, default=str).encode("utf-8")
@@ -2956,6 +3023,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.send_response(status_code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
+            if extra_headers and isinstance(extra_headers, dict):
+                for hk, hv in extra_headers.items():
+                    if str(hk).lower() == "cache-control":
+                        self._custom_cache_control = True
+                    self.send_header(str(hk), str(hv))
             self.send_cors_headers()
             self.end_headers()
             self.wfile.write(payload)
@@ -2984,8 +3056,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.handle_api_get(norm_path)
             return
 
-        # Digital Asset Links for Google Password Manager & Android App Links
+        # Digital Asset Links for Google Password Manager & Android Verified App Links (PUBLIC)
         if clean_path in ("/.well-known/assetlinks.json", "/.well-known/assetlinks.json/"):
+            fingerprints = get_android_app_link_fingerprints()
             assetlinks_data = [
                 {
                     "relation": [
@@ -2995,13 +3068,36 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "target": {
                         "namespace": "android_app",
                         "package_name": "com.rosterx",
-                        "sha256_cert_fingerprints": [
-                            "EA:81:06:66:4C:EF:E8:51:FD:1B:54:17:D1:77:DD:E6:EB:83:FF:AA:9B:DA:D9:17:33:F5:CC:1D:51:0B:43:7D"
-                        ]
+                        "sha256_cert_fingerprints": fingerprints
                     }
                 }
             ]
-            self.send_json_response(assetlinks_data)
+            self.send_json_response(
+                assetlinks_data,
+                status_code=200,
+                extra_headers={"Cache-Control": "public, max-age=3600"}
+            )
+            return
+
+        # Graceful Desktop Fallback for Android Deep Links (/open and /open/*)
+        if norm_path == "/open" or norm_path.startswith("/open/"):
+            sub_route = norm_path[len("/open"):].strip("/").lower()
+            first_seg = sub_route.split("/")[0] if sub_route else ""
+            deep_link_fallback_map = {
+                "roster": "/#roster",
+                "notifications": "/#notifications",
+                "credentials": "/#credentials",
+                "profile": "/#profile",
+            }
+            redirect_target = deep_link_fallback_map.get(first_seg, "/")
+            try:
+                self.send_response(302)
+                self.send_header("Location", redirect_target)
+                self.send_header("Cache-Control", "no-cache")
+                self.send_cors_headers()
+                self.end_headers()
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                pass
             return
 
         # Security Guards: Block .env and dotfiles
@@ -3028,10 +3124,14 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     latency_ms = max(1, round((time.perf_counter() - t0) * 1000))
                 except Exception:
                     latency_ms = 0
+            update_meta = get_app_update_metadata()
             self.send_json_response({
                 "success": True,
                 "status": "online",
                 "version": SERVER_VERSION,
+                "latest_android_version": update_meta["latest_android_version"],
+                "min_supported_version": update_meta["min_supported_version"],
+                "apk_download_url": update_meta["apk_download_url"],
                 "public_url": PUBLIC_SERVER_URL,
                 "api_url": f"{PUBLIC_SERVER_URL}/api" if PUBLIC_SERVER_URL else f"http://{lan_ip}:{SERVER_PORT}/api",
                 "lan_ip": lan_ip,
@@ -5299,7 +5399,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
     <div style="background:#020617;border:1px solid #334155;border-radius:10px;padding:18px;margin-bottom:20px;color:#e2e8f0;font-size:14px;line-height:1.6;white-space:pre-wrap;">
 {html_p_msg}
     </div>
-    <div style="font-size:12px;color:#64748b;border-top:1px solid #1e293b;padding-top:14px;">
+    {_render_open_in_app_cta("notifications", "Open in RosterX App &rarr;")}
+    <div style="font-size:12px;color:#64748b;border-top:1px solid #1e293b;padding-top:14px;margin-top:16px;">
       Sent by <strong>{sender}</strong> via RosterX Operations.
     </div>
   </div>
@@ -5813,12 +5914,14 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         self.send_json_response({"success": False, "message": f"Endpoint DELETE {clean_path} not found"}, 404)
 
     def end_headers(self):
-        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
-        self.send_header("Pragma", "no-cache")
-        self.send_header("Expires", "0")
+        if not getattr(self, "_custom_cache_control", False):
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("X-XSS-Protection", "1; mode=block")
+        self._custom_cache_control = False
         super().end_headers()
 
     def list_directory(self, path):
