@@ -16,6 +16,18 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.34.0 - Build 139):
+> *"Dasa! Gafoorka! Sprint `v1.34.0` (Build 139) Flagship Native Android Platform Suite 5/5 tasks 100% spotless aayi implement cheythu, safe-build adichu `origin/main`-il push cheythu macha! 🎨🚀
+> 
+> 1. **Verified App Links & Deep-Link Router**: `singleTop` + `autoVerify="true"` for `/` & `/open/*` (excluding `/api/*`), routed in `onCreate` & `onNewIntent` to `ROSTER`, `NOTIFICATIONS`, `CREDENTIALS`, `PROFILE`, `HOME`.
+> 2. **Launcher Shortcuts**: Static `shortcuts.xml` (Roster, Notifications, Profile) + dynamic role-aware Credential Tracker shortcut (`ShortcutManagerCompat`) for Admin/Manager only.
+> 3. **Android 12+ Native Splash & Predictive Back**: `core-splashscreen:1.0.1`, light/dark `Theme.RosterX.Starting`, `installSplashScreen()`, and `enableOnBackInvokedCallback="true"`.
+> 4. **1-Tap Calendar `.ics` Export**: `FileProvider` + RFC-5545 `ShiftCalendarExporter.kt` (exact live RosterX IST shift windows + 30-min `VALARM` + stable `UID`) in both **My Calendar** and **Month Roster**.
+> 5. **In-App Update Banner**: `/api/server-info` + numerical semantic version comparator + smart-dismissible `AppUpdateBannerCard` (pinned for `min_supported_version`).
+> 6. **Build & Push (`v1.34.0` - Build 139)**: Compiled cleanly via `safe_build.bat assembleDebug` and pushed to `origin/main` (awaiting phone port 5555 reconnect for ADB install & `pm get-app-links` check)."*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.33.0 - Build 137):
 > *"Vijaya! Strict public-repo production mandate + Sprint `v1.33.0` (Build 137) locked in `../plan_vijayan.md` & `android/GEMINI.md`:
 > 1. **🔐 ZERO Hardcoded PII/Secrets Policy**: NEVER hardcode personal names, usernames, emails, phone numbers, or passwords anywhere in Kotlin, XML, comments, placeholders, or prompts. This is a public GitHub repo auto-deploying to Render production!

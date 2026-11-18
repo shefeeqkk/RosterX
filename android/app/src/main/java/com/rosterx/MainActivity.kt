@@ -4,7 +4,11 @@ package com.rosterx
 
 import android.Manifest
 
+import android.content.Intent
+
 import android.content.pm.PackageManager
+
+import android.net.Uri
 
 import android.os.Build
 
@@ -38,6 +42,14 @@ import androidx.compose.ui.Modifier
 
 import androidx.core.content.ContextCompat
 
+import androidx.core.content.pm.ShortcutInfoCompat
+
+import androidx.core.content.pm.ShortcutManagerCompat
+
+import androidx.core.graphics.drawable.IconCompat
+
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+
 import androidx.fragment.app.FragmentActivity
 
 import com.rosterx.data.local.UserSessionManager
@@ -46,10 +58,15 @@ import com.rosterx.analytics.AnalyticsManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 import com.rosterx.domain.model.EngineerRole
 
 import com.rosterx.presentation.admin.AdminMainScreen
+
+import com.rosterx.presentation.components.AppUpdateInfo
+
+import com.rosterx.presentation.components.resolveAppUpdateInfo
 
 import com.rosterx.presentation.login.LoginScreen
 
@@ -63,7 +80,13 @@ import dagger.hilt.android.AndroidEntryPoint
 
 import javax.inject.Inject
 
-
+enum class AppDeepLinkTarget {
+    ROSTER,
+    NOTIFICATIONS,
+    CREDENTIALS,
+    PROFILE,
+    HOME
+}
 
 @AndroidEntryPoint
 
@@ -81,6 +104,61 @@ class MainActivity : FragmentActivity() {
     lateinit var analyticsManager: AnalyticsManager
 
     private val loginViewModel: LoginViewModel by viewModels()
+
+    private val pendingDeepLinkState = mutableStateOf<AppDeepLinkTarget?>(null)
+
+    private fun parseDeepLinkIntent(intent: Intent?): AppDeepLinkTarget? {
+        if (intent == null) return null
+        val extraTarget = intent.getStringExtra("deep_link_target")?.trim()?.lowercase()
+        if (!extraTarget.isNullOrBlank()) {
+            return when (extraTarget) {
+                "roster", "shifts", "calendar" -> AppDeepLinkTarget.ROSTER
+                "notifications", "broadcast", "alerts" -> AppDeepLinkTarget.NOTIFICATIONS
+                "credentials", "tracker" -> AppDeepLinkTarget.CREDENTIALS
+                "profile", "account", "settings" -> AppDeepLinkTarget.PROFILE
+                else -> AppDeepLinkTarget.HOME
+            }
+        }
+        val uri: Uri = intent.data ?: return null
+        val path = (uri.path ?: "").trim().lowercase().trimEnd('/')
+        return when {
+            path == "/open/roster" || path.startsWith("/open/roster/") -> AppDeepLinkTarget.ROSTER
+            path == "/open/notifications" || path.startsWith("/open/notifications/") -> AppDeepLinkTarget.NOTIFICATIONS
+            path == "/open/credentials" || path.startsWith("/open/credentials/") -> AppDeepLinkTarget.CREDENTIALS
+            path == "/open/profile" || path.startsWith("/open/profile/") -> AppDeepLinkTarget.PROFILE
+            path.isEmpty() || path == "/open" -> AppDeepLinkTarget.HOME
+            else -> AppDeepLinkTarget.HOME
+        }
+    }
+
+    private fun syncRoleDynamicShortcuts(role: EngineerRole?) {
+        val shortcutId = "shortcut_credentials"
+        try {
+            if (role == EngineerRole.ADMIN || role == EngineerRole.MANAGER) {
+                val launchIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://api.rosterx.online/open/credentials")).apply {
+                    setClass(this@MainActivity, MainActivity::class.java)
+                    putExtra("deep_link_target", "credentials")
+                }
+                val shortcut = ShortcutInfoCompat.Builder(this, shortcutId)
+                    .setShortLabel(getString(R.string.shortcut_credentials_short))
+                    .setLongLabel(getString(R.string.shortcut_credentials_long))
+                    .setIcon(IconCompat.createWithResource(this, R.drawable.ic_shortcut_credentials))
+                    .setIntent(launchIntent)
+                    .build()
+                ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
+            } else {
+                ShortcutManagerCompat.removeDynamicShortcuts(this, listOf(shortcutId))
+            }
+        } catch (_: Exception) {}
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        parseDeepLinkIntent(intent)?.let { target ->
+            pendingDeepLinkState.value = target
+        }
+    }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -114,7 +192,13 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
+
+        parseDeepLinkIntent(intent)?.let { target ->
+            pendingDeepLinkState.value = target
+        }
 
 
 
@@ -139,6 +223,21 @@ class MainActivity : FragmentActivity() {
             val currentUser by sessionManager.currentUser.collectAsState()
             val themeMode by sessionManager.themeMode.collectAsState()
             val themePaletteId by sessionManager.themePaletteId.collectAsState()
+            val pendingDeepLink by pendingDeepLinkState
+            var appUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+            var isUpdateBannerDismissed by remember { mutableStateOf(false) }
+
+            LaunchedEffect(currentUser?.username, currentUser?.role) {
+                syncRoleDynamicShortcuts(currentUser?.role)
+                if (currentUser != null) {
+                    val info = withContext(Dispatchers.IO) {
+                        runCatching { apiService.getServerInfo() }.getOrNull()
+                    }
+                    appUpdateInfo = resolveAppUpdateInfo(info, BuildConfig.VERSION_NAME)
+                }
+            }
+
+            val visibleUpdateInfo = appUpdateInfo?.takeIf { it.isMandatory || !isUpdateBannerDismissed }
 
             RosterXTheme(
                 themeMode = themeMode,
@@ -199,13 +298,23 @@ class MainActivity : FragmentActivity() {
 
                             "admin" -> {
 
-                                AdminMainScreen()
+                                AdminMainScreen(
+                                    pendingDeepLink = pendingDeepLink,
+                                    onConsumeDeepLink = { pendingDeepLinkState.value = null },
+                                    appUpdateInfo = visibleUpdateInfo,
+                                    onDismissUpdateBanner = { isUpdateBannerDismissed = true }
+                                )
 
                             }
 
                             else -> {
 
-                                EngineerPortalScreen()
+                                EngineerPortalScreen(
+                                    pendingDeepLink = pendingDeepLink,
+                                    onConsumeDeepLink = { pendingDeepLinkState.value = null },
+                                    appUpdateInfo = visibleUpdateInfo,
+                                    onDismissUpdateBanner = { isUpdateBannerDismissed = true }
+                                )
 
                             }
 

@@ -3,4 +3,10 @@
     <style name="Theme.RosterX" parent="android:Theme.Material.Light.NoActionBar">
         <!-- Let Compose handle the theme -->
     </style>
+
+    <style name="Theme.RosterX.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#EEF2F6</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+        <item name="postSplashScreenTheme">@style/Theme.RosterX</item>
+    </style>
 </resources>

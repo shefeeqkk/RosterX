@@ -181,6 +181,15 @@ class RosterRepositoryImpl @Inject constructor(
 
 
 
+    override suspend fun getServerInfo(): Result<com.rosterx.data.remote.ServerInfoResponse> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getServerInfo()
+            Result.success(res)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun pingServer(): Boolean = withContext(Dispatchers.IO) {
 
         try {

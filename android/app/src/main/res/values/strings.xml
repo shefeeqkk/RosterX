@@ -1,5 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">RosterX</string>
     <string name="widget_name">RosterX Duty &amp; Shifts</string>
     <string name="widget_description">Live view of Today &amp; Tomorrow shifts, duty countdown timer, and upcoming rest day.</string>
+    <string name="shortcut_roster_short">Today\'s Roster</string>
+    <string name="shortcut_roster_long">Open Today\'s Shift Roster</string>
+    <string name="shortcut_notifications_short">Notifications</string>
+    <string name="shortcut_notifications_long">Open Broadcasts &amp; Alerts</string>
+    <string name="shortcut_profile_short">My Profile</string>
+    <string name="shortcut_profile_long">Open Account &amp; Settings</string>
+    <string name="shortcut_credentials_short">Credentials</string>
+    <string name="shortcut_credentials_long">Open Credential Tracker</string>
 </resources>

@@ -55,6 +55,27 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.34.0 - Build 139):
+> *"Dasa! Gafoorka! Sprint `v1.34.0` (Build 139) Flagship Native Android Platform Suite 5/5 tasks 100% spotless aayi implement cheythu, safe-build adichu `origin/main`-il push cheythu macha! 🎨🚀
+> 
+> 1. **Task 1 — Verified Android App Links & Deep-Link Router (`AndroidManifest.xml`, `MainActivity.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>    - Set `launchMode="singleTop"` + `<intent-filter android:autoVerify="true">` for `https://api.rosterx.online` covering `/` and `/open` (strictly excluding `/api/*`).
+>    - Implemented `AppDeepLinkTarget` (`ROSTER`, `NOTIFICATIONS`, `CREDENTIALS`, `PROFILE`, `HOME`) parsed in both `onCreate()` and `onNewIntent()`, consumed reactively in both Admin and Engineer portals.
+> 2. **Task 2 — Launcher Long-Press App Shortcuts (`res/xml/shortcuts.xml` + `ShortcutManagerCompat`)**:
+>    - Added 3 static shortcuts (`Today's Roster`, `Notifications`, `My Profile`) with dedicated vector icons (`ic_shortcut_*.xml`).
+>    - Dynamically publishes **Credential Tracker** shortcut for Admin/Manager sessions and removes it on logout or Engineer/Apprentice login.
+> 3. **Task 3 — Android 12+ Native Splash Screen & Predictive Back (`libs.versions.toml`, `build.gradle.kts`, `themes.xml`, `values-night/themes.xml`, `AndroidManifest.xml`, `MainActivity.kt`)**:
+>    - Added `androidx.core:core-splashscreen:1.0.1`, light (`#EEF2F6`) & dark (`#141923`) `Theme.RosterX.Starting`, `installSplashScreen()` before `super.onCreate()`, and `android:enableOnBackInvokedCallback="true"`.
+> 4. **Task 4 — 1-Tap Monthly Calendar `.ics` Export (`file_paths.xml`, `ShiftCalendarExporter.kt`, `EngineerPortalScreen.kt`)**:
+>    - Configured `FileProvider` (`${applicationId}.fileprovider`) and built RFC-5545 `.ics` generator using exact live RosterX IST shift windows (`FS` 07:30–16:30, `FG` 08:30–17:30, `G` 09:30–18:30, `SG` 11:00–20:00, `SS` 13:00–22:00, `NS` 21:00–07:30 +1), 30-min `VALARM`, and stable `UID` (`rosterx-<YYYY>-<MM>-<DD>-<user>@rosterx.online`).
+>    - Added compact **"Export to Calendar"** buttons in BOTH **My Calendar** and **Month Roster** headers (with `ACTION_VIEW` + `ACTION_SEND` chooser fallback, zero runtime permissions).
+> 5. **Task 5 — In-App Update Banner (`RosterApiService.kt`, `RosterRepository.kt`, `RosterRepositoryImpl.kt`, `ProfileComponents.kt`, `MainActivity.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>    - Wired `GET /api/server-info` (`latest_android_version`, `min_supported_version`, `apk_download_url`) + numerical `compareSemanticVersions(...)` + `AppUpdateBannerCard` (dismissible for regular updates, pinned without `×` if installed < `min_supported_version`).
+> 6. **Build & Sync (`v1.34.0` - Build 139)**:
+>    - Built cleanly via `safe_build.bat assembleDebug` (`42 actionable tasks`, 0 errors), pushed to `origin/main`. *(ADB port `100.71.241.36:5555` refused connection after build — ready for 1-command ADB install + `pm get-app-links com.rosterx` test once phone re-enables port 5555!)*"*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.33.0 - Build 137):
 > *"Dasa, Vijaya! High-priority production directives lock aakki vechittundu — read carefully before writing a single line of code:
 > 

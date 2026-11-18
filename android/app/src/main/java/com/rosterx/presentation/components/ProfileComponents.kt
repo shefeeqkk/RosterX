@@ -2244,3 +2244,168 @@ fun EditNameDialog(
     )
 }
 
+data class AppUpdateInfo(
+    val latestVersion: String,
+    val installedVersion: String,
+    val downloadUrl: String,
+    val isMandatory: Boolean
+)
+
+/**
+ * Numerically compares two semantic version strings (e.g. "1.34.0" vs "1.33.1").
+ * Returns > 0 if v1 > v2, < 0 if v1 < v2, 0 if equal.
+ */
+fun compareSemanticVersions(v1: String?, v2: String?): Int {
+    if (v1.isNullOrBlank() || v2.isNullOrBlank()) return 0
+    val clean1 = v1.trim().removePrefix("v").removePrefix("V").substringBefore("-").substringBefore("+")
+    val clean2 = v2.trim().removePrefix("v").removePrefix("V").substringBefore("-").substringBefore("+")
+    val parts1 = clean1.split(".").map { it.toIntOrNull() ?: 0 }
+    val parts2 = clean2.split(".").map { it.toIntOrNull() ?: 0 }
+    val maxLen = maxOf(parts1.size, parts2.size)
+    for (i in 0 until maxLen) {
+        val p1 = parts1.getOrElse(i) { 0 }
+        val p2 = parts2.getOrElse(i) { 0 }
+        if (p1 != p2) return p1.compareTo(p2)
+    }
+    return 0
+}
+
+fun resolveAppUpdateInfo(
+    serverInfo: com.rosterx.data.remote.ServerInfoResponse?,
+    installedVersion: String
+): AppUpdateInfo? {
+    if (serverInfo == null) return null
+    val remoteVersion = serverInfo.latestAndroidVersion?.takeIf { it.isNotBlank() }
+        ?: serverInfo.version?.takeIf { it.isNotBlank() }
+        ?: return null
+
+    if (compareSemanticVersions(remoteVersion, installedVersion) <= 0) {
+        return null
+    }
+
+    val minSupported = serverInfo.minSupportedVersion?.takeIf { it.isNotBlank() }
+    val isMandatory = minSupported != null && compareSemanticVersions(installedVersion, minSupported) < 0
+    val downloadUrl = serverInfo.apkDownloadUrl?.takeIf { it.isNotBlank() }
+        ?: "https://github.com/shefeeqkk/RosterX/releases/latest"
+
+    return AppUpdateInfo(
+        latestVersion = remoteVersion.trim().removePrefix("v").removePrefix("V"),
+        installedVersion = installedVersion.trim().removePrefix("v").removePrefix("V"),
+        downloadUrl = downloadUrl,
+        isMandatory = isMandatory
+    )
+}
+
+@Composable
+fun AppUpdateBannerCard(
+    updateInfo: AppUpdateInfo,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val activeAccent = LocalThemeAccent.current
+    val highlightColor = if (updateInfo.isMandatory) Color(0xFFEF4444) else activeAccent
+
+    NeumorphicCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        style = NeumorphicElevationStyle.RaisedSubtle,
+        surfaceColor = NeumorphicTokens.Surface,
+        contentPadding = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = highlightColor.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(highlightColor.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (updateInfo.isMandatory) Icons.Default.SystemSecurityUpdateWarning else Icons.Default.SystemUpdate,
+                    contentDescription = null,
+                    tint = highlightColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = if (updateInfo.isMandatory) {
+                        "Required update • v${updateInfo.latestVersion}"
+                    } else {
+                        "Update available • v${updateInfo.latestVersion}"
+                    },
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = NeumorphicTokens.TextMain,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Installed: v${updateInfo.installedVersion}",
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = NeumorphicTokens.TextMuted,
+                    maxLines = 1
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(highlightColor)
+                    .clickable {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo.downloadUrl))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "Unable to open download link", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .padding(horizontal = 11.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Download",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1
+                )
+            }
+
+            if (!updateInfo.isMandatory) {
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss update banner",
+                        tint = NeumorphicTokens.TextMuted,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+

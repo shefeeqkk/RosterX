@@ -145,6 +145,14 @@ data class ServerTelemetryResponse(
     val data: ServerTelemetryDataDto?
 )
 
+data class ServerInfoResponse(
+    val success: Boolean = true,
+    val version: String? = null,
+    @SerializedName("latest_android_version") val latestAndroidVersion: String? = null,
+    @SerializedName("min_supported_version") val minSupportedVersion: String? = null,
+    @SerializedName("apk_download_url") val apkDownloadUrl: String? = null
+)
+
 data class EngineersResponse(
     val success: Boolean,
     @SerializedName("documents") val documents: List<EngineerDto>?,
@@ -233,6 +241,9 @@ interface RosterApiService {
 
     @POST("api/auth/verify-otp")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): VerifyOtpResponse
+
+    @GET("api/server-info")
+    suspend fun getServerInfo(): ServerInfoResponse
 
     @GET("api/test-connection")
     suspend fun pingServer(): PingResponse

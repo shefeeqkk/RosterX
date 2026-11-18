@@ -41,7 +41,11 @@ import com.rosterx.ui.neumorphic.*
 @Composable
 fun AdminMainScreen(
     viewModel: AdminRosterViewModel = hiltViewModel(),
-    portalViewModel: EngineerPortalViewModel = hiltViewModel()
+    portalViewModel: EngineerPortalViewModel = hiltViewModel(),
+    pendingDeepLink: com.rosterx.AppDeepLinkTarget? = null,
+    onConsumeDeepLink: () -> Unit = {},
+    appUpdateInfo: AppUpdateInfo? = null,
+    onDismissUpdateBanner: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val portalState by portalViewModel.state.collectAsState()
@@ -85,6 +89,42 @@ fun AdminMainScreen(
                 onTaskFinished()
             }
         }
+    }
+
+    LaunchedEffect(pendingDeepLink) {
+        val target = pendingDeepLink ?: return@LaunchedEffect
+        when (target) {
+            com.rosterx.AppDeepLinkTarget.ROSTER -> {
+                isViewingSettings = false
+                isViewingCredentialTracker = false
+                isViewingServerManagement = false
+                selectedTab = 2
+            }
+            com.rosterx.AppDeepLinkTarget.NOTIFICATIONS -> {
+                isViewingSettings = false
+                isViewingCredentialTracker = false
+                isViewingServerManagement = false
+                selectedTab = 3
+            }
+            com.rosterx.AppDeepLinkTarget.CREDENTIALS -> {
+                isViewingSettings = false
+                isViewingServerManagement = false
+                isViewingCredentialTracker = true
+            }
+            com.rosterx.AppDeepLinkTarget.PROFILE -> {
+                isViewingCredentialTracker = false
+                isViewingServerManagement = false
+                previousTab = selectedTab
+                isViewingSettings = true
+            }
+            com.rosterx.AppDeepLinkTarget.HOME -> {
+                isViewingSettings = false
+                isViewingCredentialTracker = false
+                isViewingServerManagement = false
+                selectedTab = 0
+            }
+        }
+        onConsumeDeepLink()
     }
 
     LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingServerManagement) {
@@ -349,20 +389,31 @@ fun AdminMainScreen(
                                 label = "AdminTabTransition"
                             ) { tab ->
                                 when (tab) {
-                                    0 -> AdminDashboardTab(
-                                        state = state,
-                                        onRefreshDiagnostics = viewModel::loadData,
-                                        onNavigateToMonthRoster = { engQuery ->
-                                            if (!engQuery.isNullOrBlank()) {
-                                                targetEngineerSearch = engQuery
-                                            }
-                                            selectedTab = 2
-                                        },
-                                        onSaveConstraints = viewModel::saveConstraints,
-                                        todayCelebrations = portalState.todayCelebrations,
-                                        dismissedCelebrationIds = portalState.dismissedCelebrationIds,
-                                        onDismissCelebration = portalViewModel::dismissCelebration
-                                    )
+                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                        if (appUpdateInfo != null) {
+                                            AppUpdateBannerCard(
+                                                updateInfo = appUpdateInfo,
+                                                onDismiss = onDismissUpdateBanner,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                            )
+                                        }
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            AdminDashboardTab(
+                                                state = state,
+                                                onRefreshDiagnostics = viewModel::loadData,
+                                                onNavigateToMonthRoster = { engQuery ->
+                                                    if (!engQuery.isNullOrBlank()) {
+                                                        targetEngineerSearch = engQuery
+                                                    }
+                                                    selectedTab = 2
+                                                },
+                                                onSaveConstraints = viewModel::saveConstraints,
+                                                todayCelebrations = portalState.todayCelebrations,
+                                                dismissedCelebrationIds = portalState.dismissedCelebrationIds,
+                                                onDismissCelebration = portalViewModel::dismissCelebration
+                                            )
+                                        }
+                                    }
                                     1 -> ManageTeamTab(
                                         state = state,
                                         onSyncEngineers = viewModel::syncEngineers,
