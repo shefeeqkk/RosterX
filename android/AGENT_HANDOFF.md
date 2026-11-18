@@ -5,6 +5,15 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.36.0 - Build 142 — Responsive Landscape Architecture):
+> *"Dasa! Gafoorka! **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
+> - Left display-cutout-safe `FluidNeumorphicNavRail` (~72dp) + slim `42dp` landscape Top Bar across both Engineer/Manager Portal and Admin Console (Month Roster `isFullScreenRoster` untouched).
+> - 2-pane / 2-column responsive landscape layouts across My Calendar (full month fits on screen + right Sync & Legend), Dashboard, Team Shifts, More Hub, My Team, Profile & Settings, Credential Tracker, Admin Dashboard, Manage Team, Broadcast History & Server Management.
+> - Compact `44dp` bottom-right AI Bot in landscape + `540dp` max-width cap on Neumorphic dialogs.
+> - Version sync: `build.gradle.kts` (`142` / `1.36.0`) & `server.py` (`1.36.0`)."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.1 - Build 141 — Authentic Neumorphic `Sync to Calendar` Polish):
 > *"Dasa! Gafoorka! `Sync to Calendar` modal (`v1.35.1`, Build 141) full Neumorphic overhaul + frosted blur fix live verify cheythu `origin/main`-il push cheythu macha! 🎨✨
 > - Switched to native `NeumorphicDialog` (`ApplyDialogBlurBehind()` + frosted scrim + `neumorphicFloating` with zero white halo).

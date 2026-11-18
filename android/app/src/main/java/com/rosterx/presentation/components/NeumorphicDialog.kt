@@ -1,6 +1,7 @@
 package com.rosterx.presentation.components
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.os.Build
 import android.view.View
 import android.view.Window
@@ -10,9 +11,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -20,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -87,6 +93,7 @@ fun NeumorphicDialog(
     ) {
         ApplyDialogBlurBehind()
         val isDark = LocalIsDarkTheme.current
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
         Box(
             modifier = Modifier
@@ -95,12 +102,15 @@ fun NeumorphicDialog(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
-                ) { onDismissRequest() },
+                ) { onDismissRequest() }
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(vertical = if (isLandscape) 10.dp else 16.dp),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = modifier
                     .fillMaxWidth(0.92f)
+                    .then(if (isLandscape) Modifier.widthIn(max = 540.dp) else Modifier)
                     .wrapContentHeight()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },

@@ -28,6 +28,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.verticalScroll
 
 import androidx.compose.foundation.Image
 
@@ -728,12 +729,188 @@ fun EngineerPortalScreen(
 
 
 
+    val showPortalChrome = !isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingMyTeam
+    val portalNavItems = remember(isManager) {
+        if (isManager) {
+            listOf(
+                NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
+                NavTabItem(1, "Team Shifts", Icons.Default.Group),
+                NavTabItem(2, "Month Roster", Icons.Default.GridView),
+                NavTabItem(3, "Broadcast", Icons.Default.Campaign),
+                NavTabItem(4, "More", Icons.Default.MoreHoriz)
+            )
+        } else {
+            listOf(
+                NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
+                NavTabItem(1, "Team Shifts", Icons.Default.Group),
+                NavTabItem(2, "My Calendar", Icons.Default.CalendarMonth),
+                NavTabItem(3, "Month Roster", Icons.Default.GridView),
+                NavTabItem(4, "More", Icons.Default.MoreHoriz)
+            )
+        }
+    }
+
     Scaffold(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
 
             if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam) {
+                if (isLandscape) {
+                    // Ultra-slim 42dp Landscape Top Bar
+                    val isManagementAccountUser = state.loggedInEngineer?.isManagementAccount == true ||
+                        state.loggedInEngineer?.role == EngineerRole.ADMIN ||
+                        state.loggedInEngineer?.role == EngineerRole.MANAGER
+                    val unreadCount = if (isManagementAccountUser) 0 else state.notifications.count {
+                        !it.isExpiredCelebration() && (it.id ?: "") !in state.dismissedNotificationIds
+                    }
+                    Surface(
+                        color = NeumorphicTokens.Canvas,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                                .height(42.dp)
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (isViewingSettings) {
+                                    IconButton(
+                                        onClick = {
+                                            isViewingSettings = false
+                                            selectedTab = previousTab
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Back to Tabs",
+                                            tint = NeumorphicTokens.AccentSalmon,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = "Profile & Settings",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp,
+                                        color = NeumorphicTokens.AccentSalmon
+                                    )
+                                } else {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_rosterx_logo),
+                                        contentDescription = "RosterX Logo",
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = "RosterX",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 16.sp,
+                                        color = NeumorphicTokens.AccentSalmon
+                                    )
+                                }
+                            }
 
+                            if (!isViewingSettings) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (!isManagementAccountUser) {
+                                        Box {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .clickable { showQuickNotificationsSheet = true },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Photorealistic3DBell(
+                                                    modifier = Modifier.size(21.dp),
+                                                    clapperAngle = 0f
+                                                )
+                                            }
+                                            if (unreadCount > 0) {
+                                                val isSingleDigit = unreadCount < 10
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = Color(0xFFDC2626),
+                                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface),
+                                                    shadowElevation = 2.dp,
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .offset(x = 2.dp, y = (-1).dp)
+                                                        .height(15.dp)
+                                                        .defaultMinSize(minWidth = if (isSingleDigit) 15.dp else 20.dp)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .padding(horizontal = if (isSingleDigit) 0.dp else 4.dp)
+                                                            .fillMaxHeight(),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                                            color = Color.White,
+                                                            style = TextStyle(
+                                                                fontSize = 8.sp,
+                                                                fontWeight = FontWeight.Black,
+                                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                textAlign = TextAlign.Center
+                                                            ),
+                                                            maxLines = 1
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (state.loggedInEngineer != null && selectedTab != 4) {
+                                        NeumorphicCard(
+                                            modifier = Modifier.clickable {
+                                                previousTab = selectedTab
+                                                isViewingCredentialTracker = false
+                                                isViewingMyTeam = false
+                                                isViewingSettings = true
+                                            },
+                                            shape = CircleShape,
+                                            style = NeumorphicElevationStyle.RaisedSubtle,
+                                            surfaceColor = NeumorphicTokens.Surface,
+                                            contentPadding = 0.dp
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                UserAvatar(
+                                                    name = state.loggedInEngineer!!.name,
+                                                    profilePicture = state.loggedInEngineer!!.profilePicture,
+                                                    size = 20.dp,
+                                                    backgroundColor = NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f),
+                                                    textColor = NeumorphicTokens.AccentSalmon,
+                                                    fontSize = 9.sp
+                                                )
+                                                Spacer(modifier = Modifier.width(5.dp))
+                                                Text(
+                                                    text = state.loggedInEngineer!!.name.toProperCase().split(" ")[0],
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 11.sp,
+                                                    color = NeumorphicTokens.TextMain
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
                 TopAppBar(
                 navigationIcon = {
                     if (isViewingSettings) {
@@ -946,6 +1123,7 @@ fun EngineerPortalScreen(
                 )
 
             )
+                }
 
             }
 
@@ -999,27 +1177,7 @@ fun EngineerPortalScreen(
 
         bottomBar = {
 
-            val portalNavItems = remember(isManager) {
-                if (isManager) {
-                    listOf(
-                        NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
-                        NavTabItem(1, "Team Shifts", Icons.Default.Group),
-                        NavTabItem(2, "Month Roster", Icons.Default.GridView),
-                        NavTabItem(3, "Broadcast", Icons.Default.Campaign),
-                        NavTabItem(4, "More", Icons.Default.MoreHoriz)
-                    )
-                } else {
-                    listOf(
-                        NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
-                        NavTabItem(1, "Team Shifts", Icons.Default.Group),
-                        NavTabItem(2, "My Calendar", Icons.Default.CalendarMonth),
-                        NavTabItem(3, "Month Roster", Icons.Default.GridView),
-                        NavTabItem(4, "More", Icons.Default.MoreHoriz)
-                    )
-                }
-            }
-
-            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingMyTeam) {
+            if (!isLandscape && showPortalChrome) {
                 FluidNeumorphicBottomNav(
                     items = portalNavItems,
                     selectedIndex = selectedTab,
@@ -1035,14 +1193,40 @@ fun EngineerPortalScreen(
         }
 
     ) { paddingValues ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                top = if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
-            )
-            .background(NeumorphicTokens.Canvas)
-            .nestedScroll(pullRefreshState.nestedScrollConnection)
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
+                )
+                .background(NeumorphicTokens.Canvas)
         ) {
+            if (isLandscape && showPortalChrome) {
+                com.rosterx.presentation.components.FluidNeumorphicNavRail(
+                    items = portalNavItems,
+                    selectedIndex = selectedTab,
+                    onTabSelected = { tab ->
+                        if ((isManager && (tab == 1 || tab == 2)) || (!isManager && (tab == 1 || tab == 2))) {
+                            viewModel.resetToCurrentDateAndMonth()
+                        }
+                        selectedTab = tab
+                    }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .then(
+                        if (isLandscape && !isFullScreenRoster) {
+                            Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.End))
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .nestedScroll(pullRefreshState.nestedScrollConnection)
+            ) {
 
             if (state.isLoading && state.engineers.isEmpty()) {
 
@@ -1248,15 +1432,20 @@ fun EngineerPortalScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingMyTeam) {
+            if (showPortalChrome) {
                 com.rosterx.presentation.components.FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
+                    size = if (isLandscape) 44.dp else 52.dp,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 96.dp)
+                        .padding(
+                            end = if (isLandscape) 14.dp else 16.dp,
+                            bottom = if (isLandscape) 14.dp else 96.dp
+                        )
                 )
             }
 
+            }
         }
 
     }
@@ -2224,10 +2413,17 @@ fun ManagerDashboardView(
         }
     }
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(
+            start = if (isLandscape) 12.dp else 16.dp,
+            end = if (isLandscape) 12.dp else 16.dp,
+            top = if (isLandscape) 6.dp else 8.dp,
+            bottom = if (isLandscape) 24.dp else 88.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 16.dp)
     ) {
         // 1. Sleek Compact Welcome Card (Operation Manager / Operation Hub stripped)
         item {
@@ -2338,20 +2534,43 @@ fun ManagerDashboardView(
             }
         }
 
-        // 2. Today's Shift Radar (FIRST!)
-        item {
-            ManagerRadarSection(
-                state = state,
-                today = today
-            )
-        }
+        if (isLandscape) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        ManagerRadarSection(
+                            state = state,
+                            today = today
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        ManagerHealthCard(
+                            state = state,
+                            onRefreshDiagnostics = onRefreshDiagnostics
+                        )
+                    }
+                }
+            }
+        } else {
+            // 2. Today's Shift Radar (FIRST!)
+            item {
+                ManagerRadarSection(
+                    state = state,
+                    today = today
+                )
+            }
 
-        // 3. System & Database Health Card (AFTER Shift Radar!)
-        item {
-            ManagerHealthCard(
-                state = state,
-                onRefreshDiagnostics = onRefreshDiagnostics
-            )
+            // 3. System & Database Health Card (AFTER Shift Radar!)
+            item {
+                ManagerHealthCard(
+                    state = state,
+                    onRefreshDiagnostics = onRefreshDiagnostics
+                )
+            }
         }
     }
 }
@@ -2439,6 +2658,223 @@ fun DashboardView(
         state.todayCelebrations.filter { celeb ->
             celeb.username != engineer?.username && !state.dismissedCelebrationIds.contains(celeb.username)
         }
+    }
+
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    if (isLandscape) {
+        // 2-Pane Responsive Landscape Dashboard: Left Welcome + Celebrations, Right 2x2 Shift & Metrics Grid
+        val engDisplayName = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Engineer").toProperCase()
+        val isDark = LocalIsDarkTheme.current
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(0.45f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp, horizontal = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                NeumorphicCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    style = NeumorphicElevationStyle.Raised,
+                    surfaceColor = NeumorphicTokens.Surface,
+                    contentPadding = 14.dp
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = today.format(DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy")),
+                                    color = NeumorphicTokens.AccentSalmon,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Welcome, $engDisplayName! \uD83D\uDC4B",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = NeumorphicTokens.TextMain,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            UserAvatar(
+                                name = engDisplayName,
+                                profilePicture = engineer?.profilePicture,
+                                size = 40.dp,
+                                backgroundColor = MaterialTheme.colorScheme.primary,
+                                textColor = MaterialTheme.colorScheme.onPrimary,
+                                fontSize = 15.sp
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (timers.isShiftRunning) Color(0xFF06B6D4).copy(alpha = 0.12f) else NeumorphicTokens.SurfaceContrast,
+                            border = BorderStroke(1.dp, if (timers.isShiftRunning) Color(0xFF06B6D4) else Color(0xFFCBD5E1).copy(alpha = 0.6f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 9.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = null,
+                                    tint = if (timers.isShiftRunning) Color(0xFF0891B2) else NeumorphicTokens.StatusCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = timers.shiftLabel,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = NeumorphicTokens.TextMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = timers.shiftTime,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (timers.isShiftRunning) Color(0xFF0891B2) else NeumorphicTokens.TextMain,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isDark) Color(0xFF78350F).copy(alpha = 0.45f) else Color(0xFFFEF3C7).copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFFF59E0B).copy(alpha = 0.6f) else Color(0xFFFCD34D).copy(alpha = 0.9f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 9.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.WbSunny,
+                                    contentDescription = null,
+                                    tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = timers.restLabel,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
+                                )
+                                Text(
+                                    text = timers.restValue,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color(0xFFFEF08A) else Color(0xFF78350F),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (isBirthdayToday || isAnniversaryToday) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                        border = BorderStroke(1.2.dp, Color(0xFFF59E0B).copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenCelebrationWishes() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(if (isBirthdayToday) "🎂" else "🏆", fontSize = 18.sp)
+                            Text(
+                                text = if (isBirthdayToday && isAnniversaryToday) "Happy Birthday & Anniversary! 🎉"
+                                else if (isBirthdayToday) "Happy Birthday! Tap for wishes"
+                                else "Happy ${anniversaryYears}y Anniversary!",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                if (activeTeamCelebrations.isNotEmpty()) {
+                    com.rosterx.presentation.components.TeamCelebrationsSection(
+                        celebrations = activeTeamCelebrations,
+                        onDismiss = onDismissCelebration
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(0.55f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 4.dp, bottom = 52.dp, start = 2.dp, end = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    VibrantShiftCard(
+                        title = "TODAY'S SHIFT (${today.format(DateTimeFormatter.ofPattern("MMM dd"))})",
+                        shift = todayShift,
+                        accentColor = Color(0xFF10B981),
+                        modifier = Modifier.weight(1f)
+                    )
+                    VibrantShiftCard(
+                        title = "TOMORROW'S SHIFT (${tomorrow.format(DateTimeFormatter.ofPattern("MMM dd"))})",
+                        shift = tomorrowShift,
+                        accentColor = Color(0xFF6366F1),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    VibrantMetricsCard(
+                        title = "MONTHLY DUTIES",
+                        metrics = listOf("DAY SHIFTS" to dayShiftsCount, "NIGHT SHIFTS" to nightShiftsCount),
+                        bottomText = "Total Assigned: ${dayShiftsCount + nightShiftsCount} days",
+                        accentColor = Color(0xFF0EA5E9),
+                        modifier = Modifier.weight(1f)
+                    )
+                    VibrantMetricsCard(
+                        title = "SCHEDULED REST DAYS",
+                        metrics = listOf("Weekly Offs" to restDaysCount),
+                        bottomText = "${timers.restLabel} ${timers.restValue}",
+                        accentColor = Color(0xFFF59E0B),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+        return
     }
 
     LazyColumn(
@@ -2964,6 +3400,8 @@ fun TeamShiftsView(
 
 
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Column(modifier = Modifier.fillMaxSize()) {
 
         Surface(
@@ -2980,7 +3418,7 @@ fun TeamShiftsView(
 
                     .fillMaxWidth()
 
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = if (isLandscape) 4.dp else 12.dp),
 
                 horizontalArrangement = Arrangement.SpaceBetween,
 
@@ -2988,7 +3426,10 @@ fun TeamShiftsView(
 
             ) {
 
-                IconButton(onClick = onPreviousDay) {
+                IconButton(
+                    onClick = onPreviousDay,
+                    modifier = if (isLandscape) Modifier.size(32.dp) else Modifier
+                ) {
 
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Day", tint = NeumorphicTokens.TextMain)
 
@@ -3028,7 +3469,7 @@ fun TeamShiftsView(
 
                         fontWeight = FontWeight.ExtraBold,
 
-                        fontSize = 15.sp,
+                        fontSize = if (isLandscape) 13.5.sp else 15.sp,
 
                         color = NeumorphicTokens.TextMain
 
@@ -3040,7 +3481,10 @@ fun TeamShiftsView(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
-                    IconButton(onClick = onNextDay) {
+                    IconButton(
+                        onClick = onNextDay,
+                        modifier = if (isLandscape) Modifier.size(32.dp) else Modifier
+                    ) {
 
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Day", tint = NeumorphicTokens.TextMain)
 
@@ -3056,12 +3500,24 @@ fun TeamShiftsView(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+            contentPadding = PaddingValues(
+                start = if (isLandscape) 12.dp else 16.dp,
+                end = if (isLandscape) 12.dp else 16.dp,
+                top = 8.dp,
+                bottom = if (isLandscape) 56.dp else 88.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            items(sortedShiftGroups) { (shift, engineersInShift) ->
-
+            val groupedRows = if (isLandscape) sortedShiftGroups.chunked(2) else sortedShiftGroups.map { listOf(it) }
+            items(groupedRows) { rowGroups ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    rowGroups.forEach { (shift, engineersInShift) ->
+                        Box(modifier = Modifier.weight(1f)) {
                 val shiftTiming = when {
                     shift is ShiftCode.SW || shift.code.startsWith("SW") -> "Rest Day"
                     shift is ShiftCode.OFF -> "Rest Day"
@@ -3334,6 +3790,12 @@ fun TeamShiftsView(
                     }
 
                 }
+                        }
+                    }
+                    if (isLandscape && rowGroups.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
 
             }
 
@@ -3383,8 +3845,316 @@ fun MyCalendarView(
     )
     val glowAlpha = 0.35f + 0.60f * glowProgress
     val glowRadius = (3.0f + 5.0f * glowProgress).dp
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    var showCalendarSyncDialog by remember { mutableStateOf(false) }
+    val myMonthShiftCodes = remember(roster) {
+        roster.mapNotNull { (dayStr, shiftCode) ->
+            dayStr.toIntOrNull()?.let { it to shiftCode.code }
+        }.toMap()
+    }
+    val syncPreview = remember(myMonthShiftCodes) {
+        com.rosterx.util.ShiftCalendarExporter.computePreview(myMonthShiftCodes)
+    }
+    val canSyncPersonalCalendar = remember(syncPreview, engineer) {
+        engineer != null && !engineer.isManagementAccount && syncPreview.totalCount > 0
+    }
 
+    if (showCalendarSyncDialog && engineer != null) {
+        com.rosterx.presentation.components.CalendarSyncDialog(
+            engineerName = engineer.fullName.ifBlank { engineer.name },
+            username = engineer.username,
+            year = state.gridYear,
+            month = state.gridMonth,
+            dayShiftCodes = myMonthShiftCodes,
+            onDismiss = { showCalendarSyncDialog = false }
+        )
+    }
+
+    if (isLandscape) {
+        // 2-Pane Responsive Landscape Layout: Left full-month compact grid + Right Sync & Legend
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Left Pane: Compact Month Header + Full-Month Calendar Grid (all weeks fit without scrolling)
+            Column(
+                modifier = Modifier
+                    .weight(0.58f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onPreviousMonth, modifier = Modifier.size(30.dp)) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Previous Month",
+                            tint = NeumorphicTokens.TextMain,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(
+                        text = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeumorphicTokens.TextMain
+                    )
+                    IconButton(onClick = onNextMonth, modifier = Modifier.size(30.dp)) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Next Month",
+                            tint = NeumorphicTokens.TextMain,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Weekday Labels
+                val daysOfWeek = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    daysOfWeek.forEach { dayName ->
+                        Text(
+                            text = dayName,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold,
+                            color = NeumorphicTokens.TextMuted,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+
+                // Responsive Month Matrix distributing all 5-6 weeks evenly across remaining height
+                AnimatedContent(
+                    targetState = yearMonth,
+                    transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(220)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    label = "LandscapeCalendarTransition"
+                ) { currentYM ->
+                    val currentDaysCount = currentYM.lengthOfMonth()
+                    val leadingBlanks = currentYM.atDay(1).dayOfWeek.value - 1
+                    val totalSlots = leadingBlanks + currentDaysCount
+                    val weekCount = ((totalSlots + 6) / 7).coerceAtLeast(1)
+
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        for (week in 0 until weekCount) {
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                for (col in 0 until 7) {
+                                    val slotIdx = week * 7 + col
+                                    val day = slotIdx - leadingBlanks + 1
+                                    if (day in 1..currentDaysCount) {
+                                        val date = LocalDate.of(currentYM.year, currentYM.monthValue, day)
+                                        val isToday = (currentYM.year == today.year && currentYM.monthValue == today.monthValue && day == today.dayOfMonth)
+                                        val shift = roster[day.toString()]
+                                        val isSelected = state.selectedDate == date
+                                        val isWeekend = date.dayOfWeek.value >= 6
+                                        val cellBgColor = when {
+                                            shift != null -> Color(parseColor(shift.bgColorHex))
+                                            isWeekend -> WeekendLightOrange
+                                            isSelected -> NeumorphicTokens.AccentSalmon.copy(alpha = 0.25f)
+                                            else -> NeumorphicTokens.SurfaceContrast
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .clip(RoundedCornerShape(7.dp))
+                                                .background(cellBgColor)
+                                                .border(
+                                                    width = when {
+                                                        isToday -> 2.dp
+                                                        isSelected -> 1.5.dp
+                                                        else -> 0.dp
+                                                    },
+                                                    color = when {
+                                                        isToday -> themeAccent.copy(alpha = glowAlpha)
+                                                        isSelected -> NeumorphicTokens.AccentSalmon
+                                                        else -> Color.Transparent
+                                                    },
+                                                    shape = RoundedCornerShape(7.dp)
+                                                )
+                                                .clickable {
+                                                    onDateSelected(date)
+                                                    onNavigateToTeam()
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.Center
+                                                ) {
+                                                    Text(
+                                                        text = day.toString(),
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        fontSize = 11.5.sp,
+                                                        lineHeight = 13.sp,
+                                                        color = if (shift != null) Color(parseColor(shift.textColorHex)) else NeumorphicTokens.TextMain
+                                                    )
+                                                    if (isToday) {
+                                                        Spacer(modifier = Modifier.width(2.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(4.dp)
+                                                                .clip(CircleShape)
+                                                                .background(themeAccent.copy(alpha = glowAlpha))
+                                                        )
+                                                    }
+                                                }
+                                                if (shift != null) {
+                                                    Text(
+                                                        text = shift.code,
+                                                        fontSize = 9.sp,
+                                                        lineHeight = 10.sp,
+                                                        color = Color(parseColor(shift.textColorHex)),
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Right Pane: Sync to Calendar Action + Scrollable Shift Legend
+            Column(
+                modifier = Modifier
+                    .weight(0.42f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 4.dp, bottom = 58.dp, start = 4.dp, end = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (canSyncPersonalCalendar && engineer != null) {
+                    NeumorphicCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showCalendarSyncDialog = true },
+                        shape = RoundedCornerShape(14.dp),
+                        style = NeumorphicElevationStyle.RaisedSubtle,
+                        surfaceColor = NeumorphicTokens.Surface,
+                        contentPadding = 0.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EventAvailable,
+                                contentDescription = "Sync to Calendar",
+                                tint = themeAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Sync to Calendar",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = themeAccent
+                            )
+                        }
+                    }
+                }
+
+                NeumorphicCard(
+                    shape = RoundedCornerShape(18.dp),
+                    style = NeumorphicElevationStyle.RaisedSubtle,
+                    surfaceColor = NeumorphicTokens.Surface,
+                    contentPadding = 12.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        Text(
+                            text = "SHIFT LEGEND & TIMINGS",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.AccentSalmon
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = NeumorphicTokens.SurfaceContrast
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            ALL_STANDARD_SHIFTS.forEach { (shift, timing) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(30.dp)
+                                                .height(20.dp)
+                                                .clip(RoundedCornerShape(5.dp))
+                                                .background(Color(parseColor(shift.bgColorHex))),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = shift.code,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 9.sp,
+                                                color = Color(parseColor(shift.textColorHex))
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = shift.name,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = NeumorphicTokens.TextMain,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Text(
+                                        text = timing,
+                                        fontSize = 10.sp,
+                                        color = NeumorphicTokens.TextMuted,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -3394,30 +4164,6 @@ fun MyCalendarView(
 
         // Header with Month Navigation Arrows + Personal Calendar Smart Sync
         item {
-            var showCalendarSyncDialog by remember { mutableStateOf(false) }
-            val myMonthShiftCodes = remember(roster) {
-                roster.mapNotNull { (dayStr, shiftCode) ->
-                    dayStr.toIntOrNull()?.let { it to shiftCode.code }
-                }.toMap()
-            }
-            val syncPreview = remember(myMonthShiftCodes) {
-                com.rosterx.util.ShiftCalendarExporter.computePreview(myMonthShiftCodes)
-            }
-            val canSyncPersonalCalendar = remember(syncPreview, engineer) {
-                engineer != null && !engineer.isManagementAccount && syncPreview.totalCount > 0
-            }
-
-            if (showCalendarSyncDialog && engineer != null) {
-                com.rosterx.presentation.components.CalendarSyncDialog(
-                    engineerName = engineer.fullName.ifBlank { engineer.name },
-                    username = engineer.username,
-                    year = state.gridYear,
-                    month = state.gridMonth,
-                    dayShiftCodes = myMonthShiftCodes,
-                    onDismiss = { showCalendarSyncDialog = false }
-                )
-            }
-
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -4791,12 +5537,61 @@ fun AccountView(
         } catch (_: Exception) {}
     }
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(
+            start = if (isLandscape) 12.dp else 16.dp,
+            end = if (isLandscape) 12.dp else 16.dp,
+            top = if (isLandscape) 6.dp else 8.dp,
+            bottom = if (isLandscape) 24.dp else 88.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 16.dp)
     ) {
         // User Profile Header (Single top-right pencil icon standard)
+        if (isLandscape) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        com.rosterx.presentation.components.StandardProfileHeaderCard(
+                            name = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Unknown User"),
+                            roleTitle = engineer?.role?.name ?: "ENGINEER",
+                            profilePicture = engineer?.profilePicture,
+                            username = engineer?.username ?: "",
+                            onEditClick = onOpenEditProfile
+                        )
+                        com.rosterx.presentation.components.TenureAndBirthdayRow(
+                            joinDate = engineer?.joinDate,
+                            birthday = engineer?.birthday
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (engineer?.role != com.rosterx.domain.model.EngineerRole.ADMIN &&
+                            engineer?.role != com.rosterx.domain.model.EngineerRole.MANAGER) {
+                            com.rosterx.presentation.components.WeeklyOffsCard(
+                                weeklyOffs = engineer?.defaultWeeklyOffs ?: emptyList()
+                            )
+                        }
+                        com.rosterx.presentation.components.AccountDetailsCard(
+                            username = engineer?.username ?: "--",
+                            email = engineer?.email ?: "--",
+                            phone = engineer?.phone ?: "--"
+                        )
+                    }
+                }
+            }
+        } else {
         item {
             com.rosterx.presentation.components.StandardProfileHeaderCard(
                 name = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Unknown User"),
@@ -4883,6 +5678,7 @@ fun AccountView(
                 email = engineer?.email ?: "--",
                 phone = engineer?.phone ?: "--"
             )
+        }
         }
 
         // Appearance & Brand Theme Selection Card

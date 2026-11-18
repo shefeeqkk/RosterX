@@ -1,6 +1,7 @@
 package com.rosterx.presentation.admin.tabs
 
 import android.content.Context
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
@@ -13,6 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -96,12 +100,24 @@ fun ServerManagementTab(
         NetworkUtils.getActiveNetworkDescription(context)
     }
 
-    LazyColumn(
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(if (isLandscape) 2 else 1),
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        contentPadding = PaddingValues(bottom = 80.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .then(
+                if (isLandscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                else Modifier
+            ),
+        contentPadding = PaddingValues(
+            start = if (isLandscape) 12.dp else 16.dp,
+            end = if (isLandscape) 12.dp else 16.dp,
+            top = if (isLandscape) 8.dp else 16.dp,
+            bottom = if (isLandscape) 24.dp else 80.dp
+        ),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 16.dp)
     ) {
         // 0. Administrator Standard Profile Header
         item {

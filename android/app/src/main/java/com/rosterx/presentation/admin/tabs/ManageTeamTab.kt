@@ -183,6 +183,11 @@ fun ManageTeamTab(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.95f)
+                        .then(
+                            if (androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
+                                Modifier.widthIn(max = 540.dp)
+                            else Modifier
+                        )
                         .padding(horizontal = 6.dp, vertical = 20.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -1130,13 +1135,27 @@ fun ManageTeamTab(
                 }
             }
 
+            val isManageTeamLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             // Registered Accounts List
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
+                contentPadding = PaddingValues(
+                    start = if (isManageTeamLandscape) 12.dp else 16.dp,
+                    end = if (isManageTeamLandscape) 12.dp else 16.dp,
+                    top = if (isManageTeamLandscape) 8.dp else 12.dp,
+                    bottom = if (isManageTeamLandscape) 68.dp else 88.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(sortedAndFiltered) { engineer ->
+                val accountRows = if (isManageTeamLandscape) sortedAndFiltered.chunked(2) else sortedAndFiltered.map { listOf(it) }
+                items(accountRows) { rowEngineers ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        rowEngineers.forEach { engineer ->
+                            Box(modifier = Modifier.weight(1f)) {
                     val (roleLabel, roleBgColor, roleTextColor) = when (engineer.role) {
                         EngineerRole.ADMIN -> Triple("ADMIN", Color(0xFFF3E8FF), Color(0xFF7E22CE))
                         EngineerRole.MANAGER -> Triple("MANAGER", Color(0xFFE0E7FF), Color(0xFF4338CA))
@@ -1286,6 +1305,12 @@ fun ManageTeamTab(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
+                        }
+                    }
+                            }
+                        }
+                        if (isManageTeamLandscape && rowEngineers.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }

@@ -151,11 +151,123 @@ fun AdminMainScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isFullScreenRoster = isLandscape && selectedTab == 2
+    val showAdminChrome = !isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingServerManagement
+    val adminNavItems = remember {
+        listOf(
+            NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
+            NavTabItem(1, "Register", Icons.Default.PersonAdd),
+            NavTabItem(2, "Rosters", Icons.Default.CalendarMonth),
+            NavTabItem(3, "Broadcast", Icons.Default.Campaign),
+            NavTabItem(4, "More", Icons.Default.MoreHoriz)
+        )
+    }
 
     Scaffold(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
             if (!isFullScreenRoster && !isViewingCredentialTracker) {
+                if (isLandscape) {
+                    // Ultra-slim 42dp Landscape Top Bar
+                    val activeHeaderUser = state.engineers.find {
+                        it.username.equals(currentUser?.username, ignoreCase = true)
+                    } ?: currentUser
+                    Surface(
+                        color = NeumorphicTokens.Canvas,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                                .height(42.dp)
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (isViewingSettings || isViewingServerManagement) {
+                                    IconButton(
+                                        onClick = {
+                                            if (isViewingSettings) {
+                                                isViewingSettings = false
+                                                selectedTab = previousTab
+                                            } else {
+                                                isViewingServerManagement = false
+                                            }
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Back",
+                                            tint = NeumorphicTokens.TextMain,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = if (isViewingSettings) "Account & Settings" else "Server Management",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp,
+                                        color = NeumorphicTokens.TextMain
+                                    )
+                                } else {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_rosterx_logo),
+                                        contentDescription = "RosterX Logo",
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = if (isManagerReadOnly) "Operations Portal" else "RosterX Admin",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            if (!isViewingSettings && !isViewingServerManagement && selectedTab != 4 && activeHeaderUser != null) {
+                                val displayName = (activeHeaderUser.fullName?.takeIf { it.isNotBlank() } ?: activeHeaderUser.name).toProperCase()
+                                val firstName = displayName.split(" ")[0]
+                                NeumorphicCard(
+                                    modifier = Modifier.clickable {
+                                        previousTab = selectedTab
+                                        isViewingCredentialTracker = false
+                                        isViewingServerManagement = false
+                                        isViewingSettings = true
+                                    },
+                                    shape = CircleShape,
+                                    style = NeumorphicElevationStyle.RaisedSubtle,
+                                    surfaceColor = NeumorphicTokens.Surface,
+                                    contentPadding = 0.dp
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        UserAvatar(
+                                            name = displayName,
+                                            profilePicture = activeHeaderUser.profilePicture,
+                                            size = 20.dp,
+                                            backgroundColor = NeumorphicTokens.AccentSalmon.copy(alpha = 0.2f),
+                                            textColor = NeumorphicTokens.AccentSalmon,
+                                            fontSize = 9.sp
+                                        )
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            text = firstName,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            color = NeumorphicTokens.TextMain
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
                 TopAppBar(
                     navigationIcon = {
                         if (isViewingSettings) {
@@ -280,20 +392,11 @@ fun AdminMainScreen(
                         titleContentColor = NeumorphicTokens.AccentSalmon
                     )
                 )
+                }
             }
         },
         bottomBar = {
-            val adminNavItems = remember {
-                listOf(
-                    NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
-                    NavTabItem(1, "Register", Icons.Default.PersonAdd),
-                    NavTabItem(2, "Rosters", Icons.Default.CalendarMonth),
-                    NavTabItem(3, "Broadcast", Icons.Default.Campaign),
-                    NavTabItem(4, "More", Icons.Default.MoreHoriz)
-                )
-            }
-
-            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingServerManagement) {
+            if (!isLandscape && showAdminChrome) {
                 FluidNeumorphicBottomNav(
                     items = adminNavItems,
                     selectedIndex = selectedTab,
@@ -307,7 +410,7 @@ fun AdminMainScreen(
             }
         }
     ) { paddingValues ->
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
@@ -315,8 +418,33 @@ fun AdminMainScreen(
                     else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
                 )
                 .background(NeumorphicTokens.Canvas)
-                .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
+            if (isLandscape && showAdminChrome) {
+                FluidNeumorphicNavRail(
+                    items = adminNavItems,
+                    selectedIndex = selectedTab,
+                    onTabSelected = { tab ->
+                        if (tab == 0 || tab == 2) {
+                            viewModel.resetToCurrentMonth()
+                        }
+                        selectedTab = tab
+                    }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .then(
+                        if (isLandscape && !isFullScreenRoster) {
+                            Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.End))
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .nestedScroll(pullRefreshState.nestedScrollConnection)
+            ) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
@@ -457,13 +585,18 @@ fun AdminMainScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (!isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingServerManagement) {
+            if (showAdminChrome) {
                 FloatingAiBotButton(
                     onClick = { viewModel.openAssistant() },
+                    size = if (isLandscape) 44.dp else 52.dp,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 96.dp)
+                        .padding(
+                            end = if (isLandscape) 14.dp else 16.dp,
+                            bottom = if (isLandscape) 14.dp else 96.dp
+                        )
                 )
+            }
             }
         }
     }

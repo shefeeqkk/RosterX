@@ -1,6 +1,7 @@
 package com.rosterx.presentation.portal.more
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -73,44 +75,51 @@ fun MyTeamView(
             .sortedBy { it.name.lowercase() }
     }
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(NeumorphicTokens.Canvas)
+            .then(
+                if (isLandscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                else Modifier
+            )
     ) {
         // Top Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = if (isLandscape) 6.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(if (isLandscape) 34.dp else 40.dp)
                     .clip(CircleShape)
                     .background(NeumorphicTokens.Surface)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = NeumorphicTokens.TextMain
+                    tint = NeumorphicTokens.TextMain,
+                    modifier = Modifier.size(if (isLandscape) 18.dp else 24.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "My Team Directory",
-                    fontSize = 20.sp,
+                    fontSize = if (isLandscape) 16.sp else 20.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = NeumorphicTokens.TextMain
                 )
                 Text(
                     text = "${activeEngineers.size} Active Team Members",
-                    fontSize = 12.sp,
+                    fontSize = if (isLandscape) 11.sp else 12.sp,
                     color = NeumorphicTokens.TextMuted
                 )
             }
@@ -184,12 +193,23 @@ fun MyTeamView(
                     )
                 }
 
-                items(managers, key = { "mgr_${it.id}" }) { manager ->
-                    TeamMemberCard(
-                        engineer = manager,
-                        roleDisplayName = "Operations Manager",
-                        roleBadgeColor = Color(0xFF6366F1)
-                    )
+                val mgrRows = if (isLandscape) managers.chunked(2) else managers.map { listOf(it) }
+                items(mgrRows) { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        rowItems.forEach { manager ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                TeamMemberCard(
+                                    engineer = manager,
+                                    roleDisplayName = "Operations Manager",
+                                    roleBadgeColor = Color(0xFF6366F1)
+                                )
+                            }
+                        }
+                        if (isLandscape && rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
 
@@ -203,15 +223,25 @@ fun MyTeamView(
                     )
                 }
 
-                items(shiftTeam, key = { "team_${it.id}" }) { member ->
-                    val roleTitle = if (member.role == EngineerRole.APPRENTICE) "Apprentice Engineer" else "Shift Engineer"
-                    val badgeColor = if (member.role == EngineerRole.APPRENTICE) Color(0xFFF59E0B) else NeumorphicTokens.AccentSalmon
-
-                    TeamMemberCard(
-                        engineer = member,
-                        roleDisplayName = roleTitle,
-                        roleBadgeColor = badgeColor
-                    )
+                val teamRows = if (isLandscape) shiftTeam.chunked(2) else shiftTeam.map { listOf(it) }
+                items(teamRows) { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        rowItems.forEach { member ->
+                            val roleTitle = if (member.role == EngineerRole.APPRENTICE) "Apprentice Engineer" else "Shift Engineer"
+                            val badgeColor = if (member.role == EngineerRole.APPRENTICE) Color(0xFFF59E0B) else NeumorphicTokens.AccentSalmon
+                            Box(modifier = Modifier.weight(1f)) {
+                                TeamMemberCard(
+                                    engineer = member,
+                                    roleDisplayName = roleTitle,
+                                    roleBadgeColor = badgeColor
+                                )
+                            }
+                        }
+                        if (isLandscape && rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
 

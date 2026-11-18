@@ -1045,10 +1045,12 @@ fun UnifiedEditProfileDialog(
     ) {
         ApplyDialogBlurBehind()
         val isDark = LocalIsDarkTheme.current
+        val isDialogLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
+                .then(if (isDialogLandscape) Modifier.widthIn(max = 540.dp) else Modifier)
                 .padding(vertical = 12.dp)
                 .neumorphicFloating(shape = RoundedCornerShape(24.dp))
                 .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))

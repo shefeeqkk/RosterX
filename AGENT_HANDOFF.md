@@ -5,6 +5,18 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.36.0 - Build 142 — Responsive Landscape Architecture):
+> *"Dasa! Gafoorka! Full **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi implement cheythu, safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
+> - **Month Roster Untouched**: Both Admin `Rosters` and Portal `Month Roster` keep their custom `isFullScreenRoster` landscape modes 100% untouched.
+> - **Slim 42dp Landscape Top Bar + Left `FluidNeumorphicNavRail`**: Added display-cutout-safe Left vertical Neumorphic Nav Rail (`~72dp` wide, icon + compact label, spring-animated raised active bubble) + ultra-slim `42dp` landscape top bar across BOTH Engineer/Manager Portal and Admin Console.
+> - **Multi-Column / 2-Pane Responsive Tab Layouts**:
+>   - **My Calendar**: 2-pane split — Left full-month compact grid (all 5–6 weeks fit on screen without scrolling!) + Right `Sync to Calendar` pill & Shift Legend.
+>   - **Dashboard (Engineer & Manager)**, **Team Shifts**, **More Hub**, **My Team**, **Profile & Settings**, **Credential Tracker**, **Admin Dashboard**, **Register/Manage Team**, **Broadcast History**, and **Server Management**: Clean 2-pane / 2-column responsive layouts with tighter landscape padding.
+> - **Floating AI Bot & Dialogs**: Compact `44dp` bottom-right placement in landscape (no 82dp bottom-nav offset) + `NeumorphicDialog`, `UnifiedEditProfileDialog`, and `ManageTeamTab` Edit dialog capped at `widthIn(max = 540.dp)` in landscape.
+> - **Version Sync**: Bumped `android/app/build.gradle.kts` (`142` / `1.36.0`) and `server.py` (`SERVER_VERSION = "1.36.0"`)."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.1 - Build 141 — Authentic Neumorphic `Sync to Calendar` Polish):
 > *"Dasa! Gafoorka! `CalendarSyncDialog` full Neumorphic polish + label rename complete aayi safe-build & live ADB verify cheythu `origin/main`-il push cheythu macha! 🎨✨
 > - **Frosted Blur & Zero White Halo**: Switched `CalendarSyncDialog.kt` from raw `Dialog + neumorphicRaised` to the app's native `NeumorphicDialog` (`ApplyDialogBlurBehind()` + frosted scrim + `neumorphicFloating` downward-only shadow with zero white top-left outer halo and zero clipped inner shadows).

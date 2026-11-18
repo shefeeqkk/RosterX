@@ -1,6 +1,7 @@
 package com.rosterx.presentation.admin.tabs
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -10,6 +11,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -58,17 +63,24 @@ fun AdminDashboardTab(
         Toast.makeText(context, "$label copied to clipboard", Toast.LENGTH_SHORT).show()
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentPadding = PaddingValues(bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(if (isLandscape) 2 else 1),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = if (isLandscape) 12.dp else 16.dp,
+            end = if (isLandscape) 12.dp else 16.dp,
+            top = if (isLandscape) 8.dp else 16.dp,
+            bottom = if (isLandscape) 56.dp else 96.dp
+        ),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 16.dp)
     ) {
         // Team Celebrations Banner
         val activeCelebrations = todayCelebrations.filter { !dismissedCelebrationIds.contains(it.username) }
         if (activeCelebrations.isNotEmpty()) {
-            item(key = "admin_team_celebrations") {
+            item(key = "admin_team_celebrations", span = { GridItemSpan(maxLineSpan) }) {
                 com.rosterx.presentation.components.TeamCelebrationsSection(
                     celebrations = activeCelebrations,
                     onDismiss = onDismissCelebration

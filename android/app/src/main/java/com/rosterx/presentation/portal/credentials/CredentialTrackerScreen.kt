@@ -1,5 +1,6 @@
 package com.rosterx.presentation.portal.credentials
 
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -103,9 +105,107 @@ fun CredentialTrackerScreen(
         }
     }
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Scaffold(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
+            if (isLandscape) {
+                Surface(
+                    color = NeumorphicTokens.Canvas,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                            .height(42.dp)
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(onClick = onBackClick, modifier = Modifier.size(32.dp)) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = NeumorphicTokens.AccentSalmon,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Text(
+                                text = "Credential Tracker",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 15.sp,
+                                color = NeumorphicTokens.AccentSalmon,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.loadCredentialTrackers() },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            if (isManagerOrAdmin) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFF6366F1).copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, Color(0xFF6366F1).copy(alpha = 0.35f)),
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clickable {
+                                            viewModel.loadCredentialTrackerLogs()
+                                            showLogsSheet = true
+                                        }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.History,
+                                            contentDescription = "Audit Logs",
+                                            tint = Color(0xFF6366F1),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
+                                    border = BorderStroke(1.dp, NeumorphicTokens.AccentSalmon.copy(alpha = 0.4f)),
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clickable {
+                                            trackerToEdit = null
+                                            showAddEditDialog = true
+                                        }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Add Tracker",
+                                            tint = NeumorphicTokens.AccentSalmon,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
@@ -186,12 +286,17 @@ fun CredentialTrackerScreen(
                     titleContentColor = NeumorphicTokens.TextMain
                 )
             )
+            }
         }
     ) { paddingValues ->
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding())
+                .then(
+                    if (isLandscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                    else Modifier
+                )
                 .background(NeumorphicTokens.Canvas)
         ) {
             // KPI Summary Row
@@ -376,25 +481,38 @@ fun CredentialTrackerScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    groupedTrackers.forEach { (serverName, trackersForServer) ->
-                        item(key = serverName) {
-                            ServerGroupCard(
-                                serverName = serverName,
-                                trackers = trackersForServer,
-                                isManagerOrAdmin = isManagerOrAdmin,
-                                currentUserEmail = currentUserEmail,
-                                currentUsername = currentUsername,
-                                onUpdateDateClick = { tracker ->
-                                    trackerToPickDateFor = tracker
-                                },
-                                onEditClick = { tracker ->
-                                    trackerToEdit = tracker
-                                    showAddEditDialog = true
-                                },
-                                onDeleteClick = { tracker ->
-                                    trackerToDelete = tracker
+                    val serverEntries = groupedTrackers.entries.toList()
+                    val serverRows = if (isLandscape) serverEntries.chunked(2) else serverEntries.map { listOf(it) }
+                    items(serverRows) { rowEntries ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            rowEntries.forEach { (serverName, trackersForServer) ->
+                                Box(modifier = Modifier.weight(1f)) {
+                                    ServerGroupCard(
+                                        serverName = serverName,
+                                        trackers = trackersForServer,
+                                        isManagerOrAdmin = isManagerOrAdmin,
+                                        currentUserEmail = currentUserEmail,
+                                        currentUsername = currentUsername,
+                                        onUpdateDateClick = { tracker ->
+                                            trackerToPickDateFor = tracker
+                                        },
+                                        onEditClick = { tracker ->
+                                            trackerToEdit = tracker
+                                            showAddEditDialog = true
+                                        },
+                                        onDeleteClick = { tracker ->
+                                            trackerToDelete = tracker
+                                        }
+                                    )
                                 }
-                            )
+                            }
+                            if (isLandscape && rowEntries.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                     item {

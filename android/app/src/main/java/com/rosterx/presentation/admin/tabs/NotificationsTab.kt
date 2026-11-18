@@ -161,12 +161,17 @@ fun NotificationsTab(
         )
     }
 
+    val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 88.dp)
+            .padding(horizontal = if (isLandscape) 12.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 10.dp else 14.dp),
+        contentPadding = PaddingValues(
+            top = if (isLandscape) 8.dp else 16.dp,
+            bottom = if (isLandscape) 56.dp else 88.dp
+        )
     ) {
         // --- 1. Top Header Banner ---
         item {
@@ -1261,29 +1266,43 @@ fun NotificationsTab(
                     }
                 }
             } else {
-                items(activeHistoryNotifications) { notif ->
-                    NotificationHistoryCard(
-                        notif = notif,
-                        onClone = {
-                            val clonedTitle = notif.title ?: ""
-                            titleTextFieldValue = TextFieldValue(clonedTitle, TextRange(clonedTitle.length))
-                            val msg = notif.rawMessage ?: ""
-                            messageTextFieldValue = TextFieldValue(msg, TextRange(msg.length))
-                            when (notif.priority?.lowercase()) {
-                                "urgent" -> selectedPriority = NotificationPriority.URGENT
-                                "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
-                                "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
-                                else -> selectedPriority = NotificationPriority.INFO
-                            }
-                            activeTabSection = 0
-                            Toast.makeText(context, "Loaded notice into composer!", Toast.LENGTH_SHORT).show()
-                        },
-                        onRetract = { nid ->
-                            onRetractNotification(nid) { success, msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                val historyRows = if (isLandscape) activeHistoryNotifications.chunked(2) else activeHistoryNotifications.map { listOf(it) }
+                items(historyRows) { rowNotifs ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        rowNotifs.forEach { notif ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                NotificationHistoryCard(
+                                    notif = notif,
+                                    onClone = {
+                                        val clonedTitle = notif.title ?: ""
+                                        titleTextFieldValue = TextFieldValue(clonedTitle, TextRange(clonedTitle.length))
+                                        val msg = notif.rawMessage ?: ""
+                                        messageTextFieldValue = TextFieldValue(msg, TextRange(msg.length))
+                                        when (notif.priority?.lowercase()) {
+                                            "urgent" -> selectedPriority = NotificationPriority.URGENT
+                                            "shift_update" -> selectedPriority = NotificationPriority.SHIFT_UPDATE
+                                            "broadcast" -> selectedPriority = NotificationPriority.BROADCAST
+                                            else -> selectedPriority = NotificationPriority.INFO
+                                        }
+                                        activeTabSection = 0
+                                        Toast.makeText(context, "Loaded notice into composer!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onRetract = { nid ->
+                                        onRetractNotification(nid) { success, msg ->
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
                             }
                         }
-                    )
+                        if (isLandscape && rowNotifs.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }

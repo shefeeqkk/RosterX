@@ -1,5 +1,6 @@
 package com.rosterx.presentation.portal.more
 
+import android.content.res.Configuration
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,32 +39,9 @@ fun MoreHubView(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(NeumorphicTokens.Canvas)
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Hub Header Banner
-        Column(modifier = Modifier.padding(bottom = 4.dp)) {
-            Text(
-                text = "Operations Hub",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = NeumorphicTokens.TextMain
-            )
-            Text(
-                text = if (isAdmin) "Server controls & infrastructure credentials" else "Extended duty utilities & automated server monitors",
-                fontSize = 13.sp,
-                color = NeumorphicTokens.TextMuted,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-        }
-
-        // Feature 1: Server Credential Tracker Card (Primary Action)
+    val credentialCard: @Composable () -> Unit = {
         MoreHubFeatureCard(
             title = "Server Credential Tracker",
             description = "Monitor root & service account password validity with automated 9:00 AM IST expiry alerts.",
@@ -126,9 +105,10 @@ fun MoreHubView(
             },
             onClick = onNavigateToCredentialTracker
         )
+    }
 
-        // Feature 2: Admin -> Server Management Card
-        if (isAdmin && onNavigateToServerManagement != null) {
+    val secondaryCard: (@Composable () -> Unit)? = when {
+        isAdmin && onNavigateToServerManagement != null -> ({
             MoreHubFeatureCard(
                 title = "Server Management",
                 description = "Configure backend server URL, inspect MongoDB Atlas diagnostics, and review live server logs.",
@@ -152,10 +132,8 @@ fun MoreHubView(
                 enabled = true,
                 onClick = onNavigateToServerManagement
             )
-        }
-
-        // Feature 2: Non-Admin -> My Team Directory Card
-        if (!isAdmin && onNavigateToMyTeam != null) {
+        })
+        !isAdmin && onNavigateToMyTeam != null -> ({
             val activeMembersCount = remember(state.engineers) {
                 state.engineers.count {
                     it.status != EngineerStatus.RESIGNED &&
@@ -163,7 +141,6 @@ fun MoreHubView(
                             !it.username.equals("admin", ignoreCase = true)
                 }
             }
-
             MoreHubFeatureCard(
                 title = "My Team",
                 description = "Team directory, hierarchy, and direct contact options.",
@@ -187,9 +164,52 @@ fun MoreHubView(
                 enabled = true,
                 onClick = onNavigateToMyTeam
             )
+        })
+        else -> null
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(NeumorphicTokens.Canvas)
+            .verticalScroll(scrollState)
+            .padding(
+                horizontal = if (isLandscape) 14.dp else 20.dp,
+                vertical = if (isLandscape) 10.dp else 16.dp
+            ),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 16.dp)
+    ) {
+        // Hub Header Banner
+        Column(modifier = Modifier.padding(bottom = if (isLandscape) 0.dp else 4.dp)) {
+            Text(
+                text = "Operations Hub",
+                fontSize = if (isLandscape) 19.sp else 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = NeumorphicTokens.TextMain
+            )
+            Text(
+                text = if (isAdmin) "Server controls & infrastructure credentials" else "Extended duty utilities & automated server monitors",
+                fontSize = if (isLandscape) 12.sp else 13.sp,
+                color = NeumorphicTokens.TextMuted,
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        if (isLandscape && secondaryCard != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(modifier = Modifier.weight(1f)) { credentialCard() }
+                Box(modifier = Modifier.weight(1f)) { secondaryCard() }
+            }
+        } else {
+            credentialCard()
+            secondaryCard?.invoke()
+        }
+
+        Spacer(modifier = Modifier.height(if (isLandscape) 52.dp else 32.dp))
     }
 }
 
