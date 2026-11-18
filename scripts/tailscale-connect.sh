@@ -5,7 +5,13 @@
 
 set -euo pipefail
 
-PHONE_IP="${1:-${TAILSCALE_PHONE_IP:-100.71.241.36}}"
+PHONE_IP="${1:-${TAILSCALE_PHONE_IP:-}}"
+if [ -z "${PHONE_IP}" ]; then
+    echo "❌ Error: Phone Tailscale IP is required."
+    echo "   Pass it as the first argument or set TAILSCALE_PHONE_IP:"
+    echo "   Usage: ./scripts/tailscale-connect.sh <YOUR_TAILSCALE_PHONE_IP> [ADB_PORT]"
+    exit 1
+fi
 PORT="${2:-${ADB_PORT:-5555}}"
 
 echo "======================================================================"

@@ -1,3 +1,5 @@
+import os
+import secrets
 import urllib.request
 import urllib.parse
 import json
@@ -7,7 +9,7 @@ import sys
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
-BASE_URL = "https://rosterx-vc30.onrender.com"
+BASE_URL = os.environ.get("ROSTERX_BASE_URL", "http://localhost:8000")
 
 def make_request(path, method="GET", data=None, token=None):
     url = f"{BASE_URL}{path}"
@@ -52,20 +54,17 @@ def run_tests():
 
     # STEP 1: Admin Authentication
     print("\n[TEST 1] Authenticating as Lead Admin...")
-    admin_identifier = os.environ.get("ADMIN_USERNAME", "admin")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "")
+    admin_identifier = os.environ.get("ADMIN_USERNAME", "").strip()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "").strip()
+    if not admin_identifier or not admin_password:
+        print(" ❌ ERROR: ADMIN_USERNAME and ADMIN_PASSWORD environment variables must be set before running test_api_suite.py.")
+        sys.exit(1)
+
     status, login_res = make_request("/api/auth/login", method="POST", data={
         "identifier": admin_identifier,
         "password": admin_password
     })
     print(f" -> Status: {status}, Role: {login_res.get('user', {}).get('role')}")
-    if status != 200:
-        # Try alternate admin username
-        status, login_res = make_request("/api/auth/login", method="POST", data={
-            "identifier": "shefeeqkk",
-            "password": "Admin@123"
-        })
-        print(f" -> Fallback Status: {status}")
 
     assert status == 200 and "token" in login_res, f"Admin login failed: {login_res}"
     admin_token = login_res["token"]
@@ -73,19 +72,20 @@ def run_tests():
     print(f" ✅ PASS: Admin authenticated successfully! (Role: {admin_role})")
 
     # STEP 2: Account Creation (Manager Role)
-    print("\n[TEST 2] Testing Account Creation (Manager Role with Plaintext Password)...")
+    print("\n[TEST 2] Testing Account Creation (Manager Role with Ephemeral Password)...")
+    ephemeral_manager_password = secrets.token_urlsafe(12)
     test_manager_payload = {
         "engineers": [{
             "name": "AUDIT MANAGER",
             "full_name": "Audit Operations Manager",
             "username": "audit_manager",
-            "email": "audit_manager@tejasnetworks.com",
-            "phone": "+919876543210",
+            "email": "audit_manager@rosterx.example",
+            "phone": "+919800000099",
             "role": "manager",
             "status": "Active",
             "default_weekly_offs": ["Sunday", "Monday"],
             "join_date": "2026-01-01",
-            "password": "Password@123"
+            "password": ephemeral_manager_password
         }]
     }
     status, create_res = make_request("/api/engineers", method="POST", data=test_manager_payload, token=admin_token)
@@ -97,13 +97,13 @@ def run_tests():
     print("\n[TEST 3] Testing Authentication of Newly Created Manager Account...")
     status, mgr_login = make_request("/api/auth/login", method="POST", data={
         "identifier": "audit_manager",
-        "password": "Password@123"
+        "password": ephemeral_manager_password
     })
     print(f" -> Status: {status}, User: {mgr_login.get('user', {}).get('username')}, Role: {mgr_login.get('user', {}).get('role')}")
     assert status == 200 and "token" in mgr_login, f"Manager login failed: {mgr_login}"
     assert mgr_login.get("user", {}).get("role") == "manager", f"Expected manager role, got {mgr_login.get('user', {}).get('role')}"
     manager_token = mgr_login["token"]
-    print(" ✅ PASS: Manager logged in with password 'Password@123' and received valid JWT token!")
+    print(" ✅ PASS: Manager logged in with ephemeral password and received valid JWT token!")
 
     # STEP 4: Updation Without Overwriting Password Hash
     print("\n[TEST 4] Testing Updation Without Password (Preserve Existing Hash)...")
@@ -112,8 +112,8 @@ def run_tests():
             "name": "AUDIT MANAGER",
             "full_name": "Audit Operations Manager (Updated)",
             "username": "audit_manager",
-            "email": "audit_manager@tejasnetworks.com",
-            "phone": "+919999888777",
+            "email": "audit_manager@rosterx.example",
+            "phone": "+919800000098",
             "role": "manager",
             "status": "Active",
             "default_weekly_offs": ["Friday", "Saturday"]
@@ -127,7 +127,7 @@ def run_tests():
     # Verify that the manager can STILL log in with their original password!
     status, mgr_relogin = make_request("/api/auth/login", method="POST", data={
         "identifier": "audit_manager",
-        "password": "Password@123"
+        "password": ephemeral_manager_password
     })
     print(f" -> Re-login Status: {status}")
     assert status == 200 and "token" in mgr_relogin, f"Password hash was corrupted during update! {mgr_relogin}"
@@ -193,7 +193,7 @@ def run_tests():
     # Verify deleted manager cannot log in anymore
     status, dead_login = make_request("/api/auth/login", method="POST", data={
         "identifier": "audit_manager",
-        "password": "Password@123"
+        "password": ephemeral_manager_password
     })
     print(f" -> Post-deletion login status (Expected 401): {status}")
     assert status == 401, f"Deleted user was still able to authenticate! {dead_login}"

@@ -66,7 +66,7 @@ Scroll down to the **Environment Variables** section and add:
 | `ATLAS_DATABASE` | `rosterx` | Target database name |
 | `ENABLE_TUNNEL` | `false` | Disables local Cloudflare tunnel |
 | `RESEND_API_KEY` | `re_...` | *(Optional)* For transactional emails & OTP |
-| `ALERT_EMAIL` | `kkshefeeq005@gmail.com` | Administrator email |
+| `ALERT_EMAIL` | `admin@yourdomain.com` | Administrator email |
 
 ### Step 4: Deploy
 1. Click **"Create Web Service"** at the bottom of the page.

@@ -6,16 +6,22 @@
 # directly to the user's Android phone over Tailscale WireGuard mesh network.
 #
 # Usage:
-#   ./scripts/remote-deploy.sh [PHONE_IP] [ADB_PORT]
+#   TAILSCALE_PHONE_IP=<YOUR_TAILSCALE_PHONE_IP> ./scripts/remote-deploy.sh [PHONE_IP] [ADB_PORT]
 #
 # Examples:
-#   ./scripts/remote-deploy.sh                        # Uses 100.71.241.36:5555
-#   ./scripts/remote-deploy.sh 100.71.241.36 39233    # Uses dynamic fallback port
+#   ./scripts/remote-deploy.sh <YOUR_TAILSCALE_PHONE_IP>          # Uses <YOUR_TAILSCALE_PHONE_IP>:5555
+#   ./scripts/remote-deploy.sh <YOUR_TAILSCALE_PHONE_IP> 39233    # Uses dynamic fallback port
 # ==============================================================================
 
 set -euo pipefail
 
-PHONE_IP="${1:-${TAILSCALE_PHONE_IP:-100.71.241.36}}"
+PHONE_IP="${1:-${TAILSCALE_PHONE_IP:-}}"
+if [ -z "${PHONE_IP}" ]; then
+    echo "❌ Error: Phone Tailscale IP is required."
+    echo "   Pass it as the first argument or set TAILSCALE_PHONE_IP:"
+    echo "   Usage: ./scripts/remote-deploy.sh <YOUR_TAILSCALE_PHONE_IP> [ADB_PORT]"
+    exit 1
+fi
 PORT="${2:-${ADB_PORT:-5555}}"
 DEVICE_TARGET="${PHONE_IP}:${PORT}"
 

@@ -1,7 +1,7 @@
 # 🌐 RosterX - Antigravity Remote Agent & Tailscale Wireless ADB Guide
 
 > **Version:** `1.15.0`  
-> **Target Device Tailscale Static IP:** `100.71.241.36`  
+> **Target Device Tailscale Static IP:** `<YOUR_TAILSCALE_PHONE_IP>`  
 > **Production Cloud:** Render (`https://rosterx-vc30.onrender.com`)  
 > **Monorepo:** GitHub [`https://github.com/shefeeqkk/RosterX.git`](https://github.com/shefeeqkk/RosterX.git)
 
@@ -29,7 +29,7 @@ flowchart TD
     end
 
     subgraph AndroidDevice["📱 Physical Android Phone (Shefeeq)"]
-        TSApp["🌐 Tailscale Android App<br/><b>100.71.241.36</b>"]
+        TSApp["🌐 Tailscale Android App<br/><b><YOUR_TAILSCALE_PHONE_IP></b>"]
         ADBDaemon["🔌 ADB Daemon (:5555)<br/>Listening on 0.0.0.0"]
         App["📱 RosterX App (v1.15.0)"]
     end
@@ -55,8 +55,8 @@ When you move between **Home Wi-Fi**, **Office Wi-Fi**, or **Mobile Data (5G/4G)
 - Android 11+ built-in "Wireless Debugging" changes its 5-digit port (e.g. `39233`, `41852`) every time Wi-Fi reconnects.
 
 ### 💡 The Solution: Fixed Tailscale IP + Persistent Port 5555
-1. **Permanent Tailscale IP (`100.71.241.36`)**:
-   - Tailscale assigns your phone a static CGNAT IP (`100.71.241.36`) that **never changes**, regardless of which Wi-Fi network or cellular carrier you connect to.
+1. **Permanent Tailscale IP (`<YOUR_TAILSCALE_PHONE_IP>`)**:
+   - Tailscale assigns your phone a static CGNAT IP (`<YOUR_TAILSCALE_PHONE_IP>`) that **never changes**, regardless of which Wi-Fi network or cellular carrier you connect to.
 2. **Persistent Port 5555 (`adb tcpip 5555`)**:
    - Binding the ADB daemon to port 5555 once via `adb tcpip 5555` makes it listen on `0.0.0.0:5555` across all network interfaces, including Tailscale's `tun0`.
    - **It survives Wi-Fi switches, network drops, and sleep cycles indefinitely.**
@@ -64,7 +64,7 @@ When you move between **Home Wi-Fi**, **Office Wi-Fi**, or **Mobile Data (5G/4G)
 3. **Dynamic Port Fallback**:
    - If your phone is ever rebooted, `./scripts/remote-deploy.sh` automatically detects the timeout and prompts you to enter the temporary 5-digit port shown in *Developer Options > Wireless Debugging*, or accepts it as an argument:
      ```bash
-     ./scripts/remote-deploy.sh 100.71.241.36 <PORT>
+     ./scripts/remote-deploy.sh <YOUR_TAILSCALE_PHONE_IP> <PORT>
      ```
 
 ---
@@ -90,7 +90,7 @@ In your Antigravity Remote Agent settings or terminal session, configure the fol
 
 ```bash
 export TAILSCALE_AUTHKEY="<YOUR_TAILSCALE_AUTH_KEY>"
-export TAILSCALE_PHONE_IP="100.71.241.36"
+export TAILSCALE_PHONE_IP="<YOUR_TAILSCALE_PHONE_IP>"
 export ADB_PORT="5555"
 
 # Backend & AI secrets (for running server/tests if needed)
@@ -100,7 +100,7 @@ export GEMINI_API_KEY="..."
 ```
 
 ### Step 4: One-Time Phone Setup
-1. **Tailscale App on Phone**: Ensure Tailscale is installed, turned ON, and your phone displays IP `100.71.241.36`.
+1. **Tailscale App on Phone**: Ensure Tailscale is installed, turned ON, and your phone displays IP `<YOUR_TAILSCALE_PHONE_IP>`.
 2. **Developer Options on Phone**:
    - Enable **Developer Options** (tap Build Number 7 times).
    - Enable **USB Debugging** and **Wireless Debugging**.
@@ -131,19 +131,19 @@ This automatically:
 ```
 This tests:
 - Local Tailscale IP and node status.
-- Direct ping to phone (`100.71.241.36`).
+- Direct ping to phone (`<YOUR_TAILSCALE_PHONE_IP>`).
 - TCP socket reachability on port `5555`.
 
 ### 3. Build & Wirelessly Deploy APK to Phone
 ```bash
-# Standard deployment (uses 100.71.241.36:5555)
+# Standard deployment (uses <YOUR_TAILSCALE_PHONE_IP>:5555)
 ./scripts/remote-deploy.sh
 
 # Fallback deployment (if phone rebooted and Wireless Debugging is on dynamic port)
-./scripts/remote-deploy.sh 100.71.241.36 39233
+./scripts/remote-deploy.sh <YOUR_TAILSCALE_PHONE_IP> 39233
 ```
 This script will:
-1. Connect ADB to `100.71.241.36:5555` via the Tailscale tunnel.
+1. Connect ADB to `<YOUR_TAILSCALE_PHONE_IP>:5555` via the Tailscale tunnel.
 2. Compile the native Android APK using `./gradlew assembleDebug --no-daemon`.
 3. Wirelessly push and install `app-debug.apk` onto your physical phone.
 4. Launch the `MainActivity`.
@@ -158,10 +158,10 @@ From anywhere in the Antigravity Remote Agent terminal:
 | Action | Command |
 | :--- | :--- |
 | **Check connected devices** | `adb devices` |
-| **View live logcat** | `adb -s 100.71.241.36:5555 logcat -d -s RosterX` |
-| **Take screenshot** | `adb -s 100.71.241.36:5555 shell screencap -p /sdcard/s.png && adb pull /sdcard/s.png` |
-| **Restart App** | `adb -s 100.71.241.36:5555 shell am force-stop com.rosterx.app && adb -s 100.71.241.36:5555 shell am start -n com.rosterx.app/.MainActivity` |
-| **Open Remote Shell** | `adb -s 100.71.241.36:5555 shell` |
+| **View live logcat** | `adb -s <YOUR_TAILSCALE_PHONE_IP>:5555 logcat -d -s RosterX` |
+| **Take screenshot** | `adb -s <YOUR_TAILSCALE_PHONE_IP>:5555 shell screencap -p /sdcard/s.png && adb pull /sdcard/s.png` |
+| **Restart App** | `adb -s <YOUR_TAILSCALE_PHONE_IP>:5555 shell am force-stop com.rosterx.app && adb -s <YOUR_TAILSCALE_PHONE_IP>:5555 shell am start -n com.rosterx.app/.MainActivity` |
+| **Open Remote Shell** | `adb -s <YOUR_TAILSCALE_PHONE_IP>:5555 shell` |
 
 ---
 *Maintained with 👵⚡ care by Aunty for Shefeeq's high-velocity RosterX development.*
