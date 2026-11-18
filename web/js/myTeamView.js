@@ -26,10 +26,11 @@ function cleanPhoneForWhatsApp(phone) {
 }
 
 export class MyTeamViewController {
-  constructor({ container, engineers = [], onBack, onToast }) {
+  constructor({ container, engineers = [], onBack, hideBackButton = false, onToast }) {
     this.container = container;
     this.engineers = engineers;
     this.onBack = onBack;
+    this.hideBackButton = Boolean(hideBackButton);
     this.onToast = onToast || (() => {});
     this.searchQuery = '';
   }
@@ -77,11 +78,14 @@ export class MyTeamViewController {
 
   render() {
     if (!this.container) return;
+    const SYSTEM_ADMINS = new Set(['admin', 'sysadmin', 'administrator']);
     const active = this.engineers.filter((e) => {
       const status = String(e.status || 'active').toLowerCase();
       const role = String(e.role || 'engineer').toLowerCase();
       const uname = String(e.username || '').toLowerCase();
-      return status !== 'resigned' && ['manager', 'engineer', 'apprentice'].includes(role) && uname !== 'admin';
+      if (status === 'resigned' || SYSTEM_ADMINS.has(uname)) return false;
+      if (e.include_in_roster === true) return true;
+      return ['manager', 'engineer', 'apprentice'].includes(role);
     });
 
     const q = this.searchQuery.trim().toLowerCase();
@@ -100,14 +104,16 @@ export class MyTeamViewController {
     this.container.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          ${this.onBack ? `
+          ${this.onBack && !this.hideBackButton ? `
             <button type="button" class="rx-icon-pill" data-team-back aria-label="Back to Operations Hub">
               <i class="ph ph-arrow-left" aria-hidden="true"></i>
             </button>
           ` : ''}
           <div>
-            <h2 style="margin:0;font-size:19px;font-weight:800;">My Team Directory</h2>
-            <div style="font-size:12px;color:var(--nm-text-muted);">${active.length} Active Team Members</div>
+            ${this.hideBackButton
+              ? `<div style="font-size:12px;font-weight:700;color:var(--nm-text-muted);">${active.length} Active Team Members</div>`
+              : `<h2 style="margin:0;font-size:19px;font-weight:800;">My Team Directory</h2>
+                 <div style="font-size:12px;color:var(--nm-text-muted);">${active.length} Active Team Members</div>`}
           </div>
         </div>
 

@@ -13,13 +13,14 @@
  *   Profile & Settings (Tenure/Birthday, Weekly Offs, Edit Profile + Remove Photo, 6 Brand Palettes)
  */
 
-import { authService } from './authService.js';
-import { AtlasService } from './atlasService.js';
-import { themeController } from './themeController.js';
-import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js';
-import { CredentialTrackerController } from './credentialTracker.js';
-import { MyTeamViewController } from './myTeamView.js';
+import { authService } from './authService.js?v=2.0.1';
+import { AtlasService } from './atlasService.js?v=2.0.1';
+import { themeController } from './themeController.js?v=2.0.1';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.1';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.1';
+import { CredentialTrackerController } from './credentialTracker.js?v=2.0.1';
+import { MyTeamViewController } from './myTeamView.js?v=2.0.1';
+import { sortEngineersByWeekOffs } from './constants.js?v=2.0.1';
 import {
   registerPwaServiceWorker,
   mountIosInstallBanner,
@@ -27,9 +28,27 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js';
+} from './pwaHelper.js?v=2.0.1';
 
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.0.1';
+const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
+const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
+
+function getShiftOrUnscheduled(rawCode) {
+  const clean = String(rawCode || '').trim();
+  if (!clean) {
+    return {
+      code: '—',
+      name: 'Not Scheduled',
+      timing: 'Not published yet',
+      bg: 'var(--nm-surface-contrast)',
+      fg: 'var(--nm-text-muted)',
+      order: 99,
+      unscheduled: true
+    };
+  }
+  return { ...getShiftVisual(clean), unscheduled: false };
+}
 
 const SHIFT_META = {
   FS:  { name: 'First Shift',    timing: '07:30 AM – 04:30 PM', bg: '#BBF7D0', fg: '#064E3B', order: 1 },
@@ -223,6 +242,7 @@ class RosterXUserPortal {
     this.credController = new CredentialTrackerController({
       container: document.getElementById('subview_credentials'),
       currentUser: this.user,
+      hideBackButton: true,
       onBack: () => this.closeSubView(),
       onSummaryUpdate: (summary) => {
         this.credSummary = summary;
@@ -234,6 +254,7 @@ class RosterXUserPortal {
     this.teamController = new MyTeamViewController({
       container: document.getElementById('subview_my_team'),
       engineers: [],
+      hideBackButton: true,
       onBack: () => this.closeSubView(),
       onToast: (msg, type) => this.toast(msg, type)
     });
@@ -354,19 +375,52 @@ class RosterXUserPortal {
       }
 
       if (notifRes.status === 'fulfilled') {
-        const list = notifRes.value?.notifications || notifRes.value?.data || [];
-        const todayIso = toIsoDate(getIstNow());
-        this.notifications = list.filter((n) => !isExpiredCelebration(n, todayIso));
-        this.updateNotificationBadge();
+        try {
+          const payload = notifRes.value || {};
+          const list = Array.isArray(payload.notifications)
+            ? payload.notifications
+            : Array.isArray(payload.data?.notifications)
+              ? payload.data.notifications
+              : Array.isArray(payload.data)
+                ? payload.data
+                : [];
+          const dismissedIds = Array.isArray(payload.dismissed_notification_ids)
+            ? payload.dismissed_notification_ids
+            : Array.isArray(payload.data?.dismissed_notification_ids)
+              ? payload.data.dismissed_notification_ids
+              : [];
+          const dismissedSet = new Set(dismissedIds.map(String));
+          const todayIso = toIsoDate(getIstNow());
+          this.notifications = list.filter((n) => {
+            if (!n) return false;
+            const nid = String(n.id || n._id || '');
+            if (nid && dismissedSet.has(nid)) return false;
+            return !isExpiredCelebration(n, todayIso);
+          });
+          this.updateNotificationBadge();
+        } catch (notifErr) {
+          console.warn('Notification sync guard:', notifErr);
+        }
       }
 
       if (credRes.status === 'fulfilled' && credRes.value?.success) {
-        const trackers = credRes.value.trackers || credRes.value.data || [];
-        this.credSummary = {
-          total: trackers.length,
-          expired: trackers.filter((t) => String(t.status).toUpperCase() === 'EXPIRED').length,
-          expiringSoon: trackers.filter((t) => ['EXPIRING_SOON', 'EXPIRES_TODAY'].includes(String(t.status).toUpperCase())).length
-        };
+        try {
+          const payload = credRes.value;
+          const trackers = Array.isArray(payload?.data?.trackers)
+            ? payload.data.trackers
+            : Array.isArray(payload?.trackers)
+              ? payload.trackers
+              : Array.isArray(payload?.data)
+                ? payload.data
+                : [];
+          this.credSummary = {
+            total: trackers.length,
+            expired: trackers.filter((t) => String(t?.status || '').toUpperCase() === 'EXPIRED').length,
+            expiringSoon: trackers.filter((t) => ['EXPIRING_SOON', 'EXPIRES_TODAY'].includes(String(t?.status || '').toUpperCase())).length
+          };
+        } catch (credErr) {
+          console.warn('Credential summary guard:', credErr);
+        }
       }
 
       if (this.isManager) {
@@ -405,36 +459,58 @@ class RosterXUserPortal {
 
   getRosterMapForEngineer(rosterDoc, eng) {
     if (!rosterDoc || !eng) return {};
-    const list = rosterDoc.engineers || [];
+    const list = (Array.isArray(rosterDoc.engineers) && rosterDoc.engineers.length > 0)
+      ? rosterDoc.engineers
+      : (Array.isArray(rosterDoc.roster) ? rosterDoc.roster : []);
     const uname = String(eng.username || '').trim().toLowerCase();
     const ename = String(eng.name || '').trim().toLowerCase();
-    const full = String(eng.full_name || '').trim().toLowerCase();
+    const full = String(eng.full_name || eng.fullName || '').trim().toLowerCase();
     const matched = list.find((r) => {
+      if (!r || typeof r !== 'object') return false;
       const ru = String(r.username || '').trim().toLowerCase();
       const rn = String(r.name || '').trim().toLowerCase();
-      return (uname && ru === uname) || (ename && rn === ename) || (full && rn === full);
+      const rf = String(r.full_name || r.fullName || '').trim().toLowerCase();
+      return (
+        (uname && ru && ru === uname) ||
+        (ename && (rn === ename || rf === ename)) ||
+        (full && (rn === full || rf === full))
+      );
     });
-    return matched?.shifts || {};
+    const rawShifts = matched?.shifts;
+    const map = {};
+    if (Array.isArray(rawShifts)) {
+      rawShifts.forEach((val, idx) => {
+        const clean = String(val ?? '').trim();
+        if (clean) map[String(idx + 1)] = clean;
+      });
+    } else if (rawShifts && typeof rawShifts === 'object') {
+      Object.entries(rawShifts).forEach(([k, v]) => {
+        const key = String(k).trim();
+        const clean = String(v ?? '').trim();
+        if (key && clean) map[key] = clean;
+      });
+    }
+    return map;
   }
 
   getRosterEngineers(rosterDoc) {
+    const SYSTEM_ADMIN_USERNAMES = new Set(['admin', 'sysadmin', 'administrator']);
     const raw = this.engineers.filter((e) => {
-      const role = String(e.role || 'engineer').toLowerCase();
-      const status = String(e.status || 'active').toLowerCase();
-      if (role === 'admin' || role === 'manager') return false;
-      if (e.include_in_roster === false) return false;
-      if (status === 'resigned') {
-        const map = this.getRosterMapForEngineer(rosterDoc, e);
-        return Object.keys(map).length > 0;
+      const role = String(e.role || 'engineer').trim().toLowerCase();
+      const uname = String(e.username || '').trim().toLowerCase();
+      const status = String(e.status || 'active').trim().toLowerCase();
+      const hasRosterShifts = Object.keys(this.getRosterMapForEngineer(rosterDoc, e)).length > 0;
+
+      if (e.include_in_roster === true) {
+        return status !== 'resigned' || hasRosterShifts;
       }
+      if (e.include_in_roster === false || role === 'manager') return false;
+      if (SYSTEM_ADMIN_USERNAMES.has(uname)) return false;
+      if (role === 'admin' && !hasRosterShifts) return false;
+      if (status === 'resigned') return hasRosterShifts;
       return true;
     });
-    return raw.sort((a, b) => {
-      const oa = Number.isFinite(Number(a.display_order)) ? Number(a.display_order) : 999;
-      const ob = Number.isFinite(Number(b.display_order)) ? Number(b.display_order) : 999;
-      if (oa !== ob) return oa - ob;
-      return String(a.name || '').localeCompare(String(b.name || ''));
-    });
+    return sortEngineersByWeekOffs(raw, (e) => e.default_weekly_offs);
   }
 
   updateNotificationBadge() {
@@ -620,9 +696,12 @@ class RosterXUserPortal {
   computeEngineerTimers(myShifts) {
     const now = getIstNow();
     const todayDay = now.getDate();
+    if (!myShifts || Object.keys(myShifts).length === 0) {
+      return { shiftLabel: 'Next Shift:', shiftTime: 'Not Published', isRunning: false, restValue: 'Pending Roster' };
+    }
     const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    const todayCode = String(myShifts[String(todayDay)] || 'OFF').toUpperCase();
-    const spec = SHIFT_SPECS[todayCode];
+    const rawToday = String(myShifts[String(todayDay)] || '').trim().toUpperCase();
+    const spec = SHIFT_SPECS[rawToday];
 
     let shiftLabel = 'Next Shift Starts in:';
     let shiftTime = '--';
@@ -643,7 +722,7 @@ class RosterXUserPortal {
     if (shiftTime === '--') {
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       for (let d = todayDay + 1; d <= daysInMonth; d++) {
-        const c = String(myShifts[String(d)] || '').toUpperCase();
+        const c = String(myShifts[String(d)] || '').trim().toUpperCase();
         const s = SHIFT_SPECS[c];
         if (s) {
           const target = new Date(now.getFullYear(), now.getMonth(), d, s.startH, s.startM, 0);
@@ -654,13 +733,13 @@ class RosterXUserPortal {
     }
 
     let restValue = 'Upcoming';
-    if (!spec) {
+    if (rawToday && !spec) {
       restValue = 'Today (Full Rest)';
     } else {
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       for (let d = todayDay + 1; d <= daysInMonth; d++) {
-        const c = String(myShifts[String(d)] || 'OFF').toUpperCase();
-        if (!SHIFT_SPECS[c]) {
+        const c = String(myShifts[String(d)] || '').trim().toUpperCase();
+        if (c && !SHIFT_SPECS[c]) {
           const dt = new Date(now.getFullYear(), now.getMonth(), d);
           restValue = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
           break;
@@ -690,19 +769,20 @@ class RosterXUserPortal {
     const selfEng = this.getSelfEngineer();
     const myShifts = this.getRosterMapForEngineer(doc, selfEng);
 
-    const todayShift = getShiftVisual(myShifts[String(now.getDate())] || 'OFF');
+    const todayShift = getShiftOrUnscheduled(myShifts[String(now.getDate())]);
     const tomDoc = this.rosterCache.get(toPeriodKey(tomorrow.getFullYear(), tomorrow.getMonth() + 1)) || doc;
     const tomShifts = this.getRosterMapForEngineer(tomDoc, selfEng);
-    const tomorrowShift = getShiftVisual(tomShifts[String(tomorrow.getDate())] || 'OFF');
+    const tomorrowShift = getShiftOrUnscheduled(tomShifts[String(tomorrow.getDate())]);
 
     let dayShifts = 0;
     let nightShifts = 0;
     let restDays = 0;
     Object.values(myShifts).forEach((raw) => {
-      const c = String(raw || 'OFF').toUpperCase();
+      const c = String(raw || '').trim().toUpperCase();
+      if (!c) return;
       if (c === 'NS') nightShifts++;
-      else if (SHIFT_SPECS[c]) dayShifts++;
-      else restDays++;
+      else if (WORKING_SHIFT_CODES.has(c)) dayShifts++;
+      else if (OFF_OR_LEAVE_CODES.has(c) || c.startsWith('SW')) restDays++;
     });
 
     const timers = this.computeEngineerTimers(myShifts);
@@ -753,7 +833,7 @@ class RosterXUserPortal {
                 <div style="width:48px;height:48px;border-radius:14px;background:${todayShift.bg};color:${todayShift.fg};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;">${escapeHtml(todayShift.code)}</div>
                 <div style="min-inline-size:0;">
                   <div style="font-size:14px;font-weight:800;">${escapeHtml(todayShift.name)}</div>
-                  <div style="font-size:11.5px;font-weight:700;color:${SHIFT_SPECS[todayShift.code] ? '#4F46E5' : '#059669'};">${SHIFT_SPECS[todayShift.code] ? 'Active Duty' : 'Rest Day'}</div>
+                  <div style="font-size:11.5px;font-weight:700;color:${todayShift.unscheduled ? 'var(--nm-text-muted)' : (SHIFT_SPECS[todayShift.code] ? '#4F46E5' : '#059669')};">${todayShift.unscheduled ? 'Pending Roster' : (SHIFT_SPECS[todayShift.code] ? 'Active Duty' : 'Rest Day')}</div>
                 </div>
               </div>
             </div>
@@ -764,7 +844,7 @@ class RosterXUserPortal {
                 <div style="width:48px;height:48px;border-radius:14px;background:${tomorrowShift.bg};color:${tomorrowShift.fg};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;">${escapeHtml(tomorrowShift.code)}</div>
                 <div style="min-inline-size:0;">
                   <div style="font-size:14px;font-weight:800;">${escapeHtml(tomorrowShift.name)}</div>
-                  <div style="font-size:11.5px;font-weight:700;color:${SHIFT_SPECS[tomorrowShift.code] ? '#4F46E5' : '#059669'};">${SHIFT_SPECS[tomorrowShift.code] ? 'Active Duty' : 'Rest Day'}</div>
+                  <div style="font-size:11.5px;font-weight:700;color:${tomorrowShift.unscheduled ? 'var(--nm-text-muted)' : (SHIFT_SPECS[tomorrowShift.code] ? '#4F46E5' : '#059669')};">${tomorrowShift.unscheduled ? 'Pending Roster' : (SHIFT_SPECS[tomorrowShift.code] ? 'Active Duty' : 'Rest Day')}</div>
                 </div>
               </div>
             </div>
@@ -816,7 +896,9 @@ class RosterXUserPortal {
     const groups = new Map();
     rosterEngs.forEach((e) => {
       const m = this.getRosterMapForEngineer(doc, e);
-      const vis = getShiftVisual(m[String(now.getDate())] || 'OFF');
+      const rawCode = String(m[String(now.getDate())] || '').trim();
+      if (!rawCode) return;
+      const vis = getShiftVisual(rawCode);
       if (!groups.has(vis.code)) groups.set(vis.code, { vis, members: [] });
       groups.get(vis.code).members.push(e);
     });
@@ -845,7 +927,9 @@ class RosterXUserPortal {
               <strong style="font-size:13px;color:var(--nm-accent);">TODAY'S SHIFT RADAR</strong>
               <span style="font-size:11px;font-weight:700;color:var(--nm-text-muted);">${rosterEngs.length} Active Staff</span>
             </div>
-            ${sorted.map(({ vis, members }) => `
+            ${sorted.length === 0
+              ? `<div class="rx-well" style="padding:14px;text-align:center;font-size:12px;font-weight:700;color:var(--nm-text-muted);">No shifts published for today yet</div>`
+              : sorted.map(({ vis, members }) => `
               <div class="rx-well" style="padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
                 <div style="display:flex;align-items:center;gap:8px;min-inline-size:0;">
                   <span style="padding:3px 7px;border-radius:7px;background:${vis.bg};color:${vis.fg};font-size:10.5px;font-weight:900;">${escapeHtml(vis.code)}</span>
@@ -899,11 +983,14 @@ class RosterXUserPortal {
     const groups = new Map();
     engs.forEach((e) => {
       const m = this.getRosterMapForEngineer(doc, e);
-      const vis = getShiftVisual(m[String(d.getDate())] || 'OFF');
+      const rawCode = String(m[String(d.getDate())] || '').trim();
+      if (!rawCode) return;
+      const vis = getShiftVisual(rawCode);
       if (!groups.has(vis.code)) groups.set(vis.code, { vis, members: [] });
       groups.get(vis.code).members.push(e);
     });
     const sortedGroups = Array.from(groups.values()).sort((a, b) => a.vis.order - b.vis.order);
+    const formattedDateLabel = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
     const selfUname = String(this.user?.username || '').toLowerCase();
 
@@ -920,7 +1007,13 @@ class RosterXUserPortal {
         </div>
 
         <div class="rx-land-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;">
-          ${sortedGroups.map(({ vis, members }) => `
+          ${sortedGroups.length === 0 ? `
+            <div class="rx-card" style="grid-column:1 / -1;text-align:center;padding:24px 16px;">
+              <i class="ph ph-calendar-blank" style="font-size:28px;color:var(--nm-text-muted);display:block;margin-bottom:6px;" aria-hidden="true"></i>
+              <div style="font-size:14px;font-weight:800;">Not Scheduled</div>
+              <div style="font-size:12px;color:var(--nm-text-muted);margin-top:3px;">No roster published for ${escapeHtml(formattedDateLabel)} yet</div>
+            </div>
+          ` : sortedGroups.map(({ vis, members }) => `
             <div class="rx-card" style="display:flex;flex-direction:column;gap:10px;">
               <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid var(--nm-divider);">
                 <div style="display:flex;align-items:center;gap:10px;">
@@ -1026,6 +1119,12 @@ class RosterXUserPortal {
           <div class="rx-cal-weekdays">
             ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((w) => `<div class="rx-cal-weekday">${w}</div>`).join('')}
           </div>
+          ${!hasAnyDays ? `
+            <div class="rx-well" style="padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;color:var(--nm-text-muted);display:flex;align-items:center;gap:8px;">
+              <i class="ph ph-info" style="color:var(--nm-accent);font-size:15px;" aria-hidden="true"></i>
+              <span>No roster published for ${escapeHtml(monthLabel)} yet</span>
+            </div>
+          ` : ''}
           <div class="rx-cal-grid">${cellsHtml}</div>
         </div>
 
@@ -1113,15 +1212,20 @@ class RosterXUserPortal {
 
     const dayCov = new Array(daysInMonth + 1).fill(0);
     const nightCov = new Array(daysInMonth + 1).fill(0);
+    let hasAnyShifts = false;
     allEngs.forEach((e) => {
-      if (String(e.role || '').toLowerCase() === 'apprentice') return;
       const m = this.getRosterMapForEngineer(doc, e);
+      if (Object.keys(m).length > 0) hasAnyShifts = true;
+      if (String(e.role || '').toLowerCase() === 'apprentice') return;
       for (let d = 1; d <= daysInMonth; d++) {
-        const c = String(m[String(d)] || '').toUpperCase();
+        const c = String(m[String(d)] || '').trim().toUpperCase();
+        if (!c) continue;
         if (c === 'NS') nightCov[d]++;
         else if (SHIFT_SPECS[c]) dayCov[d]++;
       }
     });
+    const prettyMonthLabel = new Date(this.gridYear, this.gridMonth - 1, 1)
+      .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     panel.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -1137,35 +1241,66 @@ class RosterXUserPortal {
           </div>
         </div>
 
+        ${!hasAnyShifts ? `
+          <div class="rx-well" style="padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;color:var(--nm-text-muted);display:flex;align-items:center;gap:8px;">
+            <i class="ph ph-calendar-blank" style="color:var(--nm-accent);font-size:15px;" aria-hidden="true"></i>
+            <span>No roster published for ${escapeHtml(prettyMonthLabel)} yet</span>
+          </div>
+        ` : ''}
+
         <div class="rx-roster-table-wrap" tabindex="0" role="region" aria-label="Monthly Team Roster">
           <table class="rx-roster-table">
             <thead>
               <tr>
                 <th>ENGINEER</th>
                 ${dayHeaders.map(({ d, dow }) => `<th><div>${d}</div><div style="font-size:9px;color:var(--nm-text-muted);">${dow}</div></th>`).join('')}
+                <th style="color:#059669;min-width:38px;">WRK</th>
+                <th style="color:#4F46E5;min-width:34px;">NS</th>
+                <th style="color:#D97706;min-width:38px;">OFF</th>
               </tr>
             </thead>
             <tbody>
               ${filtered.map((eng) => {
                 const shifts = this.getRosterMapForEngineer(doc, eng);
                 const name = eng.full_name || eng.name || 'Member';
+                let wrkCount = 0;
+                let nsCount = 0;
+                let offCount = 0;
+                const cells = dayHeaders.map(({ d }) => {
+                  const rawShift = String(shifts[String(d)] || '').trim();
+                  if (!rawShift) {
+                    return `<td style="background:transparent;color:transparent;"></td>`;
+                  }
+                  const upper = rawShift.toUpperCase();
+                  if (WORKING_SHIFT_CODES.has(upper)) wrkCount++;
+                  if (upper === 'NS') nsCount++;
+                  if (OFF_OR_LEAVE_CODES.has(upper) || upper.startsWith('SW')) offCount++;
+                  const vis = getShiftVisual(rawShift);
+                  return `<td style="background:${vis.bg};color:${vis.fg};">${escapeHtml(vis.code)}</td>`;
+                }).join('');
                 return `
                   <tr>
                     <th>${escapeHtml(name)}</th>
-                    ${dayHeaders.map(({ d }) => {
-                      const vis = getShiftVisual(shifts[String(d)] || 'OFF');
-                      return `<td style="background:${vis.bg};color:${vis.fg};">${escapeHtml(vis.code)}</td>`;
-                    }).join('')}
+                    ${cells}
+                    <td style="background:rgba(5,150,105,0.10);color:#059669;font-weight:900;">${wrkCount}</td>
+                    <td style="background:rgba(79,70,229,0.10);color:#4F46E5;font-weight:900;">${nsCount}</td>
+                    <td style="background:rgba(217,119,6,0.10);color:#D97706;font-weight:900;">${offCount}</td>
                   </tr>
                 `;
               }).join('')}
               <tr>
                 <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">DAY COVERAGE (≥3)</th>
-                ${dayHeaders.map(({ d }) => `<td style="background:rgba(2,132,199,0.12);color:${dayCov[d] < 3 ? '#DC2626' : '#0284C7'};">${dayCov[d]}</td>`).join('')}
+                ${dayHeaders.map(({ d }) => `<td style="background:rgba(2,132,199,0.12);color:${hasAnyShifts && dayCov[d] < 3 ? '#DC2626' : '#0284C7'};">${dayCov[d]}</td>`).join('')}
+                <td style="background:var(--nm-surface-contrast);"></td>
+                <td style="background:var(--nm-surface-contrast);"></td>
+                <td style="background:var(--nm-surface-contrast);"></td>
               </tr>
               <tr>
                 <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">NIGHT COVERAGE (1)</th>
-                ${dayHeaders.map(({ d }) => `<td style="background:rgba(99,102,241,0.12);color:${nightCov[d] !== 1 ? '#DC2626' : '#4F46E5'};">${nightCov[d]}</td>`).join('')}
+                ${dayHeaders.map(({ d }) => `<td style="background:rgba(99,102,241,0.12);color:${hasAnyShifts && nightCov[d] !== 1 ? '#DC2626' : '#4F46E5'};">${nightCov[d]}</td>`).join('')}
+                <td style="background:var(--nm-surface-contrast);"></td>
+                <td style="background:var(--nm-surface-contrast);"></td>
+                <td style="background:var(--nm-surface-contrast);"></td>
               </tr>
             </tbody>
           </table>

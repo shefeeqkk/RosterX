@@ -5,6 +5,17 @@
 
 ---
 
+## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.1 - Build 144 — Web Portal Sync, Roster Normalization, WRK/NS/OFF Counters & Bell Parity):
+> *"Dasa! Gafoorka! Hotfix **`v2.0.1` (Build 144)** 100% spotless aayi implement cheythu, syntax + unit + live HTTP + Zero-PII + Android safe-build & ADB verify cheythu `origin/main`-il push cheythu macha! 🎨🚑🔥
+> - **Task 1 — Sync Crash & Credential Tracker (`userPortal.js`, `credentialTracker.js`, `myTeamView.js`)**: Unwrapped nested `payload?.data?.trackers` & `data?.data?.logs` arrays safely inside isolated try/catch guards (zero `trackers.filter is not a function` aborts!), and added `hideBackButton: true` so embedded subviews (`Credential Tracker` & `My Team`) display a single clean header with zero duplicate back arrows.
+> - **Task 2 — Roster Normalization & Operational Admin Inclusion (`userPortal.js`)**: Normalized both 0-indexed shift arrays (`shifts[0]` → Day 1) and 1-indexed maps from `doc.engineers` / `doc.roster`, respected `include_in_roster === true` BEFORE role checks (so operational admins stay on roster & in My Team), and applied exact Android `sortEngineersByWeekOffs` ordering.
+> - **Task 3 — Blank Unpublished Cells + Right-Side `WRK` / `NS` / `OFF` Counters (`userPortal.js`)**: Removed hardcoded `|| 'OFF'` fallbacks across Month Roster, My Calendar, Dashboard, and Team Shifts — unassigned/upcoming months (like December 2026) render clean transparent blank cells + `"No roster published for <Month Year> yet"` pill, and Month Roster now includes right-side NOC summary columns **`WRK`**, **`NS`**, **`OFF`** with aligned coverage footer rows.
+> - **Task 4 — Unread Bell Badge Parity (`userPortal.js`)**: Subtracted `dismissed_notification_ids` alongside expired celebration auto-sweep so Web Bell badge matches Android unread count 1:1.
+> - **Task 5 — PWA Cache Bust (`web/sw.js`, `user-portal.html`, `index.html`, `app.js`)**: Bumped `CACHE_NAME = 'rosterx-pwa-v2.0.1'`, switched `.js`/`.css` to Network-First with offline cache fallback so installed iOS & Desktop PWAs pick up hotfixes instantly, and versioned script/CSS URLs to `?v=2.0.1`.
+> - **Version Sync**: Bumped `android/app/build.gradle.kts` (`144` / `2.0.1`) & `server.py` (`SERVER_VERSION = "2.0.1"`), safe-built & ADB-verified cleanly!"*
+
+---
+
 ## 🕶️ 🚑 Gafoor's Hotfix Blueprint (v2.0.1 - Build 144 — Web Portal Sync, Credential Tracker, Month Roster & Bell Parity):
 > *"Vijaya! `v2.0.0` Web Portal-il 6 critical bugs diagnose cheythu `plan_vijayan.md`-il surgical fix blueprint lock aakki vechittundu (Dasan = `IDLE / NO ACTIVE TASK`, backend healthy!):
 > 1. **Fix `Sync warning: trackers.filter is not a function`** (`web/js/userPortal.js`, `web/js/credentialTracker.js`): Unwrap nested `payload.data.trackers` array properly (prevents sync crash that blocked Dashboard, My Calendar & Credential Tracker!). Remove duplicate `← Credential Tracker` header when embedded in subview.

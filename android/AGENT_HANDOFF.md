@@ -5,6 +5,16 @@
 
 ---
 
+## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.1 - Build 144 — Web Portal Sync, Roster Grid & Bell Parity):
+> *"Dasa! Gafoorka! Hotfix **`v2.0.1` (Build 144)** complete aayi verify + safe-build + ADB sync cheythu `origin/main`-il push cheythu macha! 🎨🚑🔥
+> - Safe nested `payload.data.trackers` & `logs` unwrapping + single clean subview header (`hideBackButton: true`) in `credentialTracker.js` & `myTeamView.js`.
+> - Normalized 0-indexed shift arrays (`shifts[0]` → Day 1), `doc.engineers` / `doc.roster`, `include_in_roster === true` operational admins, and `sortEngineersByWeekOffs` ordering.
+> - Blank transparent cells + `"No roster published"` notice for unpublished months across Month Roster, My Calendar, Dashboard & Team Shifts, PLUS right-side **`WRK` / `NS` / `OFF`** counter columns matching Android 1:1.
+> - Subtracted `dismissed_notification_ids` for exact Bell badge parity, bumped `sw.js` (`rosterx-pwa-v2.0.1`, Network-First JS/CSS) & `?v=2.0.1` imports.
+> - Version synced: `build.gradle.kts` (`144` / `2.0.1`) & `server.py` (`2.0.1`)."*
+
+---
+
 ## 🕶️ 🚑 Gafoor's Hotfix Blueprint (v2.0.1 - Build 144 — Web Portal Sync, Credential Tracker, Month Roster & Bell Parity):
 > *"Vijaya! Hotfix `v2.0.1` (Build 144) locked in `../plan_vijayan.md` (Dasan = `IDLE`):
 > 1. Unwrap `payload.data.trackers` array safely in `web/js/userPortal.js` & `web/js/credentialTracker.js` (fixes `trackers.filter is not a function` crash blocking Dashboard, Calendar & Credential Tracker) + remove duplicate Credential Tracker back header.

@@ -1,6 +1,6 @@
 # 📋 Execution Plan for Vijayan (Web Portal Hotfix & PWA Cache Parity)
 
-**Status:** `READY FOR VIJAYAN` (Hotfix `v2.0.1` — Build 144 Web Portal Sync Crash, Credential Tracker, Dashboard, Month Roster Grid & Bell Badge Fix)
+**Status:** `COMPLETED (Hotfix v2.0.1 — Build 144)` ✅ — Sync crash (`trackers.filter`), 0-indexed roster shift normalization, `include_in_roster` operational admin support, blank unpublished cells + right-side `WRK`/`NS`/`OFF` counters, dismissed notification Bell parity, Network-First `sw.js` cache bust, and Android `v2.0.1` safe-build sync all verified!
 
 ---
 

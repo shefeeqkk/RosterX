@@ -46,10 +46,11 @@ function statusPill(tracker) {
 }
 
 export class CredentialTrackerController {
-  constructor({ container, currentUser, onBack, onSummaryUpdate, onToast }) {
+  constructor({ container, currentUser, onBack, hideBackButton = false, onSummaryUpdate, onToast }) {
     this.container = container;
     this.currentUser = currentUser || {};
     this.onBack = onBack;
+    this.hideBackButton = Boolean(hideBackButton);
     this.onSummaryUpdate = onSummaryUpdate;
     this.onToast = onToast || ((m) => console.log(m));
     this.trackers = [];
@@ -81,7 +82,14 @@ export class CredentialTrackerController {
       const resp = await fetch('/api/credentials', { headers: getAuthHeaders() });
       const data = await resp.json();
       if (resp.ok && data.success) {
-        this.trackers = data.trackers || data.data || [];
+        const list = Array.isArray(data?.data?.trackers)
+          ? data.data.trackers
+          : Array.isArray(data?.trackers)
+            ? data.trackers
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+        this.trackers = list;
         this.notifySummary();
       } else {
         this.onToast(data.message || 'Could not load credential trackers', 'error');
@@ -138,14 +146,16 @@ export class CredentialTrackerController {
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:10px;">
-            ${this.onBack ? `
+            ${this.onBack && !this.hideBackButton ? `
               <button type="button" class="rx-icon-pill" data-cred-back aria-label="Back to Operations Hub">
                 <i class="ph ph-arrow-left" aria-hidden="true"></i>
               </button>
             ` : ''}
             <div>
-              <h2 style="margin:0;font-size:19px;font-weight:800;color:var(--nm-accent);">Credential Tracker</h2>
-              <div style="font-size:11.5px;color:var(--nm-text-muted);">Automated 9:00 AM IST expiry monitoring</div>
+              ${this.hideBackButton
+                ? `<div style="font-size:12px;font-weight:700;color:var(--nm-text-muted);">Automated 9:00 AM IST expiry monitoring</div>`
+                : `<h2 style="margin:0;font-size:19px;font-weight:800;color:var(--nm-accent);">Credential Tracker</h2>
+                   <div style="font-size:11.5px;color:var(--nm-text-muted);">Automated 9:00 AM IST expiry monitoring</div>`}
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
@@ -513,7 +523,13 @@ export class CredentialTrackerController {
     try {
       const resp = await fetch('/api/credentials/logs', { headers: getAuthHeaders() });
       const data = await resp.json();
-      const logs = data.logs || data.data || [];
+      const logs = Array.isArray(data?.logs)
+        ? data.logs
+        : Array.isArray(data?.data?.logs)
+          ? data.data.logs
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
       dialog.innerHTML = `
         <div class="rx-modal-scroll">
           <div class="rx-modal-header">
