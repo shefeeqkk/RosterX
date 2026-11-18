@@ -13,14 +13,14 @@
  *   Profile & Settings (Tenure/Birthday, Weekly Offs, Edit Profile + Remove Photo, 6 Brand Palettes)
  */
 
-import { authService } from './authService.js?v=2.0.4';
-import { AtlasService } from './atlasService.js?v=2.0.4';
-import { themeController } from './themeController.js?v=2.0.4';
-import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.4';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.4';
-import { CredentialTrackerController } from './credentialTracker.js?v=2.0.4';
-import { MyTeamViewController } from './myTeamView.js?v=2.0.4';
-import { sortEngineersByWeekOffs } from './constants.js?v=2.0.4';
+import { authService } from './authService.js?v=2.0.5';
+import { AtlasService } from './atlasService.js?v=2.0.5';
+import { themeController } from './themeController.js?v=2.0.5';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.5';
+import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
+import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
+import { sortEngineersByWeekOffs } from './constants.js?v=2.0.5';
 import {
   registerPwaServiceWorker,
   mountIosInstallBanner,
@@ -28,9 +28,9 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js?v=2.0.4';
+} from './pwaHelper.js?v=2.0.5';
 
-const APP_VERSION = '2.0.4';
+const APP_VERSION = '2.0.5';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -298,6 +298,11 @@ class RosterXUserPortal {
     document.getElementById('btnOpenNotifications')?.addEventListener('click', () => this.openNotificationsDialog());
     document.getElementById('btnRefreshPortal')?.addEventListener('click', () => this.refreshAllData(true));
     document.getElementById('btnRosterAiFab')?.addEventListener('click', () => this.openAiAssistantDialog());
+    document.getElementById('btnJumpTodayFab')?.addEventListener('click', () => {
+      const n = getIstNow();
+      this.selectedDate = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+      this.renderTeamShifts();
+    });
 
     // Hide bell for management accounts (exact Android parity)
     if (this.isManager) {
@@ -593,10 +598,19 @@ class RosterXUserPortal {
   }
 
   syncAiFabVisibility() {
-    const fab = document.getElementById('btnRosterAiFab');
-    if (!fab) return;
-    const show = this.activeTab === 'dashboard' && !this.activeSubView;
-    fab.classList.toggle('rx-hidden', !show);
+    const aiFab = document.getElementById('btnRosterAiFab');
+    if (aiFab) {
+      const showAi = this.activeTab === 'dashboard' && !this.activeSubView;
+      aiFab.classList.toggle('rx-hidden', !showAi);
+    }
+    const todayFab = document.getElementById('btnJumpTodayFab');
+    if (todayFab) {
+      const today = getIstNow();
+      const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const diff = Math.round((this.selectedDate - todayMid) / 86400000);
+      const showToday = this.activeTab === 'team_shifts' && !this.activeSubView && diff !== 0;
+      todayFab.classList.toggle('rx-hidden', !showToday);
+    }
   }
 
   openSubView(viewName) {
@@ -1044,6 +1058,7 @@ class RosterXUserPortal {
     const formattedDateLabel = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
     const selfUname = String(this.user?.username || '').toLowerCase();
+    this.syncAiFabVisibility();
 
     panel.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;">
@@ -1052,7 +1067,6 @@ class RosterXUserPortal {
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;">
             ${dayTag ? `<span style="padding:2px 8px;border-radius:8px;background:var(--nm-accent);color:#fff;font-size:10px;font-weight:900;">${dayTag}</span>` : ''}
             <strong style="font-size:14px;">${escapeHtml(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' }))}</strong>
-            ${diff !== 0 ? `<button type="button" id="btnJumpToday" class="rx-chip-btn is-active" style="min-block-size:28px;padding:3px 9px;font-size:10.5px;">Today</button>` : ''}
           </div>
           <button type="button" class="rx-icon-pill" id="btnNextDay" aria-label="Next Day"><i class="ph ph-arrow-right"></i></button>
         </div>

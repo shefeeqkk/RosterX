@@ -728,8 +728,34 @@ html.dark .rx-roster-table tbody th {
   z-index: 42;
 }
 
+.rx-today-fab {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  z-index: 43;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--nm-accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 8px 20px var(--nm-accent-glow), 0 4px 12px rgba(15, 23, 42, 0.18);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.rx-today-fab:active {
+  transform: scale(0.96);
+}
+
 @media (min-width: 768px) {
-  .rx-ai-fab {
+  .rx-ai-fab,
+  .rx-today-fab {
     bottom: 22px;
     right: 22px;
   }
@@ -741,5 +767,12 @@ html.dark .rx-roster-table tbody th {
     right: max(12px, env(safe-area-inset-right, 0px));
     transform: scale(0.84);
     transform-origin: bottom right;
+  }
+
+  .rx-today-fab {
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    padding: 9px 14px;
+    font-size: 12px;
   }
 }

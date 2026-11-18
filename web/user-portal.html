@@ -40,9 +40,9 @@
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
   <!-- RosterX Design System -->
-  <link rel="stylesheet" href="css/tokens.css?v=2.0.4" />
-  <link rel="stylesheet" href="css/neumorphic.css?v=2.0.4" />
-  <link rel="stylesheet" href="css/mobile-shell.css?v=2.0.4" />
+  <link rel="stylesheet" href="css/tokens.css?v=2.0.5" />
+  <link rel="stylesheet" href="css/neumorphic.css?v=2.0.5" />
+  <link rel="stylesheet" href="css/mobile-shell.css?v=2.0.5" />
 
   <style>
     * { box-sizing: border-box; }
@@ -339,9 +339,15 @@
     <section id="subview_profile" class="rx-subview rx-hidden"></section>
   </main>
 
-  <!-- Floating AI Assistant Button -->
+  <!-- Floating AI Assistant Button (Dashboard Landing Tab Only) -->
   <button type="button" id="btnRosterAiFab" class="rx-ai-fab" aria-label="RosterX AI Assistant" style="border:0;background:transparent;padding:0;cursor:pointer;width:54px;height:54px;">
     <img src="assets/bot-3d-cutout.png" alt="RosterX AI" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(15,23,42,0.22));" />
+  </button>
+
+  <!-- Floating Jump to Today FAB (Team Shifts Tab when viewing a non-today date — Android 1:1 Parity) -->
+  <button type="button" id="btnJumpTodayFab" class="rx-today-fab rx-hidden" aria-label="Jump to Today">
+    <i class="ph ph-calendar-check" style="font-size:18px;" aria-hidden="true"></i>
+    <span>Jump to Today</span>
   </button>
 
   <!-- Native Frosted <dialog> Overlays -->
@@ -350,6 +356,6 @@
   <dialog id="rxEditProfileDialog" class="rx-modal" closedby="any" aria-labelledby="rxEditProfileTitle"></dialog>
   <dialog id="rxConfirmRemovePhotoDialog" class="rx-modal" closedby="any" aria-labelledby="rxRemovePhotoTitle"></dialog>
 
-  <script type="module" src="js/userPortal.js?v=2.0.4"></script>
+  <script type="module" src="js/userPortal.js?v=2.0.5"></script>
 </body>
 </html>
