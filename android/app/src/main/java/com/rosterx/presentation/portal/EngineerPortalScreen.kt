@@ -3843,46 +3843,44 @@ fun MonthRosterView(
 
                             Spacer(modifier = Modifier.width(6.dp))
 
-                            Box(modifier = Modifier.weight(1f)) {
-
-                                if (state.searchQuery.isEmpty()) {
-
-                                    Text(
-
-                                        text = "Filter...", 
-
-                                        fontSize = 12.sp, 
-
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-
-                                    )
-
-                                }
-
-                                BasicTextField(
-
-                                    value = state.searchQuery,
-
-                                    onValueChange = onSearchQueryChanged,
-
-                                    singleLine = true,
-
-                                    textStyle = TextStyle(
-
-                                        fontSize = 13.sp,
-
-                                        fontWeight = FontWeight.SemiBold,
-
-                                        color = MaterialTheme.colorScheme.onSurface
-
-                                    ),
-
-                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-
-                                    modifier = Modifier.fillMaxWidth()
-
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                val filterTextStyle = LocalTextStyle.current.copy(
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
 
+                                BasicTextField(
+                                    value = state.searchQuery,
+                                    onValueChange = onSearchQueryChanged,
+                                    singleLine = true,
+                                    textStyle = filterTextStyle,
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    decorationBox = { innerTextField ->
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            if (state.searchQuery.isEmpty()) {
+                                                Text(
+                                                    text = "Filter...",
+                                                    style = filterTextStyle.copy(
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    ),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                    }
+                                )
                             }
 
                             if (state.searchQuery.isNotEmpty()) {

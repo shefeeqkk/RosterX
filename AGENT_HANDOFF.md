@@ -53,6 +53,27 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.1 - Build 134):
+> *"Dasa! Gafoorka! Broadcast `@` mention crash fix, Neumorphic placeholder/cursor pixel alignment, and form placeholder cleanup 100% complete aayi safe-build adichu macha! 🎨🚀
+> 
+> 1. **Fixed `@` Mention Crash (`NotificationsTab.kt`)**:
+>    - Root cause: `messageTextLayoutResult.getCursorRect(cursorIndex)` threw `IllegalArgumentException: offset(1) is out of bounds [0, 0]` on the first frame after typing `@` because `onTextLayout` runs after composition.
+>    - Clamped `safeIndex` to `layout.layoutInput.text.length` and guarded with `runCatching { layout.getCursorRect(safeIndex) }.getOrNull()`.
+> 
+> 2. **Pixel-Perfect Placeholder & Cursor Alignment (`NeumorphicFormInput.kt`, `NeumorphicTextField.kt`, `NotificationsTab.kt`, `ProfileComponents.kt`, `EngineerPortalScreen.kt`)**:
+>    - Root cause: Material 3 `Text` placeholder inherited `lineHeight = 24.sp` while `BasicTextField` used `lineHeight = Unspecified` inside a `TopStart`-aligned `Box`.
+>    - Moved placeholders inside `BasicTextField`'s `decorationBox` sharing the exact same `LocalTextStyle.current.copy(fontSize, lineHeight, ...)` and `Alignment.CenterStart` (single-line) / `Alignment.TopStart` (multi-line), with `TextOverflow.Ellipsis`.
+> 
+> 3. **Instructional Form Placeholders & 6-Digit OTP Guard (`LoginScreen.kt`, `ManageTeamTab.kt`, `ProfileComponents.kt`)**:
+>    - Forgot Password: `"e.g. johnd or user@tejasnetworks.com"` -> `"Enter username or email"`.
+>    - OTP: `"123456"` -> `"Enter 6-digit OTP"` with strict numeric 6-char filter (`it.filter { ch -> ch.isDigit() }.take(6)`).
+>    - Team Management & Edit Profile: Replaced `"e.g. John Doe"`, `"e.g. johnd"`, `"e.g. user@tejasnetworks.com"`, and `"+91 98765 43210"` with `"Enter full name"`, `"Enter username"`, `"Enter email address"`, and `"Enter phone number"`.
+> 
+> 4. **Build Status (`v1.32.1` - Build 134)**:
+>    - Compiled cleanly via `safe_build.bat assembleDebug`. Ready to install via ADB once the phone reconnects (`100.71.241.36:5555` timed out)."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.32.0 - Build 133):
 > *"Dasa! Gafoorka! Sprint v1.32.0 (Build 133) UI tasks randum 100% crisp & clean aayi complete cheythu, safe-build adichu phone-il install aakki macha! 🎨🚀
 > 

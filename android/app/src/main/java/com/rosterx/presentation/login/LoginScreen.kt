@@ -377,7 +377,7 @@ fun LoginScreen(
                             value = identifier,
                             onValueChange = { identifier = it },
                             label = "Username or Email",
-                            placeholder = "e.g. johnd or user@tejasnetworks.com",
+                            placeholder = "Enter username or email",
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
                             modifier = Modifier.fillMaxWidth()
@@ -391,9 +391,9 @@ fun LoginScreen(
                         )
                         NeumorphicFormInput(
                             value = otpCode,
-                            onValueChange = { otpCode = it },
+                            onValueChange = { otpCode = it.filter { ch -> ch.isDigit() }.take(6) },
                             label = "6-Digit OTP Code",
-                            placeholder = "123456",
+                            placeholder = "Enter 6-digit OTP",
                             leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                             modifier = Modifier.fillMaxWidth()

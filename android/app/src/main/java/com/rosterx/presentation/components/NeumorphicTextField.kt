@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rosterx.ui.neumorphic.NeumorphicTokens
@@ -59,14 +61,16 @@ fun NeumorphicTextField(
                 Spacer(modifier = Modifier.width(10.dp))
             }
 
-            Box(modifier = Modifier.weight(1f)) {
-                if (value.isEmpty() && placeholder.isNotEmpty()) {
-                    Text(
-                        text = placeholder,
-                        color = NeumorphicTokens.TextMuted,
-                        fontSize = 14.sp
-                    )
-                }
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart
+            ) {
+                val inputTextStyle = LocalTextStyle.current.copy(
+                    color = NeumorphicTokens.TextMain,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium
+                )
 
                 BasicTextField(
                     value = value,
@@ -74,15 +78,30 @@ fun NeumorphicTextField(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = enabled,
                     singleLine = singleLine,
-                    textStyle = TextStyle(
-                        color = NeumorphicTokens.TextMain,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
+                    textStyle = inputTextStyle,
                     cursorBrush = SolidColor(NeumorphicTokens.AccentSalmon),
                     visualTransformation = visualTransformation,
                     keyboardOptions = keyboardOptions,
-                    keyboardActions = keyboardActions
+                    keyboardActions = keyboardActions,
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart
+                        ) {
+                            if (value.isEmpty() && placeholder.isNotEmpty()) {
+                                Text(
+                                    text = placeholder,
+                                    style = inputTextStyle.copy(
+                                        color = NeumorphicTokens.TextMuted,
+                                        fontWeight = FontWeight.Normal
+                                    ),
+                                    maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
                 )
             }
 

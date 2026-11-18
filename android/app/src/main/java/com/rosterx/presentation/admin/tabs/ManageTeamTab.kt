@@ -303,7 +303,7 @@ fun ManageTeamTab(
                                 }
                             },
                             label = "Full name *",
-                            placeholder = "e.g. John Doe",
+                            placeholder = "Enter full name",
                             enabled = !isReadOnly && !isSaving,
                             modifier = Modifier.weight(1f)
                         )
@@ -312,7 +312,7 @@ fun ManageTeamTab(
                             value = usernameInput,
                             onValueChange = { usernameInput = it.lowercase().trim() },
                             label = "Username *",
-                            placeholder = "e.g. johnd",
+                            placeholder = "Enter username",
                             enabled = !isReadOnly && !isSaving,
                             modifier = Modifier.weight(1f)
                         )
@@ -328,7 +328,7 @@ fun ManageTeamTab(
                             }
                         },
                         label = "Corporate email *",
-                        placeholder = "e.g. user@tejasnetworks.com",
+                        placeholder = "Enter email address",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         enabled = !isReadOnly && !isSaving,
                         modifier = Modifier.fillMaxWidth()
@@ -343,7 +343,7 @@ fun ManageTeamTab(
                             value = phoneInput,
                             onValueChange = { phoneInput = it },
                             label = "Phone",
-                            placeholder = "+91 98765 43210",
+                            placeholder = "Enter phone number",
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             enabled = !isReadOnly && !isSaving,
                             modifier = Modifier.weight(1f)

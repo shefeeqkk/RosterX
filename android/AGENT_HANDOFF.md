@@ -1,7 +1,17 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Latest Vijayan Dispatch:* **2026-11-18 00:35 IST** (**Sprint v1.32.0 - Build 133**)
+> *Latest Vijayan Dispatch:* **2026-11-18 08:52 IST** (**Hotfix v1.32.1 - Build 134**)
+
+---
+
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.1 - Build 134):
+> *"Dasa! Gafoorka! Broadcast `@` mention crash fix, Neumorphic placeholder/cursor pixel alignment, and form placeholder cleanup 100% complete aayi safe-build adichu macha! 🎨🚀
+> 
+> 1. **Fixed `@` Mention Crash (`NotificationsTab.kt`)**: Clamped `getCursorRect` index to `layout.layoutInput.text.length` inside `runCatching` so typing `@` never throws `IllegalArgumentException` before `onTextLayout` completes.
+> 2. **Placeholder & Cursor Alignment**: Moved placeholders inside `BasicTextField`'s `decorationBox` sharing identical `LocalTextStyle.current.copy(...)` metrics + `Alignment.CenterStart` + `TextOverflow.Ellipsis` across `NeumorphicFormInput`, `NeumorphicTextField`, Broadcast Message Body, Profile fields, and Filter bar.
+> 3. **Form Placeholder Cleanup & OTP Hardening**: Replaced hardcoded `johnd` / `user@tejasnetworks.com` / `John Doe` / `123456` / `+91 98765 43210` across `LoginScreen`, `ManageTeamTab`, and `ProfileComponents`; restricted OTP field to 6 numeric digits.
+> 4. **Build (`v1.32.1` - Build 134)**: Compiled via `safe_build.bat assembleDebug`; awaiting device reconnect for ADB install."*
 
 ---
 

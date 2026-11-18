@@ -846,6 +846,12 @@ fun EditProfileInputField(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    val fieldStyle = LocalTextStyle.current.copy(
+                        fontSize = 15.sp,
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     BasicTextField(
                         value = value,
                         onValueChange = onValueChange,
@@ -855,21 +861,25 @@ fun EditProfileInputField(
                         singleLine = singleLine,
                         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                         visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None,
-                        textStyle = LocalTextStyle.current.copy(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
+                        textStyle = fieldStyle,
                         decorationBox = { innerTextField ->
-                            if (value.isEmpty() && !placeholder.isNullOrBlank()) {
-                                Text(
-                                    text = placeholder,
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    fontWeight = FontWeight.Normal
-                                )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart
+                            ) {
+                                if (value.isEmpty() && !placeholder.isNullOrBlank()) {
+                                    Text(
+                                        text = placeholder,
+                                        style = fieldStyle.copy(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            fontWeight = FontWeight.Normal
+                                        ),
+                                        maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         }
                     )
                 }
@@ -1125,7 +1135,7 @@ fun UnifiedEditProfileDialog(
                         value = nameInput,
                         onValueChange = { if (it.length <= 60) nameInput = it },
                         label = "Full name *",
-                        placeholder = "e.g. John Doe",
+                        placeholder = "Enter full name",
                         isError = !isNameValid,
                         errorMessage = if (!isNameValid) "Must be 2-60 chars" else null,
                         modifier = Modifier.weight(1f)
@@ -1135,7 +1145,7 @@ fun UnifiedEditProfileDialog(
                         value = phoneInput,
                         onValueChange = { if (it.length <= 20) phoneInput = it },
                         label = "Phone",
-                        placeholder = "+91 98765 43210",
+                        placeholder = "Enter phone number",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.weight(1f)
                     )
@@ -1146,7 +1156,7 @@ fun UnifiedEditProfileDialog(
                     value = emailInput,
                     onValueChange = { emailInput = it },
                     label = "Corporate email *",
-                    placeholder = "e.g. user@tejasnetworks.com",
+                    placeholder = "Enter email address",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     isError = !isEmailValid,
                     errorMessage = if (!isEmailValid) "Valid email required" else null,

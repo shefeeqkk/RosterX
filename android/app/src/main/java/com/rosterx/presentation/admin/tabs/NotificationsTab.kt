@@ -915,25 +915,37 @@ fun NotificationsTab(
                                 contentAlignment = Alignment.TopStart
                             ) {
                                 Box(modifier = Modifier.fillMaxWidth()) {
-                                    if (messageTextFieldValue.text.isEmpty()) {
-                                        Text(
-                                            text = "Type broadcast message...",
-                                            fontSize = 13.5.sp,
-                                            color = NeumorphicTokens.TextMuted.copy(alpha = 0.6f)
-                                        )
-                                    }
+                                    val messageTextStyle = LocalTextStyle.current.copy(
+                                        fontSize = 13.5.sp,
+                                        color = NeumorphicTokens.TextMain,
+                                        fontWeight = FontWeight.Normal,
+                                        lineHeight = 19.sp
+                                    )
                                     BasicTextField(
                                         value = messageTextFieldValue,
                                         onValueChange = { messageTextFieldValue = it },
                                         onTextLayout = { messageTextLayoutResult = it },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        textStyle = TextStyle(
-                                            fontSize = 13.5.sp,
-                                            color = NeumorphicTokens.TextMain,
-                                            fontWeight = FontWeight.Normal,
-                                            lineHeight = 19.sp
-                                        ),
-                                        cursorBrush = SolidColor(NeumorphicTokens.Accent)
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .defaultMinSize(minHeight = 98.dp),
+                                        textStyle = messageTextStyle,
+                                        cursorBrush = SolidColor(NeumorphicTokens.Accent),
+                                        decorationBox = { innerTextField ->
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                contentAlignment = Alignment.TopStart
+                                            ) {
+                                                if (messageTextFieldValue.text.isEmpty()) {
+                                                    Text(
+                                                        text = "Type broadcast message...",
+                                                        style = messageTextStyle.copy(
+                                                            color = NeumorphicTokens.TextMuted.copy(alpha = 0.6f)
+                                                        )
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                        }
                                     )
 
                                     // Cursor-Anchored Ultra-Compact '@' Mention Floating Popup
@@ -943,8 +955,12 @@ fun NotificationsTab(
                                         "all".contains(mentionQuery ?: "") ||
                                         "everyone".contains(mentionQuery ?: "")
                                     )
-                                    val cursorIndex = messageTextFieldValue.selection.start.coerceIn(0, messageTextFieldValue.text.length)
-                                    val cursorRect = messageTextLayoutResult?.getCursorRect(cursorIndex)
+                                    val layout = messageTextLayoutResult
+                                    val cursorRect = if (showMentionPopup && layout != null) {
+                                        val layoutTextLength = layout.layoutInput.text.length
+                                        val safeIndex = messageTextFieldValue.selection.start.coerceIn(0, layoutTextLength)
+                                        runCatching { layout.getCursorRect(safeIndex) }.getOrNull()
+                                    } else null
 
                                     if (showMentionPopup && cursorRect != null) {
                                         val xOffset = cursorRect.left.toInt().coerceAtLeast(0)
