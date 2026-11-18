@@ -917,6 +917,7 @@ fun UnifiedEditProfileDialog(
     currentBirthday: String,
     currentProfilePicture: String?,
     onDismiss: () -> Unit,
+    onRemovePhoto: ((onResult: (Boolean, String?) -> Unit) -> Unit)? = null,
     onSave: (
         name: String,
         phone: String,
@@ -968,6 +969,7 @@ fun UnifiedEditProfileDialog(
     // Photo state: null = unchanged, "" = remove, "data:..." = new image
     var pendingPhotoBase64 by remember(show) { mutableStateOf<String?>(null) }
     var showConfirmRemovePhotoDialog by remember { mutableStateOf(false) }
+    var isRemovingPhoto by remember { mutableStateOf(false) }
     val effectivePhoto = when {
         pendingPhotoBase64 != null -> pendingPhotoBase64!!.takeIf { it.isNotBlank() }
         else -> currentProfilePicture
@@ -1039,12 +1041,13 @@ fun UnifiedEditProfileDialog(
                 .padding(vertical = 12.dp)
                 .neumorphicFloating(shape = RoundedCornerShape(24.dp))
                 .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp)
+                .clip(RoundedCornerShape(24.dp))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Header Row
@@ -1081,29 +1084,46 @@ fun UnifiedEditProfileDialog(
                         }
                     }
 
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         Text(
                             text = "Edit profile",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = NeumorphicTokens.TextMain
+                            color = NeumorphicTokens.TextMain,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Personal details & security",
-                                fontSize = 11.sp,
-                                color = NeumorphicTokens.TextMuted
-                            )
-                            if (!effectivePhoto.isNullOrBlank()) {
+                        Text(
+                            text = "Personal details & security",
+                            fontSize = 11.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (!effectivePhoto.isNullOrBlank()) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable(enabled = !isRemovingPhoto) { showConfirmRemovePhotoDialog = true }
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Remove photo",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(12.dp)
+                                )
                                 Text(
-                                    text = "• Remove photo",
+                                    text = if (isRemovingPhoto) "Removing photo..." else "Remove photo",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.clickable { showConfirmRemovePhotoDialog = true }
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -1281,7 +1301,7 @@ fun UnifiedEditProfileDialog(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
                         label = "Confirm password",
-                        placeholder = "Repeat new password",
+                        placeholder = "Confirm password",
                         visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
@@ -1382,6 +1402,132 @@ fun UnifiedEditProfileDialog(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Immediate Remove Profile Photo Confirmation Dialog
+    if (showConfirmRemovePhotoDialog) {
+        Dialog(
+            onDismissRequest = { if (!isRemovingPhoto) showConfirmRemovePhotoDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ApplyDialogBlurBehind(blurRadiusPx = 50, dimAmount = 0.5f)
+            val initials = nameInput.ifBlank { "User" }
+                .trim()
+                .split(" ")
+                .mapNotNull { it.firstOrNull()?.uppercase() }
+                .take(2)
+                .joinToString("")
+                .ifBlank { "U" }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(if (isDark) Color(0x990A0F1A) else Color(0xB8F1F5F9))
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        if (!isRemovingPhoto) showConfirmRemovePhotoDialog = false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) {}
+                        .neumorphicFloating(shape = RoundedCornerShape(20.dp))
+                        .background(NeumorphicTokens.Surface, RoundedCornerShape(20.dp))
+                        .padding(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Remove profile photo?",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Text(
+                            text = "Are you sure you want to remove your profile photo right away? Your avatar will revert to initials ($initials).",
+                            fontSize = 12.5.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            lineHeight = 17.sp
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .neumorphicClickable(
+                                        shape = RoundedCornerShape(10.dp),
+                                        enabled = !isRemovingPhoto
+                                    ) {
+                                        showConfirmRemovePhotoDialog = false
+                                    }
+                                    .background(NeumorphicTokens.Surface, RoundedCornerShape(10.dp))
+                                    .border(
+                                        1.dp,
+                                        if (isDark) Color(0x1FFFFFFF) else Color(0x1F94A3B8),
+                                        RoundedCornerShape(10.dp)
+                                    )
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Cancel",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NeumorphicTokens.TextMuted
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .neumorphicClickable(
+                                        shape = RoundedCornerShape(10.dp),
+                                        enabled = !isRemovingPhoto
+                                    ) {
+                                        if (onRemovePhoto != null) {
+                                            isRemovingPhoto = true
+                                            onRemovePhoto { success, errMsg ->
+                                                isRemovingPhoto = false
+                                                showConfirmRemovePhotoDialog = false
+                                                if (success) {
+                                                    pendingPhotoBase64 = ""
+                                                    Toast.makeText(context, "Profile photo removed", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, errMsg ?: "Failed to remove photo", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        } else {
+                                            pendingPhotoBase64 = ""
+                                            showConfirmRemovePhotoDialog = false
+                                            Toast.makeText(context, "Photo removed", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    .background(Color(0xFFEF4444), RoundedCornerShape(10.dp))
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (isRemovingPhoto) "Removing..." else "Remove",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }

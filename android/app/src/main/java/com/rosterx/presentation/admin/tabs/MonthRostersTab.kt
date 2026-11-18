@@ -400,9 +400,9 @@ fun MonthRostersTab(
 
                     .fillMaxWidth()
 
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .verticalScroll(rememberScrollState())
 
-                    .verticalScroll(rememberScrollState()),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
 
                 verticalArrangement = Arrangement.spacedBy(8.dp)
 

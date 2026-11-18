@@ -1242,6 +1242,12 @@ fun EngineerPortalScreen(
             currentBirthday = eng.birthday ?: "",
             currentProfilePicture = eng.profilePicture,
             onDismiss = { showUnifiedEditProfileDialog = false },
+            onRemovePhoto = { onResult ->
+                viewModel.removeProfilePicture(
+                    targetUsername = eng.username,
+                    onResult = onResult
+                )
+            },
             onSave = { name, phone, email, joinDate, birthday, photoB64, currPass, newPass ->
                 viewModel.updateUserProfile(
                     name = name,

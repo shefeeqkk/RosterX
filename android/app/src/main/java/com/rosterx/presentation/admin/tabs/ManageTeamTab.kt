@@ -189,12 +189,13 @@ fun ManageTeamTab(
                         ) {}
                         .neumorphicFloating(shape = RoundedCornerShape(24.dp))
                         .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
-                        .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 22.dp)
+                        .clip(RoundedCornerShape(24.dp))
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(rememberScrollState())
+                            .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 22.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         // Header Row
@@ -233,34 +234,46 @@ fun ManageTeamTab(
                                 }
                             }
 
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
                                     text = if (isReadOnly) "Account profile" else if (editingEngineer == null) "Register new account" else "Edit account",
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 17.sp,
-                                    color = NeumorphicTokens.TextMain
+                                    color = NeumorphicTokens.TextMain,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = if (editingEngineer == null) "Create system access" else (nameInput.ifBlank { "Update credentials" }),
-                                        fontSize = 11.sp,
-                                        color = NeumorphicTokens.TextMuted,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                    if (!isReadOnly && !profilePictureInput.isNullOrBlank()) {
+                                Text(
+                                    text = if (editingEngineer == null) "Create system access" else (nameInput.ifBlank { "Update credentials" }),
+                                    fontSize = 11.sp,
+                                    color = NeumorphicTokens.TextMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (!isReadOnly && !profilePictureInput.isNullOrBlank()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable { showRemovePhotoConfirmDialog = true }
+                                            .padding(vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Remove photo",
+                                            tint = Color(0xFFEF4444),
+                                            modifier = Modifier.size(12.dp)
+                                        )
                                         Text(
-                                            text = "• Remove photo",
+                                            text = "Remove photo",
                                             fontSize = 11.sp,
                                             color = Color(0xFFEF4444),
                                             fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.clickable {
-                                                showRemovePhotoConfirmDialog = true
-                                            }
+                                            maxLines = 1
                                         )
                                     }
                                 }

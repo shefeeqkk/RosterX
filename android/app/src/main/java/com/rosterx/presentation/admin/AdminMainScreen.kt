@@ -431,6 +431,12 @@ fun AdminMainScreen(
             currentBirthday = activeSelf.birthday ?: "",
             currentProfilePicture = activeSelf.profilePicture,
             onDismiss = { showUnifiedEditProfileDialog = false },
+            onRemovePhoto = { onResult ->
+                viewModel.removeProfilePicture(
+                    targetUsername = activeSelf.username,
+                    onResult = onResult
+                )
+            },
             onSave = { name, phone, email, joinDate, birthday, photoB64, currPass, newPass ->
                 viewModel.updateUserProfile(
                     name = name,

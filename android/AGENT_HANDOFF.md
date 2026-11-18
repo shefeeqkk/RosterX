@@ -1,7 +1,16 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Latest Vijayan Dispatch:* **2026-11-18 08:52 IST** (**Hotfix v1.32.1 - Build 134**)
+> *Latest Vijayan Dispatch:* **2026-11-18 09:09 IST** (**Hotfix v1.32.2 - Build 135**)
+
+---
+
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.2 - Build 135):
+> *"Dasa! Gafoorka! Edit Profile 'Remove photo' immediate delete flow + full scroll-container shadow & text clipping sweep complete aayi build adichu macha! 🎨🚀
+> 
+> 1. **Immediate 'Remove photo' Flow (`ProfileComponents.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`, `EngineerPortalViewModel.kt`)**: Wired Neumorphic confirmation dialog in `UnifiedEditProfileDialog` to immediately invoke `viewModel.removeProfilePicture(...)`, sync `UserSessionManager`, and revert avatars to initials right away.
+> 2. **Full Clipping Sweep**: Moved `.padding(...)` inside `.verticalScroll(...)` across `UnifiedEditProfileDialog`, `ManageTeamTab`, `CredentialTrackerScreen`, and `MonthRostersTab` so raised Neumorphic shadows (`X`, `Cancel`, `Save changes`) never clip; stacked `Remove photo` cleanly below the subtitle away from `X`; shortened `"Repeat new password"` → `"Confirm password"`.
+> 3. **Build (`v1.32.2` - Build 135)**: Compiled cleanly via `safe_build.bat assembleDebug`; ready to install via ADB once phone reconnects."*
 
 ---
 

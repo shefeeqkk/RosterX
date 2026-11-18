@@ -53,6 +53,25 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.2 - Build 135):
+> *"Dasa! Gafoorka! Edit Profile 'Remove photo' immediate delete flow + full scroll-container shadow & text clipping sweep complete aayi build adichu macha! 🎨🚀
+> 
+> 1. **Fixed Unresponsive 'Remove photo' in Edit Profile (`ProfileComponents.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`, `EngineerPortalViewModel.kt`)**:
+>    - Root cause: `showConfirmRemovePhotoDialog` was set to `true` on click in `UnifiedEditProfileDialog`, but no confirmation dialog was ever rendered!
+>    - Added a Neumorphic **"Remove profile photo?"** confirmation dialog inside `UnifiedEditProfileDialog` with an `onRemovePhoto` callback wired to `viewModel.removeProfilePicture(...)` in both Admin and Engineer portals.
+>    - On confirm, immediately deletes the photo on the server (`POST /api/users/profile-picture`), updates `sessionManager.updateCurrentUserProfilePicture(null)`, reverts both the dialog avatar and background profile card to initials right away, and shows a toast.
+>    - Fixed `EngineerPortalViewModel.loadData()` merge logic (`profilePicture = fullProfile.profilePicture`) so a removed photo is never resurrected from stale session cache.
+> 
+> 2. **Full Scroll-Container Shadow & Placeholder Clipping Sweep**:
+>    - Moved `.padding(...)` **inside** `.verticalScroll(rememberScrollState())` (with `.clip(RoundedCornerShape(24.dp))` on the outer dialog surface) across `UnifiedEditProfileDialog` (`ProfileComponents.kt`), Register/Edit Account (`ManageTeamTab.kt`), Add/Edit Credential Tracker (`CredentialTrackerScreen.kt`), and Shift Assignment Sheet (`MonthRostersTab.kt`) so zero raised Neumorphic shadows (`X`, `Cancel`, `Save changes`, chips) clip against the scroll viewport.
+>    - Moved `Remove photo` cleanly below the subtitle line with `Icons.Default.DeleteOutline` in both `UnifiedEditProfileDialog` and `ManageTeamTab` so it never collides with the top-right `X` close button.
+>    - Shortened `"Repeat new password"` → `"Confirm password"` so dual-column placeholders never clip mid-word.
+> 
+> 3. **Build Status (`v1.32.2` - Build 135)**:
+>    - Compiled cleanly via `safe_build.bat assembleDebug`. Ready for ADB install once phone reconnects."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.1 - Build 134):
 > *"Dasa! Gafoorka! Broadcast `@` mention crash fix, Neumorphic placeholder/cursor pixel alignment, and form placeholder cleanup 100% complete aayi safe-build adichu macha! 🎨🚀
 > 

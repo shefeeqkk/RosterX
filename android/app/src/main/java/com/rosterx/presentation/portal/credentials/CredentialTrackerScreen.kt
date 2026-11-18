@@ -1123,12 +1123,13 @@ fun AddEditCredentialTrackerDialog(
                 .padding(vertical = 12.dp)
                 .neumorphicFloating(shape = RoundedCornerShape(24.dp))
                 .background(NeumorphicTokens.Surface, RoundedCornerShape(24.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp)
+                .clip(RoundedCornerShape(24.dp))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Header Row

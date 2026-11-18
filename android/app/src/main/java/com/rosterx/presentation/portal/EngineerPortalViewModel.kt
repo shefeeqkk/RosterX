@@ -297,7 +297,7 @@ class EngineerPortalViewModel @Inject constructor(
                         phone = if (!fullProfile.phone.contains("*") && fullProfile.phone.isNotBlank()) fullProfile.phone else current.phone,
                         joinDate = if (fullProfile.joinDate.isNotBlank()) fullProfile.joinDate else current.joinDate,
                         birthday = if (!fullProfile.birthday.isNullOrBlank()) fullProfile.birthday else current.birthday,
-                        profilePicture = fullProfile.profilePicture ?: current.profilePicture
+                        profilePicture = fullProfile.profilePicture
                     )
                     sessionManager.setCurrentUser(mergedUser)
                     _state.value = _state.value.copy(loggedInEngineer = mergedUser)
@@ -1056,6 +1056,7 @@ class EngineerPortalViewModel @Inject constructor(
                 val newPic = res.getOrNull()
                 val loggedIn = _state.value.loggedInEngineer
                 if (loggedIn != null && (targetUsername.isNullOrBlank() || targetUsername.equals(loggedIn.username, ignoreCase = true))) {
+                    sessionManager.updateCurrentUserProfilePicture(newPic)
                     val updated = loggedIn.copy(profilePicture = newPic)
                     _state.value = _state.value.copy(loggedInEngineer = updated)
                 }
