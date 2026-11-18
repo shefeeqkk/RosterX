@@ -23,9 +23,6 @@ release/*.apk
 *.jks
 *.keystore
 
-# Local tunneling runtime artifacts
-public_tunnel_url.txt
-
 # Python cache
 __pycache__/
 *.py[cod]

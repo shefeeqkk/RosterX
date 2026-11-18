@@ -683,7 +683,7 @@ export class ExcelService {
     // Reference pool of all engineers
     const engineerPool = Array.isArray(allEngineers) && allEngineers.length > 0 ? allEngineers : sortedEngineers;
 
-    // Helper to find swap partner from shift code (e.g. SWM -> MANOJ, SWSH -> SHEFEEQ, SWSI -> SILAMBARASAN)
+    // Helper to find swap partner from shift code (e.g. SWA -> Member A, SWB -> Member B)
     const findPartnerBySwapCode = (code, currentEngName, pool) => {
       if (!code || !code.startsWith('SW')) return null;
       const cleanCode = code.toUpperCase();

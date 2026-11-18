@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "1.32.3"
+SERVER_VERSION = "1.33.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -146,9 +146,8 @@ ATLAS_ERROR = None
 ATLAS_CLUSTER = "Cluster0"
 ATLAS_DB_NAME = "rosterx"
 
-# Global Public Tunnel & Internet Gateway State
-PUBLIC_TUNNEL_URL = None
-TUNNEL_PROC = None
+# Global Production Server & Network State
+PUBLIC_SERVER_URL = os.environ.get("PUBLIC_SERVER_URL", "https://api.rosterx.online").strip().rstrip("/")
 SERVER_PORT = 8000
 
 IST_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
@@ -330,7 +329,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
 def to_proper_name(name: str) -> str:
     """
     Normalizes a name string from ALL CAPS or arbitrary casing into clean Proper Title Case.
-    Preserves initials and short single-character tokens (e.g. 'Dhanush B', 'Rohit N').
+    Preserves initials and short single-character tokens (e.g. 'Member A', 'Member B').
     """
     if not name or not isinstance(name, str):
         return name
@@ -479,16 +478,24 @@ def find_user_by_identifier(identifier: str):
 def is_management_account(user_dict: dict) -> bool:
     """
     Determine if an account is solely a management or system administrator account.
-    System administrators, generic admin, and managers exist solely for authentication
-    and operations, and are excluded from team roster directory and shift assignments.
+    Honors explicit DB-driven `include_in_roster` flag when configured; otherwise
+    falls back to generic role/system account rules.
     """
     if not isinstance(user_dict, dict):
         return False
+    inc_flag = user_dict.get("include_in_roster")
+    if inc_flag is None:
+        inc_flag = user_dict.get("includeInRoster")
+    if isinstance(inc_flag, bool):
+        return not inc_flag
+
     uname = str(user_dict.get("username", "") or user_dict.get("id", "") or user_dict.get("engineerId", "")).strip().lower()
     n = str(user_dict.get("name", "")).strip().lower()
     fn = str(user_dict.get("full_name", "")).strip().lower()
     role = str(user_dict.get("role", "")).strip().lower()
-    if role not in ("admin", "manager"):
+    if role == "manager":
+        return True
+    if role != "admin":
         return False
     # Accounts dedicated strictly to administrative/system tasks
     return (
@@ -2040,54 +2047,117 @@ def send_startup_link_email(public_url, lan_ip, port, to_email=None):
     print(f"  [EMAIL NOTIFICATION] Dispatching server gateway link to {to_email}...")
     return send_resend_email(to_email, subject, html_content)
 
-def find_cloudflared_path():
-    """Locate the cloudflared executable from PATH or common installation paths."""
-    cmd = shutil.which("cloudflared")
-    if cmd:
-        return cmd
+def _personalize_broadcast_text(
+    text: str,
+    recipient_name: str,
+    recipient_username: str = "",
+    name_by_user: dict = None,
+    name_by_id: dict = None,
+    html_mode: bool = False
+) -> str:
+    """
+    Unified broadcast personalization resolver shared by Broadcast Title & Body across
+    Email (Resend), FCM Push, and In-App Feed (GET /api/notifications).
+    Resolves:
+      - @name / {name} / {their name} -> recipient's Full Name
+      - {username} / @{username}      -> recipient's username
+      - @all / @everyone / @team      -> @Everyone (plain) or styled badge (HTML)
+      - @<username>                   -> @<Full Name> via directory lookup
+    """
+    if not text:
+        return ""
 
-    candidates = [
-        Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "cloudflared" / "cloudflared.exe",
-        Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "cloudflared" / "cloudflared.exe",
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WinGet" / "Packages" / "Cloudflare.cloudflared" / "cloudflared.exe",
-    ]
-    for p in candidates:
-        if p.exists():
-            return str(p)
-    return None
+    res = str(text)
+    safe_name = str(recipient_name or "Team Member").strip()
+    safe_uname = str(recipient_username or "").strip()
+    user_map = name_by_user or {}
+    id_map = name_by_id or {}
+
+    # 1. Recipient dynamic name & username tokens
+    res = re.sub(r'@name\b', safe_name, res, flags=re.IGNORECASE)
+    res = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', safe_name, res, flags=re.IGNORECASE)
+    res = re.sub(r'\{\s*username\s*\}', safe_uname, res, flags=re.IGNORECASE)
+    res = re.sub(r'@\{\s*username\s*\}', f"@{safe_uname}", res, flags=re.IGNORECASE)
+
+    # 2. Remaining @mentions (@all, @everyone, @team, @<username>)
+    # Avoid swallowing trailing sentence punctuation (e.g. '@member_b.')
+    mention_pattern = r'@([a-zA-Z0-9_\-]+(?:\.[a-zA-Z0-9_\-]+)*)'
+    if html_mode:
+        def _fmt_html(m):
+            t_u = m.group(1).lower()
+            if t_u in ("all", "everyone", "team"):
+                return '<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@Everyone (All Team)</strong>'
+            m_name = user_map.get(t_u) or id_map.get(t_u) or m.group(1)
+            return f'<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@{m_name}</strong>'
+        res = re.sub(mention_pattern, _fmt_html, res)
+    else:
+        def _fmt_plain(m):
+            t_u = m.group(1).lower()
+            if t_u in ("all", "everyone", "team"):
+                return "@Everyone"
+            m_name = user_map.get(t_u) or id_map.get(t_u) or m.group(1)
+            return f"@{m_name}"
+        res = re.sub(mention_pattern, _fmt_plain, res)
+
+    return res
+
+
+def send_welcome_onboarding_email(to_email: str, full_name: str, username: str):
+    """
+    Dispatch a zero-knowledge Welcome to RosterX email to a newly onboarded team member.
+    Never includes any password; instructs the user to set their private password using
+    'Forgot password?' (Email OTP) on the login screen.
+    """
+    if not to_email:
+        return {"success": False, "error": "No recipient email"}
+    display_name = to_proper_name(full_name) if full_name else username
+    subject = "Welcome to RosterX — Set Up Your Private Account Password"
+    html_content = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#f1f5f9;">
+  <div style="max-width:560px;margin:30px auto;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:30px;">
+    <h2 style="margin:0 0 12px;color:#ffffff;font-size:22px;">Welcome to RosterX, {display_name}!</h2>
+    <p style="margin:0 0 18px;color:#cbd5e1;font-size:14px;line-height:1.6;">
+      Your RosterX operational account has been created. For your privacy and security, administrators never set or see your password.
+    </p>
+    <div style="background:#020617;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Your Username</div>
+      <div style="font-size:18px;font-weight:700;color:#38bdf8;font-family:monospace;margin-top:4px;">{username}</div>
+    </div>
+    <p style="margin:0 0 14px;color:#e2e8f0;font-size:14px;line-height:1.6;">
+      <strong>How to set your private password:</strong><br/>
+      1. Open the RosterX Android app or web portal.<br/>
+      2. Tap <strong>&ldquo;Forgot password?&rdquo;</strong> on the login screen.<br/>
+      3. Enter your username (<code>{username}</code>) or this email address to receive a secure 6-digit Email OTP.<br/>
+      4. Verify the OTP and choose your own private password.
+    </p>
+    <div style="font-size:12px;color:#64748b;border-top:1px solid #1e293b;padding-top:14px;margin-top:20px;">
+      Automated onboarding message from RosterX v{SERVER_VERSION}.
+    </div>
+  </div>
+</body>
+</html>"""
+    try:
+        res = send_resend_email(to_email, subject, html_content)
+        log_server(f"[ONBOARDING] Welcome email dispatched to '{username}' ({to_email}): {res.get('success')}")
+        return res
+    except Exception as e:
+        log_server(f"[ONBOARDING EMAIL ERROR] Failed for '{username}': {e}")
+        return {"success": False, "error": str(e)}
+
 
 def publish_server_endpoints(public_url, lan_ip, port):
-    """Publish live endpoints to files and Atlas for seamless mobile discovery."""
+    """Synchronize live production/LAN server endpoints with MongoDB Atlas system_config."""
     global ATLAS_DB
+    effective_public = (public_url or PUBLIC_SERVER_URL or "").strip().rstrip("/")
 
-    # 1. Write to public_tunnel_url.txt in root dir
-    try:
-        url_file = ROOT_DIR / "public_tunnel_url.txt"
-        with open(url_file, "w", encoding="utf-8") as f:
-            f.write((public_url or "") + "\n")
-    except Exception:
-        pass
-
-    # 2. Write to Android project assets
-    asset_targets = [
-        ROOT_DIR / "android" / "app" / "src" / "main" / "assets",
-    ]
-    for target in asset_targets:
-        try:
-            target.mkdir(parents=True, exist_ok=True)
-            with open(target / "server_url.txt", "w", encoding="utf-8") as f:
-                f.write((public_url or "") + "\n")
-        except Exception:
-            pass
-
-    # 3. Synchronize with MongoDB Atlas system_config
     if ATLAS_DB is not None:
         try:
             ATLAS_DB.system_config.update_one(
                 {"_id": "active_server"},
                 {"$set": {
-                    "public_url": public_url,
-                    "api_url": f"{public_url}/api" if public_url else f"http://{lan_ip}:{port}/api",
+                    "public_url": effective_public,
+                    "api_url": f"{effective_public}/api" if effective_public else f"http://{lan_ip}:{port}/api",
                     "lan_url": f"http://{lan_ip}:{port}",
                     "lan_api_url": f"http://{lan_ip}:{port}/api",
                     "port": port,
@@ -2099,54 +2169,6 @@ def publish_server_endpoints(public_url, lan_ip, port):
             )
         except Exception as e:
             print(f"  [SERVER INFO] Atlas endpoint sync note: {e}")
-
-def start_cloudflared_tunnel(port=8000, timeout=30):
-    """Launch cloudflared quick tunnel to forward public traffic to http://127.0.0.1:port."""
-    global PUBLIC_TUNNEL_URL, TUNNEL_PROC, SERVER_PORT
-    SERVER_PORT = port
-    cf_bin = find_cloudflared_path()
-    if not cf_bin:
-        return None, None
-
-    cmd = [cf_bin, "tunnel", "--url", f"http://127.0.0.1:{port}"]
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
-    except Exception as e:
-        print(f"  [CLOUDFLARE TUNNEL] Failed to launch cloudflared: {e}")
-        return None, None
-
-    public_url = None
-    start_time = time.time()
-
-    while time.time() - start_time < timeout:
-        line = proc.stdout.readline()
-        if not line:
-            break
-        match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
-        if match:
-            public_url = match.group(0)
-            break
-
-    PUBLIC_TUNNEL_URL = public_url
-    TUNNEL_PROC = proc
-
-    def drain_output():
-        try:
-            for _ in proc.stdout:
-                pass
-        except Exception:
-            pass
-
-    t = threading.Thread(target=drain_output, daemon=True)
-    t.start()
-
-    return proc, public_url
 
 def get_lan_ip():
     """Retrieve the primary local area network (LAN) IPv4 address."""
@@ -2609,7 +2631,7 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
         else:
             return f"No engineers are scheduled for rest/leave on {day_label}."
 
-    # INTENT A4: Query for a specific shift occurrence (e.g. "when is my second general shift", "when is my next NS", "when is Atul on night")
+    # INTENT A4: Query for a specific shift occurrence (e.g. "when is my second general shift", "when is my next NS", "when is Team Member on night")
     has_date_intent = any(k in p for k in ["when", "next", "which date", "what date", "have"]) or bool(re.search(r'\bon\b', p))
     if target_shift and has_date_intent and not is_who_query:
         if target_eng and target_eng.get("shifts"):
@@ -2910,10 +2932,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         origin = self.headers.get("Origin", "")
         allowed_origin = "*"
         if origin:
-            # Allow local origins, render domains, rosterx.online domain, and trycloudflare tunnels
+            # Allow local origins, render domains, and official rosterx.online domain
             if re.match(r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.0\.2\.2)(:\d+)?$", origin) or \
-               origin.endswith(".onrender.com") or origin.endswith(".trycloudflare.com") or \
-               origin.endswith("rosterx.online"):
+               origin.endswith(".onrender.com") or origin.endswith("rosterx.online"):
                 allowed_origin = origin
             else:
                 allowed_origin = origin
@@ -3011,12 +3032,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "success": True,
                 "status": "online",
                 "version": SERVER_VERSION,
-                "public_url": PUBLIC_TUNNEL_URL,
-                "api_url": f"{PUBLIC_TUNNEL_URL}/api" if PUBLIC_TUNNEL_URL else f"http://{lan_ip}:{SERVER_PORT}/api",
+                "public_url": PUBLIC_SERVER_URL,
+                "api_url": f"{PUBLIC_SERVER_URL}/api" if PUBLIC_SERVER_URL else f"http://{lan_ip}:{SERVER_PORT}/api",
                 "lan_ip": lan_ip,
                 "lan_url": f"http://{lan_ip}:{SERVER_PORT}",
                 "port": SERVER_PORT,
-                "tunnel_active": bool(PUBLIC_TUNNEL_URL),
                 "cluster": ATLAS_CLUSTER,
                 "database": ATLAS_DB_NAME,
                 "atlas_status": ATLAS_STATUS,
@@ -3193,8 +3213,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "network": {
                         "port": SERVER_PORT,
                         "lan_ip": lan_ip,
-                        "public_url": PUBLIC_TUNNEL_URL,
-                        "tunnel_active": bool(PUBLIC_TUNNEL_URL)
+                        "public_url": PUBLIC_SERVER_URL
                     },
                     "version": SERVER_VERSION,
                     "timestamp": time.time()
@@ -3217,8 +3236,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "database": ATLAS_DB_NAME,
                         "status": "connected",
                         "latency_ms": latency_ms,
-                        "public_url": PUBLIC_TUNNEL_URL,
-                        "api_url": f"{PUBLIC_TUNNEL_URL}/api" if PUBLIC_TUNNEL_URL else f"http://{lan_ip}:{SERVER_PORT}/api",
+                        "public_url": PUBLIC_SERVER_URL,
+                        "api_url": f"{PUBLIC_SERVER_URL}/api" if PUBLIC_SERVER_URL else f"http://{lan_ip}:{SERVER_PORT}/api",
                         "lan_url": f"http://{lan_ip}:{SERVER_PORT}"
                     })
                     return
@@ -3712,21 +3731,56 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             "status": f"Sent ({n.get('emails_dispatched', 0)} emails)" if n.get("send_email", False) else "Disabled"
                         }
 
-            # Personalize @name or {name} tokens for the recipient in in-app notification cards
+            # Personalize @name / {name} / @all / @<username> tokens in BOTH title and body for non-admin feeds
             caller_un = str(claims.get("username", "")).strip()
             caller_full_name = get_engineer_display_name(caller_un)
             if not caller_full_name or caller_full_name == "System":
                 caller_full_name = str(claims.get("fullName") or claims.get("name") or caller_un or "Team Member").strip()
 
+            name_by_user = {}
+            name_by_id = {}
+            if not is_admin:
+                eng_pool = []
+                if ATLAS_DB is not None:
+                    try:
+                        eng_pool = list(ATLAS_DB.engineers.find({}, {"_id": 0, "username": 1, "id": 1, "name": 1, "fullName": 1, "full_name": 1}))
+                    except Exception:
+                        eng_pool = []
+                if not eng_pool:
+                    eng_pool = list(DEFAULT_SERVER_ENGINEERS)
+                for e in eng_pool:
+                    e_un = str(e.get("username") or "").strip().lower()
+                    e_id = str(e.get("id") or "").strip().lower()
+                    e_fn = str(e.get("fullName") or e.get("full_name") or e.get("name") or e_un).strip()
+                    if e_un:
+                        name_by_user[e_un] = to_proper_name(e_fn)
+                    if e_id:
+                        name_by_id[e_id] = to_proper_name(e_fn)
+
             feed_notifs = []
             for n in notifs:
                 item = dict(n)
-                raw_m = str(item.get("raw_message") or "")
-                if not is_admin and raw_m and ("@name" in raw_m.lower() or "{name}" in raw_m.lower() or "{their name}" in raw_m.lower()):
-                    p_msg = raw_m
-                    p_msg = re.sub(r'@name\b', caller_full_name, p_msg, flags=re.IGNORECASE)
-                    p_msg = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', caller_full_name, p_msg, flags=re.IGNORECASE)
-                    item["raw_message"] = p_msg
+                if not is_admin:
+                    raw_t = str(item.get("title") or "")
+                    if raw_t:
+                        item["title"] = _personalize_broadcast_text(
+                            raw_t,
+                            recipient_name=caller_full_name,
+                            recipient_username=caller_un,
+                            name_by_user=name_by_user,
+                            name_by_id=name_by_id,
+                            html_mode=False
+                        )
+                    raw_m = str(item.get("raw_message") or "")
+                    if raw_m:
+                        item["raw_message"] = _personalize_broadcast_text(
+                            raw_m,
+                            recipient_name=caller_full_name,
+                            recipient_username=caller_un,
+                            name_by_user=name_by_user,
+                            name_by_id=name_by_id,
+                            html_mode=False
+                        )
                 feed_notifs.append(item)
 
             self.send_json_response({
@@ -4477,24 +4531,65 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     if not eng_user:
                         continue
 
+                    # Zero-knowledge security: NEVER allow Admin/Manager to supply or overwrite account passwords
+                    eng.pop("password", None)
+
                     # Check if an account rename or replacement was performed
                     old_user = str(eng.pop("original_username", None) or eng.pop("old_username", None) or "").strip().lower()
+                    old_doc = None
                     if old_user and old_user != eng_user:
                         old_doc = ATLAS_DB.engineers.find_one({"username": old_user})
                         if old_doc:
-                            # Preserve existing password hash and creation timestamp if not provided in update
-                            if ("password" not in eng or not eng["password"]) and old_doc.get("password"):
+                            # Always preserve existing user's private password hash & creation timestamp on rename
+                            if old_doc.get("password"):
                                 eng["password"] = old_doc["password"]
                             if "created_at" in old_doc and "created_at" not in eng:
                                 eng["created_at"] = old_doc["created_at"]
                         print(f"  [ATLAS] Account renamed/replaced: removing old account '{old_user}' in favor of '{eng_user}'")
                         ATLAS_DB.engineers.delete_many({"username": old_user})
 
+                    existing_doc = old_doc or ATLAS_DB.engineers.find_one({"username": eng_user})
+                    is_brand_new_account = existing_doc is None
+
                     eng["username"] = eng_user
                     # Remove legacy id fields to keep username as the sole unique key
                     eng.pop("engineer_id", None)
                     eng.pop("id", None)
                     unset_fields = {"id": "", "engineer_id": ""}
+
+                    # Normalize optional DB-driven roster metadata fields
+                    if "includeInRoster" in eng and "include_in_roster" not in eng:
+                        eng["include_in_roster"] = eng.pop("includeInRoster")
+                    else:
+                        eng.pop("includeInRoster", None)
+                    if "include_in_roster" in eng and eng["include_in_roster"] is not None:
+                        eng["include_in_roster"] = bool(eng["include_in_roster"])
+
+                    if "displayOrder" in eng and "display_order" not in eng:
+                        eng["display_order"] = eng.pop("displayOrder")
+                    else:
+                        eng.pop("displayOrder", None)
+                    if "display_order" in eng:
+                        if eng["display_order"] is None or str(eng["display_order"]).strip() == "":
+                            eng.pop("display_order", None)
+                            unset_fields["display_order"] = ""
+                        else:
+                            try:
+                                eng["display_order"] = int(eng["display_order"])
+                            except Exception:
+                                eng.pop("display_order", None)
+
+                    if "swapCode" in eng and "swap_code" not in eng:
+                        eng["swap_code"] = eng.pop("swapCode")
+                    else:
+                        eng.pop("swapCode", None)
+                    if "swap_code" in eng:
+                        sw_val = str(eng.get("swap_code") or "").strip().upper()
+                        if sw_val:
+                            eng["swap_code"] = sw_val
+                        else:
+                            eng.pop("swap_code", None)
+                            unset_fields["swap_code"] = ""
 
                     raw_status = str(eng.get("status") or "").strip().lower()
                     if raw_status in ("active", "notice_period", "onboarding"):
@@ -4511,12 +4606,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     if eng_role in ("admin", "manager"):
                         eng["default_weekly_offs"] = []
 
-                    # Never overwrite existing password hash with blank or plaintext
-                    if "password" in eng and not str(eng["password"]).startswith("pbkdf2_sha256$"):
-                        if str(eng["password"]).strip():
-                            eng["password"] = hash_password(str(eng["password"]).strip())
-                        else:
-                            del eng["password"]
+                    # Brand-new account onboarding: generate random password hash (zero-knowledge)
+                    if is_brand_new_account:
+                        eng["password"] = hash_password(secrets.token_urlsafe(24))
+                        if "created_at" not in eng:
+                            eng["created_at"] = int(time.time())
 
                     # Handle profile picture if provided
                     if "profile_picture" in eng:
@@ -4537,6 +4631,14 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         upsert=True
                     )
                     saved_count += 1
+
+                    # Async Welcome Email with Email-OTP password setup instructions for brand-new accounts
+                    if is_brand_new_account and eng_email:
+                        threading.Thread(
+                            target=send_welcome_onboarding_email,
+                            args=(eng_email, eng_name or eng_user, eng_user),
+                            daemon=True
+                        ).start()
 
                 self.send_json_response({
                     "success": True,
@@ -5163,27 +5265,37 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     eng_name = str(eng.get("fullName") or eng.get("name") or "Engineer").strip()
                     eng_uname = str(eng.get("username") or "").strip()
 
-                    # Personalize per recipient (Full Name per user requirement)
-                    p_msg = raw_message
-                    p_msg = re.sub(r'@name\b', eng_name, p_msg, flags=re.IGNORECASE)
-                    p_msg = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', eng_name, p_msg, flags=re.IGNORECASE)
-                    p_msg = re.sub(r'\{\s*username\s*\}', eng_uname, p_msg, flags=re.IGNORECASE)
-                    p_msg = re.sub(r'@\{\s*username\s*\}', f"@{eng_uname}", p_msg, flags=re.IGNORECASE)
-
-                    def _format_mention_html(m):
-                        t_u = m.group(1).lower()
-                        if t_u in ("all", "everyone", "team"):
-                            return '<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@Everyone (All Team)</strong>'
-                        m_name = name_by_user.get(t_u) or name_by_id.get(t_u) or t_u
-                        return f'<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@{m_name}</strong>'
-
-                    html_p_msg = re.sub(r'@([a-zA-Z0-9_\-\.]+)', _format_mention_html, p_msg)
+                    # Personalize BOTH title and message per recipient (Full Name + @mentions)
+                    p_title_plain = _personalize_broadcast_text(
+                        title,
+                        recipient_name=eng_name,
+                        recipient_username=eng_uname,
+                        name_by_user=name_by_user,
+                        name_by_id=name_by_id,
+                        html_mode=False
+                    )
+                    html_p_title = _personalize_broadcast_text(
+                        title,
+                        recipient_name=eng_name,
+                        recipient_username=eng_uname,
+                        name_by_user=name_by_user,
+                        name_by_id=name_by_id,
+                        html_mode=True
+                    )
+                    html_p_msg = _personalize_broadcast_text(
+                        raw_message,
+                        recipient_name=eng_name,
+                        recipient_username=eng_uname,
+                        name_by_user=name_by_user,
+                        name_by_id=name_by_id,
+                        html_mode=True
+                    )
 
                     html_email = f"""<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background-color:#0b1120;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#f1f5f9;">
   <div style="max-width:560px;margin:30px auto;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:30px;">
-    <h2 style="margin:0 0 16px;color:#ffffff;font-size:20px;">{title}</h2>
+    <h2 style="margin:0 0 16px;color:#ffffff;font-size:20px;">{html_p_title}</h2>
     <div style="background:#020617;border:1px solid #334155;border-radius:10px;padding:18px;margin-bottom:20px;color:#e2e8f0;font-size:14px;line-height:1.6;white-space:pre-wrap;">
 {html_p_msg}
     </div>
@@ -5194,7 +5306,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 </body>
 </html>"""
                     try:
-                        send_resend_email(to_email, f"📢 [{priority.upper()}] {title}", html_email)
+                        send_resend_email(to_email, f"📢 [{priority.upper()}] {p_title_plain}", html_email)
                         emails_sent += 1
                     except Exception as err:
                         print(f"  [NOTIF EMAIL ERROR] {err}")
@@ -5204,12 +5316,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             # FCM Push Notification Dispatch (Personalized per recipient, deduplicated per physical device)
             push_dispatched = 0
             if send_push:
-                def _format_mention_plain(m):
-                    t_u = m.group(1).lower()
-                    if t_u in ("all", "everyone", "team"):
-                        return "@Everyone"
-                    return f"@{name_by_user.get(t_u) or name_by_id.get(t_u) or t_u}"
-
                 dispatched_device_tokens = set()
                 for eng in recipients:
                     toks = eng.get("fcm_tokens", [])
@@ -5228,17 +5334,27 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         eng_name = str(eng.get("fullName") or eng.get("name") or "Engineer").strip()
                         eng_uname = str(eng.get("username") or "").strip()
 
-                        # Personalize per engineer (Full Name per user requirement)
-                        p_body = raw_message
-                        p_body = re.sub(r'@name\b', eng_name, p_body, flags=re.IGNORECASE)
-                        p_body = re.sub(r'\{\s*(?:Their\s+name|their\s+name|name)\s*\}', eng_name, p_body, flags=re.IGNORECASE)
-                        p_body = re.sub(r'\{\s*username\s*\}', eng_uname, p_body, flags=re.IGNORECASE)
-                        p_body = re.sub(r'@\{\s*username\s*\}', f"@{eng_uname}", p_body, flags=re.IGNORECASE)
-                        p_body = re.sub(r'@([a-zA-Z0-9_\-\.]+)', _format_mention_plain, p_body)
+                        # Personalize BOTH push title and push body per engineer
+                        p_title_plain = _personalize_broadcast_text(
+                            title,
+                            recipient_name=eng_name,
+                            recipient_username=eng_uname,
+                            name_by_user=name_by_user,
+                            name_by_id=name_by_id,
+                            html_mode=False
+                        )
+                        p_body = _personalize_broadcast_text(
+                            raw_message,
+                            recipient_name=eng_name,
+                            recipient_username=eng_uname,
+                            name_by_user=name_by_user,
+                            name_by_id=name_by_id,
+                            html_mode=False
+                        )
 
                         sent = send_fcm_push(
                             push_tokens,
-                            f"📢 [{priority.upper()}] {title}",
+                            f"📢 [{priority.upper()}] {p_title_plain}",
                             p_body,
                             priority=priority,
                             notif_id=notif_id,
@@ -5743,7 +5859,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 # Main Server Runner
 # ==============================================================================
 
-def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=None, send_email=True):
+def run_server(port=8000, open_browser=False, alert_email=None, send_email=True):
+    global PUBLIC_SERVER_URL, SERVER_PORT
+    SERVER_PORT = port
+
     if not WEB_DIR.exists():
         print(f"[ERROR] 'admin-web' directory not found at {WEB_DIR}")
         sys.exit(1)
@@ -5764,25 +5883,14 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     mongo_uri = env.get("MONGODB_URI", "")
     cluster_name = env.get("ATLAS_CLUSTER", "Cluster0")
     db_name = env.get("ATLAS_DATABASE", "rosterx")
-    gemini_key = env.get("GEMINI_API_KEY", "")
-    gemini_model = env.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
-
-    tunnel_proc = None
-    public_url = None
 
     is_render = bool(os.environ.get("RENDER")) or bool(os.environ.get("RENDER_EXTERNAL_URL"))
     render_external_url = os.environ.get("RENDER_EXTERNAL_URL")
+    public_url = PUBLIC_SERVER_URL
     if is_render and render_external_url:
-        public_url = render_external_url.rstrip("/")
-        PUBLIC_TUNNEL_URL = public_url
+        public_url = env.get("PUBLIC_SERVER_URL", "https://api.rosterx.online").strip().rstrip("/") or render_external_url.rstrip("/")
+        PUBLIC_SERVER_URL = public_url
         print(f"\n  [RENDER CLOUD] Detected Render production host: {public_url}")
-
-    if enable_tunnel and not is_render:
-        print("\n  [CLOUDFLARE] Initializing secure quick tunnel to Cloudflare Edge...")
-        tunnel_proc, public_url = start_cloudflared_tunnel(port=port)
-        if public_url:
-            SERVER_LOGS.append(f"[{get_ist_time_str(format_12h=True)}] [GATEWAY] Public Tunnel active: {public_url}")
-    elif is_render and public_url:
         SERVER_LOGS.append(f"[{get_ist_time_str(format_12h=True)}] [RENDER CLOUD] Live Service URL: {public_url}")
 
     publish_server_endpoints(public_url, lan_ip, port)
@@ -5880,12 +5988,8 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
     print(border)
     print("  [MOBILE APP & INTERNET ACCESS]")
     if public_url:
-        print(f"   ► 🌐 Worldwide Public URL   : \033[93m\033[1m{public_url}\033[0m")
-        print(f"   ► 📱 Android App Base URL   : \033[92m\033[1m{public_url}/api/\033[0m  (Works on 4G/5G/any WiFi)")
-    elif enable_tunnel:
-        print("   ► 🌐 Worldwide Public URL   : \033[91mTunnel failed to start (check internet connection)\033[0m")
-    else:
-        print("   ► 🌐 Worldwide Public URL   : \033[90mDisabled (run with --tunnel or set ENABLE_TUNNEL=true)\033[0m")
+        print(f"   ► 🌐 Official Production URL: \033[93m\033[1m{public_url}\033[0m")
+        print(f"   ► 📱 Android App Base URL   : \033[92m\033[1m{public_url}/api/\033[0m  (Render Cloud)")
     print(f"   ► 🏠 Local Wi-Fi (LAN)      : \033[96mhttp://{lan_ip}:{port}\033[0m")
     print(f"   ► 📱 Android LAN Base URL   : \033[96mhttp://{lan_ip}:{port}/api/\033[0m")
     print(f"   ► 💻 Local Web App          : \033[96mhttp://localhost:{port}\033[0m")
@@ -5914,8 +6018,6 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         httpd.daemon_threads = True
     except OSError as e:
         print(f"\n[ERROR] Port {port} is already in use!")
-        if tunnel_proc:
-            tunnel_proc.terminate()
         sys.exit(1)
 
     if open_browser:
@@ -5926,12 +6028,6 @@ def run_server(port=8000, open_browser=False, enable_tunnel=False, alert_email=N
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\n\n[INFO] Gracefully shutting down RosterX server...")
-        if tunnel_proc:
-            try:
-                tunnel_proc.terminate()
-                tunnel_proc.wait(timeout=2)
-            except Exception:
-                pass
         httpd.server_close()
         print("[INFO] Goodbye!\n")
 
@@ -5944,22 +6040,10 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=default_port, help=f"Port to bind (default: {default_port})")
     parser.add_argument("--open", action="store_true", help="Automatically open browser on launch")
     parser.add_argument("--no-open", action="store_true", help="Disable opening browser on launch")
-    parser.add_argument("--tunnel", "-t", action="store_true", default=None, help="Force launch Cloudflare Tunnel")
-    parser.add_argument("--no-tunnel", action="store_true", help="Disable Cloudflare Tunnel")
     parser.add_argument("--email", type=str, default=None, help="Email address to receive live gateway link")
     parser.add_argument("--no-email", action="store_true", help="Disable sending startup gateway link email")
     args, _ = parser.parse_known_args()
 
-    env_tunnel_val = env.get("ENABLE_TUNNEL", "true").strip().lower()
-    auto_tunnel = (env_tunnel_val in ("true", "1", "yes")) if (find_cloudflared_path() and not is_render) else False
-
-    if args.no_tunnel or is_render:
-        enable_tunnel = False
-    elif args.tunnel is not None:
-        enable_tunnel = args.tunnel
-    else:
-        enable_tunnel = auto_tunnel
-
     should_send_email = not args.no_email and not is_render
     open_browser = args.open and not args.no_open and not is_render
-    run_server(port=args.port, open_browser=open_browser, enable_tunnel=enable_tunnel, alert_email=args.email, send_email=should_send_email)
+    run_server(port=args.port, open_browser=open_browser, alert_email=args.email, send_email=should_send_email)

@@ -255,7 +255,7 @@ class RosterXApp {
 
     if (!eng) return '';
 
-    // Priority 1: Domain ID / prefix from email (e.g. shefeeqkk@tejasnetworks.com -> shefeeqkk)
+    // Priority 1: Domain ID / prefix from email (e.g. user@example.com -> user)
 
     if (eng.email && typeof eng.email === 'string' && eng.email.includes('@')) {
 
@@ -285,13 +285,7 @@ class RosterXApp {
 
     const clean = String(eng.name || '').trim().toLowerCase();
 
-    const parts = clean.split(/[\s\W]+/);
-
-    if (parts.length > 1 && clean.includes('raj')) {
-
-      return parts.join('');
-
-    }
+    const parts = clean.split(/[\s\W]+/).filter(Boolean);
 
     return parts[0] || clean || 'user';
 
@@ -347,15 +341,16 @@ class RosterXApp {
       list = JSON.parse(JSON.stringify(DEFAULT_ENGINEERS));
     }
     const isMgmt = (d) => {
+      const incFlag = d.include_in_roster !== undefined ? d.include_in_roster : d.includeInRoster;
+      if (typeof incFlag === 'boolean') return !incFlag;
       const u = String(d.username || d.id || '').trim().toLowerCase();
       const n = String(d.name || '').trim().toLowerCase();
       const fn = String(d.full_name || '').trim().toLowerCase();
       const r = String(d.role || '').trim().toLowerCase();
-      if (u === 'shefeeqkk' || u === 'shefeeq' || u === 'athulka') return false;
-      return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' ||
+      return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' || u === 'administrator' ||
              n === 'admin' || n === 'manager' || n.includes('system admin') || n.includes('administrator') ||
              fn.includes('system admin') || fn.includes('administrator') ||
-             r === 'admin' || r === 'manager';
+             r === 'manager' || (r === 'admin' && (u === 'admin' || n.includes('system') || n.includes('admin')));
     };
     const cleaned = list.filter(e => !isMgmt(e));
     return this.sortEngineersByWeekOffs(cleaned);
@@ -374,15 +369,16 @@ class RosterXApp {
       if (Array.isArray(docs)) {
         const mockUn = new Set(["alexr", "sarahc", "davids", "elenar", "samirp", "hannahk", "marcusv", "danielc", "rachelr", "robertk"]);
         const isMgmt = (d) => {
+          const incFlag = d.include_in_roster !== undefined ? d.include_in_roster : d.includeInRoster;
+          if (typeof incFlag === 'boolean') return !incFlag;
           const u = String(d.username || d.id || '').trim().toLowerCase();
           const n = String(d.name || '').trim().toLowerCase();
           const fn = String(d.full_name || '').trim().toLowerCase();
           const r = String(d.role || '').trim().toLowerCase();
-          if (u === 'shefeeqkk' || u === 'shefeeq' || u === 'athulka') return false;
-          return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' ||
+          return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' || u === 'administrator' ||
                  n === 'admin' || n === 'manager' || n.includes('system admin') || n.includes('administrator') ||
                  fn.includes('system admin') || fn.includes('administrator') ||
-                 r === 'admin' || r === 'manager';
+                 r === 'manager' || (r === 'admin' && (u === 'admin' || n.includes('system') || n.includes('admin')));
         };
         const validDocs = docs.filter(d => !mockUn.has(String(d.username || '').toLowerCase()) && !isMgmt(d));
         this.state.engineersList = this.sortEngineersByWeekOffs(validDocs);
@@ -527,14 +523,6 @@ class RosterXApp {
           const parsed = JSON.parse(stored);
 
           if (parsed && typeof parsed === 'object') {
-
-            // Clean up legacy fake locks
-
-            if (parsed["DYANI DESOZA"] && parsed["DYANI DESOZA"]["24"]) {
-
-              delete parsed["DYANI DESOZA"]["24"];
-
-            }
 
             return parsed;
 
@@ -1459,14 +1447,6 @@ class RosterXApp {
       });
     }
 
-    this.dom.formEngPassword = document.getElementById('formEngPassword');
-
-    this.dom.formEngPasswordLabel = document.getElementById('formEngPasswordLabel');
-
-    this.dom.btnToggleEngPassword = document.getElementById('btnToggleEngPassword');
-
-    this.dom.iconToggleEngPassword = document.getElementById('iconToggleEngPassword');
-
     this.dom.btnCancelEngineerForm = document.getElementById('btnCancelEngineerForm');
 
     this.dom.btnSaveEngineerForm = document.getElementById('btnSaveEngineerForm');
@@ -1818,24 +1798,6 @@ class RosterXApp {
     if (this.dom.btnResetEngineerForm) {
 
       this.dom.btnResetEngineerForm.addEventListener('click', () => this.resetEngineerFormFields());
-
-    }
-
-    if (this.dom.btnToggleEngPassword && this.dom.formEngPassword) {
-
-      this.dom.btnToggleEngPassword.addEventListener('click', () => {
-
-        const isPass = this.dom.formEngPassword.type === 'password';
-
-        this.dom.formEngPassword.type = isPass ? 'text' : 'password';
-
-        if (this.dom.iconToggleEngPassword) {
-
-          this.dom.iconToggleEngPassword.className = isPass ? 'ph ph-eye-slash text-sm' : 'ph ph-eye text-sm';
-
-        }
-
-      });
 
     }
 
@@ -4072,22 +4034,6 @@ class RosterXApp {
 
       this.dom.engineerFormTitle.innerHTML = `<i class="ph ph-pencil-simple text-blue-600"></i> Edit Account Details: <span class="text-blue-700 font-black">${eng.name}</span> <span class="ml-2 font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">@${username}</span>`;
 
-      if (this.dom.formEngPasswordLabel) this.dom.formEngPasswordLabel.textContent = 'New Password (Optional):';
-
-      if (this.dom.formEngPassword) {
-
-        this.dom.formEngPassword.placeholder = 'Leave blank to keep current password';
-
-        this.dom.formEngPassword.value = '';
-
-        this.dom.formEngPassword.type = 'password';
-
-        this.dom.formEngPassword.required = false;
-
-      }
-
-      if (this.dom.iconToggleEngPassword) this.dom.iconToggleEngPassword.className = 'ph ph-eye text-sm';
-
       if (this.dom.btnSaveEngineerForm) this.dom.btnSaveEngineerForm.innerHTML = '<i class="ph ph-check"></i> Save Changes';
 
       this.dom.formEngId.value = eng.id || '';
@@ -4140,22 +4086,6 @@ class RosterXApp {
         this.dom.formEngOffsContainer.classList.remove('hidden');
       }
 
-      if (this.dom.formEngPasswordLabel) this.dom.formEngPasswordLabel.textContent = 'Initial Password *:';
-
-      if (this.dom.formEngPassword) {
-
-        this.dom.formEngPassword.placeholder = 'Enter initial account password';
-
-        this.dom.formEngPassword.value = '';
-
-        this.dom.formEngPassword.type = 'password';
-
-        this.dom.formEngPassword.required = true;
-
-      }
-
-      if (this.dom.iconToggleEngPassword) this.dom.iconToggleEngPassword.className = 'ph ph-eye text-sm';
-
       if (this.dom.btnSaveEngineerForm) this.dom.btnSaveEngineerForm.innerHTML = '<i class="ph ph-user-plus"></i> Create Account';
 
       this.dom.formEngId.value = `eng_${Date.now().toString().slice(-4)}`;
@@ -4181,8 +4111,6 @@ class RosterXApp {
       this.dom.formEngOff1.value = 'Saturday';
 
       this.dom.formEngOff2.value = 'Sunday';
-
-      if (this.dom.formEngPassword) this.dom.formEngPassword.value = '';
 
       if (this.dom.btnDeleteEngineerForm) this.dom.btnDeleteEngineerForm.classList.add('hidden');
 
@@ -4327,8 +4255,6 @@ class RosterXApp {
 
     this.dom.formEngOff2.value = 'Sunday';
 
-    if (this.dom.formEngPassword) this.dom.formEngPassword.value = '';
-
     if (this.dom.formEngName) this.dom.formEngName.focus();
 
   }
@@ -4363,23 +4289,9 @@ class RosterXApp {
 
     const off2 = this.dom.formEngOff2.value;
 
-    const rawPass = this.dom.formEngPassword ? this.dom.formEngPassword.value.trim() : '';
-
-
-
     if (!name) {
 
       alert('Roster display name is required.');
-
-      return;
-
-    }
-
-    if (!this.state.editingEngineerId && !rawPass) {
-
-      alert('Initial password is required when registering a new account.');
-
-      if (this.dom.formEngPassword) this.dom.formEngPassword.focus();
 
       return;
 
@@ -4421,15 +4333,17 @@ class RosterXApp {
       join_date: joinDate,
       birthday: birthday,
       resignation_date: resignDate,
-      preferred_shifts: ["FS", "FG", "SS"]
+      preferred_shifts: (editingUser && editingUser.preferred_shifts) || ["FS", "FG", "SS"]
     };
+
+    if (editingUser) {
+      if (editingUser.include_in_roster !== undefined) engData.include_in_roster = editingUser.include_in_roster;
+      if (editingUser.display_order !== undefined) engData.display_order = editingUser.display_order;
+      if (editingUser.swap_code !== undefined) engData.swap_code = editingUser.swap_code;
+    }
 
     if (oldUsername && oldUsername !== resolvedUsername.toLowerCase()) {
       engData.original_username = oldUsername;
-    }
-
-    if (rawPass) {
-      engData.password = rawPass;
     }
 
     const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));

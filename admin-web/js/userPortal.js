@@ -897,11 +897,13 @@ export class UserPortalController {
 
   isPureMgmt(e) {
     if (!e) return false;
+    const incFlag = e.include_in_roster !== undefined ? e.include_in_roster : e.includeInRoster;
+    if (typeof incFlag === 'boolean') return !incFlag;
     const u = String(e.username || e.id || '').trim().toLowerCase();
     const n = String(e.name || '').trim().toLowerCase();
     const r = String(e.role || '').trim().toLowerCase();
-    if (u === 'shefeeqkk' || u === 'shefeeq' || n === 'shefeeq' || u === 'athulka') return false;
-    return u === 'admin' || u === 'manager' || r === 'manager' || (r === 'admin' && u === 'admin');
+    return u === 'admin' || u === 'manager' || u === 'sysadmin' || u === 'system_admin' || u === 'administrator' ||
+           r === 'manager' || (r === 'admin' && (u === 'admin' || n.includes('system admin') || n.includes('administrator')));
   }
 
   /**
@@ -2115,7 +2117,7 @@ export class UserPortalController {
 
       const latestFullName = engMeta.full_name || u.full_name || latestName;
 
-      const latestEmail = engMeta.email || u.email || `${u.username}@noc.company.com`;
+      const latestEmail = engMeta.email || u.email || `${u.username}@example.com`;
 
       const latestPhone = engMeta.phone || u.phone || '—';
 

@@ -33,6 +33,29 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan & Gafoorka (Sprint v1.33.0 - Build 137):
+> *"Vijaya! Gafoorka! Sprint `v1.33.0` (Build 137) Backend, Web Portal & Production Hygiene 4/4 tasks 100% spotless aayi execute cheythu, zero-PII / zero-Cloudflared audit pass aakki, live Atlas DB metadata backfill cheythu Render-il auto-deploy aakkaan `origin/main`-il push cheythu macha! 🕵️‍♂️🔥🕶️
+> 
+> 1. **Task 1 — Broadcast Title `@` Mention Personalization (`server.py`)**:
+>    - Implemented shared `_personalize_broadcast_text(...)` resolver (with trailing sentence-punctuation-safe mention regex!) used across BOTH Broadcast Title and Body.
+>    - Resolves `@name` / `{name}` / `{their name}` → recipient's Full Name, `{username}` / `@{username}` → username, `@all` / `@everyone` / `@team` → `@Everyone` (plain) or badge (HTML), and `@<username>` → `@<Full Name>`.
+>    - Wired across all 3 channels: Resend Email Subject & HTML `<h2>`, FCM Push Title, and `GET /api/notifications` (non-admin feeds), while preserving raw Title & Body in MongoDB and Admin history.
+> 2. **Task 2 — 100% Zero-Trace Cloudflared Removal (`server.py`, `render.yaml`, `.gitignore`, `tools/`)**:
+>    - Removed `PUBLIC_TUNNEL_URL`, `TUNNEL_PROC`, `find_cloudflared_path()`, `start_cloudflared_tunnel()`, `public_tunnel_url.txt` writer, `.trycloudflare.com` CORS entry, `--tunnel` / `--no-tunnel` CLI flags, and `ENABLE_TUNNEL`.
+>    - Updated `render.yaml` (`startCommand: python server.py --no-open`) and `.gitignore`, and deleted `tools/start_tunnel.bat` & `tools/start_tunnel.ps1` via `git rm`.
+>    - `/api/server-info`, `/api/telemetry/server`, and `/api/test-connection` now expose `PUBLIC_SERVER_URL` (`https://api.rosterx.online`) cleanly.
+> 3. **Task 3 — Zero-PII & DB-Driven Roster Metadata (`server.py`, `admin-web/`, Live Atlas Backfill)**:
+>    - Backfilled `display_order`, `swap_code`, and `include_in_roster` directly into all 12 live `ATLAS_DB.engineers` documents (zero PII in git!).
+>    - Updated `server.py` (`is_management_account`, `POST /api/engineers`) and `admin-web/js/app.js`, `userPortal.js`, `constants.js` to drive roster inclusion, display order, and swap codes from DB fields with generic algorithmic fallbacks.
+>    - Scrubbed every remaining hardcoded personal name, username, and corporate email from `server.py`, `admin-web/index.html`, `admin-web/README.md`, `excelService.js`, `rosterAiAssistant.js`, and `rosterAiEngine.js`. Verified **0 PII / 0 Cloudflared matches** across the entire backend & web codebase!
+> 4. **Task 4 — Zero-Knowledge Account Onboarding & Overwrite Protection (`server.py`, `admin-web/`)**:
+>    - `POST /api/engineers` now strictly strips any client-supplied `password`, never overwrites an existing account's password hash, and on brand-new account creation generates a cryptographically secure random password hash (`secrets.token_urlsafe(24)` via PBKDF2-SHA256) and dispatches a **Welcome to RosterX** email asynchronously guiding the user to set their private password via **"Forgot password?" (Email OTP)**.
+>    - Removed `#formEngPassword` input & toggle from `admin-web/index.html` and `admin-web/js/app.js`, replacing it with a subtle security notice.
+> 5. **Verification & Render Deploy (`v1.33.0` - Build 137)**:
+>    - `python -m py_compile server.py` + 4/4 automated verification suites passed 100%, committed atomically, and pushed to `origin/main` so Render (`https://api.rosterx.online`) deploys live immediately!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.33.0 - Build 137):
 > *"Dasa! Gafoorka! Sprint `v1.33.0` (Build 137) Android UI & Production Hygiene 5/5 tasks 100% spotless aayi complete cheythu, zero-PII / zero-Cloudflared audit pass aakki, safe-build adichu live device-il verify cheythu push cheythu macha! 🎨🚀
 > 

@@ -1243,7 +1243,7 @@ export class RosterAiAssistant {
     sortedEngineers.forEach(eng => {
       if (eng.status && eng.status !== 'Active') return; // skip resigned
 
-      if (eng.role === 'apprentice' || eng.name.toUpperCase().includes('DHANUSH')) {
+      if (eng.role === 'apprentice') {
         apprenticeEng = eng;
       } else {
         staffPool.push(eng);
@@ -1280,7 +1280,7 @@ export class RosterAiAssistant {
       workingStaff.push(...borrowed);
     }
 
-    // 2. Select Night Shift engineer (e.g. Nandu Anthikat or first available)
+    // 2. Select Night Shift engineer (preferred NS engineer or first available)
     const nsCandidate = workingStaff.find(e => e.preferred_shifts && e.preferred_shifts.includes('NS')) || workingStaff[0];
     const dayStaff = workingStaff.filter(e => e.id !== nsCandidate.id);
 
@@ -1352,7 +1352,7 @@ export class RosterAiAssistant {
 Rules:
 1. Target: Minimum ${minDayShifts} Day Shifts (combined from FS, FG, SG, SS, G).
 2. Exactly 1 Night Shift (NS) must be assigned to staff.
-3. Apprentice engineers (e.g. role='apprentice' or Dhanush) must be assigned 'G' (General) or 'OFF', and are NEVER counted towards Day or Night coverage counts.
+3. Apprentice engineers (role='apprentice') must be assigned 'G' (General) or 'OFF', and are NEVER counted towards Day or Night coverage counts.
 4. Respect engineer week-offs whenever possible.
 5. Allowed Shift Codes: FS, FG, G, SG, SS, NS, OFF, L.
 6. Return structured JSON with keys:

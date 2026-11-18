@@ -157,7 +157,7 @@ OPERATIONAL CONSTRAINTS ENFORCED:
 3. MINIMUM COVERAGE: At least ${constraints.fsMin} FS and ${constraints.ssMin} SS on duty every day.
 4. MANDATORY POST-NIGHT REST: Any engineer finishing an NS shift MUST receive ${constraints.postNightRestDays} consecutive rest days (OFF or Swap Code SW...) immediately following the night shift.
 5. CONSECUTIVE WORK CAP: Maximum ${constraints.maxConsecutiveDays} consecutive working days before an OFF or Swap rest.
-6. SWAP CODE FORMAT: Swap codes start with 'SW' followed by peer initials (e.g., SWM for Manoj, SWSH for Shefeeq, SWSI for Silambarasan, SWDY for Dyani). Any SW... code means the engineer is OFF.
+6. SWAP CODE FORMAT: Swap codes start with 'SW' followed by peer initials (e.g., SWA for Member A, SWB for Member B, SWMC for Member C). Any SW... code means the engineer is OFF.
 7. WEEKLY OFF ANCHORS: Honor each engineer's paired weekly off anchor days unless overridden by an approved swap.
 8. ACTIVE ROSTER: Only schedule engineers marked as Active during the target month.
 

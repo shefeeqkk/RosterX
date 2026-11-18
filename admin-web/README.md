@@ -15,8 +15,8 @@ A zero-server enterprise shift roster management platform designed for a 24/7 Ne
 ### 2. Module A: Engineer Directory & Lifecycle Management (CRUD)
 - **Directory Schema:**
   - `id`: Unique identifier (e.g., `eng_01`)
-  - `name`: Display name on roster (e.g., `SHEFEEQ`)
-  - `full_name`: Official name (e.g., `Shefeeq K K`)
+  - `name`: Display name on roster (e.g., `MEMBER A`)
+  - `full_name`: Official name (e.g., `Team Member`)
   - `email`: Work / notification email (used for password reset OTP)
   - `phone`: Contact number
   - `role`: Access role (`admin` or `engineer`)
@@ -60,7 +60,7 @@ A zero-server enterprise shift roster management platform designed for a 24/7 Ne
 
 *Standardized Swap Code Notation:*
 - Prefix `SW` designates an engineer as **OFF** on that day.
-- Followed by the initial(s) of the covering peer (e.g., `SWM` = Swap with Manoj, `SWSH` = Swap with Shefeeq, `SWSI` = Swap with Silambarasan, `SWDY` = Swap with Dyani, `SWDH` = Swap with Dhanush).
+- Followed by the initial(s) of the covering peer (e.g., `SWA` = Swap with Member A, `SWB` = Swap with Member B, `SWMC` = Swap with Member C).
 - If multiple engineers share the same first initial, the first 2 letters are used for disambiguation.
 
 ---

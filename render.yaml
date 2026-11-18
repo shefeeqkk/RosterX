@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: python server.py --no-tunnel --no-open
+    startCommand: python server.py --no-open
     healthCheckPath: /api/server-info
     envVars:
       - key: PYTHON_VERSION
@@ -28,5 +28,3 @@ services:
         generateValue: true
       - key: ADMIN_PASSWORD
         sync: false
-      - key: ENABLE_TUNNEL
-        value: "false"

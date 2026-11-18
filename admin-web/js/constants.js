@@ -104,27 +104,65 @@ export const SHIFTS = {
 /**
  * Standardized Swap Code Generator
  * Rule:
- * 1. Prefix: 'SW'
- * 2. Uses the first letter of the engineer's first name (e.g. MARCUS -> SWM).
- * 3. If multiple engineers share the same first letter, uses the first 2 letters
- *    (e.g., SARAH -> SWSA, SAMIR -> SWSM, DAVID -> SWDA, DANIEL -> SWDN).
- * 4. Any code starting with 'SW' represents a Swap Code where the engineer is OFF.
+ * 1. If the engineer record defines an explicit DB `swap_code` (or `swapCode`), use it directly.
+ * 2. Prefix: 'SW'
+ * 3. Uses the first letter of the engineer's first name (e.g. Member -> SWM).
+ * 4. If multiple active engineers share the same first letter, disambiguates using the first 2 letters
+ *    (or first + last initials when two words exist and 2-letter prefix collides).
+ * 5. Any code starting with 'SW' represents a Swap Code where the engineer is OFF.
  */
-export function getEngineerSwapCode(engName, allEngineers = null) {
-  if (!engName) return 'SW';
-  const clean = String(engName).trim().toUpperCase();
-  if (clean.includes('SHEFEEQ')) return 'SWSH';
-  if (clean.includes('SILAMBARASAN')) return 'SWSI';
-  if (clean.includes('DYANI')) return 'SWDY';
-  if (clean.includes('RAJ') || clean.includes('KUMAR')) return 'SWRK';
-  if (clean.includes('NANDU')) return 'SWN';
-  if (clean.includes('ATUL') || clean.includes('ATHUL')) return 'SWA';
-  if (clean.includes('HEMANTH')) return 'SWH';
-  if (clean.includes('MANOJ')) return 'SWM';
-  if (clean.includes('ROHIT')) return 'SWR';
-  if (clean.includes('DHANUSH')) return 'SWD';
+export function getEngineerSwapCode(engNameOrObj, allEngineers = null) {
+  if (!engNameOrObj) return 'SW';
 
+  // 1. Direct DB-driven swap_code when an engineer object is passed
+  let engObj = (typeof engNameOrObj === 'object') ? engNameOrObj : null;
+  const rawName = engObj ? (engObj.name || engObj.full_name || engObj.username || '') : String(engNameOrObj);
+  const clean = String(rawName).trim().toUpperCase();
+
+  // Lookup in allEngineers pool if name string was passed
+  if (!engObj && Array.isArray(allEngineers) && clean) {
+    engObj = allEngineers.find(e =>
+      e && (
+        String(e.name || '').trim().toUpperCase() === clean ||
+        String(e.full_name || '').trim().toUpperCase() === clean ||
+        String(e.username || '').trim().toUpperCase() === clean
+      )
+    ) || null;
+  }
+
+  const dbCode = engObj && (engObj.swap_code || engObj.swapCode);
+  if (dbCode && String(dbCode).trim()) {
+    return String(dbCode).trim().toUpperCase();
+  }
+
+  if (!clean) return 'SW';
   const parts = clean.split(/[\s\W]+/).filter(Boolean);
+  if (parts.length === 0) return 'SW';
+  const firstLetter = parts[0][0];
+
+  // 2. Algorithmic disambiguation against peer pool
+  if (Array.isArray(allEngineers) && allEngineers.length > 0) {
+    const sameInitialPeers = allEngineers.filter(e => {
+      if (!e || e.status === 'Resigned') return false;
+      const pName = String(e.name || e.full_name || '').trim().toUpperCase();
+      const pParts = pName.split(/[\s\W]+/).filter(Boolean);
+      return pParts.length > 0 && pParts[0][0] === firstLetter;
+    });
+    if (sameInitialPeers.length <= 1) {
+      return `SW${firstLetter}`;
+    }
+    const twoLetter = parts[0].slice(0, 2);
+    const twoLetterCollisions = sameInitialPeers.filter(e => {
+      const pParts = String(e.name || e.full_name || '').trim().toUpperCase().split(/[\s\W]+/).filter(Boolean);
+      return pParts.length > 0 && pParts[0].slice(0, 2) === twoLetter;
+    });
+    if (twoLetterCollisions.length > 1 && parts.length >= 2) {
+      return `SW${parts[0][0]}${parts[1][0]}`;
+    }
+    return `SW${twoLetter}`;
+  }
+
+  // Fallback without peer pool
   if (parts.length >= 2) {
     return `SW${parts[0][0]}${parts[1][0]}`;
   }
@@ -202,40 +240,25 @@ export function getWeekOffSortScore(weeklyOffs) {
 export function getEngineerOrderWeight(eng) {
   if (!eng) return 9999;
 
-  const KNOWN_ORDER = {
-    'ALEX RIVERA': 1,
-    'DAVID SILVA': 2,
-    'SARAH CONNOR': 3,
-    'HANNAH KIM': 4,
-    'ELENA ROSTOVA': 5,
-    'SAMIR PATEL': 6,
-    'MARCUS VANCE': 7,
-    'ROBERT KING': 8,
-    'RACHEL RAY': 9,
-    'DANIEL CHEN': 10,
-    // Legacy name fallbacks
-    'NANDU ANTHIKAT': 1,
-    'DYANI DESOZA': 2,
-    'SHEFEEQ': 3,
-    'HEMANTH': 4,
-    'ATUL KANGRALKAR': 5,
-    'SILAMBARASAN': 6,
-    'MANOJ': 7,
-    'RAJ KUMAR': 8,
-    'ROHIT': 9,
-    'DHANUSH': 10
-  };
-
-  const nameUpper = String(eng.name || '').trim().toUpperCase();
-  if (KNOWN_ORDER[nameUpper] !== undefined) {
-    return KNOWN_ORDER[nameUpper];
+  // 1. Primary: DB-driven display_order / displayOrder
+  const dbOrder = eng.display_order !== undefined && eng.display_order !== null
+    ? eng.display_order
+    : eng.displayOrder;
+  if (dbOrder !== undefined && dbOrder !== null && String(dbOrder).trim() !== '') {
+    const parsed = parseInt(dbOrder, 10);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
   }
 
+  // 2. Fallback: numeric ID if present
   const idStr = String(eng.id || '');
   const match = idStr.match(/\d+/);
   if (match) {
     return parseInt(match[0], 10);
   }
+
+  // 3. Default tie-breaker handled alphabetically by sortEngineersByWeekOffs
   return 9999;
 }
 
