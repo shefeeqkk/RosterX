@@ -13,14 +13,14 @@
  *   Profile & Settings (Tenure/Birthday, Weekly Offs, Edit Profile + Remove Photo, 6 Brand Palettes)
  */
 
-import { authService } from './authService.js?v=2.0.3';
-import { AtlasService } from './atlasService.js?v=2.0.3';
-import { themeController } from './themeController.js?v=2.0.3';
-import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.3';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.3';
-import { CredentialTrackerController } from './credentialTracker.js?v=2.0.3';
-import { MyTeamViewController } from './myTeamView.js?v=2.0.3';
-import { sortEngineersByWeekOffs } from './constants.js?v=2.0.3';
+import { authService } from './authService.js?v=2.0.4';
+import { AtlasService } from './atlasService.js?v=2.0.4';
+import { themeController } from './themeController.js?v=2.0.4';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.4';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.4';
+import { CredentialTrackerController } from './credentialTracker.js?v=2.0.4';
+import { MyTeamViewController } from './myTeamView.js?v=2.0.4';
+import { sortEngineersByWeekOffs } from './constants.js?v=2.0.4';
 import {
   registerPwaServiceWorker,
   mountIosInstallBanner,
@@ -28,9 +28,9 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js?v=2.0.3';
+} from './pwaHelper.js?v=2.0.4';
 
-const APP_VERSION = '2.0.3';
+const APP_VERSION = '2.0.4';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -1311,9 +1311,11 @@ class RosterXUserPortal {
               </tr>
             </thead>
             <tbody>
-              ${filtered.map((eng) => {
+              ${allEngs.map((eng) => {
                 const shifts = this.getRosterMapForEngineer(doc, eng);
                 const name = eng.full_name || eng.name || 'Member';
+                const searchKey = `${name} ${eng.name || ''} ${eng.username || ''}`.toLowerCase();
+                const hiddenStyle = (q && !searchKey.includes(q)) ? 'display:none;' : '';
                 let wrkCount = 0;
                 let nsCount = 0;
                 let offCount = 0;
@@ -1330,7 +1332,7 @@ class RosterXUserPortal {
                   return `<td style="background:${vis.bg};color:${vis.fg};">${escapeHtml(vis.code)}</td>`;
                 }).join('');
                 return `
-                  <tr>
+                  <tr data-eng-search="${escapeHtml(searchKey)}" style="${hiddenStyle}">
                     <th>${escapeHtml(name)}</th>
                     ${cells}
                     <td style="background:rgba(5,150,105,0.10);color:#059669;font-weight:900;">${wrkCount}</td>
@@ -1371,9 +1373,11 @@ class RosterXUserPortal {
     if (searchEl) {
       searchEl.addEventListener('input', (e) => {
         this.rosterSearchQuery = e.target.value;
-        this.renderMonthRoster();
-        const next = panel.querySelector('#rxRosterSearch');
-        if (next) { next.focus(); next.setSelectionRange(next.value.length, next.value.length); }
+        const qNorm = this.rosterSearchQuery.trim().toLowerCase();
+        panel.querySelectorAll('tbody tr[data-eng-search]').forEach((row) => {
+          const hay = row.getAttribute('data-eng-search') || '';
+          row.style.display = (!qNorm || hay.includes(qNorm)) ? '' : 'none';
+        });
       });
     }
   }

@@ -127,13 +127,7 @@ export class CredentialTrackerController {
     });
   }
 
-  render() {
-    if (!this.container) return;
-    const total = this.trackers.length;
-    const expired = this.trackers.filter((t) => String(t.status).toUpperCase() === 'EXPIRED').length;
-    const expiring = this.trackers.filter((t) => ['EXPIRING_SOON', 'EXPIRES_TODAY'].includes(String(t.status).toUpperCase())).length;
-    const healthy = this.trackers.filter((t) => String(t.status).toUpperCase() === 'HEALTHY').length;
-
+  renderListHtml() {
     const filtered = this.getFiltered();
     const grouped = new Map();
     filtered.forEach((t) => {
@@ -141,6 +135,104 @@ export class CredentialTrackerController {
       if (!grouped.has(srv)) grouped.set(srv, []);
       grouped.get(srv).push(t);
     });
+
+    if (this.loading && this.trackers.length === 0) {
+      return `<div class="rx-card" style="text-align:center;padding:32px;color:var(--nm-text-muted);">Loading credential trackers...</div>`;
+    }
+    if (grouped.size === 0) {
+      return `
+        <div class="rx-card" style="text-align:center;padding:32px;color:var(--nm-text-muted);">
+          <i class="ph ph-key" style="font-size:32px;color:var(--nm-accent);display:block;margin-bottom:8px;"></i>
+          <strong>${this.searchQuery || this.selectedFilter !== 'ALL' ? 'No matching credentials' : 'No Credential Trackers Yet'}</strong>
+        </div>
+      `;
+    }
+    return `
+      <div class="rx-land-grid-2" style="display:flex;flex-direction:column;gap:12px;">
+        ${Array.from(grouped.entries()).map(([serverName, items]) => `
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--nm-divider);">
+              <div style="display:flex;align-items:center;gap:10px;min-inline-size:0;">
+                <span style="width:34px;height:34px;border-radius:10px;background:var(--nm-accent-soft);color:var(--nm-accent);display:inline-flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
+                  <i class="ph ph-hard-drives" aria-hidden="true"></i>
+                </span>
+                <strong style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(serverName)}</strong>
+              </div>
+              <span style="padding:3px 9px;border-radius:9px;background:var(--nm-input-surface);color:var(--nm-text-muted);font-size:11px;font-weight:700;white-space:nowrap;">
+                ${items.length} Account${items.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            ${items.map((t) => {
+              const pill = statusPill(t);
+              const emails = Array.isArray(t.spokesperson_emails) ? t.spokesperson_emails : [];
+              const id = t.id || t._id;
+              return `
+                <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:var(--nm-input-surface);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:13.5px;">
+                      <i class="ph ph-user-circle" style="color:var(--nm-accent);font-size:17px;"></i>
+                      <span>${escapeHtml(t.username || 'service')}</span>
+                    </div>
+                    <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:${pill.bg};color:${pill.fg};font-size:11px;font-weight:800;">
+                      <span style="width:6px;height:6px;border-radius:999px;background:${pill.dot};"></span>
+                      ${escapeHtml(pill.label)}
+                    </span>
+                  </div>
+
+                  <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--nm-text-muted);">
+                    <span>Updated: ${escapeHtml(formatCredDate(t.last_updated || t.last_updated_date))} (${Number(t.validity_days || 45)}d cycle)</span>
+                    <span style="font-weight:700;color:${pill.fg};">Expires: ${escapeHtml(formatCredDate(t.expiry_date))}</span>
+                  </div>
+
+                  ${emails.length ? `
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--nm-text-muted);">
+                      <span>Alerts:</span>
+                      ${emails.map((e) => `<span style="padding:2px 7px;border-radius:8px;background:var(--nm-surface);color:var(--nm-text-muted);">${escapeHtml(e)}</span>`).join('')}
+                    </div>
+                  ` : ''}
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;">
+                    ${this.canRenew(t) ? `
+                      <button type="button" class="rx-btn-surface" data-cred-renew="${escapeHtml(id)}" style="padding:6px 12px;font-size:12px;border-radius:11px;color:var(--nm-accent);">
+                        <i class="ph ph-calendar-check" aria-hidden="true"></i> Update Date
+                      </button>
+                    ` : '<span></span>'}
+                    ${this.isManagerOrAdmin ? `
+                      <div style="display:flex;gap:6px;">
+                        <button type="button" class="rx-icon-pill" data-cred-edit="${escapeHtml(id)}" aria-label="Edit tracker" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;">
+                          <i class="ph ph-pencil-simple" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="rx-icon-pill" data-cred-delete="${escapeHtml(id)}" aria-label="Delete tracker" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;color:#DC2626;">
+                          <i class="ph ph-trash" aria-hidden="true"></i>
+                        </button>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  updateListOnly() {
+    const host = this.container?.querySelector('[data-cred-list]');
+    if (!host) { this.render(); return; }
+    host.innerHTML = this.renderListHtml();
+    const clearBtn = this.container.querySelector('[data-cred-clear-search]');
+    if (clearBtn) clearBtn.style.display = this.searchQuery ? '' : 'none';
+    this.bindListActions();
+  }
+
+  render() {
+    if (!this.container) return;
+    const total = this.trackers.length;
+    const expired = this.trackers.filter((t) => String(t.status).toUpperCase() === 'EXPIRED').length;
+    const expiring = this.trackers.filter((t) => ['EXPIRING_SOON', 'EXPIRES_TODAY'].includes(String(t.status).toUpperCase())).length;
+    const healthy = this.trackers.filter((t) => String(t.status).toUpperCase() === 'HEALTHY').length;
 
     this.container.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:14px;">
@@ -192,7 +284,7 @@ export class CredentialTrackerController {
           <div class="rx-well" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:14px;">
             <i class="ph ph-magnifying-glass" style="color:var(--nm-text-muted);font-size:16px;" aria-hidden="true"></i>
             <input type="search" data-cred-search value="${escapeHtml(this.searchQuery)}" placeholder="Search by server, username, or alert email..." style="flex:1;border:0;background:transparent;color:var(--nm-text);font-size:13px;outline:none;min-inline-size:0;" />
-            ${this.searchQuery ? `<button type="button" data-cred-clear-search style="border:0;background:transparent;color:var(--nm-text-muted);cursor:pointer;" aria-label="Clear search"><i class="ph ph-x"></i></button>` : ''}
+            <button type="button" data-cred-clear-search style="border:0;background:transparent;color:var(--nm-text-muted);cursor:pointer;${this.searchQuery ? '' : 'display:none;'}" aria-label="Clear search"><i class="ph ph-x"></i></button>
           </div>
 
           <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;">
@@ -209,82 +301,7 @@ export class CredentialTrackerController {
           </div>
         </div>
 
-        ${this.loading && this.trackers.length === 0 ? `
-          <div class="rx-card" style="text-align:center;padding:32px;color:var(--nm-text-muted);">Loading credential trackers...</div>
-        ` : grouped.size === 0 ? `
-          <div class="rx-card" style="text-align:center;padding:32px;color:var(--nm-text-muted);">
-            <i class="ph ph-key" style="font-size:32px;color:var(--nm-accent);display:block;margin-bottom:8px;"></i>
-            <strong>${this.searchQuery || this.selectedFilter !== 'ALL' ? 'No matching credentials' : 'No Credential Trackers Yet'}</strong>
-          </div>
-        ` : `
-          <div class="rx-land-grid-2" style="display:flex;flex-direction:column;gap:12px;">
-            ${Array.from(grouped.entries()).map(([serverName, items]) => `
-              <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--nm-divider);">
-                  <div style="display:flex;align-items:center;gap:10px;min-inline-size:0;">
-                    <span style="width:34px;height:34px;border-radius:10px;background:var(--nm-accent-soft);color:var(--nm-accent);display:inline-flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
-                      <i class="ph ph-hard-drives" aria-hidden="true"></i>
-                    </span>
-                    <strong style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(serverName)}</strong>
-                  </div>
-                  <span style="padding:3px 9px;border-radius:9px;background:var(--nm-input-surface);color:var(--nm-text-muted);font-size:11px;font-weight:700;white-space:nowrap;">
-                    ${items.length} Account${items.length === 1 ? '' : 's'}
-                  </span>
-                </div>
-
-                ${items.map((t) => {
-                  const pill = statusPill(t);
-                  const emails = Array.isArray(t.spokesperson_emails) ? t.spokesperson_emails : [];
-                  const id = t.id || t._id;
-                  return `
-                    <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:var(--nm-input-surface);">
-                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-                        <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:13.5px;">
-                          <i class="ph ph-user-circle" style="color:var(--nm-accent);font-size:17px;"></i>
-                          <span>${escapeHtml(t.username || 'service')}</span>
-                        </div>
-                        <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:${pill.bg};color:${pill.fg};font-size:11px;font-weight:800;">
-                          <span style="width:6px;height:6px;border-radius:999px;background:${pill.dot};"></span>
-                          ${escapeHtml(pill.label)}
-                        </span>
-                      </div>
-
-                      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--nm-text-muted);">
-                        <span>Updated: ${escapeHtml(formatCredDate(t.last_updated || t.last_updated_date))} (${Number(t.validity_days || 45)}d cycle)</span>
-                        <span style="font-weight:700;color:${pill.fg};">Expires: ${escapeHtml(formatCredDate(t.expiry_date))}</span>
-                      </div>
-
-                      ${emails.length ? `
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--nm-text-muted);">
-                          <span>Alerts:</span>
-                          ${emails.map((e) => `<span style="padding:2px 7px;border-radius:8px;background:var(--nm-surface);color:var(--nm-text-muted);">${escapeHtml(e)}</span>`).join('')}
-                        </div>
-                      ` : ''}
-
-                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;">
-                        ${this.canRenew(t) ? `
-                          <button type="button" class="rx-btn-surface" data-cred-renew="${escapeHtml(id)}" style="padding:6px 12px;font-size:12px;border-radius:11px;color:var(--nm-accent);">
-                            <i class="ph ph-calendar-check" aria-hidden="true"></i> Update Date
-                          </button>
-                        ` : '<span></span>'}
-                        ${this.isManagerOrAdmin ? `
-                          <div style="display:flex;gap:6px;">
-                            <button type="button" class="rx-icon-pill" data-cred-edit="${escapeHtml(id)}" aria-label="Edit tracker" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;">
-                              <i class="ph ph-pencil-simple" aria-hidden="true"></i>
-                            </button>
-                            <button type="button" class="rx-icon-pill" data-cred-delete="${escapeHtml(id)}" aria-label="Delete tracker" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;color:#DC2626;">
-                              <i class="ph ph-trash" aria-hidden="true"></i>
-                            </button>
-                          </div>
-                        ` : ''}
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            `).join('')}
-          </div>
-        `}
+        <div data-cred-list>${this.renderListHtml()}</div>
       </div>
     `;
 
@@ -301,26 +318,29 @@ export class CredentialTrackerController {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.searchQuery = e.target.value;
-        this.render();
-        const nextInput = this.container.querySelector('[data-cred-search]');
-        if (nextInput) {
-          nextInput.focus();
-          nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
-        }
+        this.updateListOnly();
       });
     }
     this.container.querySelector('[data-cred-clear-search]')?.addEventListener('click', () => {
       this.searchQuery = '';
-      this.render();
+      if (searchInput) searchInput.value = '';
+      this.updateListOnly();
     });
 
     this.container.querySelectorAll('[data-cred-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.selectedFilter = btn.getAttribute('data-cred-filter') || 'ALL';
-        this.render();
+        this.container.querySelectorAll('[data-cred-filter]').forEach((b) =>
+          b.classList.toggle('is-active', b.getAttribute('data-cred-filter') === this.selectedFilter)
+        );
+        this.updateListOnly();
       });
     });
 
+    this.bindListActions();
+  }
+
+  bindListActions() {
     this.container.querySelectorAll('[data-cred-renew]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-cred-renew');

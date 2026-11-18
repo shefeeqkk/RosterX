@@ -68,11 +68,11 @@ import {
   todayFormatted,
   getIstNow
 } from './dateUtils.js';
-import { themeController } from './themeController.js?v=2.0.3';
-import { broadcastController } from './broadcastController.js?v=2.0.3';
-import { registerPwaServiceWorker, mountIosInstallBanner } from './pwaHelper.js?v=2.0.3';
-import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.3';
-import { CredentialTrackerController } from './credentialTracker.js?v=2.0.3';
+import { themeController } from './themeController.js?v=2.0.4';
+import { broadcastController } from './broadcastController.js?v=2.0.4';
+import { registerPwaServiceWorker, mountIosInstallBanner } from './pwaHelper.js?v=2.0.4';
+import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.4';
+import { CredentialTrackerController } from './credentialTracker.js?v=2.0.4';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 

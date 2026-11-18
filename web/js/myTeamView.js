@@ -76,18 +76,7 @@ export class MyTeamViewController {
     `;
   }
 
-  render() {
-    if (!this.container) return;
-    const SYSTEM_ADMINS = new Set(['admin', 'sysadmin', 'administrator']);
-    const active = this.engineers.filter((e) => {
-      const status = String(e.status || 'active').toLowerCase();
-      const role = String(e.role || 'engineer').toLowerCase();
-      const uname = String(e.username || '').toLowerCase();
-      if (status === 'resigned' || SYSTEM_ADMINS.has(uname)) return false;
-      if (e.include_in_roster === true) return true;
-      return ['manager', 'engineer', 'apprentice'].includes(role);
-    });
-
+  renderListHtml(active) {
     const q = this.searchQuery.trim().toLowerCase();
     const filtered = !q ? active : active.filter((e) =>
       String(e.name || '').toLowerCase().includes(q) ||
@@ -101,28 +90,8 @@ export class MyTeamViewController {
     const team = filtered.filter((e) => String(e.role || '').toLowerCase() !== 'manager')
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-    this.container.innerHTML = `
+    return `
       <div style="display:flex;flex-direction:column;gap:14px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          ${this.onBack && !this.hideBackButton ? `
-            <button type="button" class="rx-icon-pill" data-team-back aria-label="Back to Operations Hub">
-              <i class="ph ph-arrow-left" aria-hidden="true"></i>
-            </button>
-          ` : ''}
-          <div>
-            ${this.hideBackButton
-              ? `<div style="font-size:12px;font-weight:700;color:var(--nm-text-muted);">${active.length} Active Team Members</div>`
-              : `<h2 style="margin:0;font-size:19px;font-weight:800;">My Team Directory</h2>
-                 <div style="font-size:12px;color:var(--nm-text-muted);">${active.length} Active Team Members</div>`}
-          </div>
-        </div>
-
-        <div class="rx-well" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:14px;">
-          <i class="ph ph-magnifying-glass" style="color:var(--nm-text-muted);font-size:16px;" aria-hidden="true"></i>
-          <input type="search" data-team-search value="${escapeHtml(this.searchQuery)}" placeholder="Search by name, role, or phone..." style="flex:1;border:0;background:transparent;color:var(--nm-text);font-size:13px;outline:none;min-inline-size:0;" />
-          ${this.searchQuery ? `<button type="button" data-team-clear style="border:0;background:transparent;color:var(--nm-text-muted);cursor:pointer;" aria-label="Clear"><i class="ph ph-x"></i></button>` : ''}
-        </div>
-
         ${managers.length ? `
           <div style="display:flex;flex-direction:column;gap:8px;">
             <div class="rx-field-label" style="color:#6366F1;">Operations Management (${managers.length})</div>
@@ -149,23 +118,66 @@ export class MyTeamViewController {
         ` : ''}
       </div>
     `;
+  }
+
+  getActiveMembers() {
+    const SYSTEM_ADMINS = new Set(['admin', 'sysadmin', 'administrator']);
+    return this.engineers.filter((e) => {
+      const status = String(e.status || 'active').toLowerCase();
+      const role = String(e.role || 'engineer').toLowerCase();
+      const uname = String(e.username || '').toLowerCase();
+      if (status === 'resigned' || SYSTEM_ADMINS.has(uname)) return false;
+      if (e.include_in_roster === true) return true;
+      return ['manager', 'engineer', 'apprentice'].includes(role);
+    });
+  }
+
+  render() {
+    if (!this.container) return;
+    const active = this.getActiveMembers();
+
+    this.container.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${this.onBack && !this.hideBackButton ? `
+            <button type="button" class="rx-icon-pill" data-team-back aria-label="Back to Operations Hub">
+              <i class="ph ph-arrow-left" aria-hidden="true"></i>
+            </button>
+          ` : ''}
+          <div>
+            ${this.hideBackButton
+              ? `<div style="font-size:12px;font-weight:700;color:var(--nm-text-muted);">${active.length} Active Team Members</div>`
+              : `<h2 style="margin:0;font-size:19px;font-weight:800;">My Team Directory</h2>
+                 <div style="font-size:12px;color:var(--nm-text-muted);">${active.length} Active Team Members</div>`}
+          </div>
+        </div>
+
+        <div class="rx-well" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:14px;">
+          <i class="ph ph-magnifying-glass" style="color:var(--nm-text-muted);font-size:16px;" aria-hidden="true"></i>
+          <input type="search" data-team-search value="${escapeHtml(this.searchQuery)}" placeholder="Search by name, role, or phone..." style="flex:1;border:0;background:transparent;color:var(--nm-text);font-size:13px;outline:none;min-inline-size:0;" />
+          <button type="button" data-team-clear style="border:0;background:transparent;color:var(--nm-text-muted);cursor:pointer;${this.searchQuery ? '' : 'display:none;'}" aria-label="Clear"><i class="ph ph-x"></i></button>
+        </div>
+
+        <div data-team-list>${this.renderListHtml(active)}</div>
+      </div>
+    `;
 
     this.container.querySelector('[data-team-back]')?.addEventListener('click', () => this.onBack?.());
     const searchEl = this.container.querySelector('[data-team-search]');
+    const clearBtn = this.container.querySelector('[data-team-clear]');
+    const listHost = this.container.querySelector('[data-team-list]');
     if (searchEl) {
       searchEl.addEventListener('input', (e) => {
         this.searchQuery = e.target.value;
-        this.render();
-        const next = this.container.querySelector('[data-team-search]');
-        if (next) {
-          next.focus();
-          next.setSelectionRange(next.value.length, next.value.length);
-        }
+        if (listHost) listHost.innerHTML = this.renderListHtml(this.getActiveMembers());
+        if (clearBtn) clearBtn.style.display = this.searchQuery ? '' : 'none';
       });
     }
-    this.container.querySelector('[data-team-clear]')?.addEventListener('click', () => {
+    clearBtn?.addEventListener('click', () => {
       this.searchQuery = '';
-      this.render();
+      if (searchEl) searchEl.value = '';
+      if (listHost) listHost.innerHTML = this.renderListHtml(this.getActiveMembers());
+      clearBtn.style.display = 'none';
     });
   }
 }

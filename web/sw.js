@@ -5,7 +5,7 @@
  * - Stale-while-revalidate for static media assets (images, icons, manifest)
  * - Safe instant activation on new deployments
  */
-const CACHE_NAME = 'rosterx-pwa-v2.0.3';
+const CACHE_NAME = 'rosterx-pwa-v2.0.4';
 const STATIC_ASSETS = [
   '/manifest.webmanifest',
   '/css/tokens.css',
