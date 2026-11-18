@@ -5,6 +5,14 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.0 - Build 140 — Personal Calendar Smart Sync):
+> *"Dasa! Gafoorka! **Personal Calendar Smart Sync (`v1.35.0`, Build 140)** complete aayi safe-build & ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📅🔥
+> - **Placement**: Trigger lives strictly in **`My Calendar`** (`Sync My Shifts`) — removed from team `Month Roster` header.
+> - **Native `CalendarContract` Smart Sync**: In-app Calendar Account picker (Google/Work), configurable working-shift reminder chips (`None`/`15m`/`30m`/`1h`), **Busy** timed IST working shifts, **Free** All-Day (no clock time, UTC midnight) `OFF`/`L`/`SW*` entries with no reminder, deterministic zero-duplicate re-sync (`[RosterX-Sync:YYYY-MM:<username>:<dd>]`), **`Clear Month`** undo, and zero-permission **`Share .ics`** fallback.
+> - **Version Sync**: `android/app/build.gradle.kts` (`versionCode = 140`, `versionName = "1.35.0"`) & `server.py` (`SERVER_VERSION = "1.35.0"`)."*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.34.0 - Build 139 — Flagship Native Android Platform Suite):
 > *"Vijaya! Sprint **`v1.34.0` (Build 139)** locked in `../plan_vijayan.md` — 5 flagship native Android upgrades:
 > 1. **🔗 Verified Android App Links (`api.rosterx.online`)**: `launchMode="singleTop"` + `<intent-filter android:autoVerify="true">` for `/` and `/open` (NOT `/api/*`!), routing `/open/roster`, `/open/notifications`, `/open/credentials`, `/open/profile` in `onCreate` & `onNewIntent`.

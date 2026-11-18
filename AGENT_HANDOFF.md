@@ -5,6 +5,22 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.0 - Build 140 — Personal Calendar Smart Sync):
+> *"Dasa! Gafoorka! User `/grill-me` design session-il lock cheytha **Personal Calendar Smart Sync (`v1.35.0`, Build 140)** clean aayi implement cheythu, safe-build adichu, live ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📅🔥
+>
+> 1. **Personal-Only Scope & `My Calendar`-Only Placement (`EngineerPortalScreen.kt`)**:
+>    - Removed the calendar icon completely from the team `Month Roster` header so there is zero confusion with the team grid.
+>    - Upgraded `My Calendar`'s action pill to **`Sync My Shifts`** opening our new Neumorphic `CalendarSyncDialog` with explicit personal scope (`<Your Name> • @username • Personal schedule only`, `XX Shifts`, `YY Off/Leave/Swap`).
+> 2. **Native Android `CalendarContract` Smart Diff Sync (`ShiftCalendarExporter.kt`, `CalendarSyncDialog.kt`, `AndroidManifest.xml`)**:
+>    - Added runtime-requested `READ_CALENDAR` / `WRITE_CALENDAR` permissions + in-app writable Calendar Account picker (Google Calendar, Work Outlook, etc.) with saved calendar & reminder preferences.
+>    - **Working Shifts (`FS`/`FG`/`G`/`SG`/`SS`/`NS`)**: Timed IST (`Asia/Kolkata`, `NS` overnight rollover) + **Busy** (`AVAILABILITY_BUSY`) + configurable reminder chips (`None` / `15m` / `30m` default / `1h`).
+>    - **Non-Working Days (`OFF`/`L`/`SW*` Swap Off)**: **All-Day events** (`ALL_DAY = 1`, UTC midnight-to-midnight per Android spec, no clock time) + **Free** (`AVAILABILITY_FREE`) + **no reminder**.
+>    - **Zero-Duplicate Re-Sync & Undo**: Deterministic `[RosterX-Sync:YYYY-MM:<username>:<dd>]` tagging updates modified days cleanly, deletes stale days on re-sync, supports **`Clear Month`** undo, and NEVER touches personal calendar events.
+>    - **`.ics` Fallback Parity**: **`Share .ics`** inside the same sheet mirrors the exact same timed Busy + All-Day Free rules with zero permissions required.
+> 3. **Version Sync (`v1.35.0` / Build `140`)**: Bumped `android/app/build.gradle.kts` (`140` / `1.35.0`) and `server.py` (`SERVER_VERSION = "1.35.0"`)."*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.34.0 - Build 139 — Flagship Native Android Platform Suite):
 > *"Dasa, Vijaya! Sprint `v1.33.1` clean aayi land aayi! Ippol nammude next flagship release **`v1.34.0` (Build 139)** lock aakki vechittundu — Android Verified App Links + 4 major native Android OS features!
 >

@@ -3392,19 +3392,30 @@ fun MyCalendarView(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        // Header with Month Navigation Arrows + 1-Tap Calendar Export
+        // Header with Month Navigation Arrows + Personal Calendar Smart Sync
         item {
-            val calendarContext = LocalContext.current
-            val myWorkingShifts = remember(roster) {
+            var showCalendarSyncDialog by remember { mutableStateOf(false) }
+            val myMonthShiftCodes = remember(roster) {
                 roster.mapNotNull { (dayStr, shiftCode) ->
                     dayStr.toIntOrNull()?.let { it to shiftCode.code }
                 }.toMap()
             }
-            val hasExportableShifts = remember(myWorkingShifts, engineer) {
-                engineer != null && !engineer.isManagementAccount && myWorkingShifts.values.any { code ->
-                    val c = code.trim().uppercase(Locale.US)
-                    c.isNotBlank() && c != "OFF" && c != "L" && c != "LEAVE" && !c.startsWith("SW")
-                }
+            val syncPreview = remember(myMonthShiftCodes) {
+                com.rosterx.util.ShiftCalendarExporter.computePreview(myMonthShiftCodes)
+            }
+            val canSyncPersonalCalendar = remember(syncPreview, engineer) {
+                engineer != null && !engineer.isManagementAccount && syncPreview.totalCount > 0
+            }
+
+            if (showCalendarSyncDialog && engineer != null) {
+                com.rosterx.presentation.components.CalendarSyncDialog(
+                    engineerName = engineer.fullName.ifBlank { engineer.name },
+                    username = engineer.username,
+                    year = state.gridYear,
+                    month = state.gridMonth,
+                    dayShiftCodes = myMonthShiftCodes,
+                    onDismiss = { showCalendarSyncDialog = false }
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -3427,36 +3438,13 @@ fun MyCalendarView(
                     }
                 }
 
-                if (hasExportableShifts && engineer != null) {
+                if (canSyncPersonalCalendar && engineer != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
                         NeumorphicCard(
-                            modifier = Modifier.clickable {
-                                val res = com.rosterx.util.ShiftCalendarExporter.exportMonthlyShifts(
-                                    context = calendarContext,
-                                    engineerName = engineer.fullName.ifBlank { engineer.name },
-                                    username = engineer.username,
-                                    year = state.gridYear,
-                                    month = state.gridMonth,
-                                    dayShiftCodes = myWorkingShifts
-                                )
-                                res.onSuccess { count ->
-                                    val msg = if (count > 0) {
-                                        "Exported $count shifts for ${yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))} to Calendar"
-                                    } else {
-                                        "No working shifts found for this month"
-                                    }
-                                    android.widget.Toast.makeText(calendarContext, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                }.onFailure { err ->
-                                    android.widget.Toast.makeText(
-                                        calendarContext,
-                                        err.message ?: "Calendar export failed",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            },
+                            modifier = Modifier.clickable { showCalendarSyncDialog = true },
                             shape = RoundedCornerShape(12.dp),
                             style = NeumorphicElevationStyle.RaisedSubtle,
                             surfaceColor = NeumorphicTokens.Surface,
@@ -3469,12 +3457,12 @@ fun MyCalendarView(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.EventAvailable,
-                                    contentDescription = "Export to Calendar",
+                                    contentDescription = "Sync My Shifts",
                                     tint = themeAccent,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
-                                    text = "Export to Calendar",
+                                    text = "Sync My Shifts",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = themeAccent
@@ -3901,140 +3889,75 @@ fun MonthRosterView(
 
 
 
-                    // Search Box + 1-Tap Calendar Export Action
-                    val rosterContext = LocalContext.current
-                    val selfEng = state.loggedInEngineer
-                    val selfGridRoster = remember(state.gridRoster, selfEng) {
-                        getRosterForEngineer(state.gridRoster, selfEng)
-                    }
-                    val selfDayCodes = remember(selfGridRoster) {
-                        selfGridRoster.mapNotNull { (dayStr, code) ->
-                            dayStr.toIntOrNull()?.let { it to code.code }
-                        }.toMap()
-                    }
-                    val canExportMonthRoster = remember(selfDayCodes, selfEng) {
-                        selfEng != null && !selfEng.isManagementAccount && selfDayCodes.values.any { code ->
-                            val c = code.trim().uppercase(Locale.US)
-                            c.isNotBlank() && c != "OFF" && c != "L" && c != "LEAVE" && !c.startsWith("SW")
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    // Search Box
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .width(140.dp)
+                            .height(if (isLandscape) 30.dp else 38.dp)
                     ) {
-                        if (canExportMonthRoster && selfEng != null) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                                modifier = Modifier
-                                    .size(if (isLandscape) 30.dp else 38.dp)
-                                    .clickable {
-                                        val res = com.rosterx.util.ShiftCalendarExporter.exportMonthlyShifts(
-                                            context = rosterContext,
-                                            engineerName = selfEng.fullName.ifBlank { selfEng.name },
-                                            username = selfEng.username,
-                                            year = state.gridYear,
-                                            month = state.gridMonth,
-                                            dayShiftCodes = selfDayCodes
-                                        )
-                                        res.onSuccess { count ->
-                                            val msg = if (count > 0) {
-                                                "Exported $count shifts for ${yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))} to Calendar"
-                                            } else {
-                                                "No working shifts found for this month"
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                val filterTextStyle = LocalTextStyle.current.copy(
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                BasicTextField(
+                                    value = state.searchQuery,
+                                    onValueChange = onSearchQueryChanged,
+                                    singleLine = true,
+                                    textStyle = filterTextStyle,
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    decorationBox = { innerTextField ->
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            if (state.searchQuery.isEmpty()) {
+                                                Text(
+                                                    text = "Filter...",
+                                                    style = filterTextStyle.copy(
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    ),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
                                             }
-                                            android.widget.Toast.makeText(rosterContext, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                        }.onFailure { err ->
-                                            android.widget.Toast.makeText(
-                                                rosterContext,
-                                                err.message ?: "Calendar export failed",
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
+                                            innerTextField()
                                         }
                                     }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.EventAvailable,
-                                        contentDescription = "Export to Calendar",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(if (isLandscape) 16.dp else 18.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                            modifier = Modifier
-                                .width(if (canExportMonthRoster) 118.dp else 140.dp)
-                                .height(if (isLandscape) 30.dp else 38.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier.weight(1f),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    val filterTextStyle = LocalTextStyle.current.copy(
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                            }
 
-                                    BasicTextField(
-                                        value = state.searchQuery,
-                                        onValueChange = onSearchQueryChanged,
-                                        singleLine = true,
-                                        textStyle = filterTextStyle,
-                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        decorationBox = { innerTextField ->
-                                            Box(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                contentAlignment = Alignment.CenterStart
-                                            ) {
-                                                if (state.searchQuery.isEmpty()) {
-                                                    Text(
-                                                        text = "Filter...",
-                                                        style = filterTextStyle.copy(
-                                                            fontWeight = FontWeight.Normal,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        ),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                }
-                                                innerTextField()
-                                            }
-                                        }
-                                    )
-                                }
-
-                                if (state.searchQuery.isNotEmpty()) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Clear",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .clickable { onSearchQueryChanged("") }
-                                    )
-                                }
+                            if (state.searchQuery.isNotEmpty()) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { onSearchQueryChanged("") }
+                                )
                             }
                         }
                     }

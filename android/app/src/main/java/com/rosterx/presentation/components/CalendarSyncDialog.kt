@@ -1,0 +1,832 @@
+package com.rosterx.presentation.components
+
+import android.Manifest
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.rosterx.ui.neumorphic.NeumorphicTokens
+import com.rosterx.ui.neumorphic.neumorphicRaised
+import com.rosterx.ui.neumorphic.neumorphicInset
+import com.rosterx.ui.theme.LocalThemeAccent
+import com.rosterx.util.DeviceCalendar
+import com.rosterx.util.ShiftCalendarExporter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private data class ReminderChoice(
+    val label: String,
+    val minutes: Int?
+)
+
+private val REMINDER_CHOICES = listOf(
+    ReminderChoice("None", null),
+    ReminderChoice("15m", 15),
+    ReminderChoice("30m", 30),
+    ReminderChoice("1h", 60)
+)
+
+@Composable
+fun CalendarSyncDialog(
+    engineerName: String,
+    username: String,
+    year: Int,
+    month: Int,
+    dayShiftCodes: Map<Int, String>,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val themeAccent = LocalThemeAccent.current
+    val scope = rememberCoroutineScope()
+
+    val monthLabel = remember(year, month) {
+        runCatching {
+            YearMonth.of(year, month).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US))
+        }.getOrDefault("$year-$month")
+    }
+    val preview = remember(dayShiftCodes) { ShiftCalendarExporter.computePreview(dayShiftCodes) }
+
+    var hasPermission by remember { mutableStateOf(ShiftCalendarExporter.hasCalendarPermissions(context)) }
+    var calendars by remember { mutableStateOf<List<DeviceCalendar>>(emptyList()) }
+    var selectedCalendarId by remember { mutableStateOf<Long?>(ShiftCalendarExporter.getSavedCalendarId(context)) }
+    var selectedReminderMinutes by remember { mutableStateOf<Int?>(ShiftCalendarExporter.getSavedReminderMinutes(context)) }
+    var existingSyncedCount by remember { mutableIntStateOf(0) }
+    var isLoadingCalendars by remember { mutableStateOf(false) }
+    var isSyncing by remember { mutableStateOf(false) }
+    var isClearing by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var statusIsError by remember { mutableStateOf(false) }
+
+    fun refreshCalendars() {
+        if (!ShiftCalendarExporter.hasCalendarPermissions(context)) {
+            hasPermission = false
+            calendars = emptyList()
+            existingSyncedCount = 0
+            return
+        }
+        hasPermission = true
+        scope.launch {
+            isLoadingCalendars = true
+            val found = withContext(Dispatchers.IO) {
+                ShiftCalendarExporter.getWritableCalendars(context)
+            }
+            calendars = found
+            val validSaved = selectedCalendarId?.takeIf { id -> found.any { it.id == id } }
+            val chosenId = validSaved ?: found.firstOrNull()?.id
+            selectedCalendarId = chosenId
+            existingSyncedCount = if (chosenId != null) {
+                withContext(Dispatchers.IO) {
+                    ShiftCalendarExporter.countSyncedEventsForMonth(context, chosenId, username, year, month)
+                }
+            } else {
+                0
+            }
+            isLoadingCalendars = false
+        }
+    }
+
+    LaunchedEffect(hasPermission, year, month, username) {
+        if (hasPermission) {
+            refreshCalendars()
+        }
+    }
+
+    LaunchedEffect(selectedCalendarId, hasPermission, year, month, username) {
+        val calId = selectedCalendarId
+        if (hasPermission && calId != null) {
+            existingSyncedCount = withContext(Dispatchers.IO) {
+                ShiftCalendarExporter.countSyncedEventsForMonth(context, calId, username, year, month)
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val granted = grants[Manifest.permission.READ_CALENDAR] == true &&
+            grants[Manifest.permission.WRITE_CALENDAR] == true
+        hasPermission = granted || ShiftCalendarExporter.hasCalendarPermissions(context)
+        if (hasPermission) {
+            statusMessage = null
+            statusIsError = false
+            refreshCalendars()
+        } else {
+            statusMessage = "Calendar permission was declined. You can still use Share .ics below."
+            statusIsError = true
+        }
+    }
+
+    Dialog(
+        onDismissRequest = { if (!isSyncing && !isClearing) onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 20.dp)
+                .neumorphicRaised(
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = NeumorphicTokens.ElevationRaised,
+                    surfaceColor = NeumorphicTokens.Surface
+                )
+                .clip(RoundedCornerShape(24.dp))
+                .background(NeumorphicTokens.Surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(themeAccent.copy(alpha = 0.14f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EventAvailable,
+                                contentDescription = null,
+                                tint = themeAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Sync My Shifts",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = NeumorphicTokens.TextMain
+                            )
+                            Text(
+                                text = monthLabel,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { if (!isSyncing && !isClearing) onDismiss() },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = NeumorphicTokens.TextMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Personal Scope Summary Card (Sunken)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .neumorphicInset(
+                            shape = RoundedCornerShape(16.dp),
+                            surfaceColor = NeumorphicTokens.InputSurface
+                        )
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = engineerName.ifBlank { "Team Member" },
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeumorphicTokens.TextMain,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (username.isNotBlank()) {
+                                Text(
+                                    text = "@${username.trim()} • Personal schedule only",
+                                    fontSize = 11.sp,
+                                    color = NeumorphicTokens.TextMuted
+                                )
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = themeAccent.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "${preview.totalCount} days",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = themeAccent,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SummaryBadgePill(
+                            label = "${preview.workingCount} Shifts • Timed",
+                            accent = themeAccent,
+                            modifier = Modifier.weight(1f)
+                        )
+                        SummaryBadgePill(
+                            label = "${preview.nonWorkingCount} Off/Leave • All-Day",
+                            accent = NeumorphicTokens.StatusEmerald,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Text(
+                        text = "Only your shifts are synced. Personal calendar events are never modified.",
+                        fontSize = 10.5.sp,
+                        color = NeumorphicTokens.TextMuted,
+                        lineHeight = 14.sp
+                    )
+                }
+
+                // Target Calendar Section
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = themeAccent,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "TARGET CALENDAR",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = NeumorphicTokens.TextMuted,
+                                letterSpacing = 0.6.sp
+                            )
+                        }
+                        if (hasPermission && existingSyncedCount > 0) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = NeumorphicTokens.StatusEmerald.copy(alpha = 0.14f)
+                            ) {
+                                Text(
+                                    text = "Synced ($existingSyncedCount)",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeumorphicTokens.StatusEmerald,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (!hasPermission) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(themeAccent.copy(alpha = 0.08f))
+                                .border(1.dp, themeAccent.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Allow Calendar access to select your Google or Work calendar and keep shifts updated with zero duplicates.",
+                                fontSize = 11.5.sp,
+                                color = NeumorphicTokens.TextMain,
+                                lineHeight = 16.sp
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = themeAccent,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        permissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.READ_CALENDAR,
+                                                Manifest.permission.WRITE_CALENDAR
+                                            )
+                                        )
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 9.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarMonth,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "Allow Calendar Access",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    } else if (isLoadingCalendars) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = themeAccent
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Loading device calendars...",
+                                fontSize = 12.sp,
+                                color = NeumorphicTokens.TextMuted
+                            )
+                        }
+                    } else if (calendars.isEmpty()) {
+                        Text(
+                            text = "No writable calendar account found on this device. Use Share .ics below instead.",
+                            fontSize = 11.5.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            lineHeight = 16.sp
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 172.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            calendars.forEach { cal ->
+                                val isSelected = cal.id == selectedCalendarId
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (isSelected) themeAccent.copy(alpha = 0.12f)
+                                            else NeumorphicTokens.InputSurface
+                                        )
+                                        .border(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = if (isSelected) themeAccent else NeumorphicTokens.Border,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable {
+                                            selectedCalendarId = cal.id
+                                            ShiftCalendarExporter.saveCalendarId(context, cal.id)
+                                            statusMessage = null
+                                        }
+                                        .padding(horizontal = 11.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(cal.color))
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = cal.displayName,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = NeumorphicTokens.TextMain,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (cal.accountName.isNotBlank() &&
+                                            !cal.accountName.equals(cal.displayName, ignoreCase = true)
+                                        ) {
+                                            Text(
+                                                text = cal.accountName,
+                                                fontSize = 10.5.sp,
+                                                color = NeumorphicTokens.TextMuted,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Selected",
+                                            tint = themeAccent,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Shift Reminder Selector
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = themeAccent,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = "SHIFT REMINDER",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMuted,
+                            letterSpacing = 0.6.sp
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        REMINDER_CHOICES.forEach { choice ->
+                            val selected = selectedReminderMinutes == choice.minutes
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (selected) themeAccent.copy(alpha = 0.16f) else NeumorphicTokens.InputSurface,
+                                border = BorderStroke(
+                                    width = if (selected) 1.5.dp else 1.dp,
+                                    color = if (selected) themeAccent else NeumorphicTokens.Border
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        selectedReminderMinutes = choice.minutes
+                                        ShiftCalendarExporter.saveReminderMinutes(context, choice.minutes)
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = choice.label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        color = if (selected) themeAccent else NeumorphicTokens.TextMain
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "Applies to working shifts (Busy). Off, Leave & Swap Off sync silently as All-Day (Free).",
+                        fontSize = 10.5.sp,
+                        lineHeight = 14.sp,
+                        color = NeumorphicTokens.TextMuted
+                    )
+                }
+
+                // Inline Status Feedback
+                if (!statusMessage.isNullOrBlank()) {
+                    val bannerColor = if (statusIsError) Color(0xFFDC2626) else NeumorphicTokens.StatusEmerald
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = bannerColor.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, bannerColor.copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = statusMessage!!,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = bannerColor,
+                            lineHeight = 16.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                // Primary Sync CTA
+                val canDirectSync = hasPermission && selectedCalendarId != null && preview.totalCount > 0 && !isSyncing && !isClearing
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (canDirectSync) themeAccent else themeAccent.copy(alpha = 0.38f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = canDirectSync) {
+                            val calId = selectedCalendarId ?: return@clickable
+                            scope.launch {
+                                isSyncing = true
+                                statusMessage = null
+                                val result = withContext(Dispatchers.IO) {
+                                    ShiftCalendarExporter.syncMonthToCalendar(
+                                        context = context,
+                                        calendarId = calId,
+                                        engineerName = engineerName,
+                                        username = username,
+                                        year = year,
+                                        month = month,
+                                        dayShiftCodes = dayShiftCodes,
+                                        reminderMinutes = selectedReminderMinutes
+                                    )
+                                }
+                                isSyncing = false
+                                result.onSuccess { stats ->
+                                    existingSyncedCount = stats.totalSynced
+                                    val detail = buildString {
+                                        append("Synced ${stats.totalSynced} days for $monthLabel")
+                                        val parts = mutableListOf<String>()
+                                        if (stats.inserted > 0) parts.add("${stats.inserted} added")
+                                        if (stats.updated > 0) parts.add("${stats.updated} updated")
+                                        if (stats.deleted > 0) parts.add("${stats.deleted} removed")
+                                        if (parts.isNotEmpty()) {
+                                            append(" (${parts.joinToString(", ")})")
+                                        }
+                                    }
+                                    statusMessage = detail
+                                    statusIsError = false
+                                    Toast.makeText(context, detail, Toast.LENGTH_SHORT).show()
+                                }.onFailure { err ->
+                                    statusMessage = err.message ?: "Calendar sync failed"
+                                    statusIsError = true
+                                }
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Syncing $monthLabel...",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                text = if (existingSyncedCount > 0) {
+                                    "Re-Sync ${preview.totalCount} Days"
+                                } else {
+                                    "Sync ${preview.totalCount} Days to Calendar"
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // Secondary Actions: Share .ics fallback + Clear Synced Month
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = NeumorphicTokens.InputSurface,
+                        border = BorderStroke(1.dp, NeumorphicTokens.Border),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(enabled = preview.totalCount > 0 && !isSyncing && !isClearing) {
+                                val res = ShiftCalendarExporter.exportMonthlyShifts(
+                                    context = context,
+                                    engineerName = engineerName,
+                                    username = username,
+                                    year = year,
+                                    month = month,
+                                    dayShiftCodes = dayShiftCodes,
+                                    reminderMinutes = selectedReminderMinutes,
+                                    preferShareSheet = true
+                                )
+                                res.onSuccess { count ->
+                                    Toast.makeText(
+                                        context,
+                                        "Prepared $count personal calendar days (.ics)",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }.onFailure { err ->
+                                    statusMessage = err.message ?: "Failed to generate .ics file"
+                                    statusIsError = true
+                                }
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                tint = NeumorphicTokens.TextMain,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "Share .ics",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeumorphicTokens.TextMain
+                            )
+                        }
+                    }
+
+                    if (hasPermission && selectedCalendarId != null && existingSyncedCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFDC2626).copy(alpha = 0.10f),
+                            border = BorderStroke(1.dp, Color(0xFFDC2626).copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(enabled = !isSyncing && !isClearing) {
+                                    val calId = selectedCalendarId ?: return@clickable
+                                    scope.launch {
+                                        isClearing = true
+                                        val res = withContext(Dispatchers.IO) {
+                                            ShiftCalendarExporter.clearMonthFromCalendar(
+                                                context = context,
+                                                calendarId = calId,
+                                                username = username,
+                                                year = year,
+                                                month = month
+                                            )
+                                        }
+                                        isClearing = false
+                                        res.onSuccess { removed ->
+                                            existingSyncedCount = 0
+                                            val msg = "Cleared $removed RosterX events for $monthLabel"
+                                            statusMessage = msg
+                                            statusIsError = false
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }.onFailure { err ->
+                                            statusMessage = err.message ?: "Could not clear synced events"
+                                            statusIsError = true
+                                        }
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isClearing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    text = "Clear Month",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryBadgePill(
+    label: String,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(accent.copy(alpha = 0.10f))
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
