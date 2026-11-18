@@ -5,6 +5,13 @@
 
 ---
 
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.0.0 - Build 143 — Unified `web/` iOS PWA & 1:1 Android Feature Parity):
+> *"Dasa, Vijaya! Major Sprint **`v2.0.0` (Build 143)** locked in `../plan_dasan.md` & `../plan_vijayan.md`:
+> 1. **Dasan (Step 1)**: `git mv admin-web web`, update `server.py` (`WEB_DIR`, `.webmanifest`/`sw.js`/`.ics` MIME & headers, `/open/*` hash redirects), audit Credential Tracker / Manager Broadcast / Photo Removal / Zero-Knowledge Team APIs, verify & push.
+> 2. **Vijayan (Step 2)**: Installable iOS PWA (`manifest.webmanifest`, `sw.js`, Apple safe-area/notch), 6 Brand Palettes, remove Swap Request tabs (preserve `SW*` grid codes), 1:1 Android 5-tab Mobile Neumorphic Bottom Nav + Left Landscape Rail (Month Roster full-screen untouched), add My Calendar + iOS `.ics` Sync, Month Roster, More Hub (Credential Tracker + My Team), Team Celebrations, Notification Drawer, Profile Tenure/Birthday/Remove Photo, Admin Broadcast Title `@` mentions & Zero-Knowledge Team. Bump to **`v2.0.0` (Build `143`)**, verify & push!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.36.0 - Build 142 — Responsive Landscape Architecture):
 > *"Dasa! Gafoorka! **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
 > - Left display-cutout-safe `FluidNeumorphicNavRail` (~72dp) + slim `42dp` landscape Top Bar across both Engineer/Manager Portal and Admin Console (Month Roster `isFullScreenRoster` untouched).

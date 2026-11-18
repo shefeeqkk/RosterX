@@ -5,6 +5,25 @@
 
 ---
 
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.0.0 - Build 143 — Unified `web/` iOS PWA & 1:1 Android Feature Parity):
+> *"Dasa, Vijaya! User `/grill-me` session-il nammude next MAJOR release **`v2.0.0` (Build 143)** 100% lock aakki vechittundu — `admin-web/` → **`web/`** rename + full **Installable iOS PWA** + **1:1 Android 5-Tab & Feature Parity** across Engineer, Manager, and Admin!
+>
+> ### 🔀 Strict Execution Order (Zero Merge Conflicts):
+> 1. **STEP 1 — Dasan (`plan_dasan.md`)**:
+>    - `git mv admin-web web` + update `server.py` (`WEB_DIR`), `README.md`, `.agents/skills/rosterx-ui/SKILL.md`.
+>    - Add iOS PWA MIME/header support in `server.py` (`.webmanifest`, `sw.js`, `.ics`) + verify `/open/*` hash redirects and Credential Tracker / Profile Photo / Manager Broadcast / Zero-Knowledge Team APIs.
+>    - Test `server.py`, commit & **`git push origin main`** so `web/` is live for Vijayan!
+> 2. **STEP 2 — Vijayan (`plan_vijayan.md`)**:
+>    - Build Installable iOS PWA shell (`manifest.webmanifest`, `sw.js`, Apple safe-area/notch tags) + **6 Android Brand Color Palettes**.
+>    - Remove unwanted **Swap Request** tabs from BOTH portals (preserving `SW*` shift codes in roster grids).
+>    - Build adaptive Mobile/iOS Neumorphic Shell: **5-tab Fluid Neumorphic Bottom Nav** (portrait) + **slim `42px` Top Bar & Left Vertical Nav Rail** (landscape, Month Roster full-screen untouched!) + keep rich Desktop layout.
+>    - Enforce **1:1 Android 5-tab role parity** (Engineer, Manager, Admin) & add all missing Android features: **My Calendar + iOS `.ics` Sync to Calendar modal**, **Month Roster**, **More Hub → Server Credential Tracker & My Team Directory**, **Team Celebrations & Notification Drawer (`@` mentions + auto-sweep)**, **Profile Tenure/Birthday/Remove Photo**, **Admin Broadcast Title `@` mentions & Zero-Knowledge Team**.
+>    - Bump to **`v2.0.0` (Build `143`)**, verify across iPhone portrait/landscape & desktop, commit & **`git push origin main`**!
+>
+> **Strict Zero-PII & Mandatory `git push origin main` apply!** Check `plan_dasan.md` & `plan_vijayan.md`!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.36.0 - Build 142 — Responsive Landscape Architecture):
 > *"Dasa! Gafoorka! Full **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi implement cheythu, safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
 > - **Month Roster Untouched**: Both Admin `Rosters` and Portal `Month Roster` keep their custom `isFullScreenRoster` landscape modes 100% untouched.

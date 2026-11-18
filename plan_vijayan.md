@@ -1,111 +1,130 @@
-# 📋 Execution Plan for Vijayan (Android Platform Features & Jetpack Compose)
+# 📋 Execution Plan for Vijayan (Unified `web/` iOS PWA & 1:1 Android Feature Parity)
 
-**Status:** `COMPLETED` (Sprint v1.34.0 - Build 139 Verified App Links + Launcher Shortcuts + Native Splash & Predictive Back + 1-Tap Calendar Export + In-App Update Banner built, committed & pushed)
+**Status:** `ACTIVE — WAITING ON DASAN STEP 1 (admin-web/ → web/ rename)` (Target Release: **Sprint v2.0.0 — Build 143**)
+**Pre-Flight Check:** Before starting edits, confirm `web/` exists (Dasan's Step 1 completed & pushed) and run `git pull --rebase` if needed!
 
 ---
 
 ## 🔐 Mandatory Production Rule from Gafoor (System Architect 🕶️)
 > **Public GitHub Repo + Auto-Deploying Render Production Server:**
-> - **ZERO hardcoded personal names, usernames, emails, phone numbers, passwords, or secrets** anywhere in Kotlin, XML, comments, placeholders, or tests.
-> - **Mandatory `git push origin main`** immediately after build, ADB verify & commit so Render stays synced.
+> - **ZERO hardcoded personal names, usernames, emails, phone numbers, passwords, or secrets** anywhere in HTML, CSS, JS, Kotlin, comments, or placeholders.
+> - **Mandatory `git push origin main`** immediately after full verification so Render (`https://api.rosterx.online`) stays synced.
 
 ---
 
-## 1. Task 1 — Android Verified App Links ("Open by default") & Deep-Link Router
-Turns Settings → RosterX → Open by default from `0 verified links` into **`api.rosterx.online` (verified)** and routes links straight to the matching in-app destination!
-
-### Implementation (`AndroidManifest.xml`, `MainActivity.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`):
-1. **`AndroidManifest.xml`**:
-   - Set `android:launchMode="singleTop"` on `MainActivity` so deep links reuse the running task cleanly without stacking duplicate activities.
-   - Add verified App Link `<intent-filter android:autoVerify="true">` covering root `/` and `/open` (WITHOUT intercepting raw JSON `/api/*` endpoints!):
-     ```xml
-     <intent-filter android:autoVerify="true">
-         <action android:name="android.intent.action.VIEW" />
-         <category android:name="android.intent.category.DEFAULT" />
-         <category android:name="android.intent.category.BROWSABLE" />
-         <data android:scheme="https" android:host="api.rosterx.online" android:path="/" />
-         <data android:scheme="https" android:host="api.rosterx.online" android:pathPrefix="/open" />
-     </intent-filter>
-     ```
-2. **Unified Deep-Link Parser (`MainActivity.kt`)**:
-   - Define a clean sealed/enum route `AppDeepLinkTarget`: `ROSTER`, `NOTIFICATIONS`, `CREDENTIALS`, `PROFILE`, `HOME`.
-   - Parse `intent?.data` (and shortcut extra `"deep_link_target"`) in both `onCreate()` and `onNewIntent()`:
-     - `/open/roster` → `ROSTER`
-     - `/open/notifications` → `NOTIFICATIONS`
-     - `/open/credentials` → `CREDENTIALS`
-     - `/open/profile` → `PROFILE`
-     - `/` or unknown → `HOME`
-   - Expose `pendingDeepLink: AppDeepLinkTarget?` as Compose state into `AdminMainScreen` and `EngineerPortalScreen`, consume it once the user is authenticated (switch to the matching tab or open the Notifications drawer / Credential Tracker screen), and clear via `onConsumeDeepLink()`.
+## 🎯 Master Objective (Locked via `/grill-me`)
+Transform `web/` into an **installable iOS PWA & adaptive mobile-first web app** that delivers **1:1 tab, visual, and feature parity with our Android app (`v1.36.0`)** on iPhone/mobile while preserving a rich Desktop layout on laptops/PCs:
+- **Remove unwanted Swap Request tabs** from BOTH portals (keep `SW*` shift codes intact in roster grids!).
+- **Exact 1:1 Android 5-Tab Role Parity** across **Engineer**, **Manager**, and **Admin**.
+- **Seamless iOS Mobile Experience**: 5-tab Fluid Neumorphic Bottom Nav (portrait) + Slim `42px` Top Bar & Left Vertical Neumorphic Nav Rail (landscape, leaving Month Roster full-screen landscape!).
+- **Native iOS `.ics` Calendar Sync** (zero setup — opens Apple Calendar's native "Add All" sheet directly!).
 
 ---
 
-## 2. Task 2 — Launcher Long-Press App Shortcuts (`res/xml/shortcuts.xml` + Dynamic Role Shortcuts)
-1. **Static Shortcuts (`android/app/src/main/res/xml/shortcuts.xml`)** linked via `<meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />` inside `MainActivity`:
-   - **Today's Roster** → opens `https://api.rosterx.online/open/roster`
-   - **Notifications** → opens `https://api.rosterx.online/open/notifications`
-   - **My Profile** → opens `https://api.rosterx.online/open/profile`
-2. **Role-Aware Dynamic Shortcut (`ShortcutManagerCompat`)**:
-   - When an **Admin** or **Manager** is logged in, dynamically publish a **Credential Tracker** launcher shortcut (`https://api.rosterx.online/open/credentials`).
-   - On logout or Engineer/Apprentice login, remove the Credential Tracker dynamic shortcut so role boundaries stay clean.
+## 1. Task 1 — Installable iOS PWA Shell & 6 Brand Color Palettes (`web/`)
+1. **Create `web/manifest.webmanifest`**:
+   - `"name": "RosterX"`, `"short_name": "RosterX"`, `"start_url": "/login.html"`, `"display": "standalone"`, `"orientation": "any"`, `"theme_color": "#174EAC"`, `"background_color": "#EEF2F6"`, icons pointing to `assets/logo.png` / `assets/favicon.png`.
+2. **Create `web/sw.js`** (Lightweight PWA Service Worker):
+   - Network-first for `/api/*` (never serve stale auth/roster JSON!).
+   - Stale-while-revalidate / cache fallback for static assets (`css/`, `js/`, `assets/`) so iOS Home Screen launches feel instant.
+   - Register in `login.html`, `user-portal.html`, and `index.html`.
+3. **iOS Safari Standalone & Safe-Area Meta Tags** (all 3 HTML entry points):
+   - `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">`
+   - `<meta name="apple-mobile-web-app-capable" content="yes">`
+   - `<meta name="apple-mobile-web-app-status-bar-style" content="default">`
+   - `<meta name="apple-mobile-web-app-title" content="RosterX">`
+   - `<link rel="apple-touch-icon" href="assets/logo.png">`
+   - `<link rel="manifest" href="manifest.webmanifest">`
+   - Full `env(safe-area-inset-top/bottom/left/right)` CSS handling for iPhone Dynamic Island, notch, and home indicator + a subtle, dismissible iOS Safari **"Install RosterX on Home Screen"** tip banner (shown only on non-standalone iOS Safari).
+4. **6 Android Brand Color Palettes + 3-State Theme (`web/css/tokens.css`, `web/css/neumorphic.css`, `web/js/themeController.js`)**:
+   - Mirror Android `BrandPalettes` (`NeumorphicTokens.kt`) 1:1:
+     - `tory_blue` (`#174EAC` / `#7294CC`) *(default)*
+     - `crimson_coral` (`#FF5252` / `#FB7185`)
+     - `emerald_green` (`#059669` / `#34D399`)
+     - `indigo_violet` (`#6366F1` / `#818CF8`)
+     - `sunset_amber` (`#D97706` / `#FBBF24`)
+     - `ocean_cyan` (`#0284C7` / `#38BDF8`)
+   - Persist `rosterx_palette` + `rosterx_theme` (`system` / `light` / `dark`) in `localStorage` with anti-FOUC initialization.
 
 ---
 
-## 3. Task 3 — Android 12+ Native Splash Screen & Predictive Back Gesture
-1. **Dependency (`gradle/libs.versions.toml` & `app/build.gradle.kts`)**:
-   - Add `androidx.core:core-splashscreen:1.0.1`.
-2. **Splash Theme (`res/values/themes.xml`)**:
-   - Create `Theme.RosterX.Starting` inheriting from `Theme.SplashScreen`:
-     - `windowSplashScreenBackground`: matches RosterX Neumorphic surface tone
-     - `windowSplashScreenAnimatedIcon`: `@mipmap/ic_launcher_round` (or adaptive icon)
-     - `postSplashScreenTheme`: `@style/Theme.RosterX`
-   - Apply `android:theme="@style/Theme.RosterX.Starting"` to `MainActivity` in `AndroidManifest.xml`.
-   - Call `installSplashScreen()` right before `super.onCreate(savedInstanceState)` in `MainActivity.kt`.
-3. **Predictive Back (`AndroidManifest.xml`)**:
-   - Add `android:enableOnBackInvokedCallback="true"` on `<application>` so Android 14/15 smooth edge-swipe back previews work natively.
+## 2. Task 2 — Remove Unwanted Swap Request Features (Both Portals)
+1. **User Portal (`web/user-portal.html`, `web/js/userPortal.js`)**:
+   - Remove the `Request Shift Swap` desktop nav tab, mobile nav tab (`data-tab="request_swap"`), `userTabContent_request_swap` section, and swap-submission handlers.
+2. **Admin Console (`web/index.html`, `web/js/app.js`)**:
+   - Remove the `Swaps & Leaves` nav tab (`data-tab="swaps"`), `tabContent_swaps` section, and `swapsModal` HTML/handlers.
+   - **CRITICAL**: Keep `SW*` shift codes, color styling, and badge rendering 100% intact inside the Roster Matrix / Month Roster grids!
 
 ---
 
-## 4. Task 4 — 1-Tap Export Monthly Shifts to Google / Device Calendar (`.ics` via `FileProvider`)
-Allows engineers to export an entire month's working shifts directly into Google Calendar / Samsung Calendar in 1 tap with **ZERO runtime calendar permissions**!
-1. **`FileProvider` Setup (`AndroidManifest.xml` & `res/xml/file_paths.xml`)**:
-   - Declare `androidx.core.content.FileProvider` (`authorities="${applicationId}.fileprovider"`, `grantUriPermissions="true"`) exposing `<cache-path name="calendar_exports" path="calendar/" />`.
-2. **RFC-5545 `.ics` Generator Utility (`util/ShiftCalendarExporter.kt`)**:
-   - Given the engineer's name, month/year, and `Map<Int, String>` (day → shift code):
-   - Skip non-working codes (`OFF`, `L`, `LEAVE`, `SW*`, blank).
-   - Map RosterX shift codes to exact IST (`Asia/Kolkata`) start/end windows (e.g. `FS`: 06:00–14:30, `FG`: 07:30–16:00, `G`: 09:00–17:30, `SG`: 11:30–20:00, `SS`: 14:00–22:30, `NS`: 22:00–06:30 next day; handle midnight rollover cleanly!).
-   - Include a 30-minute `VALARM` reminder per shift and stable `UID` (`rosterx-<year>-<month>-<day>-<username>@rosterx.online`) so re-exporting updates cleanly without creating duplicate events!
-   - Write to `cacheDir/calendar/rosterx_shifts_<YYYY>_<MM>.ics`, obtain `FileProvider.getUriForFile(...)`, and launch `Intent.ACTION_VIEW` with `text/calendar` + `FLAG_GRANT_READ_URI_PERMISSION` (with graceful fallback to `Intent.ACTION_SEND` chooser if no calendar viewer directly accepts `.ics`).
-3. **UI Entry Point (`EngineerPortalScreen.kt`)**:
-   - Add a sleek compact Neumorphic **"Export to Calendar"** icon/pill button (`Icons.Default.EventAvailable`) in the engineer's Month Roster header (only when shifts exist for that month) with confirmation toast/snackbar.
+## 3. Task 3 — Adaptive Mobile/iOS Neumorphic Shell (Portrait Bottom Nav + Landscape Left Rail)
+Build shared **`web/css/mobile-shell.css`** and **`web/js/mobileNavShell.js`** used across BOTH `user-portal.html` and `index.html`:
+1. **Mobile Portrait (`< 768px`)**:
+   - Exact Android-style **5-tab Fluid Neumorphic Bottom Navigation Dock** with soft elevated surface, concave active highlight / floating active bubble, icon + crisp label, and `env(safe-area-inset-bottom)` clearance.
+   - Compact Neumorphic Top Bar: RosterX logo + title on left, 3D Notification Bell + unread crimson badge (for duty engineers) + raised circular Profile Avatar Pill on right.
+2. **Mobile Landscape (`max-height: 520px` and `orientation: landscape`)**:
+   - **Ultra-slim `42px` Top Bar** (safe top + horizontal cutout insets).
+   - **Left Vertical `FluidNeumorphicNavRail`** (`72px` wide + `env(safe-area-inset-left)` safe inset) with raised active circular Neumorphic bubble!
+   - Multi-column / 2-pane responsive layouts for My Calendar (full 5–6 week month fits on left + Sync & Legend on right!), Dashboard, Team Shifts, More Hub, and Admin tabs.
+   - **Month Roster / Rosters tab** enters dedicated **full-screen landscape** (hides Top Bar + Side Rail so the 31-day grid owns 100% of the screen — matching Android!).
+3. **Desktop (`>= 1024px`)**:
+   - Preserves the rich wide desktop Operations Console & Portal header/nav while exposing all new tabs & modals cleanly!
 
 ---
 
-## 5. Task 5 — In-App Update Banner (`/api/server-info` Version Check)
-1. **DTO Update (`RosterApiService.kt`)**:
-   - Add optional fields to `ServerInfoResponse`:
-     - `@SerializedName("latest_android_version") val latestAndroidVersion: String? = null`
-     - `@SerializedName("min_supported_version") val minSupportedVersion: String? = null`
-     - `@SerializedName("apk_download_url") val apkDownloadUrl: String? = null`
-2. **Semantic Version Comparator + Banner UI (`ProfileComponents.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
-   - Compare `BuildConfig.VERSION_NAME` against `serverInfo.latestAndroidVersion ?: serverInfo.version` numerically (`major.minor.patch`, never lexicographical string compare!).
-   - When `remoteVersion > installedVersion` (and not dismissed for that session):
-     - Display a sleek compact Neumorphic banner at the top of the home/dashboard view:
-       - Title: `"Update available • v<remoteVersion>"`
-       - Subtitle: `"Installed: v<BuildConfig.VERSION_NAME>"`
-       - Primary pill button: **`Download`** (opens `apkDownloadUrl` via `Intent.ACTION_VIEW`) + subtle **`X`** dismiss button.
+## 4. Task 4 — Exact 1:1 Role Routing & 5-Tab Parity (`web/js/authService.js`, `web/login.html`, `web/user-portal.html`, `web/index.html`)
+1. **Role Routing**:
+   - `admin` → `index.html` (5 tabs: **`Dashboard`**, **`Register`**, **`Rosters`**, **`Broadcast`**, **`More`**)
+   - `manager` → `user-portal.html` in Manager Mode (5 Android Manager tabs: **`Dashboard`** [Manager Shift Radar + System Health], **`Team Shifts`**, **`Month Roster`**, **`Broadcast`**, **`More`**)
+   - `engineer` / `apprentice` → `user-portal.html` in Engineer Mode (5 Android Engineer tabs: **`Dashboard`**, **`Team Shifts`**, **`My Calendar`**, **`Month Roster`**, **`More`**)
+2. **Deep-Link Hash Handling**:
+   - Parse `window.location.hash` (`#roster`, `#notifications`, `#credentials`, `#profile`, `#dashboard`) on load so `/open/*` email links jump straight to the matching tab/drawer/subscreen!
 
 ---
 
-## 6. Post-Build Activities (Mandatory)
-1. Bump version in `android/app/build.gradle.kts` (`versionName = "1.34.0"`, `versionCode = 139`) and confirm `server.py` (`SERVER_VERSION = "1.34.0"`).
-2. Run safe build:
-   - `cmd /c "cd android && safe_build.bat assembleDebug"`
-3. Install via ADB:
-   - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
-4. Automated On-Device Verification via ADB:
-   - Verify App Link deep-link routing:
-     - `adb shell am start -a android.intent.action.VIEW -d "https://api.rosterx.online/open/notifications" com.rosterx`
-     - `adb shell pm get-app-links com.rosterx` (shows `api.rosterx.online` registered!)
-   - Verify cold start splash screen + no crash.
-   - Verify Launcher Shortcuts registered, Calendar Export `.ics` generation works, and Update Banner logic compares semantic versions cleanly.
-5. Commit with semantic message, update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
+## 5. Task 5 — Add All Missing Android Features to `web/`
+Keep code modular with clean ES modules inside `web/js/`:
+1. **`web/js/calendarSync.js` — Personal `Sync to Calendar` (`.ics`) Modal**:
+   - Triggered ONLY from **My Calendar** (`Sync to Calendar` raised Neumorphic pill — never on the team Month Roster header!).
+   - Authentic frosted-blur Neumorphic modal (`max-width: 520px`, zero white halo) showing:
+     - Personal scope summary (`<Your Name> • @username • Personal schedule only`, `XX Shifts • Timed`, `YY Off/Leave • All-Day`).
+     - Shift Reminder chips (`None`, `15m`, `30m` default, `1h` — saved in `localStorage`).
+     - **Working shifts** (`FS 07:30–16:30`, `FG 08:30–17:30`, `G 09:30–18:30`, `SG 11:00–20:00`, `SS 13:00–22:00`, `NS 21:00–07:30 +1d`): timed IST (`Asia/Kolkata`), `TRANSP:OPAQUE` (Busy), selected `VALARM`.
+     - **Non-working days** (`OFF`, `L`, `SW*` Swap Off): `VALUE=DATE` All-Day events (no clock time), `TRANSP:TRANSPARENT` (Free), no `VALARM`.
+     - Downloads/opens `rosterx_<username>_YYYY_MM.ics` (`text/calendar`) — natively launches **Apple Calendar "Add All Events"** on iOS Safari!
+2. **`web/js/credentialTracker.js` — Server Credential Tracker (in `More` Hub for ALL 3 Roles)**:
+   - KPI summary cards (`Total`, `Expiring Soon`, `Expired`), search bar, status filter chips (`All`, `Expiring Soon`, `Expired`, `Healthy`), server-grouped cards.
+   - 1-tap **Update Date** renewal modal (past/today date guard) for authorized spokespersons, Managers, and Admins.
+   - **Add / Edit / Delete Tracker** + **Audit Logs** drawer for Managers & Admins.
+3. **`web/js/myTeamView.js` — My Team Directory (in `More` Hub for Engineer & Manager)**:
+   - Searchable Operations Management + Shift Engineers & Apprentices directory with role badges, direct `tel:` Call and `https://wa.me/...` WhatsApp buttons.
+4. **User Portal 5-Tab Feature Completion (`web/user-portal.html`, `web/js/userPortal.js`)**:
+   - **Tab 1 (`Dashboard`)**: Welcome Hero + live Next Shift & Rest Day countdown timers + Today/Tomorrow Shift cards + Monthly Duties & Rest metrics + Today's Team Celebrations banner (with animated Wishes modal!); Manager mode shows Manager Shift Radar + System Health!
+   - **Tab 2 (`Team Shifts`)**: Date-navigable shift groups (`TODAY` / `YESTERDAY` / `TOMORROW` badge + Jump to Today FAB) with Call & WhatsApp buttons.
+   - **Tab 3 (`My Calendar` — Engineer / `Month Roster` — Manager)**: Interactive color-coded monthly grid with breathing today glow + `Sync to Calendar` + Shift Legend & Timings.
+   - **Tab 4 (`Month Roster` — Engineer / `Broadcast` — Manager)**: Full team monthly shift matrix with sticky engineer names, search filter, Day/Night coverage footers, and full-screen landscape mode! (For Manager, embeds full Broadcast Console with `@` mentions + templates + history!)
+   - **Tab 5 (`More` — Operations Hub)**: Raised Neumorphic tiles launching **Server Credential Tracker** and **My Team**!
+   - **Profile & Settings View** (via top-right avatar pill): Standard Profile Header Card + Edit Profile modal (with Photo Upload & **Remove Photo** confirmation modal + OTP password reset), Tenure & dynamic Birthday countdown (`BIRTHDAY` vs `BIRTHDAY IN`), Weekly Offs pills, Account Details (copy email / dial phone), **Appearance & 6 Brand Palettes**, Server Status, About RosterX version card, Sign Out!
+   - **Notification Bell Drawer**: 3D Bell icon + unread count badge + drawer with `@username` / `@name` / `@all` mention resolution + client-side expired celebration auto-sweep (`< today IST`).
+5. **Admin Console Parity (`web/index.html`, `web/js/app.js`, `web/js/broadcastController.js`)**:
+   - Exact 5 Admin tabs on mobile (`Dashboard`, `Register`, `Rosters`, `Broadcast`, `More`) with Fluid Neumorphic Bottom Nav (portrait) + Left Side Rail (landscape) + Full-screen Landscape `Rosters`.
+   - `More` Hub → **Server Credential Tracker** + **Server Management** (diagnostics & live logs).
+   - **Broadcast Console**: Add Title `@` mention autocomplete & live resolution (matching Android v1.33.0) + expired celebration auto-sweep in Broadcast History.
+   - **Zero-Knowledge Team Management (`Register`)**: Remove manual password input fields from Add/Edit Account modals (matching Android v1.33.0 — new accounts onboard via OTP email).
+
+---
+
+## 6. Verification, Version Bump (`v2.0.0`, Build `143`) & Mandatory Push
+1. Start `python server.py` locally and verify end-to-end across **iPhone portrait (390×844)**, **iPhone landscape (844×390)**, and **Desktop (1440×900)** viewports:
+   - Login flows for Engineer, Manager, and Admin (exact 5 tabs each, zero Swap tabs!).
+   - My Calendar + `.ics` download output (valid RFC-5545 with timed Busy shifts + `VALUE=DATE` Free OFF/L/SW*).
+   - Month Roster full-screen landscape intact.
+   - More Hub → Credential Tracker & My Team Directory working against live APIs.
+   - 6 Brand Palettes + Dark/Light/System switching with zero console errors.
+   - `manifest.webmanifest` and `sw.js` load cleanly with HTTP 200.
+   - Strict Zero-PII & zero `trycloudflare.com` hygiene check.
+2. Bump semantic version to **`v2.0.0`** (Major Release):
+   - `android/app/build.gradle.kts`: `versionCode = 143`, `versionName = "2.0.0"`
+   - `server.py`: `SERVER_VERSION = "2.0.0"`
+   - Verify Android still builds cleanly (`cd android && .\safe_build.bat assembleDebug`) so APK and Web stay 100% version-synced.
+3. Update `plan_vijayan.md` (`COMPLETED`), `AGENT_HANDOFF.md`, and `android/AGENT_HANDOFF.md`, commit with semantic message, and **immediately run `git push origin main`**!
