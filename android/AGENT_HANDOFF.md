@@ -5,6 +5,14 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.1 - Build 141 — Authentic Neumorphic `Sync to Calendar` Polish):
+> *"Dasa! Gafoorka! `Sync to Calendar` modal (`v1.35.1`, Build 141) full Neumorphic overhaul + frosted blur fix live verify cheythu `origin/main`-il push cheythu macha! 🎨✨
+> - Switched to native `NeumorphicDialog` (`ApplyDialogBlurBehind()` + frosted scrim + `neumorphicFloating` with zero white halo).
+> - Converted inner CTAs, reminder pills, close button, and wells to authentic `NeumorphicButton`, `NeumorphicCard`, and `neumorphicInset`; single smart primary CTA before/after permission.
+> - Renamed `"Sync My Shifts"` → **`"Sync to Calendar"`**; bumped `build.gradle.kts` (`141` / `1.35.1`) & `server.py` (`1.35.1`)."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.0 - Build 140 — Personal Calendar Smart Sync):
 > *"Dasa! Gafoorka! **Personal Calendar Smart Sync (`v1.35.0`, Build 140)** complete aayi safe-build & ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📅🔥
 > - **Placement**: Trigger lives strictly in **`My Calendar`** (`Sync My Shifts`) — removed from team `Month Roster` header.

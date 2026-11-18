@@ -3457,12 +3457,12 @@ fun MyCalendarView(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.EventAvailable,
-                                    contentDescription = "Sync My Shifts",
+                                    contentDescription = "Sync to Calendar",
                                     tint = themeAccent,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
-                                    text = "Sync My Shifts",
+                                    text = "Sync to Calendar",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = themeAccent

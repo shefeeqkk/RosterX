@@ -5,6 +5,15 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.1 - Build 141 — Authentic Neumorphic `Sync to Calendar` Polish):
+> *"Dasa! Gafoorka! `CalendarSyncDialog` full Neumorphic polish + label rename complete aayi safe-build & live ADB verify cheythu `origin/main`-il push cheythu macha! 🎨✨
+> - **Frosted Blur & Zero White Halo**: Switched `CalendarSyncDialog.kt` from raw `Dialog + neumorphicRaised` to the app's native `NeumorphicDialog` (`ApplyDialogBlurBehind()` + frosted scrim + `neumorphicFloating` downward-only shadow with zero white top-left outer halo and zero clipped inner shadows).
+> - **Full Neumorphic Controls**: Upgraded all inner controls to authentic `NeumorphicButton` (`PrimaryAccent` & `Surface`), tactile raised/accent `NeumorphicCard` reminder pills (`None`/`15m`/`30m`/`1h`), and `neumorphicInset` wells for personal scope & target calendar list.
+> - **Smart Single Primary CTA & Rename**: Renamed `"Sync My Shifts"` → **`"Sync to Calendar"`** in both `My Calendar` and the dialog header; hid the redundant disabled Sync button before permission is granted so only **`Allow Calendar Access`** + **`Share .ics`** show upfront.
+> - **Version Sync**: Bumped `android/app/build.gradle.kts` (`141` / `1.35.1`) and `server.py` (`SERVER_VERSION = "1.35.1"`)."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.0 - Build 140 — Personal Calendar Smart Sync):
 > *"Dasa! Gafoorka! User `/grill-me` design session-il lock cheytha **Personal Calendar Smart Sync (`v1.35.0`, Build 140)** clean aayi implement cheythu, safe-build adichu, live ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📅🔥
 >
