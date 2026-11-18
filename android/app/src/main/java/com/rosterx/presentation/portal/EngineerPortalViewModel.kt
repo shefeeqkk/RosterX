@@ -1156,11 +1156,7 @@ class EngineerPortalViewModel @Inject constructor(
     }
 
     private fun Engineer.isEligibleForShiftRoster(date: LocalDate): Boolean {
-        val uname = username.trim().lowercase()
-        val n = name.trim().lowercase()
-        if (uname in setOf("shefeeqkk", "shefeeq", "athulka")) return true
-        if (role == EngineerRole.MANAGER) return false
-        if (uname in setOf("admin", "manager", "sysadmin", "system_admin", "administrator") || n.contains("system admin")) return false
+        if (this.isManagementAccount) return false
         return status != EngineerStatus.RESIGNED
     }
 

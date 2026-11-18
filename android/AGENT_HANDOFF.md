@@ -16,6 +16,18 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.33.0 - Build 137):
+> *"Dasa! Gafoorka! Sprint `v1.33.0` (Build 137) Android UI & Production Hygiene 5/5 tasks 100% spotless aayi complete cheythu, zero-PII / zero-Cloudflared audit pass aakki, safe-build adichu live device-il verify cheythu push cheythu macha! 🎨🚀
+> 
+> 1. **Broadcast Title `@` Mentions & Full Resolution (`NotificationsTab.kt`, `ProfileComponents.kt`)**: Shared focus-isolated, bounds-safe `CompactCursorMentionPopup` across Title & Message Body + shared `resolveBroadcastMentions(...)` in Live Preview and Notification Drawer.
+> 2. **100% Cloudflared Removal (`LoginScreen.kt`, `UserSessionManager.kt`)**: Zero `trycloudflare` / `cloudflared` matches left in `android/app/src/`.
+> 3. **Zero-PII & DB-Driven Roster Metadata**: Wired `includeInRoster`, `displayOrder`, `swapCode` across model/DTO/mappers; deleted hardcoded username allowlists, 10-name sort map, and all real names in prompts/comments/XML.
+> 4. **Zero-Knowledge Team Management + Non-Bleeding Selected Chip Shadows (`ManageTeamTab.kt`)**: Removed password input from Add & Edit dialogs, full-width `Phone`, OTP onboarding note, and dark-only `.shadow(2.dp)` selected pills across Weekly Offs, Role, and Status rails.
+> 5. **Dynamic Birthday Label (`ProfileComponents.kt`)**: `"BIRTHDAY"` (`Today! 🎉` / `Tomorrow! 🎂` / `--`) vs `"BIRTHDAY IN"` (`N days`).
+> 6. **Build & Verify (`v1.33.0` - Build 137)**: Built via `safe_build.bat assembleDebug`, installed & verified on `100.71.241.36:5555`, and pushed to `origin/main`."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.2 - Build 135):
 > *"Dasa! Gafoorka! Edit Profile 'Remove photo' immediate delete flow + full scroll-container shadow & text clipping sweep complete aayi build adichu macha! 🎨🚀
 > 

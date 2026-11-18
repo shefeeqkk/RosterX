@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -103,8 +104,6 @@ fun ManageTeamTab(
         var usernameInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.username ?: "") }
         var emailInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.email ?: "") }
         var phoneInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.phone ?: "") }
-        var passwordInput by remember(editingEngineer) { mutableStateOf("") }
-        var passwordVisible by remember { mutableStateOf(false) }
         var joinDateInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.joinDate ?: "2026-01-01") }
         var birthdayInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.birthday ?: "") }
         var roleInput by remember(editingEngineer) { mutableStateOf(editingEngineer?.role ?: EngineerRole.ENGINEER) }
@@ -347,42 +346,16 @@ fun ManageTeamTab(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Row 3 (Dual-Column 50/50): Phone | Password
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        NeumorphicFormInput(
-                            value = phoneInput,
-                            onValueChange = { phoneInput = it },
-                            label = "Phone",
-                            placeholder = "Enter phone number",
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            enabled = !isReadOnly && !isSaving,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        NeumorphicFormInput(
-                            value = passwordInput,
-                            onValueChange = { passwordInput = it },
-                            label = if (editingEngineer == null) "Password *" else "New password",
-                            placeholder = if (editingEngineer == null) "Required" else "Leave blank",
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            trailingIcon = {
-                                Icon(
-                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle password",
-                                    tint = NeumorphicTokens.TextMuted,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable { passwordVisible = !passwordVisible }
-                                )
-                            },
-                            enabled = !isReadOnly && !isSaving,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    // Row 3 (Single-Column 100%): Phone (Zero-Knowledge: admins/managers never set or edit passwords)
+                    NeumorphicFormInput(
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it },
+                        label = "Phone",
+                        placeholder = "Enter phone number",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        enabled = !isReadOnly && !isSaving,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     // Row 4 (Dual-Column 50/50): Join date | Birthday
                     Row(
@@ -467,11 +440,14 @@ fun ManageTeamTab(
                                         .then(
                                             if (isSelected) {
                                                 Modifier
-                                                    .neumorphicRaised(
+                                                    .shadow(
+                                                        elevation = 2.dp,
                                                         shape = RoundedCornerShape(9.dp),
-                                                        elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                        ambientColor = Color.Black.copy(alpha = 0.22f),
+                                                        spotColor = Color.Black.copy(alpha = 0.28f)
                                                     )
-                                                    .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(9.dp))
+                                                    .clip(RoundedCornerShape(9.dp))
+                                                    .background(NeumorphicTokens.AccentSalmon)
                                             } else {
                                                 Modifier
                                                     .neumorphicInset(
@@ -531,8 +507,8 @@ fun ManageTeamTab(
                                         if (isDark) Color(0x1AFFFFFF) else Color(0x1F94A3B8),
                                         RoundedCornerShape(12.dp)
                                     )
-                                    .padding(3.dp),
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 allDays.forEach { day ->
                                     val isSelected = selectedOffs.contains(day)
@@ -542,11 +518,14 @@ fun ManageTeamTab(
                                             .then(
                                                 if (isSelected) {
                                                     Modifier
-                                                        .neumorphicRaised(
+                                                        .shadow(
+                                                            elevation = 2.dp,
                                                             shape = RoundedCornerShape(9.dp),
-                                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                            ambientColor = Color.Black.copy(alpha = 0.22f),
+                                                            spotColor = Color.Black.copy(alpha = 0.28f)
                                                         )
-                                                        .background(NeumorphicTokens.AccentSalmon, RoundedCornerShape(9.dp))
+                                                        .clip(RoundedCornerShape(9.dp))
+                                                        .background(NeumorphicTokens.AccentSalmon)
                                                 } else {
                                                     Modifier
                                                         .neumorphicInset(
@@ -601,8 +580,8 @@ fun ManageTeamTab(
                                     if (isDark) Color(0x1AFFFFFF) else Color(0x1F94A3B8),
                                     RoundedCornerShape(10.dp)
                                 )
-                                .padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             listOf(
                                 EngineerStatus.ACTIVE to "Active",
@@ -615,11 +594,14 @@ fun ManageTeamTab(
                                         .then(
                                             if (isSelected) {
                                                 Modifier
-                                                    .neumorphicRaised(
+                                                    .shadow(
+                                                        elevation = 2.dp,
                                                         shape = RoundedCornerShape(7.dp),
-                                                        elevation = NeumorphicTokens.ElevationRaisedSubtle
+                                                        ambientColor = Color.Black.copy(alpha = 0.22f),
+                                                        spotColor = Color.Black.copy(alpha = 0.28f)
                                                     )
-                                                    .background(activeColor, RoundedCornerShape(7.dp))
+                                                    .clip(RoundedCornerShape(7.dp))
+                                                    .background(activeColor)
                                             } else {
                                                 Modifier
                                                     .neumorphicInset(
@@ -686,6 +668,17 @@ fun ManageTeamTab(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
+
+                    // Zero-knowledge onboarding notice when registering a new member
+                    if (editingEngineer == null && !isReadOnly) {
+                        Text(
+                            text = "🔒 New members set their own password privately via Forgot password? (Email OTP).",
+                            fontSize = 10.5.sp,
+                            lineHeight = 14.sp,
+                            color = NeumorphicTokens.TextMuted,
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
+                        )
                     }
 
                     // Action Row
@@ -766,11 +759,6 @@ fun ManageTeamTab(
                                             nameInput.split(" ").firstOrNull()?.lowercase()?.trim() ?: "user"
                                         }
 
-                                        if (target == null && passwordInput.isBlank()) {
-                                            Toast.makeText(context, "Please set an initial password for this account", Toast.LENGTH_SHORT).show()
-                                            return@neumorphicClickable
-                                        }
-
                                         isSaving = true
                                         val origUsername = if (target != null && target.username.isNotBlank() && !target.username.equals(cleanUsername, ignoreCase = true)) {
                                             target.username.trim().lowercase()
@@ -789,9 +777,12 @@ fun ManageTeamTab(
                                             joinDate = joinDateInput.ifBlank { "2026-01-01" },
                                             resignationDate = if (statusInput == EngineerStatus.RESIGNED) resignationDateInput.trim().ifBlank { null } else null,
                                             birthday = birthdayInput.ifBlank { null },
-                                            password = passwordInput.trim().ifBlank { null },
+                                            password = null,
                                             originalUsername = origUsername,
-                                            profilePicture = profilePictureInput
+                                            profilePicture = profilePictureInput,
+                                            includeInRoster = target?.includeInRoster,
+                                            displayOrder = target?.displayOrder,
+                                            swapCode = target?.swapCode
                                         )
 
                                         val newList = if (target == null) {

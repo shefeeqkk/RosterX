@@ -29,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -59,6 +60,7 @@ import com.rosterx.presentation.components.NeumorphicButtonVariant
 import com.rosterx.presentation.components.NeumorphicCard
 import com.rosterx.presentation.components.NeumorphicElevationStyle
 import com.rosterx.presentation.components.NeumorphicFormInput
+import com.rosterx.presentation.components.resolveBroadcastMentions
 import com.rosterx.ui.neumorphic.*
 import com.rosterx.ui.theme.LocalIsDarkTheme
 
@@ -104,9 +106,16 @@ fun NotificationsTab(
     // Form states - Clean slate on initialization (no hardcoded default announcement)
     var targetMode by rememberSaveable { mutableStateOf("everyone") } // "everyone" or "specific"
     val selectedEngineerIds = remember { mutableStateListOf<String>() }
-    var notificationTitle by rememberSaveable { mutableStateOf("") }
+    var titleTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+    val notificationTitle = titleTextFieldValue.text
+    var isTitleFocused by remember { mutableStateOf(false) }
+    var titleTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
     var messageTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     val notificationMessage = messageTextFieldValue.text
+    var isMessageFocused by remember { mutableStateOf(false) }
+    var messageTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
     var selectedPriority by rememberSaveable { mutableStateOf(NotificationPriority.INFO) }
 
     // Channel toggles
@@ -124,79 +133,32 @@ fun NotificationsTab(
         state.notifications.filter { !it.isExpiredCelebration() }
     }
 
-    // Cursor-aware live '@' Mention detector + Layout tracker for Cursor-Anchored Popup
-    val density = LocalDensity.current
-    var messageTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    var dismissedMentionPrefix by remember { mutableStateOf<String?>(null) }
-
-    val textBeforeCursor = remember(messageTextFieldValue) {
-        val sel = messageTextFieldValue.selection.start.coerceIn(0, messageTextFieldValue.text.length)
-        messageTextFieldValue.text.take(sel)
-    }
-    LaunchedEffect(textBeforeCursor) {
-        if (dismissedMentionPrefix != null && textBeforeCursor != dismissedMentionPrefix) {
-            dismissedMentionPrefix = null
-        }
-    }
-    val mentionMatch = remember(textBeforeCursor) {
-        Regex("@([a-zA-Z0-9_\\-\\.]*)$").find(textBeforeCursor)
-    }
-    val mentionQuery = mentionMatch?.groupValues?.getOrNull(1)?.lowercase()
-    val isMentionActive = mentionMatch != null && dismissedMentionPrefix != textBeforeCursor
-
-    val matchingMentionEngineers = remember(mentionQuery, activeEngineers) {
-        if (mentionQuery == null) emptyList()
-        else {
-            activeEngineers.filter { eng ->
-                val uname = eng.username.lowercase()
-                val fname = (eng.fullName?.takeIf { it.isNotBlank() } ?: eng.name).lowercase()
-                mentionQuery.isEmpty() || uname.contains(mentionQuery) || fname.contains(mentionQuery)
-            }
-        }
-    }
-
-    // Function to safely insert a mention tag at the cursor
-    val insertMention: (String) -> Unit = { tag ->
-        val q = mentionQuery ?: ""
-        val selStart = messageTextFieldValue.selection.start.coerceIn(0, messageTextFieldValue.text.length)
-        val prefix = messageTextFieldValue.text.take(selStart).dropLast(q.length + 1)
-        val suffix = messageTextFieldValue.text.drop(selStart)
-        val inserted = "@$tag "
-        val newText = prefix + inserted + suffix
-        val newPos = prefix.length + inserted.length
-        dismissedMentionPrefix = null
-        messageTextFieldValue = TextFieldValue(newText, TextRange(newPos))
-    }
-
     // Live preview recipient selector
     var previewTargetIndex by remember { mutableIntStateOf(0) }
     val previewEngineer = activeEngineers.getOrNull(previewTargetIndex) ?: activeEngineers.firstOrNull()
 
-    // Calculated personalized preview with @mention resolution to Full Names
-    val resolvedPreviewMessage = remember(notificationMessage, previewEngineer, activeEngineers) {
-        val engName = previewEngineer?.fullName?.takeIf { it.isNotBlank() }
-            ?: previewEngineer?.name
-            ?: "Engineer"
-        var text = notificationMessage
-        text = text.replace(Regex("@name\\b", RegexOption.IGNORE_CASE), engName)
-        text = text.replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
-        text = text.replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), previewEngineer?.username ?: "engineer")
-        text = text.replace(Regex("@\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@${previewEngineer?.username ?: "engineer"}")
+    // Calculated personalized preview for BOTH Title & Message Body with @mention resolution
+    val previewEngName = previewEngineer?.fullName?.takeIf { it.isNotBlank() }
+        ?: previewEngineer?.name
+        ?: "Team Member"
+    val previewEngUsername = previewEngineer?.username ?: "member_username"
 
-        val mentionRegex = Regex("@([a-zA-Z0-9_\\-\\.]+)")
-        text = mentionRegex.replace(text) { matchResult ->
-            val uname = matchResult.groupValues[1]
-            if (uname.equals("all", ignoreCase = true) || uname.equals("everyone", ignoreCase = true)) {
-                "@everyone"
-            } else if (uname.equals("name", ignoreCase = true)) {
-                engName
-            } else {
-                val found = activeEngineers.find { it.username.equals(uname, ignoreCase = true) }
-                val resolved = found?.fullName?.takeIf { it.isNotBlank() } ?: found?.name ?: uname
-                "@$resolved"
-            }
-        }
-        text
+    val resolvedPreviewTitle = remember(notificationTitle, previewEngName, previewEngUsername, activeEngineers) {
+        resolveBroadcastMentions(
+            rawText = notificationTitle,
+            recipientFullName = previewEngName,
+            recipientUsername = previewEngUsername,
+            engineers = activeEngineers
+        )
+    }
+
+    val resolvedPreviewMessage = remember(notificationMessage, previewEngName, previewEngUsername, activeEngineers) {
+        resolveBroadcastMentions(
+            rawText = notificationMessage,
+            recipientFullName = previewEngName,
+            recipientUsername = previewEngUsername,
+            engineers = activeEngineers
+        )
     }
 
     LazyColumn(
@@ -413,7 +375,8 @@ fun NotificationsTab(
                                         )
                                         .clip(RoundedCornerShape(12.dp))
                                         .clickable {
-                                            notificationTitle = tpl.title ?: tpl.name ?: ""
+                                            val tplTitle = tpl.title ?: tpl.name ?: ""
+                                            titleTextFieldValue = TextFieldValue(tplTitle, TextRange(tplTitle.length))
                                             val msg = tpl.message ?: ""
                                             messageTextFieldValue = TextFieldValue(msg, TextRange(msg.length))
                                             when (tpl.priority?.lowercase()) {
@@ -877,16 +840,94 @@ fun NotificationsTab(
                             }
                         }
 
-                        // Notification Title Input (Sunken Well)
-                        NeumorphicFormInput(
-                            value = notificationTitle,
-                            onValueChange = { notificationTitle = it },
-                            label = "Notification Title *",
-                            placeholder = "Enter broadcast title...",
-                            leadingIcon = {
-                                Icon(Icons.Default.Title, contentDescription = null, tint = NeumorphicTokens.Accent, modifier = Modifier.size(16.dp))
+                        val isDark = LocalIsDarkTheme.current
+                        val defaultInputBorder = if (isDark) Color(0x1FFFFFFF) else Color(0x1F94A3B8)
+
+                        // Notification Title Input (Sunken Well with Cursor-Anchored '@' Mention Popup)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Notification Title *",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeumorphicTokens.TextMuted,
+                                letterSpacing = 0.2.sp
+                            )
+                            val titleBorderColor = if (isTitleFocused) NeumorphicTokens.Accent.copy(alpha = 0.85f) else defaultInputBorder
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .neumorphicInset(
+                                        shape = RoundedCornerShape(12.dp),
+                                        elevation = NeumorphicTokens.ElevationInsetSubtle,
+                                        surfaceColor = NeumorphicTokens.InputSurface
+                                    )
+                                    .border(width = 1.dp, color = titleBorderColor, shape = RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Title,
+                                        contentDescription = null,
+                                        tint = NeumorphicTokens.Accent,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Box(
+                                        modifier = Modifier.weight(1f),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        val titleTextStyle = LocalTextStyle.current.copy(
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp,
+                                            color = NeumorphicTokens.TextMain,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        BasicTextField(
+                                            value = titleTextFieldValue,
+                                            onValueChange = { titleTextFieldValue = it },
+                                            onTextLayout = { titleTextLayoutResult = it },
+                                            singleLine = true,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .onFocusChanged { isTitleFocused = it.isFocused },
+                                            textStyle = titleTextStyle,
+                                            cursorBrush = SolidColor(NeumorphicTokens.Accent),
+                                            decorationBox = { innerTextField ->
+                                                Box(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    contentAlignment = Alignment.CenterStart
+                                                ) {
+                                                    if (titleTextFieldValue.text.isEmpty()) {
+                                                        Text(
+                                                            text = "Enter broadcast title...",
+                                                            style = titleTextStyle.copy(
+                                                                color = NeumorphicTokens.TextMuted.copy(alpha = 0.65f),
+                                                                fontWeight = FontWeight.Normal
+                                                            ),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                    innerTextField()
+                                                }
+                                            }
+                                        )
+
+                                        CompactCursorMentionPopup(
+                                            textFieldValue = titleTextFieldValue,
+                                            onValueChange = { titleTextFieldValue = it },
+                                            textLayoutResult = titleTextLayoutResult,
+                                            isFocused = isTitleFocused,
+                                            activeEngineers = activeEngineers
+                                        )
+                                    }
+                                }
                             }
-                        )
+                        }
 
                         // Message Body Editor (Sunken Multiline Well)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -898,8 +939,7 @@ fun NotificationsTab(
                                 letterSpacing = 0.2.sp
                             )
 
-                            val isDark = LocalIsDarkTheme.current
-                            val borderColor = if (isDark) Color(0x1FFFFFFF) else Color(0x1F94A3B8)
+                            val borderColor = if (isMessageFocused) NeumorphicTokens.Accent.copy(alpha = 0.85f) else defaultInputBorder
 
                             Box(
                                 modifier = Modifier
@@ -927,7 +967,8 @@ fun NotificationsTab(
                                         onTextLayout = { messageTextLayoutResult = it },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .defaultMinSize(minHeight = 98.dp),
+                                            .defaultMinSize(minHeight = 98.dp)
+                                            .onFocusChanged { isMessageFocused = it.isFocused },
                                         textStyle = messageTextStyle,
                                         cursorBrush = SolidColor(NeumorphicTokens.Accent),
                                         decorationBox = { innerTextField ->
@@ -948,134 +989,19 @@ fun NotificationsTab(
                                         }
                                     )
 
-                                    // Cursor-Anchored Ultra-Compact '@' Mention Floating Popup
-                                    val showMentionPopup = isMentionActive && (
-                                        matchingMentionEngineers.isNotEmpty() ||
-                                        "name".contains(mentionQuery ?: "") ||
-                                        "all".contains(mentionQuery ?: "") ||
-                                        "everyone".contains(mentionQuery ?: "")
+                                    CompactCursorMentionPopup(
+                                        textFieldValue = messageTextFieldValue,
+                                        onValueChange = { messageTextFieldValue = it },
+                                        textLayoutResult = messageTextLayoutResult,
+                                        isFocused = isMessageFocused,
+                                        activeEngineers = activeEngineers
                                     )
-                                    val layout = messageTextLayoutResult
-                                    val cursorRect = if (showMentionPopup && layout != null) {
-                                        val layoutTextLength = layout.layoutInput.text.length
-                                        val safeIndex = messageTextFieldValue.selection.start.coerceIn(0, layoutTextLength)
-                                        runCatching { layout.getCursorRect(safeIndex) }.getOrNull()
-                                    } else null
-
-                                    if (showMentionPopup && cursorRect != null) {
-                                        val xOffset = cursorRect.left.toInt().coerceAtLeast(0)
-                                        val yOffset = (cursorRect.bottom + with(density) { 4.dp.toPx() }).toInt()
-
-                                        Popup(
-                                            alignment = Alignment.TopStart,
-                                            offset = IntOffset(x = xOffset, y = yOffset),
-                                            onDismissRequest = { dismissedMentionPrefix = textBeforeCursor },
-                                            properties = PopupProperties(
-                                                focusable = false,
-                                                dismissOnBackPress = true,
-                                                dismissOnClickOutside = true,
-                                                clippingEnabled = true
-                                            )
-                                        ) {
-                                            Surface(
-                                                modifier = Modifier
-                                                    .widthIn(min = 135.dp, max = 195.dp)
-                                                    .heightIn(max = 170.dp),
-                                                shape = RoundedCornerShape(10.dp),
-                                                color = NeumorphicTokens.Surface,
-                                                shadowElevation = 8.dp,
-                                                border = BorderStroke(1.dp, NeumorphicTokens.Accent.copy(alpha = 0.35f))
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .verticalScroll(rememberScrollState())
-                                                        .padding(4.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                                ) {
-                                                    // 1. @name (compact single-line)
-                                                    if ("name".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .clip(RoundedCornerShape(6.dp))
-                                                                .clickable { insertMention("name") }
-                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text(
-                                                                text = "@name",
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = NeumorphicTokens.Accent,
-                                                                maxLines = 1
-                                                            )
-                                                            Text(
-                                                                text = "recipient",
-                                                                fontSize = 10.sp,
-                                                                color = NeumorphicTokens.TextMuted,
-                                                                maxLines = 1
-                                                            )
-                                                        }
-                                                    }
-
-                                                    // 2. @all (compact single-line)
-                                                    if ("all".contains(mentionQuery ?: "") || "everyone".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .clip(RoundedCornerShape(6.dp))
-                                                                .clickable { insertMention("all") }
-                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text(
-                                                                text = "@all",
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = Color(0xFF8B5CF6),
-                                                                maxLines = 1
-                                                            )
-                                                            Text(
-                                                                text = "team",
-                                                                fontSize = 10.sp,
-                                                                color = NeumorphicTokens.TextMuted,
-                                                                maxLines = 1
-                                                            )
-                                                        }
-                                                    }
-
-                                                    // 3. Engineers — ONLY @username (no full name, no avatar, no extra details)
-                                                    matchingMentionEngineers.forEach { eng ->
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .clip(RoundedCornerShape(6.dp))
-                                                                .clickable { insertMention(eng.username) }
-                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            Text(
-                                                                text = "@${eng.username}",
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Medium,
-                                                                color = NeumorphicTokens.TextMain,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
                                 }
                             }
 
                             // Subtle Helper Tip Description
                             Text(
-                                text = "💡 Tip: Type @ to insert dynamic @name, alert @all, or mention specific teammates.",
+                                text = "💡 Tip: Type @ in Title or Message to insert @name, alert @all, or mention specific teammates.",
                                 fontSize = 11.sp,
                                 color = NeumorphicTokens.TextMuted,
                                 lineHeight = 15.sp,
@@ -1210,14 +1136,17 @@ fun NotificationsTab(
                                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = notificationTitle.ifBlank { "(Untitled Notice)" },
+                                                text = resolvedPreviewTitle.ifBlank { "(Untitled Notice)" },
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
-                                                color = NeumorphicTokens.TextMain
+                                                color = NeumorphicTokens.TextMain,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
                                             )
                                             Text(
                                                 text = selectedPriority.label.uppercase(),
@@ -1268,6 +1197,10 @@ fun NotificationsTab(
                                     sendInAppChecked,
                                     sendPushChecked
                                 ) { success, msg ->
+                                    if (success) {
+                                        titleTextFieldValue = TextFieldValue("")
+                                        messageTextFieldValue = TextFieldValue("")
+                                    }
                                     Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                 }
                             },
@@ -1332,7 +1265,8 @@ fun NotificationsTab(
                     NotificationHistoryCard(
                         notif = notif,
                         onClone = {
-                            notificationTitle = notif.title ?: ""
+                            val clonedTitle = notif.title ?: ""
+                            titleTextFieldValue = TextFieldValue(clonedTitle, TextRange(clonedTitle.length))
                             val msg = notif.rawMessage ?: ""
                             messageTextFieldValue = TextFieldValue(msg, TextRange(msg.length))
                             when (notif.priority?.lowercase()) {
@@ -1938,5 +1872,178 @@ fun formatNotificationTimestamp(notif: NotificationDto): String {
         }
     } catch (_: Exception) {
         notif.createdAt?.take(16) ?: "Recently"
+    }
+}
+
+@Composable
+private fun CompactCursorMentionPopup(
+    textFieldValue: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    textLayoutResult: TextLayoutResult?,
+    isFocused: Boolean,
+    activeEngineers: List<Engineer>
+) {
+    val density = LocalDensity.current
+    var dismissedPrefix by remember { mutableStateOf<String?>(null) }
+
+    val textBeforeCursor = remember(textFieldValue) {
+        val sel = textFieldValue.selection.start.coerceIn(0, textFieldValue.text.length)
+        textFieldValue.text.take(sel)
+    }
+    LaunchedEffect(textBeforeCursor) {
+        if (dismissedPrefix != null && textBeforeCursor != dismissedPrefix) {
+            dismissedPrefix = null
+        }
+    }
+
+    val mentionMatch = remember(textBeforeCursor) {
+        Regex("@([a-zA-Z0-9_\\-\\.]*)$").find(textBeforeCursor)
+    }
+    val mentionQuery = mentionMatch?.groupValues?.getOrNull(1)?.lowercase()
+    val isMentionActive = isFocused && mentionMatch != null && dismissedPrefix != textBeforeCursor
+
+    val matchingEngineers = remember(mentionQuery, activeEngineers) {
+        if (mentionQuery == null) emptyList()
+        else {
+            activeEngineers.filter { eng ->
+                val uname = eng.username.lowercase()
+                val fname = (eng.fullName.takeIf { it.isNotBlank() } ?: eng.name).lowercase()
+                mentionQuery.isEmpty() || uname.contains(mentionQuery) || fname.contains(mentionQuery)
+            }
+        }
+    }
+
+    val showMentionPopup = isMentionActive && (
+        matchingEngineers.isNotEmpty() ||
+        "name".contains(mentionQuery ?: "") ||
+        "all".contains(mentionQuery ?: "") ||
+        "everyone".contains(mentionQuery ?: "")
+    )
+
+    val cursorRect = if (showMentionPopup && textLayoutResult != null) {
+        val layoutTextLength = textLayoutResult.layoutInput.text.length
+        val safeIndex = textFieldValue.selection.start.coerceIn(0, layoutTextLength)
+        runCatching { textLayoutResult.getCursorRect(safeIndex) }.getOrNull()
+    } else null
+
+    val insertMention: (String) -> Unit = { tag ->
+        val q = mentionQuery ?: ""
+        val selStart = textFieldValue.selection.start.coerceIn(0, textFieldValue.text.length)
+        val prefix = textFieldValue.text.take(selStart).dropLast(q.length + 1)
+        val suffix = textFieldValue.text.drop(selStart)
+        val inserted = "@$tag "
+        val newText = prefix + inserted + suffix
+        val newPos = prefix.length + inserted.length
+        dismissedPrefix = null
+        onValueChange(TextFieldValue(newText, TextRange(newPos)))
+    }
+
+    if (showMentionPopup && cursorRect != null) {
+        val xOffset = cursorRect.left.toInt().coerceAtLeast(0)
+        val yOffset = (cursorRect.bottom + with(density) { 4.dp.toPx() }).toInt()
+
+        Popup(
+            alignment = Alignment.TopStart,
+            offset = IntOffset(x = xOffset, y = yOffset),
+            onDismissRequest = { dismissedPrefix = textBeforeCursor },
+            properties = PopupProperties(
+                focusable = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+                clippingEnabled = true
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(min = 135.dp, max = 195.dp)
+                    .heightIn(max = 170.dp),
+                shape = RoundedCornerShape(10.dp),
+                color = NeumorphicTokens.Surface,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.dp, NeumorphicTokens.Accent.copy(alpha = 0.35f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    // 1. @name (compact single-line)
+                    if ("name".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { insertMention("name") }
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "@name",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeumorphicTokens.Accent,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "recipient",
+                                fontSize = 10.sp,
+                                color = NeumorphicTokens.TextMuted,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    // 2. @all (compact single-line)
+                    if ("all".contains(mentionQuery ?: "") || "everyone".contains(mentionQuery ?: "") || (mentionQuery ?: "").isEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { insertMention("all") }
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "@all",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF8B5CF6),
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "team",
+                                fontSize = 10.sp,
+                                color = NeumorphicTokens.TextMuted,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    // 3. Engineers — ONLY @username (no full name, no avatar, no extra details)
+                    matchingEngineers.forEach { eng ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { insertMention(eng.username) }
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "@${eng.username}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = NeumorphicTokens.TextMain,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }

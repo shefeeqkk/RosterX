@@ -164,6 +164,9 @@ class RosterSyncWorker(
         resignationDate = this.resignationDate,
         originalUsername = this.originalUsername,
         profilePicture = this.profilePicture,
-        birthday = this.birthday
+        birthday = this.birthday,
+        includeInRoster = this.includeInRoster,
+        displayOrder = this.displayOrder,
+        swapCode = this.swapCode
     )
 }

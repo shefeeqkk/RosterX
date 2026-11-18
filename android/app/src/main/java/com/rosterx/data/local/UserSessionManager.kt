@@ -191,8 +191,8 @@ class UserSessionManager @Inject constructor(
         val saved = prefs.getString("custom_base_url", null)
         if (!saved.isNullOrBlank()) {
             val clean = sanitizeBaseUrl(saved)
-            // Auto-migrate legacy onrender or trycloudflare URLs to official custom domain
-            if (clean.contains("onrender.com") || clean.contains("trycloudflare.com")) {
+            // Auto-migrate legacy Render subdomain URLs to official custom domain
+            if (clean.contains("onrender.com")) {
                 prefs.edit().putString("custom_base_url", DEFAULT_PRODUCTION_URL).apply()
                 return DEFAULT_PRODUCTION_URL
             }

@@ -69,7 +69,7 @@
                     android:fontFamily="sans-serif-bold"
                     android:maxLines="1"
                     android:singleLine="true"
-                    android:text="Nandu"
+                    android:text="Member 1"
                     android:textColor="@color/widget_text_main"
                     android:textSize="10.5sp"
                     android:textStyle="bold" />
@@ -157,7 +157,7 @@
                     android:fontFamily="sans-serif-bold"
                     android:maxLines="1"
                     android:singleLine="true"
-                    android:text="Dhanush"
+                    android:text="Member 2"
                     android:textColor="@color/widget_text_main"
                     android:textSize="10.5sp"
                     android:textStyle="bold" />

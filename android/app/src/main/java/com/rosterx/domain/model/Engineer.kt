@@ -23,7 +23,10 @@ data class Engineer(
     val password: String? = null,
     val originalUsername: String? = null,
     val profilePicture: String? = null,
-    val birthday: String? = null
+    val birthday: String? = null,
+    val includeInRoster: Boolean? = null,
+    val displayOrder: Int? = null,
+    val swapCode: String? = null
 )
 
 /**
@@ -33,17 +36,17 @@ data class Engineer(
  */
 val Engineer.isManagementAccount: Boolean
     get() {
-        val uname = username.trim().lowercase()
-        val n = name.trim().lowercase()
-        val fn = fullName.trim().lowercase()
-        // Never treat actual team engineers (like Shefeeq or Atul) as pure management accounts even if they hold admin roles
-        if (uname in setOf("shefeeqkk", "shefeeq", "athulka")) {
-            return false
-        }
+        // Explicit DB-driven roster inclusion flag takes highest priority
+        if (includeInRoster == true) return false
+        if (includeInRoster == false) return true
+
         // Managers are strictly management accounts - never on desk shift duty or roster grids
         if (role == EngineerRole.MANAGER) {
             return true
         }
+        val uname = username.trim().lowercase()
+        val n = name.trim().lowercase()
+        val fn = fullName.trim().lowercase()
         return uname in setOf("admin", "manager", "sysadmin", "system_admin", "administrator") ||
                n in setOf("admin", "system administrator", "system admin") ||
                n.contains("system admin") ||

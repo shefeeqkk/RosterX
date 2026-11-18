@@ -186,7 +186,7 @@ class RosterXAppWidgetProvider : AppWidgetProvider() {
             roster[eng.name.uppercase()]?.let { return it }
             roster[eng.name.lowercase()]?.let { return it }
 
-            // 2. First name lookup (e.g. "Shefeeq K K" -> "Shefeeq")
+            // 2. First name lookup (e.g. "Alex Morgan" -> "Alex")
             val firstName = eng.name.trim().split(Regex("\\s+")).firstOrNull { it.isNotBlank() } ?: ""
             if (firstName.isNotBlank()) {
                 roster[firstName]?.let { return it }

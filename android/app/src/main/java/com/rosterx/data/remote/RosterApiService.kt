@@ -166,7 +166,10 @@ data class EngineerDto(
     @SerializedName("password") val password: String? = null,
     @SerializedName("original_username") val originalUsername: String? = null,
     @SerializedName("profile_picture") val profilePicture: String? = null,
-    @SerializedName("birthday") val birthday: String? = null
+    @SerializedName("birthday") val birthday: String? = null,
+    @SerializedName("include_in_roster") val includeInRoster: Boolean? = null,
+    @SerializedName("display_order") val displayOrder: Int? = null,
+    @SerializedName("swap_code") val swapCode: String? = null
 )
 
 data class RosterResponse(

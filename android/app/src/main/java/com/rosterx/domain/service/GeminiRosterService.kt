@@ -73,9 +73,9 @@ class GeminiRosterService(private val apiKey: String, private val modelName: Str
                 
                 Propose the changes in valid JSON adhering to:
                 {
-                   "explanation": "I have cleared Shefeeq's shifts for next week...",
+                   "explanation": "I have cleared Team Member's shifts for next week...",
                    "modifiedShifts": {
-                       "shefeeqkk": {
+                       "member_username": {
                            "15": "OFF",
                            "16": "OFF"
                        }

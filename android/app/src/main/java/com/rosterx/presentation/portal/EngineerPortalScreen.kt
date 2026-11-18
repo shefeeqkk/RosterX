@@ -219,35 +219,9 @@ fun getWeekOffSortScore(weeklyOffs: List<String>?): Int {
 
 
 fun getEngineerOrderWeight(eng: Engineer): Int {
-
-    val nameUpper = eng.name.trim().uppercase()
-
-    return when {
-
-        nameUpper.contains("NANDU") -> 1
-
-        nameUpper.contains("DYANI") -> 2
-
-        nameUpper.contains("SHEFEEQ") -> 3
-
-        nameUpper.contains("HEMANTH") -> 4
-
-        nameUpper.contains("ATUL") -> 5
-
-        nameUpper.contains("SILAMBARASAN") -> 6
-
-        nameUpper.contains("MANOJ") -> 7
-
-        nameUpper.contains("RAJ KUMAR") -> 8
-
-        nameUpper.contains("ROHIT") -> 9
-
-        nameUpper.contains("DHANUSH") -> 10
-
-        else -> 9999
-
-    }
-
+    eng.displayOrder?.let { return it }
+    val digits = Regex("\\d+").find(eng.id)?.value?.toIntOrNull()
+    return digits ?: Int.MAX_VALUE
 }
 
 

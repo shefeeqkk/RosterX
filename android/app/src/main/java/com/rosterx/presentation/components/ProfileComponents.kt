@@ -454,23 +454,33 @@ fun TenureAndBirthdayRow(
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
+                val bdayLabel = if (daysUntilBday != null && daysUntilBday >= 2) "BIRTHDAY IN" else "BIRTHDAY"
                 Text(
-                    text = "BIRTHDAY IN",
+                    text = bdayLabel,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeumorphicTokens.TextMuted,
                     letterSpacing = 0.5.sp
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                if (daysUntilBday != null) {
-                    if (daysUntilBday == 0) {
+                when {
+                    daysUntilBday == 0 -> {
                         Text(
-                            text = "TODAY! 🎉",
+                            text = "Today! 🎉",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFFF59E0B)
                         )
-                    } else {
+                    }
+                    daysUntilBday == 1 -> {
+                        Text(
+                            text = "Tomorrow! 🎂",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = activeAccent
+                        )
+                    }
+                    daysUntilBday != null -> {
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 text = "$daysUntilBday",
@@ -479,20 +489,21 @@ fun TenureAndBirthdayRow(
                                 color = activeAccent
                             )
                             Text(
-                                text = if (daysUntilBday == 1) " day" else " days",
+                                text = " days",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = NeumorphicTokens.TextMuted
                             )
                         }
                     }
-                } else {
-                    Text(
-                        text = "--",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = NeumorphicTokens.TextMuted
-                    )
+                    else -> {
+                        Text(
+                            text = "--",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeumorphicTokens.TextMuted
+                        )
+                    }
                 }
             }
         }
@@ -1536,6 +1547,35 @@ fun UnifiedEditProfileDialog(
     }
 }
 
+fun resolveBroadcastMentions(
+    rawText: String,
+    recipientFullName: String,
+    recipientUsername: String,
+    engineers: List<com.rosterx.domain.model.Engineer>
+): String {
+    if (rawText.isBlank()) return rawText
+    var text = rawText
+    text = text.replace(Regex("@name\\b", RegexOption.IGNORE_CASE), recipientFullName)
+    text = text.replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), recipientFullName)
+    text = text.replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$recipientUsername")
+    text = text.replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), recipientUsername)
+
+    val mentionRegex = Regex("@([a-zA-Z0-9_\\-\\.]+)")
+    text = mentionRegex.replace(text) { matchResult ->
+        val uname = matchResult.groupValues[1]
+        when {
+            uname.equals("all", ignoreCase = true) || uname.equals("everyone", ignoreCase = true) -> "@Everyone"
+            uname.equals("name", ignoreCase = true) -> recipientFullName
+            else -> {
+                val found = engineers.find { it.username.equals(uname, ignoreCase = true) }
+                val resolved = found?.fullName?.takeIf { it.isNotBlank() } ?: found?.name
+                if (resolved != null) "@$resolved" else matchResult.value
+            }
+        }
+    }
+    return text
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun QuickNotificationsBottomSheet(
@@ -1783,10 +1823,19 @@ fun QuickNotificationsBottomSheet(
                             else -> Triple("OPERATIONS", Icons.Default.Info, Color(0xFF10B981))
                         }
 
-                        val rawResolved = (notif.rawMessage ?: notif.samplePersonalized ?: "")
-                            .replace(Regex("\\{\\s*(?:Their\\s+name|their\\s+name|name)\\s*\\}", RegexOption.IGNORE_CASE), engName)
-                            .replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), engUsername)
-                            .replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$engUsername")
+                        val resolvedTitle = resolveBroadcastMentions(
+                            rawText = notif.title ?: "Broadcast Announcement",
+                            recipientFullName = engName,
+                            recipientUsername = engUsername,
+                            engineers = engineers
+                        )
+
+                        val rawResolved = resolveBroadcastMentions(
+                            rawText = notif.rawMessage ?: notif.samplePersonalized ?: "",
+                            recipientFullName = engName,
+                            recipientUsername = engUsername,
+                            engineers = engineers
+                        )
 
                         val dateIsoRegex = Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""")
                         val resolvedMsg = dateIsoRegex.replace(rawResolved) { m ->
@@ -1958,7 +2007,7 @@ fun QuickNotificationsBottomSheet(
                                                     }
                                                 }
                                                 Text(
-                                                    text = notif.title ?: "Broadcast Announcement",
+                                                    text = resolvedTitle,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = NeumorphicTokens.TextMain,

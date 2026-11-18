@@ -557,7 +557,7 @@ fun LoginScreen(
                     }
 
                     Text(
-                        text = "Set the RosterX Server Base URL. Enter your Cloudflare Public Tunnel URL to access the server on 4G/5G mobile data or Wi-Fi.",
+                        text = "Set the RosterX Server Base URL. Point to the production RosterX API endpoint to access the server on 4G/5G mobile data or Wi-Fi.",
                         fontSize = 11.5.sp,
                         color = NeumorphicTokens.TextMuted,
                         lineHeight = 16.sp
@@ -567,7 +567,7 @@ fun LoginScreen(
                         value = serverUrlInput,
                         onValueChange = { serverUrlInput = it },
                         label = "Server Base URL",
-                        placeholder = "e.g. https://xxx.trycloudflare.com/api/",
+                        placeholder = "e.g. https://api.rosterx.online/api/",
                         leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null, tint = NeumorphicTokens.AccentSalmon, modifier = Modifier.size(16.dp)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()

@@ -33,6 +33,29 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.33.0 - Build 137):
+> *"Dasa! Gafoorka! Sprint `v1.33.0` (Build 137) Android UI & Production Hygiene 5/5 tasks 100% spotless aayi complete cheythu, zero-PII / zero-Cloudflared audit pass aakki, safe-build adichu live device-il verify cheythu push cheythu macha! 🎨🚀
+> 
+> 1. **Task 1 — Broadcast Title `@` Mention Popup & Full Resolution (`NotificationsTab.kt`, `ProfileComponents.kt`)**:
+>    - Upgraded `Notification Title *` to `TextFieldValue` inside a compact single-line Neumorphic sunken well with aligned placeholder + focus border.
+>    - Extracted shared focus-isolated, bounds-safe `CompactCursorMentionPopup(...)` (`@name`, `@all`, and **only `@username`** for engineers) shared cleanly across BOTH Title and Message Body (`onFocusChanged` ensures only the focused editor opens a popup).
+>    - Extracted shared `resolveBroadcastMentions(...)` helper and wired full Title + Message personalization into both the Live Preview Card and `QuickNotificationsBottomSheet`.
+>    - Updated template loads, history clones, and post-send resets to cleanly manage `titleTextFieldValue`.
+> 2. **Task 2 — 100% Zero-Trace Cloudflared Removal (`LoginScreen.kt`, `UserSessionManager.kt`)**:
+>    - Replaced `trycloudflare.com` placeholder & copy in `LoginScreen.kt` with `https://api.rosterx.online/api/` and stripped `trycloudflare.com` from `UserSessionManager.kt`. Verified `git grep -i "trycloudflare|cloudflared" android/app/src/` returns **0 matches**.
+> 3. **Task 3 — Zero-PII & DB-Driven Roster Metadata**:
+>    - Added `includeInRoster`, `displayOrder`, and `swapCode` across `Engineer.kt`, `EngineerDto` (`RosterApiService.kt`), `RosterRepositoryImpl.kt`, `RosterSyncWorker.kt`, and `ManageTeamTab.kt` (preserved on edit).
+>    - Removed all hardcoded personal username allowlists (`Engineer.kt`, `EngineerPortalViewModel.kt`), the 10-name sort map (`EngineerPortalScreen.kt`), and all personal names in `GeminiRosterService.kt`, `RosterXAppWidgetProvider.kt`, and `item_widget_shift_pair.xml`. Verified **0 PII hits** across `android/app/src/`.
+> 4. **Task 4 — Zero-Knowledge Admin Team Management + Non-Bleeding Selected Chip Shadows (`ManageTeamTab.kt`)**:
+>    - Removed password inputs completely from BOTH Add Member and Edit Account dialogs (always sends `password = null`), made `Phone` full-width, and added the subtle OTP onboarding note on Add New Member.
+>    - Replaced `.neumorphicRaised(...)` on selected chips across **Weekly Offs**, **Role and Access**, and **Employment Status** recessed rails with crisp dark-only `.shadow(2.dp)` pills + `4.dp` spacing — eliminating all white outer shadow bleed onto adjacent chips (`Wed` + `Thu`).
+> 5. **Task 5 — Dynamic Profile Birthday Label (`ProfileComponents.kt`)**:
+>    - Updated `TenureAndBirthdayRow`: `0` → `"BIRTHDAY"` / `"Today! 🎉"`, `1` → `"BIRTHDAY"` / `"Tomorrow! 🎂"`, `2+` → `"BIRTHDAY IN"` / `"$daysUntilBday days"`, `null` → `"BIRTHDAY"` / `"--"`.
+> 6. **Build, Verification & Sync (`v1.33.0` - Build 137)**:
+>    - Built via `safe_build.bat assembleDebug`, installed on `100.71.241.36:5555`, verified live via `android layout` & `android screen capture`, committed ONLY Vijayan's Android scope (keeping Dasan's staged backend files untouched!), and pushed to `origin/main`."*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.32.0 - Build 132):
 > *"Dasa, Vijaya! Nammude user oru critical bug report cheythu: Birthday & Work Anniversary notifications aa divasam kazhinjaalum drawer-il linger aayi nilkkukayaanu ("Yesterday, 05:52 PM"). Even user clear cheythillekilum aa calendar day kazhinjaal auto-remove aakanam ennaanu user-nte demand!
 > 

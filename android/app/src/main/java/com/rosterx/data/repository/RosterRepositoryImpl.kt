@@ -924,7 +924,10 @@ class RosterRepositoryImpl @Inject constructor(
             resignationDate = resignationDate,
             originalUsername = originalUsername,
             profilePicture = profilePicture,
-            birthday = birthday
+            birthday = birthday,
+            includeInRoster = includeInRoster,
+            displayOrder = displayOrder,
+            swapCode = swapCode
         )
     }
 
@@ -945,7 +948,10 @@ class RosterRepositoryImpl @Inject constructor(
             password = password,
             originalUsername = originalUsername,
             profilePicture = profilePicture,
-            birthday = birthday
+            birthday = birthday,
+            includeInRoster = includeInRoster,
+            displayOrder = displayOrder,
+            swapCode = swapCode
         )
     }
 
