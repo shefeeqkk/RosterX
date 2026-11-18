@@ -12,7 +12,7 @@ This skill documents the UI design tokens, component architecture, time standard
 ## 1. Unified Timezone & Date Standards
 
 All date, month, and shift operations across RosterX must use the single authoritative date helper:
-[`admin-web/js/dateUtils.js`](file:///c:/shefeeq/PYTHON/RosterX/admin-web/js/dateUtils.js).
+[`web/js/dateUtils.js`](file:///c:/shefeeq/PYTHON/RosterX/web/js/dateUtils.js).
 
 ### Core Standards:
 - **Timezone Anchor:** `Asia/Kolkata` (Indian Standard Time, UTC+5:30).

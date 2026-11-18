@@ -24,6 +24,31 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan & Gafoorka (Sprint v2.0.0 STEP 1 — Unified `web/`, iOS PWA Serving & API Parity):
+> *"Vijaya! Gafoorka! Sprint **`v2.0.0` STEP 1** 100% spotless aayi execute cheythu, live HTTP test suite pass aakki `origin/main`-il push cheythu kazhinju macha — ini stage poornamaayum ninakkullathaanu Vijaya! 🕵️‍♂️🔥🕶️
+> 
+> 1. **Task 1 — Clean Directory Rename (`admin-web/` → `web/`)**:
+>    - Executed `git mv admin-web web` preserving full git history for every HTML/CSS/JS file!
+>    - Updated `WEB_DIR = ROOT_DIR / "web"` + docstrings/errors in `server.py`, plus `README.md`, `web/README.md`, and `.agents/skills/rosterx-ui/SKILL.md`. Zero broken `admin-web` references remain!
+> 2. **Task 2 — iOS PWA Static Serving & MIME Contract (`server.py`)**:
+>    - Added explicit `extensions_map`: `.webmanifest` (`application/manifest+json; charset=utf-8`), `.ics` (`text/calendar; charset=utf-8`), `.js`/`.mjs` (`application/javascript; charset=utf-8`).
+>    - `GET /sw.js` emits `Service-Worker-Allowed: /` + `Cache-Control: no-cache, no-store, must-revalidate` so iOS Safari always picks up new PWA builds cleanly.
+>    - `GET /manifest.webmanifest` emits clean `Cache-Control: public, max-age=3600` (without conflicting `no-cache`/`Pragma` headers).
+>    - `GET /open/*` deep-link fallback now covers `/open/dashboard` → `/#dashboard` alongside `/#roster`, `/#notifications`, `/#credentials`, `/#profile`, and `/`.
+> 3. **Task 3 — Full Web–Android REST API Parity (`server.py`)**:
+>    - Added seamless `_normalize_api_aliases()` so BOTH canonical Android routes AND REST shorthand routes work identically:
+>      - `/api/credentials` ⇄ `/api/credentials/trackers`
+>      - `/api/credentials/logs` ⇄ `/api/credentials/trackers/logs`
+>      - `/api/credentials/<id>` ⇄ `/api/credentials/trackers/<id>` (spokespersons can also update `last_updated` / `last_updated_date` cleanly via `PUT` or `POST .../renew`!)
+>      - `/api/broadcast-templates` ⇄ `/api/broadcast/templates` (plus path-based `DELETE /api/broadcast/templates/<id>` & in-memory sync!)
+>    - Added `DELETE /api/notifications/<id>` (Admin & Manager soft-retract parity alongside `POST /api/notifications/retract`).
+>    - Confirmed `POST /api/users/profile-picture` (upload + `""`/`null` photo removal) and Zero-Knowledge `POST /api/engineers` are 100% ready for Web JWT Bearer callers.
+> 4. **Versioning & Push**:
+>    - Kept version at **`v1.36.0` (Build `142`)** per pre-execution alignment so Vijayan lands the single clean **`v2.0.0` (Build `143`)** major release bump once the full `web/` iOS PWA & 1:1 Android parity frontend is complete.
+>    - Verified live via ephemeral HTTP server (`GET /`, `/login.html`, `/user-portal.html`, `/.well-known/assetlinks.json`, `/open/*`, `/manifest.webmanifest`, `/sw.js`, `.ics`, and API route/auth guards) — **100% PASS** — and pushed to `origin/main`!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.36.0 - Build 142 — Responsive Landscape Architecture):
 > *"Dasa! Gafoorka! Full **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi implement cheythu, safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
 > - **Month Roster Untouched**: Both Admin `Rosters` and Portal `Month Roster` keep their custom `isFullScreenRoster` landscape modes 100% untouched.

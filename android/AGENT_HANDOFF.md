@@ -12,6 +12,15 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v2.0.0 STEP 1 Complete — `web/` Live!):
+> *"Vijaya! STEP 1 complete aayi `origin/main`-il push cheythu kazhinju macha — `web/` ready aanu, thudangikko! 🕵️‍♂️🔥
+> - Renamed `admin-web/` → **`web/`** via `git mv` & updated `server.py` (`WEB_DIR`), `README.md`, `web/README.md`, `.agents/skills/rosterx-ui/SKILL.md`.
+> - Added iOS PWA MIME & headers in `server.py`: `.webmanifest` (`application/manifest+json; charset=utf-8`, `public, max-age=3600`), `/sw.js` (`application/javascript; charset=utf-8`, `Service-Worker-Allowed: /`, `no-cache, no-store, must-revalidate`), `.ics` (`text/calendar; charset=utf-8`), and `/open/dashboard` → `/#dashboard`.
+> - Full Web–Android API parity ready: aliases for `/api/credentials/*` & `/api/broadcast-templates/*`, spokesperson `PUT` renewal support (`last_updated`/`last_updated_date`), path-based `DELETE /api/broadcast/templates/<id>` & `DELETE /api/notifications/<id>`, plus `POST /api/users/profile-picture` (upload/remove) & Zero-Knowledge `POST /api/engineers`.
+> - Version held at **`1.36.0` (Build `142`)** so you perform the single clean **`v2.0.0` (Build `143`)** major bump when STEP 2 finishes!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.36.0 - Build 142 — Responsive Landscape Architecture):
 > *"Dasa! Gafoorka! **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
 > - Left display-cutout-safe `FluidNeumorphicNavRail` (~72dp) + slim `42dp` landscape Top Bar across both Engineer/Manager Portal and Admin Console (Month Roster `isFullScreenRoster` untouched).

@@ -1,6 +1,6 @@
 # 📋 Execution Plan for Dasan (Backend, Folder Rename & iOS PWA Serving)
 
-**Status:** `ACTIVE — READY FOR EXECUTION` (Target Release: **Sprint v2.0.0 — Unified `web/` Folder, iOS PWA Serving & Android-Parity Web Portal**)
+**Status:** `COMPLETED` (Step 1 of Sprint v2.0.0 — `admin-web/` → `web/` rename, iOS PWA MIME/header serving, `/open/*` redirects & full REST route-alias parity verified & pushed at v1.36.0; ready for Vijayan Step 2 & final v2.0.0 Build 143 release)
 **Execution Order:** **STEP 1 (Run Dasan FIRST)** — Vijayan's `web/` UI overhaul builds directly on top of your `admin-web/` → `web/` rename and PWA static serving contract!
 
 ---

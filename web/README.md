@@ -100,7 +100,7 @@ A zero-server enterprise shift roster management platform designed for a 24/7 Ne
 
 1. **Start the local HTTP server** (if not already running):
    ```bash
-   cd admin-web
+   cd web
    python -m http.server 8000
    ```
 2. Open **[http://localhost:8000](http://localhost:8000)** in your browser.

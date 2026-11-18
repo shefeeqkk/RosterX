@@ -2,7 +2,7 @@
 """
 RosterX - Secure Production & Development Server & Native Python Atlas Bridge
 Provides:
-  - Isolated serving of 'admin-web/' directory
+  - Isolated serving of 'web/' directory
   - Native MongoDB Atlas REST API bridge using PyMongo
   - Cryptographic HMAC-SHA256 JWT Authentication & Role-Based Access Control (RBAC)
   - PBKDF2-HMAC-SHA256 Password Hashing & Salted Storage (Zero Plaintext)
@@ -136,7 +136,7 @@ if sys.platform == "win32":
 
 # Base Paths
 ROOT_DIR = Path(__file__).resolve().parent
-WEB_DIR = ROOT_DIR / "admin-web"
+WEB_DIR = ROOT_DIR / "web"
 
 # Global Atlas Bridge State
 ATLAS_CLIENT = None
@@ -2935,15 +2935,43 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
     """
     Secure HTTP handler combining:
       - Native MongoDB Atlas REST API bridge (/api/*)
-      - Isolated static web serving for admin-web/
+      - Isolated static web & iOS PWA serving for web/
       - Token-based JWT Authentication & Role-Based Authorization
       - Rate limiting and brute-force mitigation
       - Strict blocking of .env, dotfiles, and sensitive configs
       - Restricted CORS and security headers
     """
 
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".webmanifest": "application/manifest+json; charset=utf-8",
+        ".ics": "text/calendar; charset=utf-8",
+        ".js": "application/javascript; charset=utf-8",
+        ".mjs": "application/javascript; charset=utf-8",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_DIR), **kwargs)
+
+    @staticmethod
+    def _normalize_api_aliases(norm_path: str) -> str:
+        """
+        Map shorthand REST routes seamlessly onto canonical /api/* endpoints so both
+        Android and Web PWA clients enjoy 100% route parity with zero 404 risk.
+        """
+        if norm_path == "/api/credentials":
+            return "/api/credentials/trackers"
+        if norm_path == "/api/credentials/logs":
+            return "/api/credentials/trackers/logs"
+        if norm_path.startswith("/api/credentials/") and not norm_path.startswith("/api/credentials/trackers"):
+            suffix = norm_path[len("/api/credentials/"):]
+            return f"/api/credentials/trackers/{suffix}"
+        if norm_path == "/api/broadcast-templates":
+            return "/api/broadcast/templates"
+        if norm_path.startswith("/api/broadcast-templates/"):
+            suffix = norm_path[len("/api/broadcast-templates/"):]
+            return f"/api/broadcast/templates/{suffix}"
+        return norm_path
 
     def get_client_ip(self):
         """Extract caller's real IP address through reverse proxies or direct socket."""
@@ -3048,8 +3076,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/"):
+        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/broadcast-templates", "/credentials", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
             norm_path = "/api" + norm_path
+        norm_path = self._normalize_api_aliases(norm_path)
 
         # REST API Endpoints (/api/*)
         if norm_path.startswith("/api/"):
@@ -3079,11 +3108,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             )
             return
 
-        # Graceful Desktop Fallback for Android Deep Links (/open and /open/*)
+        # Graceful Desktop & iOS Safari Fallback for Deep Links (/open and /open/*)
         if norm_path == "/open" or norm_path.startswith("/open/"):
             sub_route = norm_path[len("/open"):].strip("/").lower()
             first_seg = sub_route.split("/")[0] if sub_route else ""
             deep_link_fallback_map = {
+                "dashboard": "/#dashboard",
                 "roster": "/#roster",
                 "notifications": "/#notifications",
                 "credentials": "/#credentials",
@@ -3107,6 +3137,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if blocked in path_lower:
                 self.send_error(403, "Access Denied: Requested resource is protected.")
                 return
+
+        # iOS PWA Service Worker & Web App Manifest response header hooks
+        if path_lower == "/sw.js":
+            self._sw_headers = True
+        elif path_lower == "/manifest.webmanifest":
+            self._manifest_cache_headers = True
 
         super().do_GET()
 
@@ -3934,12 +3970,15 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/roster-backups/restore", "/notifications/send",
             "/notifications/dismiss", "/notifications/retract",
             "/broadcast/templates", "/broadcast/templates/delete",
+            "/broadcast-templates", "/broadcast-templates/delete",
+            "/credentials", "/credentials/trackers",
             "/users/fcm-token", "/users/fcm-token/unregister", "/fcm/unregister",
             "/users/profile", "/celebrations/check",
             "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant",
             "/users/profile-picture"
-        ) or norm_path.startswith("/roster-backups/"):
+        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
             norm_path = "/api" + norm_path
+        norm_path = self._normalize_api_aliases(norm_path)
 
         if norm_path.startswith("/api/"):
             self.handle_api_post(norm_path)
@@ -5619,10 +5658,22 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         }, 201)
 
     def _handle_update_credential_tracker(self, tracker_id: str, body: dict):
-        claims = self.require_auth(["admin", "manager"])
-        if not claims:
+        # Allow designated spokespersons (non-admin/manager) to update renewal date via PUT
+        caller_claims = self.require_auth()
+        if not caller_claims:
+            return
+        caller_role = str(caller_claims.get("role", "")).strip().lower()
+        is_mgr_or_admin = bool(caller_claims.get("is_admin", False) or caller_role in ("admin", "manager"))
+        if not is_mgr_or_admin:
+            renewal_only_keys = {"last_updated", "last_updated_date", "renew_date", "alert_threshold_days"}
+            body_keys = set(body.keys()) if isinstance(body, dict) else set()
+            if body_keys and body_keys.issubset(renewal_only_keys):
+                self._handle_renew_credential_tracker(tracker_id, body)
+                return
+            self.send_json_response({"success": False, "message": "Permission denied: Admin or Manager role required to edit tracker configuration."}, 403)
             return
 
+        claims = caller_claims
         existing = get_credential_tracker_by_id(tracker_id)
         if not existing:
             self.send_json_response({"success": False, "message": f"Credential tracker '{tracker_id}' not found."}, 404)
@@ -5630,7 +5681,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         server_name = str(body.get("server_name", existing.get("server_name", ""))).strip()
         username = str(body.get("username", existing.get("username", ""))).strip()
-        last_updated_date = str(body.get("last_updated_date", existing.get("last_updated_date", ""))).strip()
+        last_updated_date = str(body.get("last_updated_date") or body.get("last_updated") or existing.get("last_updated_date", "")).strip()
 
         try:
             validity_days = int(body.get("validity_days", existing.get("validity_days", 30)))
@@ -5729,7 +5780,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         target_date_str = today_ist_str
         if body and isinstance(body, dict):
-            custom_date = str(body.get("last_updated_date") or body.get("renew_date") or "").strip()
+            custom_date = str(body.get("last_updated_date") or body.get("last_updated") or body.get("renew_date") or "").strip()
             if custom_date:
                 try:
                     parsed_date = datetime.strptime(custom_date, "%Y-%m-%d").date()
@@ -5820,8 +5871,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         norm_path = clean_path.rstrip("/")
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path.startswith("/credentials/trackers"):
+        if norm_path.startswith("/credentials/"):
             norm_path = "/api" + norm_path
+        norm_path = self._normalize_api_aliases(norm_path)
 
         if norm_path.startswith("/api/"):
             self.handle_api_put(norm_path)
@@ -5840,7 +5892,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.send_json_response({"success": False, "message": f"Malformed JSON: {e}"}, 400)
             return
 
-        # PUT /api/credentials/trackers/<tracker_id>
+        # PUT /api/credentials/trackers/<tracker_id> (and /api/credentials/<tracker_id> alias)
         if clean_path.startswith("/api/credentials/trackers/"):
             tracker_id = clean_path[len("/api/credentials/trackers/"):].strip().strip("/")
             self._handle_update_credential_tracker(tracker_id, body)
@@ -5849,12 +5901,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         self.send_json_response({"success": False, "message": f"Endpoint PUT {clean_path} not found"}, 404)
 
     def do_DELETE(self):
+        global SERVER_BROADCAST_TEMPLATES
         clean_path = self.path.split("?")[0].strip()
         norm_path = clean_path.rstrip("/")
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/broadcast/templates", "/notifications", "/credentials/trackers") or norm_path.startswith("/credentials/trackers/"):
+        if norm_path in ("/broadcast/templates", "/broadcast-templates", "/notifications", "/credentials", "/credentials/trackers") or \
+           norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast/templates/") or \
+           norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/notifications/"):
             norm_path = "/api" + norm_path
+        norm_path = self._normalize_api_aliases(norm_path)
 
         if norm_path.startswith("/api/credentials/trackers"):
             tracker_id = ""
@@ -5884,7 +5940,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 return
 
             tpl_id = ""
-            if "id=" in self.path:
+            if norm_path.startswith("/api/broadcast/templates/"):
+                tpl_id = urllib.parse.unquote(norm_path[len("/api/broadcast/templates/"):].strip().strip("/"))
+            if not tpl_id and "id=" in self.path:
                 match = re.search(r"[?&]id=([^&]+)", self.path)
                 if match:
                     tpl_id = urllib.parse.unquote(match.group(1).strip())
@@ -5908,13 +5966,77 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
                     return
 
+            SERVER_BROADCAST_TEMPLATES = [t for t in SERVER_BROADCAST_TEMPLATES if t.get("id") != tpl_id]
             self.send_json_response({"success": True, "message": f"Template '{tpl_id}' deleted successfully."})
+            return
+
+        # DELETE /api/notifications/<notif_id> (Soft-Retract Broadcast Announcement - Admin & Manager)
+        if norm_path.startswith("/api/notifications"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            notif_id = ""
+            if norm_path.startswith("/api/notifications/"):
+                notif_id = urllib.parse.unquote(norm_path[len("/api/notifications/"):].strip().strip("/"))
+            if not notif_id and "id=" in self.path:
+                match = re.search(r"[?&]id=([^&]+)", self.path)
+                if match:
+                    notif_id = urllib.parse.unquote(match.group(1).strip())
+            if not notif_id:
+                content_length = int(self.headers.get("Content-Length", 0))
+                if content_length > 0:
+                    try:
+                        body_data = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                        notif_id = str(body_data.get("notification_id") or body_data.get("id") or "").strip()
+                    except Exception:
+                        pass
+
+            if not notif_id:
+                self.send_json_response({"success": False, "message": "Notification ID is required."}, 400)
+                return
+
+            admin_name = str(claims.get("name") or claims.get("username") or "Administrator")
+            retract_time = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.notifications.update_one(
+                        {"id": notif_id},
+                        {"$set": {
+                            "is_retracted": True,
+                            "retracted_at": retract_time,
+                            "retracted_by": admin_name
+                        }}
+                    )
+                except Exception as e:
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            for n in SERVER_NOTIFICATIONS:
+                if n.get("id") == notif_id:
+                    n["is_retracted"] = True
+                    n["retracted_at"] = retract_time
+                    n["retracted_by"] = admin_name
+
+            log_server(f"[BROADCAST] Announcement '{notif_id}' retracted via DELETE by {admin_name}.")
+            self.send_json_response({
+                "success": True,
+                "message": "Announcement successfully retracted and hidden from engineer feeds."
+            })
             return
 
         self.send_json_response({"success": False, "message": f"Endpoint DELETE {clean_path} not found"}, 404)
 
     def end_headers(self):
-        if not getattr(self, "_custom_cache_control", False):
+        if getattr(self, "_sw_headers", False):
+            self.send_header("Service-Worker-Allowed", "/")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        elif getattr(self, "_manifest_cache_headers", False):
+            self.send_header("Cache-Control", "public, max-age=3600")
+        elif not getattr(self, "_custom_cache_control", False):
             self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.send_header("Pragma", "no-cache")
             self.send_header("Expires", "0")
@@ -5922,6 +6044,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("X-XSS-Protection", "1; mode=block")
         self._custom_cache_control = False
+        self._sw_headers = False
+        self._manifest_cache_headers = False
         super().end_headers()
 
     def list_directory(self, path):
@@ -5967,7 +6091,7 @@ def run_server(port=8000, open_browser=False, alert_email=None, send_email=True)
     SERVER_PORT = port
 
     if not WEB_DIR.exists():
-        print(f"[ERROR] 'admin-web' directory not found at {WEB_DIR}")
+        print(f"[ERROR] 'web' directory not found at {WEB_DIR}")
         sys.exit(1)
 
     lan_ip = get_lan_ip()

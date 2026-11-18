@@ -179,7 +179,7 @@ RosterX/
 ├── render.yaml                # Cloud deployment blueprint
 ├── requirements.txt           # Python runtime dependencies
 ├── .env.example               # Environment configuration template
-├── admin-web/                 # Responsive Web Operations Console & Self-Service Portal
+├── web/                       # Responsive Web Operations Console & iOS PWA Self-Service Portal
 │   ├── index.html             # Admin Control Center, Roster Matrix & AI Copilot
 │   ├── login.html             # Unified Login & Email OTP Recovery
 │   ├── user-portal.html       # Shift Engineer Self-Service Dashboard
