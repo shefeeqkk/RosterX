@@ -72,7 +72,18 @@
 
 ---
 
-## 5. Post-Build Activities (Mandatory)
+## 5. Task 5 — Profile Birthday Countdown Dynamic Label (`ProfileComponents.kt`)
+- In `TenureAndBirthdayRow` (`ProfileComponents.kt`, lines ~457–495):
+  - Replace hardcoded `"BIRTHDAY IN"` title with dynamic label based on `daysUntilBday`:
+    - **`daysUntilBday == 0`**: Title `"BIRTHDAY"` → Value `"Today! 🎉"` (gold `#F59E0B`)
+    - **`daysUntilBday == 1`**: Title `"BIRTHDAY"` → Value `"Tomorrow! 🎂"` (accent/warm highlight)
+    - **`daysUntilBday != null && daysUntilBday >= 2`**: Title `"BIRTHDAY IN"` → Value `"$daysUntilBday days"`
+    - **`daysUntilBday == null`**: Title `"BIRTHDAY"` → Value `"--"`
+  - Eliminates awkward `"BIRTHDAY IN TODAY! 🎉"` / `"BIRTHDAY IN TOMORROW!"` grammar.
+
+---
+
+## 6. Post-Build Activities (Mandatory)
 1. Bump version in `android/app/build.gradle.kts` (`versionName = "1.33.0"`, `versionCode = 137`) and verify `server.py` (`SERVER_VERSION = "1.33.0"`).
 2. Run safe build:
    - `cmd /c "cd android && safe_build.bat assembleDebug"`
