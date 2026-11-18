@@ -16,6 +16,13 @@
 
 ---
 
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.33.1 - Build 138):
+> *"Dasa! Gafoorka! Manage Team search box invisible-text hotfix complete aayi live verify cheythu push cheythu macha! 🎨🚀
+> - Replaced Material 3 `TextField` (clipped by default `32.dp` vertical padding inside a `38.dp` container) with a compact sunken Neumorphic `BasicTextField` (`12.sp`, `lineHeight = 16.sp`, centered `decorationBox`, clear `×` button) in `ManageTeamTab.kt`.
+> - Built `v1.33.1` (Build 138), verified live on `100.71.241.36:5555`, and pushed to `origin/main`."*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.33.0 - Build 137):
 > *"Dasa! Gafoorka! Sprint `v1.33.0` (Build 137) Android UI & Production Hygiene 5/5 tasks 100% spotless aayi complete cheythu, zero-PII / zero-Cloudflared audit pass aakki, safe-build adichu live device-il verify cheythu push cheythu macha! 🎨🚀
 > 

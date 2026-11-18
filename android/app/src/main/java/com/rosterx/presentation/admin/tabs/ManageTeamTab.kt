@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -1050,39 +1052,79 @@ fun ManageTeamTab(
                         )
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = NeumorphicTokens.Canvas,
-                        border = BorderStroke(1.dp, NeumorphicTokens.SurfaceContrast),
+                    val isDarkSearch = LocalIsDarkTheme.current
+                    Box(
                         modifier = Modifier
                             .width(170.dp)
                             .height(38.dp)
+                            .neumorphicInset(
+                                shape = RoundedCornerShape(10.dp),
+                                elevation = NeumorphicTokens.ElevationInsetSubtle,
+                                surfaceColor = NeumorphicTokens.InputSurface
+                            )
+                            .border(
+                                1.dp,
+                                if (isDarkSearch) Color(0x1FFFFFFF) else Color(0x1F94A3B8),
+                                RoundedCornerShape(10.dp)
+                            )
+                            .padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(
                                 Icons.Default.Search,
                                 contentDescription = "Search",
                                 tint = NeumorphicTokens.TextMuted,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            TextField(
+                            val searchTextStyle = LocalTextStyle.current.copy(
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = NeumorphicTokens.TextMain
+                            )
+                            BasicTextField(
                                 value = searchQuery,
                                 onValueChange = { searchQuery = it },
-                                placeholder = { Text("Search...", fontSize = 11.sp, color = NeumorphicTokens.TextMuted) },
                                 singleLine = true,
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                textStyle = LocalTextStyle.current.copy(fontSize = 11.sp, color = NeumorphicTokens.TextMain),
-                                modifier = Modifier.fillMaxSize()
+                                textStyle = searchTextStyle,
+                                cursorBrush = SolidColor(NeumorphicTokens.AccentSalmon),
+                                modifier = Modifier.weight(1f),
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (searchQuery.isEmpty()) {
+                                            Text(
+                                                text = "Search...",
+                                                style = searchTextStyle.copy(
+                                                    fontWeight = FontWeight.Normal,
+                                                    color = NeumorphicTokens.TextMuted.copy(alpha = 0.7f)
+                                                ),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                }
                             )
+                            if (searchQuery.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear search",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable { searchQuery = "" }
+                                )
+                            }
                         }
                     }
                 }
