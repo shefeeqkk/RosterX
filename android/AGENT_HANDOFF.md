@@ -1,7 +1,17 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 11:26 IST** (Target Sprint: **v1.34.0 - Build 139**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 16:23 IST** (Target Hotfix: **v2.0.1 - Build 144**)
+
+---
+
+## 🕶️ 🚑 Gafoor's Hotfix Blueprint (v2.0.1 - Build 144 — Web Portal Sync, Credential Tracker, Month Roster & Bell Parity):
+> *"Vijaya! Hotfix `v2.0.1` (Build 144) locked in `../plan_vijayan.md` (Dasan = `IDLE`):
+> 1. Unwrap `payload.data.trackers` array safely in `web/js/userPortal.js` & `web/js/credentialTracker.js` (fixes `trackers.filter is not a function` crash blocking Dashboard, Calendar & Credential Tracker) + remove duplicate Credential Tracker back header.
+> 2. Normalize 0-indexed `shifts` arrays → 1-indexed day maps in `getRosterMapForEngineer()` & respect `include_in_roster === true` in `getRosterEngineers()`.
+> 3. Remove `|| 'OFF'` fallback in `renderMonthRoster()` (blank transparent cells + unpublished banner for upcoming months) & add right-side `WRK` / `NS` / `OFF` summary columns matching Android 1:1.
+> 4. Subtract `dismissed_notification_ids` for Web Bell badge parity + bump `web/sw.js` & `?v=2.0.1` cache bust.
+> 5. Bump to `v2.0.1` (Build 144), verify, commit & **`git push origin main`**!"*
 
 ---
 

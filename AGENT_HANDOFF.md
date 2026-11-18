@@ -1,7 +1,18 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 11:26 IST** (Target Sprint: **v1.34.0 - Build 139**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 16:23 IST** (Target Hotfix: **v2.0.1 - Build 144**)
+
+---
+
+## 🕶️ 🚑 Gafoor's Hotfix Blueprint (v2.0.1 - Build 144 — Web Portal Sync, Credential Tracker, Month Roster & Bell Parity):
+> *"Vijaya! `v2.0.0` Web Portal-il 6 critical bugs diagnose cheythu `plan_vijayan.md`-il surgical fix blueprint lock aakki vechittundu (Dasan = `IDLE / NO ACTIVE TASK`, backend healthy!):
+> 1. **Fix `Sync warning: trackers.filter is not a function`** (`web/js/userPortal.js`, `web/js/credentialTracker.js`): Unwrap nested `payload.data.trackers` array properly (prevents sync crash that blocked Dashboard, My Calendar & Credential Tracker!). Remove duplicate `← Credential Tracker` header when embedded in subview.
+> 2. **Normalize 0-Indexed Shift Arrays & `include_in_roster`** (`web/js/userPortal.js`): Convert array `e.shifts[i]` → 1-indexed `"1".."31"` map (fixes off-by-one shift corruption!) and support both `doc.engineers` / `doc.roster` + operational admins with `include_in_roster: true`.
+> 3. **Month Roster Blank Unpublished Cells + Right-Side `WRK` / `NS` / `OFF` Counters**: Remove hardcoded `|| 'OFF'` fallback in `renderMonthRoster()` so unassigned/upcoming months (like December 2026) render clean transparent blank cells + `"No roster published for <Month Year> yet"` banner, and add the 3 right-side NOC stat columns (`WRK`, `NS`, `OFF`) matching Android 1:1.
+> 4. **Bell Badge Parity**: Subtract `dismissed_notification_ids` from `this.notifications` (fixes `45` → actual unread count).
+> 5. **PWA Cache Bust**: Bump `web/sw.js` cache version + `?v=2.0.1` script imports so installed PWAs immediately load the fix!
+> 6. **Version Sync & Push**: Bump to `v2.0.1` (Build 144), verify cleanly, commit & **`git push origin main`**!"*
 
 ---
 

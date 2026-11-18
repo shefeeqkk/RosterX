@@ -1,130 +1,104 @@
-# 📋 Execution Plan for Vijayan (Unified `web/` iOS PWA & 1:1 Android Feature Parity)
+# 📋 Execution Plan for Vijayan (Web Portal Hotfix & PWA Cache Parity)
 
-**Status:** `COMPLETED (v2.0.0 — Build 143)` ✅
-**Execution Summary:** All 6 sprint tasks implemented, verified live against `server.py` (22/22 HTTP & PWA header checks + RFC-5545 `.ics` test + Zero-PII audit), Android safe-built (`versionCode = 143`, `versionName = "2.0.0"`), and ready for immediate `origin/main` push!
+**Status:** `READY FOR VIJAYAN` (Hotfix `v2.0.1` — Build 144 Web Portal Sync Crash, Credential Tracker, Dashboard, Month Roster Grid & Bell Badge Fix)
 
 ---
 
 ## 🔐 Mandatory Production Rule from Gafoor (System Architect 🕶️)
 > **Public GitHub Repo + Auto-Deploying Render Production Server:**
 > - **ZERO hardcoded personal names, usernames, emails, phone numbers, passwords, or secrets** anywhere in HTML, CSS, JS, Kotlin, comments, or placeholders.
-> - **Mandatory `git push origin main`** immediately after full verification so Render (`https://api.rosterx.online`) stays synced.
+> - **Mandatory `git push origin main`** immediately after verification so Render (`https://api.rosterx.online` / `https://rosterx.online`) deploys immediately!
 
 ---
 
-## 🎯 Master Objective (Locked via `/grill-me`)
-Transform `web/` into an **installable iOS PWA & adaptive mobile-first web app** that delivers **1:1 tab, visual, and feature parity with our Android app (`v1.36.0`)** on iPhone/mobile while preserving a rich Desktop layout on laptops/PCs:
-- **Remove unwanted Swap Request tabs** from BOTH portals (keep `SW*` shift codes intact in roster grids!).
-- **Exact 1:1 Android 5-Tab Role Parity** across **Engineer**, **Manager**, and **Admin**.
-- **Seamless iOS Mobile Experience**: 5-tab Fluid Neumorphic Bottom Nav (portrait) + Slim `42px` Top Bar & Left Vertical Neumorphic Nav Rail (landscape, leaving Month Roster full-screen landscape!).
-- **Native iOS `.ics` Calendar Sync** (zero setup — opens Apple Calendar's native "Add All" sheet directly!).
+## 1. Task 1 — Fix Sync Crash (`trackers.filter is not a function`) & Credential Tracker (`userPortal.js`, `credentialTracker.js`)
+**Root Cause:** `GET /api/credentials` returns `{ success: true, data: { trackers: [...], total_count, expiring_soon_count, expired_count } }`. Both `userPortal.js:364` and `credentialTracker.js:84` read `payload.trackers || payload.data || []`, receiving the wrapper **object** instead of the array — throwing `trackers.filter is not a function`, aborting `refreshAllData()` before rosters/dashboard/calendar load, and leaving Credential Tracker stuck on `"Loading credential trackers..."`!
+
+### Implementation:
+1. **Safe Array Unwrapper** in BOTH `web/js/userPortal.js` (`refreshAllData`, line ~364) and `web/js/credentialTracker.js` (`load`, line ~84):
+   ```js
+   const trackers = Array.isArray(payload?.data?.trackers)
+     ? payload.data.trackers
+     : Array.isArray(payload?.trackers)
+       ? payload.trackers
+       : Array.isArray(payload?.data)
+         ? payload.data
+         : [];
+   ```
+   - Also defensively unwrap `logs` in `credentialTracker.js` (`openAuditLogsModal`, line ~516) with `Array.isArray(data?.logs) ? data.logs : (Array.isArray(data?.data?.logs) ? data.data.logs : [])`.
+   - Wrap the `credRes` block in `refreshAllData()` in its own safe guard so a single failing widget NEVER aborts roster loading or `renderActiveView()`.
+2. **Eliminate Duplicate `← Credential Tracker` Header**:
+   - Currently `userPortal.js` renders a subview top bar (`← Credential Tracker`) AND `credentialTracker.js` renders a second `← Credential Tracker` header directly below it.
+   - Add an option `hideBackButton: true` / `embedded: true` (or remove the redundant top back button when hosted inside `userPortal.js`'s subview bar, keeping only the action buttons: Refresh, Audit Logs, Add Tracker) so there is ONE clean header!
 
 ---
 
-## 1. Task 1 — Installable iOS PWA Shell & 6 Brand Color Palettes (`web/`)
-1. **Create `web/manifest.webmanifest`**:
-   - `"name": "RosterX"`, `"short_name": "RosterX"`, `"start_url": "/login.html"`, `"display": "standalone"`, `"orientation": "any"`, `"theme_color": "#174EAC"`, `"background_color": "#EEF2F6"`, icons pointing to `assets/logo.png` / `assets/favicon.png`.
-2. **Create `web/sw.js`** (Lightweight PWA Service Worker):
-   - Network-first for `/api/*` (never serve stale auth/roster JSON!).
-   - Stale-while-revalidate / cache fallback for static assets (`css/`, `js/`, `assets/`) so iOS Home Screen launches feel instant.
-   - Register in `login.html`, `user-portal.html`, and `index.html`.
-3. **iOS Safari Standalone & Safe-Area Meta Tags** (all 3 HTML entry points):
-   - `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">`
-   - `<meta name="apple-mobile-web-app-capable" content="yes">`
-   - `<meta name="apple-mobile-web-app-status-bar-style" content="default">`
-   - `<meta name="apple-mobile-web-app-title" content="RosterX">`
-   - `<link rel="apple-touch-icon" href="assets/logo.png">`
-   - `<link rel="manifest" href="manifest.webmanifest">`
-   - Full `env(safe-area-inset-top/bottom/left/right)` CSS handling for iPhone Dynamic Island, notch, and home indicator + a subtle, dismissible iOS Safari **"Install RosterX on Home Screen"** tip banner (shown only on non-standalone iOS Safari).
-4. **6 Android Brand Color Palettes + 3-State Theme (`web/css/tokens.css`, `web/css/neumorphic.css`, `web/js/themeController.js`)**:
-   - Mirror Android `BrandPalettes` (`NeumorphicTokens.kt`) 1:1:
-     - `tory_blue` (`#174EAC` / `#7294CC`) *(default)*
-     - `crimson_coral` (`#FF5252` / `#FB7185`)
-     - `emerald_green` (`#059669` / `#34D399`)
-     - `indigo_violet` (`#6366F1` / `#818CF8`)
-     - `sunset_amber` (`#D97706` / `#FBBF24`)
-     - `ocean_cyan` (`#0284C7` / `#38BDF8`)
-   - Persist `rosterx_palette` + `rosterx_theme` (`system` / `light` / `dark`) in `localStorage` with anti-FOUC initialization.
+## 2. Task 2 — Fix Roster Data Normalization & Operational Admin Inclusion (`userPortal.js`)
+**Root Cause:**
+- MongoDB roster documents store `e.shifts` as a **0-indexed Array** (`shifts[0]` = Day 1, `shifts[17]` = Day 18) OR a **1-indexed Object** (`shifts["1"]` = Day 1), and rows may live under `rosterDoc.engineers` OR `rosterDoc.roster`.
+- `userPortal.js:417` returned `matched?.shifts || {}` directly and read `shifts[String(d)]`, causing **off-by-one shift corruption** when `shifts` is an array!
+- `getRosterEngineers()` line 424 checked `if (role === 'admin' || role === 'manager') return false;` BEFORE checking `e.include_in_roster === true`, accidentally dropping operational admins who are on the shift roster!
+
+### Implementation (`web/js/userPortal.js`):
+1. **Normalize `getRosterMapForEngineer(rosterDoc, eng)`**:
+   - Read rows from `rosterDoc.engineers?.length ? rosterDoc.engineers : (rosterDoc.roster || [])`.
+   - Match engineer flexibly by `username`, `name`, `full_name`, `fullName` (trimmed, case-insensitive).
+   - Convert `matched.shifts` into a clean **1-indexed map (`"1".."31"`)**:
+     - If `Array.isArray(rawShifts)`: map index `i` → key `String(i + 1)` (only when value is non-empty string!).
+     - If plain object: copy keys `String(k).trim()` → trimmed non-empty string value.
+2. **Fix `getRosterEngineers(rosterDoc)`**:
+   - Check `if (e.include_in_roster === true)` FIRST (keep on roster!), then `if (e.include_in_roster === false || role === 'manager') return false;`, and exclude generic system admin accounts (`admin`, `sysadmin`, `administrator`, or `role === 'admin'` with `include_in_roster !== true` unless they appear in `rosterDoc`!).
+   - Sort cleanly by week-off pair order + `display_order` (matching Android `sortEngineersByWeekOffs`).
 
 ---
 
-## 2. Task 2 — Remove Unwanted Swap Request Features (Both Portals)
-1. **User Portal (`web/user-portal.html`, `web/js/userPortal.js`)**:
-   - Remove the `Request Shift Swap` desktop nav tab, mobile nav tab (`data-tab="request_swap"`), `userTabContent_request_swap` section, and swap-submission handlers.
-2. **Admin Console (`web/index.html`, `web/js/app.js`)**:
-   - Remove the `Swaps & Leaves` nav tab (`data-tab="swaps"`), `tabContent_swaps` section, and `swapsModal` HTML/handlers.
-   - **CRITICAL**: Keep `SW*` shift codes, color styling, and badge rendering 100% intact inside the Roster Matrix / Month Roster grids!
+## 3. Task 3 — Month Roster Blank Unpublished Cells + Right-Side `WRK` / `NS` / `OFF` Counters (`userPortal.js`)
+**Root Cause:**
+- `userPortal.js:1156` hardcodes `getShiftVisual(shifts[String(d)] || 'OFF')` → every empty cell in upcoming months (e.g. `DECEMBER 2026`) renders bright yellow **`OFF`** instead of **blank**!
+- Right-side summary columns (`WRK`, `NS`, `OFF`) were completely missing!
+
+### Implementation (`web/js/userPortal.js`):
+1. **Blank Transparent Cells for Unassigned / Unpublished Dates**:
+   - In `renderMonthRoster()`: read `const rawShift = String(shifts[String(d)] || '').trim();`.
+   - If `!rawShift`, render an empty transparent cell: `<td style="background:transparent;color:transparent;"></td>` (NEVER `'OFF'`!).
+   - Detect `const hasAnyShifts = filtered.some((eng) => Object.keys(this.getRosterMapForEngineer(doc, eng)).length > 0);`.
+   - If `!hasAnyShifts`, display a sleek subtle Neumorphic notice pill above the grid: `"No roster published for <Month Year> yet"`.
+2. **Add Right-Side Summary Counter Columns (`WRK`, `NS`, `OFF`) — 1:1 Android Parity**:
+   - Right after the day columns in `<thead>`:
+     - `<th style="color:#059669;">WRK</th>`
+     - `<th style="color:#4F46E5;">NS</th>`
+     - `<th style="color:#D97706;">OFF</th>`
+   - For each engineer row in `<tbody>`, compute across `1..daysInMonth` ONLY from assigned non-blank shifts (exact NOC standard matching Android `EngineerPortalScreen.kt:5035-5040`):
+     - `WRK`: count of `FS`, `FG`, `G`, `SG`, `SS`, `NS`
+     - `NS`: count of `NS`
+     - `OFF`: count of `OFF`, `L`, `CO`, `AL`, `SL`, `ML`, or starts with `SW`
+   - Render the 3 styled stat `<td>` cells at the end of each engineer row (and 3 empty `<td>` cells at the end of the `DAY COVERAGE (≥3)` and `NIGHT COVERAGE (1)` footer rows so column alignment is pixel-perfect!).
+3. **Dashboard & Team Shifts Unpublished Guard**:
+   - When today/tomorrow has no shift assigned in `renderEngineerDashboard`, `renderManagerDashboard`, and `renderTeamShifts`, show `'—'` / `'Not Scheduled'` instead of faking `'OFF'`.
 
 ---
 
-## 3. Task 3 — Adaptive Mobile/iOS Neumorphic Shell (Portrait Bottom Nav + Landscape Left Rail)
-Build shared **`web/css/mobile-shell.css`** and **`web/js/mobileNavShell.js`** used across BOTH `user-portal.html` and `index.html`:
-1. **Mobile Portrait (`< 768px`)**:
-   - Exact Android-style **5-tab Fluid Neumorphic Bottom Navigation Dock** with soft elevated surface, concave active highlight / floating active bubble, icon + crisp label, and `env(safe-area-inset-bottom)` clearance.
-   - Compact Neumorphic Top Bar: RosterX logo + title on left, 3D Notification Bell + unread crimson badge (for duty engineers) + raised circular Profile Avatar Pill on right.
-2. **Mobile Landscape (`max-height: 520px` and `orientation: landscape`)**:
-   - **Ultra-slim `42px` Top Bar** (safe top + horizontal cutout insets).
-   - **Left Vertical `FluidNeumorphicNavRail`** (`72px` wide + `env(safe-area-inset-left)` safe inset) with raised active circular Neumorphic bubble!
-   - Multi-column / 2-pane responsive layouts for My Calendar (full 5–6 week month fits on left + Sync & Legend on right!), Dashboard, Team Shifts, More Hub, and Admin tabs.
-   - **Month Roster / Rosters tab** enters dedicated **full-screen landscape** (hides Top Bar + Side Rail so the 31-day grid owns 100% of the screen — matching Android!).
-3. **Desktop (`>= 1024px`)**:
-   - Preserves the rich wide desktop Operations Console & Portal header/nav while exposing all new tabs & modals cleanly!
+## 4. Task 4 — Unread Notification Bell Badge Parity (`userPortal.js`)
+- In `refreshAllData()` (`lines ~356-361`):
+  - Read `const dismissedSet = new Set((notifRes.value?.dismissed_notification_ids || []).map(String));`
+  - Filter `this.notifications` by BOTH `!isExpiredCelebration(n, todayIso)` AND `!dismissedSet.has(String(n.id || n._id || ''))`!
+  - Result: Web Bell badge matches Android (`3` unread instead of `45`!).
 
 ---
 
-## 4. Task 4 — Exact 1:1 Role Routing & 5-Tab Parity (`web/js/authService.js`, `web/login.html`, `web/user-portal.html`, `web/index.html`)
-1. **Role Routing**:
-   - `admin` → `index.html` (5 tabs: **`Dashboard`**, **`Register`**, **`Rosters`**, **`Broadcast`**, **`More`**)
-   - `manager` → `user-portal.html` in Manager Mode (5 Android Manager tabs: **`Dashboard`** [Manager Shift Radar + System Health], **`Team Shifts`**, **`Month Roster`**, **`Broadcast`**, **`More`**)
-   - `engineer` / `apprentice` → `user-portal.html` in Engineer Mode (5 Android Engineer tabs: **`Dashboard`**, **`Team Shifts`**, **`My Calendar`**, **`Month Roster`**, **`More`**)
-2. **Deep-Link Hash Handling**:
-   - Parse `window.location.hash` (`#roster`, `#notifications`, `#credentials`, `#profile`, `#dashboard`) on load so `/open/*` email links jump straight to the matching tab/drawer/subscreen!
+## 5. Task 5 — PWA Service Worker & Script Cache Bust (`web/sw.js`, `web/user-portal.html`, `web/index.html`)
+- Bump Service Worker cache name in `web/sw.js` (e.g., `rosterx-pwa-v2.0.1`) so installed desktop/mobile PWAs immediately evict old cached `userPortal.js` & `credentialTracker.js`.
+- Update script import query versions (`?v=2.0.1`) in `web/user-portal.html` and `web/index.html`.
 
 ---
 
-## 5. Task 5 — Add All Missing Android Features to `web/`
-Keep code modular with clean ES modules inside `web/js/`:
-1. **`web/js/calendarSync.js` — Personal `Sync to Calendar` (`.ics`) Modal**:
-   - Triggered ONLY from **My Calendar** (`Sync to Calendar` raised Neumorphic pill — never on the team Month Roster header!).
-   - Authentic frosted-blur Neumorphic modal (`max-width: 520px`, zero white halo) showing:
-     - Personal scope summary (`<Your Name> • @username • Personal schedule only`, `XX Shifts • Timed`, `YY Off/Leave • All-Day`).
-     - Shift Reminder chips (`None`, `15m`, `30m` default, `1h` — saved in `localStorage`).
-     - **Working shifts** (`FS 07:30–16:30`, `FG 08:30–17:30`, `G 09:30–18:30`, `SG 11:00–20:00`, `SS 13:00–22:00`, `NS 21:00–07:30 +1d`): timed IST (`Asia/Kolkata`), `TRANSP:OPAQUE` (Busy), selected `VALARM`.
-     - **Non-working days** (`OFF`, `L`, `SW*` Swap Off): `VALUE=DATE` All-Day events (no clock time), `TRANSP:TRANSPARENT` (Free), no `VALARM`.
-     - Downloads/opens `rosterx_<username>_YYYY_MM.ics` (`text/calendar`) — natively launches **Apple Calendar "Add All Events"** on iOS Safari!
-2. **`web/js/credentialTracker.js` — Server Credential Tracker (in `More` Hub for ALL 3 Roles)**:
-   - KPI summary cards (`Total`, `Expiring Soon`, `Expired`), search bar, status filter chips (`All`, `Expiring Soon`, `Expired`, `Healthy`), server-grouped cards.
-   - 1-tap **Update Date** renewal modal (past/today date guard) for authorized spokespersons, Managers, and Admins.
-   - **Add / Edit / Delete Tracker** + **Audit Logs** drawer for Managers & Admins.
-3. **`web/js/myTeamView.js` — My Team Directory (in `More` Hub for Engineer & Manager)**:
-   - Searchable Operations Management + Shift Engineers & Apprentices directory with role badges, direct `tel:` Call and `https://wa.me/...` WhatsApp buttons.
-4. **User Portal 5-Tab Feature Completion (`web/user-portal.html`, `web/js/userPortal.js`)**:
-   - **Tab 1 (`Dashboard`)**: Welcome Hero + live Next Shift & Rest Day countdown timers + Today/Tomorrow Shift cards + Monthly Duties & Rest metrics + Today's Team Celebrations banner (with animated Wishes modal!); Manager mode shows Manager Shift Radar + System Health!
-   - **Tab 2 (`Team Shifts`)**: Date-navigable shift groups (`TODAY` / `YESTERDAY` / `TOMORROW` badge + Jump to Today FAB) with Call & WhatsApp buttons.
-   - **Tab 3 (`My Calendar` — Engineer / `Month Roster` — Manager)**: Interactive color-coded monthly grid with breathing today glow + `Sync to Calendar` + Shift Legend & Timings.
-   - **Tab 4 (`Month Roster` — Engineer / `Broadcast` — Manager)**: Full team monthly shift matrix with sticky engineer names, search filter, Day/Night coverage footers, and full-screen landscape mode! (For Manager, embeds full Broadcast Console with `@` mentions + templates + history!)
-   - **Tab 5 (`More` — Operations Hub)**: Raised Neumorphic tiles launching **Server Credential Tracker** and **My Team**!
-   - **Profile & Settings View** (via top-right avatar pill): Standard Profile Header Card + Edit Profile modal (with Photo Upload & **Remove Photo** confirmation modal + OTP password reset), Tenure & dynamic Birthday countdown (`BIRTHDAY` vs `BIRTHDAY IN`), Weekly Offs pills, Account Details (copy email / dial phone), **Appearance & 6 Brand Palettes**, Server Status, About RosterX version card, Sign Out!
-   - **Notification Bell Drawer**: 3D Bell icon + unread count badge + drawer with `@username` / `@name` / `@all` mention resolution + client-side expired celebration auto-sweep (`< today IST`).
-5. **Admin Console Parity (`web/index.html`, `web/js/app.js`, `web/js/broadcastController.js`)**:
-   - Exact 5 Admin tabs on mobile (`Dashboard`, `Register`, `Rosters`, `Broadcast`, `More`) with Fluid Neumorphic Bottom Nav (portrait) + Left Side Rail (landscape) + Full-screen Landscape `Rosters`.
-   - `More` Hub → **Server Credential Tracker** + **Server Management** (diagnostics & live logs).
-   - **Broadcast Console**: Add Title `@` mention autocomplete & live resolution (matching Android v1.33.0) + expired celebration auto-sweep in Broadcast History.
-   - **Zero-Knowledge Team Management (`Register`)**: Remove manual password input fields from Add/Edit Account modals (matching Android v1.33.0 — new accounts onboard via OTP email).
-
----
-
-## 6. Verification, Version Bump (`v2.0.0`, Build `143`) & Mandatory Push
-1. Start `python server.py` locally and verify end-to-end across **iPhone portrait (390×844)**, **iPhone landscape (844×390)**, and **Desktop (1440×900)** viewports:
-   - Login flows for Engineer, Manager, and Admin (exact 5 tabs each, zero Swap tabs!).
-   - My Calendar + `.ics` download output (valid RFC-5545 with timed Busy shifts + `VALUE=DATE` Free OFF/L/SW*).
-   - Month Roster full-screen landscape intact.
-   - More Hub → Credential Tracker & My Team Directory working against live APIs.
-   - 6 Brand Palettes + Dark/Light/System switching with zero console errors.
-   - `manifest.webmanifest` and `sw.js` load cleanly with HTTP 200.
-   - Strict Zero-PII & zero `trycloudflare.com` hygiene check.
-2. Bump semantic version to **`v2.0.0`** (Major Release):
-   - `android/app/build.gradle.kts`: `versionCode = 143`, `versionName = "2.0.0"`
-   - `server.py`: `SERVER_VERSION = "2.0.0"`
-   - Verify Android still builds cleanly (`cd android && .\safe_build.bat assembleDebug`) so APK and Web stay 100% version-synced.
-3. Update `plan_vijayan.md` (`COMPLETED`), `AGENT_HANDOFF.md`, and `android/AGENT_HANDOFF.md`, commit with semantic message, and **immediately run `git push origin main`**!
+## 6. Verification, Version Bump & Mandatory Push
+1. Bump version to **`v2.0.1` (Build 144)**:
+   - `android/app/build.gradle.kts`: `versionName = "2.0.1"`, `versionCode = 144`
+   - `server.py`: `SERVER_VERSION = "2.0.1"`
+2. Verify all JS syntax (`node --check web/js/userPortal.js web/js/credentialTracker.js web/sw.js`) and run live HTTP/browser checks against local `server.py`:
+   - Zero `trackers.filter is not a function` warnings.
+   - Dashboard, My Calendar (November 2026), Credential Tracker (single clean header + real servers loaded), and Month Roster (accurate day alignment, right-side `WRK`/`NS`/`OFF` counters, December 2026 blank cells + unpublished banner) all verified!
+   - Bell badge excludes dismissed notifications.
+   - Run `cmd /c "cd android && safe_build.bat assembleDebug"` (version sync) if needed or keep Android APK version synced on device.
+3. Commit with semantic message (`fix(web): resolve trackers.filter sync crash, normalize 0-indexed roster shifts, add WRK/NS/OFF counters, blank upcoming months & sync bell badge v2.0.1 (Build 144)`), update `AGENT_HANDOFF.md` + `android/AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
