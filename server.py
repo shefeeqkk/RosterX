@@ -194,7 +194,7 @@ def get_app_update_metadata() -> dict:
 
     return {
         "latest_android_version": _get_val("LATEST_ANDROID_VERSION", SERVER_VERSION),
-        "min_supported_version": _get_val("MIN_SUPPORTED_VERSION", "1.30.0"),
+        "min_supported_version": _get_val("MIN_SUPPORTED_VERSION", "1.34.0"),
         "apk_download_url": _get_val("APK_DOWNLOAD_URL", "https://github.com/shefeeqkk/RosterX/releases/latest"),
     }
 

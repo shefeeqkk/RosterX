@@ -1,73 +1,79 @@
-# ⚡ RosterX — Enterprise 24/7 NOC Shift Roster & Workforce Management
+# ⚡ RosterX — Enterprise 24/7 Shift Roster & Workforce Management
 
-[![Version](https://img.shields.io/badge/Release-v1.8.0-blue.svg)](https://github.com/shefeeqkk/RosterX/releases)
-[![Android](https://img.shields.io/badge/Android-SDK%2035%20%7C%20Compose-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com/)
+[![Release](https://img.shields.io/badge/Release-v1.34.0-2563EB.svg)](../../releases/latest)
+[![Minimum Supported](https://img.shields.io/badge/Min%20Version-v1.34.0-059669.svg)](../../releases/latest)
+[![Android](https://img.shields.io/badge/Android-SDK%2035%20%7C%20Jetpack%20Compose-3DDC84.svg?logo=android&logoColor=white)](https://developer.android.com/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![MongoDB Atlas](https://img.shields.io/badge/MongoDB-Atlas%20M0-47A248.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
-[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI%20Engine-8E75C2.svg?logo=google&logoColor=white)](https://ai.google.dev/)
-[![Cloudflare Tunnel](https://img.shields.io/badge/Cloudflare-Edge%20Tunnel-F38020.svg?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini-8E75C2.svg?logo=google&logoColor=white)](https://ai.google.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RosterX** is a mission-critical, enterprise-grade shift roster and workforce management platform purpose-built for 24/7 Network Operations Centers (NOC). It combines **Google Gemini AI automated scheduling**, **circadian fatigue safety enforcement**, **swap-first peer coverage tracking**, **MongoDB Atlas cloud synchronization**, and a full-featured **Native Android Mobile App** powered by Jetpack Compose.
+**RosterX** is a production-grade, cross-platform shift roster and operations management platform built for 24/7 engineering and Network Operations teams. It unifies **Google Gemini AI shift scheduling**, **circadian fatigue compliance**, **swap-first peer coverage**, **server credential expiry auditing**, **multi-channel team broadcasts**, and a **Neumorphic Native Android App** (Jetpack Compose) alongside a responsive **Web Operations Portal**.
 
 ---
 
-## 🌟 Key Platform Capabilities
+## 🌟 Core Platform Capabilities
 
 ### 📱 1. Native Android Application (Jetpack Compose & Material 3)
-- **Modern Jetpack Compose UI**: Vibrant, reactive NOC dark theme with fluid animations, micro-interactions, and collapsible status headers.
-- **Biometric Security**: Hardware-backed fingerprint and biometric authentication using `BiometricPrompt` with dedicated admin privilege safeguards.
-- **Android 13+ Notification Runtime Handshake**: Automated `POST_NOTIFICATIONS` permission lifecycle management.
-- **Engineer Self-Service Portal**:
-  - Live **Today / Tomorrow** duty briefing cards.
-  - Interactive personal calendar view with shift color codes.
-  - Team daily shift inspection and jump-to-today action.
-  - Bottom-anchored **Operational Broadcast Notifications** card with individual dismiss and "Clear All" persistence across app restarts.
-- **Admin Mobile Command Suite**:
-  - **Manage Team**: Live CRUD (add, edit specs, permanent deletion with double confirmation) synchronized across MongoDB Atlas.
-  - **Month Rosters Grid**: Interactive spreadsheet navigator with flexible resignation date filtering (historical shift preservation for retired engineers).
-  - **Violation Auditor**: Fatigue compliance inspector alerting to consecutive work day breaches and mandatory rest gaps.
-  - **Broadcast Dispatch**: Multi-channel emergency and operations announcement broadcaster (in-app alerts + optional Resend email delivery).
-  - **Settings & Diagnostics**: Real-time network latency ping, dynamic base URL switching, and live server logs streaming.
+- **Unified Neumorphic (Soft UI) Design System**: Tactile light and dark dual-theming with sunken input wells, subtle depth surfaces, global pull-to-refresh, and responsive tablet/mobile layouts.
+- **Role-Based Operational Portals**:
+  - **Admin Command Suite**: Team Lifecycle Management, Monthly Roster Matrix, Fatigue Violation Auditor, Multi-Channel Broadcast Console, Server Credential Tracker & Audit Logs, and Live Telemetry Diagnostics.
+  - **Manager Operations Console**: Real-time Shift Radar, Team Directory, Broadcast Console, Credential Expiry Tracker & Audit History, and Roster Inspection.
+  - **Shift Engineer & Apprentice Portal**: Live Today/Tomorrow duty briefing cards, countdown timers, interactive monthly calendar, Team Shifts directory with 1-tap Call & WhatsApp actions, and self-service Profile management.
+- **Deep Native Android Integration**:
+  - **Verified Android App Links**: Seamless deep-linking into Roster, Notifications, Credentials, and Profile screens via `/.well-known/assetlinks.json`, with automatic desktop browser fallback (`/open/*`).
+  - **Launcher Long-Press App Shortcuts**: Instant home-screen jump actions (Today's Roster, Notifications, My Profile, and dynamic role-aware Credential Tracker for Admins/Managers).
+  - **1-Tap Calendar Export (`.ics`)**: Batch export monthly working shifts as RFC-5545 calendar events (skipping OFF/Swap/Leave days, including exact shift timings and 30-minute reminders).
+  - **Resizable Neumorphic Home Screen Widget**: Live shift countdowns and on-duty coverage right on the Android home screen.
+  - **Native Splash Screen & Predictive Back**: Android 12+ `SplashScreen` API and smooth predictive back gestures.
+  - **In-App Update Banner**: Automatic semantic version comparison against backend release metadata with 1-tap APK release link.
+  - **Biometric Authentication & FCM Push**: Hardware-backed `BiometricPrompt` login and real-time Firebase Cloud Messaging alerts.
 
-### 💻 2. Admin Web Operations Console & Engineer Web Portal
-- **Spreadsheet-Style Interactive Duty Grid**: High-speed spreadsheet navigation, cell editing, keyboard shortcuts, and instant shift code validation.
-- **Circadian & Fatigue Guards**: Automatic validation against post-night shift rest violations (24–48h mandatory rest), max consecutive work days (cap: 6), and night shift cluster limits.
-- **Swap-First Arbitration**: First-class support for peer-to-peer coverage codes (`SW[Name]`), ensuring transparent swap accounting while maintaining minimum headcount quotas.
-- **Gemini AI Copilot**: Natural language conversational assistant for whole-month schedule generation, automatic rule compliance, and bulk shift healing.
-- **High-Fidelity Excel Engine**: Pixel-perfect `.xlsx` import and export powered by ExcelJS with official NOC styling and frozen headers.
+### 🔐 2. Server Credential Expiry Tracker & Audit History
+- **Proactive Expiry Surveillance**: Track critical infrastructure credentials with configurable validity periods, custom renewal dates (with validity guards), and per-tracker alert thresholds.
+- **Automated Daily Digest Alerts**: Consolidated morning notifications via In-App feed, FCM Push, and HTML Email with deep-link action buttons.
+- **Authoritative Audit Log Viewer (Admin & Manager Only)**: Full chronological audit trail (`CREATED`, `UPDATED`, `DELETED`) capturing who updated each credential, previous vs. new password dates, search, and action filters.
 
-### ☁️ 3. Backend Architecture & Edge Connectivity
-- **Native Python Driver Bridge**: Threaded HTTP server (`server.py`) leveraging PyMongo directly against MongoDB Atlas M0.
-- **Cloudflare Edge Quick Tunnel**: Instant public HTTPS gateway generation (`python server.py --tunnel`) enabling secure access from mobile devices anywhere in the world on cellular 4G/5G or external Wi-Fi.
-- **Automated Mobile URL Sync**: Cloudflare tunnel URLs automatically write to `android/app/src/main/assets/server_url.txt` for automatic app connectivity.
-- **Point-in-Time Snapshot Recovery**: Every published schedule is backed up as a versioned recovery snapshot with 1-click instant rollback (`/api/roster-backups/restore`).
-- **Resend Transactional Email Engine**: Automated OTP dispatch for password resets and critical operational broadcasts.
+### 📢 3. Multi-Channel Broadcast Console & Team Celebrations
+- **Unified Interactive `@` Mentions**: Cursor-anchored, ultra-compact mention autocomplete (`@name`, `@all`, and `@username`) across **both** Broadcast Title and Message Body.
+- **Per-Recipient Personalization**: Dynamic `@name` / `{name}` resolution across Resend HTML Email, FCM Push, and In-App Notification feeds, plus custom reusable broadcast templates and live read receipts.
+- **Automated Team Celebrations Engine**: Daily Birthday and Work Anniversary detection with 3rd-person colleague cards, direct WhatsApp/Call wishing actions, and automatic midnight IST hard purge of expired celebrations.
+
+### 🤖 4. AI Scheduling Engine & Web Operations Console
+- **Grounded Gemini AI Operations Assistant**: Natural-language schedule generation, daily coverage analysis, and RAG-backed roster Q&A via a secure server-side AI proxy.
+- **Circadian & Fatigue Safety Guards**: Enforces mandatory post-night rest windows (24h–48h), consecutive working day caps, and night-shift block constraints.
+- **DB-Driven Swap-First Arbitration**: Supports peer coverage codes (`SW...`) configured via database metadata or algorithmic initial disambiguation.
+- **Point-in-Time Snapshot Recovery & Excel Engine**: Versioned roster backups with 1-click rollback and styled `.xlsx` import/export via ExcelJS.
+
+### 🛡️ 5. Security & Zero-Knowledge Account Architecture
+- **Zero-Knowledge Account Onboarding**: Administrators create accounts without ever setting, viewing, or overwriting user passwords. New accounts receive a cryptographic random password hash and an automated Welcome email guiding private password setup via **Email OTP**.
+- **Hardened Authentication**: HMAC-SHA256 signed JWT tokens with role-based access control (RBAC), PBKDF2-HMAC-SHA256 password hashing (200,000 iterations + per-user salt), SHA-256 hashed 6-digit OTP verification, and per-IP/per-account brute-force rate limiting.
+- **Database-Driven Metadata**: Team roster visibility (`include_in_roster`), display order (`display_order`), and swap codes (`swap_code`) are stored cleanly in MongoDB with zero hardcoded user data.
 
 ---
 
 ## 📐 System Architecture
 
-```
-                                  ┌─────────────────────────────┐
-                                  │      Google Gemini AI       │
-                                  │  (gemini-1.5-flash Engine)  │
-                                  └──────────────▲──────────────┘
-                                                 │
-                                                 ▼
-┌─────────────────────────────┐    HTTP/JSON     ┌─────────────────────────────┐    PyMongo      ┌─────────────────────────────┐
-│    Native Android App       │◄────────────────►│    RosterX Python Server    │◄───────────────►│      MongoDB Atlas M0       │
-│  (Kotlin, Compose, Hilt)    │                  │        (server.py)          │                 │ (rosterx: rosters, engine-  │
-└─────────────────────────────┘                  └──────────────▲──────────────┘                 │  ers, policies, backups)    │
-                                                                │                                └─────────────────────────────┘
-┌─────────────────────────────┐    HTTP/JSON                    │ Cloudflare Tunnel
-│   Admin Web Operations UI   │◄────────────────────────────────┼───────────────────────────────► 🌐 Worldwide Public HTTPS
-│   (HTML5, Vanilla CSS, JS)  │                                 │ (Zero-Config Edge Proxy)
-└─────────────────────────────┘                                 ▼
-                                                 ┌─────────────────────────────┐
-                                                 │   Resend Email Gateway      │
-                                                 │ (OTP & Operations Briefing) │
-                                                 └─────────────────────────────┘
+```text
+                                  ┌───────────────────────────────┐
+                                  │       Google Gemini AI        │
+                                  │  (Server-Side Secure Proxy)   │
+                                  └───────────────▲───────────────┘
+                                                  │
+                                                  ▼
+┌─────────────────────────────┐   HTTPS/JSON   ┌─────────────────────────────┐    PyMongo    ┌─────────────────────────────┐
+│    Native Android App       │◄──────────────►│    RosterX Python Server    │◄─────────────►│          MongoDB            │
+│ (Kotlin, Compose, Hilt, FCM)│                │         (server.py)         │               │ (rosters, engineers, logs,  │
+└─────────────────────────────┘                └──────────────▲──────────────┘               │  trackers, notifications)   │
+                                                              │                              └─────────────────────────────┘
+┌─────────────────────────────┐   HTTPS/JSON                  │
+│   Web Operations Portal     │◄──────────────────────────────┤
+│  (Admin, Manager, Engineer) │                               │
+└─────────────────────────────┘                               ▼
+                                               ┌─────────────────────────────┐
+                                               │  Resend Email & Google FCM  │
+                                               │ (OTP, Broadcasts & Alerts)  │
+                                               └─────────────────────────────┘
 ```
 
 ---
@@ -76,154 +82,124 @@
 
 ### Prerequisites
 - **Python**: 3.10 or higher
-- **Android Development** *(for building mobile app)*: Android Studio Ladybug / Meerkat or Gradle with Android SDK 35 (JDK 17+)
-- **MongoDB Atlas**: Free M0 Cluster or local MongoDB instance
+- **MongoDB**: MongoDB Atlas or self-hosted MongoDB instance
+- **Android Development** *(optional, for building the mobile app)*: Android Studio (JDK 17+, Android SDK 35)
 
-### 1. Clone the Repository
+### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/shefeeqkk/RosterX.git
+git clone <repository-url>
 cd RosterX
+pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+### 2. Configure Environment Variables
+Copy the template and populate your own credentials and deployment settings:
 ```bash
-pip install -r requirements.txt
 cp .env.example .env
 ```
-Populate `.env` with your credentials:
+
+Key environment variables (see [`.env.example`](./.env.example) for the complete list):
 ```env
-# MongoDB Atlas Connection URI
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/rosterx?retryWrites=true&w=majority
+# Database
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster-host>/<database>?retryWrites=true&w=majority
+ATLAS_CLUSTER=<your-cluster-name>
+ATLAS_DATABASE=rosterx
 
-# Google Gemini API Key
-GEMINI_API_KEY=your_gemini_api_key
+# Security & Authentication
+AUTH_SECRET_KEY=<64-char-random-hex-key>
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<your-strong-admin-password>
 
-# Optional: Resend Email Dispatch
-RESEND_API_KEY=re_your_resend_key
-ALERT_EMAIL=admin@yourdomain.com
+# AI & Transactional Email
+GEMINI_API_KEY=<your-gemini-api-key>
+RESEND_API_KEY=<your-resend-api-key>
+ALERT_EMAIL=admin@example.com
+
+# Android App Links & Update Metadata
+ANDROID_APP_LINK_SHA256=<YOUR_SIGNING_KEYSTORE_SHA256>
+APP_PUBLIC_BASE_URL=https://your-rosterx-server.example.com
+MIN_SUPPORTED_VERSION=1.34.0
+APK_DOWNLOAD_URL=https://github.com/<owner>/<repo>/releases/latest
 ```
 
-### 3. Launch Backend & Web Server (Local / Self-Hosted)
+### 3. Run the Backend & Web Portal
 ```bash
-# Start server with integrated Cloudflare Tunnel
-python server.py --tunnel
+# Production / Headless mode
+python server.py --no-open
 
-# Or start on local Wi-Fi only
+# Local development mode (opens web portal automatically)
 python server.py --open
 ```
 
-Once started, the interactive console displays:
-- **🌐 Worldwide Public URL**: Cloudflare Edge URL (accessible from any 4G/5G/WiFi network)
-- **🏠 Local Wi-Fi URL**: `http://192.168.x.x:8000`
-- **💻 Local Web App**: `http://localhost:8000`
-- **📱 Android Synced Base URL**: Automatically written to `android/app/src/main/assets/server_url.txt`
-
-### 4. Deploy 24/7 to Render (Free Tier $0/mo)
-Deploy directly from your GitHub repository to Render with 1-click:
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
-
-See the complete step-by-step instructions in [`RENDER_DEPLOYMENT_GUIDE.md`](./RENDER_DEPLOYMENT_GUIDE.md).
+### 4. Cloud Deployment
+RosterX includes a ready-to-use [`render.yaml`](./render.yaml) blueprint for zero-config cloud deployment. Set secret environment variables (`MONGODB_URI`, `AUTH_SECRET_KEY`, `ADMIN_PASSWORD`, `RESEND_API_KEY`, `ANDROID_APP_LINK_SHA256`, `GEMINI_API_KEY`) directly in your hosting provider's dashboard.
 
 ---
 
-## 📱 Building & Running the Android App
+## 📱 Building the Android App
 
-### Option A: Via Android Studio
-1. Open the [`android/`](./android) folder in Android Studio.
-2. Ensure JDK 17+ is selected in **Settings → Build Tools → Gradle**.
-3. Sync Gradle project files.
-4. Run on a physical Android device or Emulator (API 26 to 35).
+### Download Pre-Built APK
+Download the latest official release APK (`v1.34.0+`) from the **GitHub Releases** page.
 
-### Option B: Via Command Line (Gradle)
+### Build from Source
+1. Configure your server base URL in `android/app/src/main/assets/server_url.txt` (e.g., `https://your-rosterx-server.example.com/`).
+2. Place your Firebase project configuration (`google-services.json`) in `android/app/` if enabling FCM push notifications.
+3. Build using Gradle:
 ```bash
 cd android
 
-# Compile and check for errors
-./gradlew compileDebugKotlin
-
-# Assemble debug APK
+# Debug APK
 ./gradlew assembleDebug
 
-# Install directly to connected device / emulator
-./gradlew installDebug
+# Release APK
+./gradlew assembleRelease
 ```
-*Generated APK location:* `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
-## 📡 REST API Reference
+## 📡 Core REST API Surface
 
-The server exposes 18 verified REST endpoints consumed by both the Web Portal and Android Mobile App:
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/test-connection` | Health check, Atlas M0 ping latency, and public URLs |
-| `GET` | `/api/server-info` | Server version, uptime, cluster status, and route list |
-| `GET` | `/api/logs` | Real-time terminal server log streaming |
-| `POST` | `/api/auth/login` | Authenticate user via username/identifier & password |
-| `POST` | `/api/auth/send-otp` | Generate and dispatch 6-digit verification code via email |
-| `POST` | `/api/auth/verify-otp` | Verify OTP code and reset user account password |
-| `GET` | `/api/engineers` | Retrieve all active & resigned engineers |
-| `POST` | `/api/engineers` | Bulk sync/upsert engineer profiles to MongoDB Atlas |
-| `POST` | `/api/engineers/delete` | Permanently delete engineer from database and memory |
-| `GET` | `/api/roster/{monthKey}` | Retrieve published shift roster for specified month (e.g. `2026-10`) |
-| `POST` | `/api/roster` | Save and publish monthly roster grid with snapshot creation |
-| `GET` | `/api/roster-backups/{monthKey}` | Fetch historical point-in-time recovery snapshots |
-| `POST` | `/api/roster-backups/restore` | 1-Click rollback to any prior published snapshot |
-| `GET` | `/api/constraints` | Fetch operational scheduling policies and fatigue constraints |
-| `POST` | `/api/constraints` | Synchronize updated operational policies across platforms |
-| `GET` | `/api/notifications` | Fetch recent operations and broadcast announcements |
-| `POST` | `/api/notifications/send` | Dispatch in-app operations notices and email alerts |
+| Category | Endpoints |
+|---|---|
+| **Discovery & Health** | `GET /api/server-info`, `GET /api/test-connection`, `GET /.well-known/assetlinks.json`, `GET /open/*` |
+| **Authentication & Security** | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/change-password`, `POST /api/auth/send-otp`, `POST /api/auth/verify-otp` |
+| **Team Directory & Profiles** | `GET /api/engineers`, `POST /api/engineers`, `POST /api/engineers/delete`, `POST /api/users/profile`, `POST /api/users/avatar`, `GET /api/users/{username}/avatar`, `POST /api/users/fcm-token` |
+| **Rosters & Snapshots** | `GET /api/roster/{monthKey}`, `POST /api/roster`, `GET /api/roster-backups/{monthKey}`, `POST /api/roster-backups/restore`, `GET /api/constraints`, `POST /api/constraints` |
+| **Credential Tracker & Audit** | `GET /api/credentials/trackers`, `POST /api/credentials/trackers`, `PUT /api/credentials/trackers/{id}`, `POST /api/credentials/trackers/{id}/renew`, `DELETE /api/credentials/trackers/{id}`, `GET /api/credentials/trackers/logs` |
+| **Broadcasts & Celebrations** | `GET /api/notifications`, `POST /api/notifications/send`, `POST /api/notifications/dismiss`, `POST /api/notifications/retract`, `GET/POST /api/broadcast/templates`, `GET /api/celebrations/today` |
+| **AI & Telemetry** | `POST /api/ai/chat`, `POST /api/ai/generate-roster`, `GET /api/telemetry/server`, `GET /api/telemetry/users`, `GET /api/logs` |
 
 ---
 
-## 📂 Project Directory Structure
+## 📂 Project Structure
 
 ```text
 RosterX/
-├── server.py                         # Threaded Python server, PyMongo bridge & Cloudflare tunnel runner
-├── requirements.txt                  # Python dependencies (pymongo, dnspython, etc.)
-├── public_tunnel_url.txt             # Active Cloudflare public URL for external clients
-├── .env.example                      # Environment variables template
-├── admin-web/                        # Web Operations & Engineer Self-Service Portal
-│   ├── index.html                    # Admin Control Center, Spreadsheet Grid & AI Copilot
-│   ├── login.html                    # Unified Login & OTP Password Reset Portal
-│   ├── user-portal.html              # Engineer Self-Service Dashboard
-│   ├── css/
-│   │   └── styles.css                # Enterprise dark theme tokens, grid styles & animations
-│   └── js/
-│       ├── app.js                    # Admin Master Application Controller
-│       ├── constants.js              # Canonical Shift definitions, fatigue rules & colors
-│       ├── authService.js            # Session & RBAC Authentication Service
-│       ├── atlasService.js           # PyMongo REST client & state synchronization
-│       ├── rosterAiEngine.js         # Gemini AI prompt formulation & structured parsing
-│       ├── excelService.js           # Enterprise ExcelJS import/export with high-contrast styling
-│       └── userPortal.js             # Engineer personal shift schedule & calendar view
-├── android/                          # Native Android Mobile App (Jetpack Compose)
-│   ├── build.gradle.kts              # Root Gradle configuration
-│   ├── AGENT_HANDOFF.md              # Backend ⇄ Android Studio sync & handoff protocol
-│   └── app/
-│       ├── build.gradle.kts          # Dependencies (Compose, Hilt, Retrofit, Biometrics)
-│       └── src/main/
-│           ├── AndroidManifest.xml   # Permissions (Internet, Biometric, Post Notifications)
-│           ├── assets/
-│           │   └── server_url.txt    # Synced server gateway URL
-│           └── java/com/rosterx/
-│               ├── MainActivity.kt   # Runtime permission requests & screen transitions
-│               ├── data/
-│               │   ├── remote/       # Retrofit API Service & HostSelectionInterceptor
-│               │   └── repository/   # RosterRepository implementation & DTO mappers
-│               ├── domain/model/     # Engineer, ShiftCode, OperationalConstraints models
-│               ├── presentation/
-│               │   ├── admin/        # Admin navigation, tabs (Team, Roster, Broadcast, Settings)
-│               │   ├── portal/       # Engineer Portal screen, metrics & broadcast cards
-│               │   └── login/        # Biometric & password authentication screen
-│               └── util/             # BiometricPromptManager & date utilities
-└── README.md
+├── server.py                  # Hardened Python HTTP server, RBAC JWT auth, Atlas bridge & cron jobs
+├── render.yaml                # Cloud deployment blueprint
+├── requirements.txt           # Python runtime dependencies
+├── .env.example               # Environment configuration template
+├── admin-web/                 # Responsive Web Operations Console & Self-Service Portal
+│   ├── index.html             # Admin Control Center, Roster Matrix & AI Copilot
+│   ├── login.html             # Unified Login & Email OTP Recovery
+│   ├── user-portal.html       # Shift Engineer Self-Service Dashboard
+│   ├── css/                   # Neumorphic light/dark design tokens & responsive styles
+│   └── js/                    # Controllers, constants, auth, AI assistant & ExcelJS engine
+└── android/                   # Native Android App (Kotlin, Jetpack Compose, Material 3, Hilt)
+    └── app/src/main/
+        ├── AndroidManifest.xml
+        ├── res/               # Adaptive icons, launcher shortcuts, splash themes & widgets
+        └── java/com/rosterx/
+            ├── data/          # Retrofit API service, repositories & session manager
+            ├── domain/        # Models, shift rules & AI roster service
+            ├── presentation/  # Admin, Manager, Engineer screens & Neumorphic components
+            ├── util/          # Biometrics, calendar .ics exporter & date utilities
+            ├── widget/        # Resizable home-screen shift widget provider
+            └── worker/        # Background roster sync & FCM messaging service
 ```
 
 ---
 
-## 🛡️ License & Contributing
+## 🛡️ License
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details. Contributions, issues, and feature requests are welcome!
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for full details.

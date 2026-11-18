@@ -33,6 +33,6 @@ services:
       - key: APP_PUBLIC_BASE_URL
         value: https://api.rosterx.online
       - key: MIN_SUPPORTED_VERSION
-        value: "1.30.0"
+        value: "1.34.0"
       - key: APK_DOWNLOAD_URL
         sync: false
