@@ -55,7 +55,24 @@
 
 ---
 
-## 4. Post-Build Activities (Mandatory)
+## 4. Task 4 — Zero-Knowledge Admin Team Management + Fix Weekly Offs Shadow Overlap (`ManageTeamTab.kt`)
+1. **Remove Password Input from BOTH Edit Account & Add Member (`ManageTeamTab.kt`)**:
+   - Security requirement: Admins/Managers must NEVER be able to change or set passwords for users or managers from Team Management!
+   - Delete `passwordInput`, `passwordVisible`, the `"Password *"` / `"New password"` `NeumorphicFormInput` (lines ~365–384), and the `if (target == null && passwordInput.isBlank())` check (lines ~769–772).
+   - Always pass `password = null` when constructing `Engineer(...)` on save.
+   - Make `Phone` cleanly full-width on Row 3 (`Modifier.fillMaxWidth()`) so there is no awkward empty half-column.
+   - On Add New Member (`editingEngineer == null`), show a sleek 1-line muted info note below the form fields: `"🔒 New members set their own password privately via Forgot password? (Email OTP)."`.
+2. **Fix Weekly Offs Selected Chip Shadow Overlap (`ManageTeamTab.kt`, lines ~521–575)**:
+   - **Root Cause**: Inside the recessed Weekly Offs rail (`spacedBy(3.dp)`), `.neumorphicRaised(elevation = ElevationRaisedSubtle)` paints a bright white top-left outer shadow that bleeds directly onto the right edge of the previous selected chip (e.g., `Thu`'s white glow washing over `Wed`!).
+   - **Fix**:
+     - Increase spacing inside the recessed rail to `Arrangement.spacedBy(4.dp)` with `.padding(4.dp)`.
+     - For **selected** day chips: Replace `.neumorphicRaised(...)` with a crisp, non-bleeding elevated pill — `.shadow(elevation = 2.dp, shape = RoundedCornerShape(9.dp), ambientColor = Color.Black.copy(alpha = 0.22f), spotColor = Color.Black.copy(alpha = 0.28f))` + `.clip(RoundedCornerShape(9.dp))` + `.background(NeumorphicTokens.AccentSalmon)` — **ZERO white outer highlight bleeding onto neighboring chips!**
+     - For **unselected** day chips: Clean recessed/flat surface inside the rail (`RoundedCornerShape(9.dp)`, no oversized outer shadows).
+     - Inspect the **Role and access** and **Employment status** rails in the same dialog and ensure their selected chips also never cast white shadow bleed onto adjacent segments.
+
+---
+
+## 5. Post-Build Activities (Mandatory)
 1. Bump version in `android/app/build.gradle.kts` (`versionName = "1.33.0"`, `versionCode = 137`) and verify `server.py` (`SERVER_VERSION = "1.33.0"`).
 2. Run safe build:
    - `cmd /c "cd android && safe_build.bat assembleDebug"`
@@ -63,6 +80,7 @@
    - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
 4. Verify on device:
    - Test `@` mention popup in Broadcast Title (cursor-anchored, compact, `@username` only for engineers, Live Preview resolves Title + Body).
+   - Open Admin Team Management -> Edit & Add Account: verify password field is completely gone, `Phone` layout is balanced, and selecting two adjacent Weekly Offs (e.g. `Wed` + `Thu`) has **zero white shadow overlap** between chips!
    - Verify Roster Grid & Portal load cleanly with dynamic DB-driven ordering & management filtering.
    - Verify `git grep -i "trycloudflare\|cloudflared"` returns 0 matches in `android/`.
 5. Commit with semantic message, update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!

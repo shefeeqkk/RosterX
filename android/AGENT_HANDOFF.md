@@ -11,7 +11,8 @@
 > 2. **📢 Broadcast Title `@` Mentions**: Upgrade `Notification Title *` (`NotificationsTab.kt`) to `TextFieldValue` + shared focus-isolated, bounds-safe `CompactCursorMentionPopup` (`@name`, `@all`, `@username` only); resolve Title in Live Preview Card + `QuickNotificationsBottomSheet` (`ProfileComponents.kt`).
 > 3. **🧹 100% Zero-Trace Cloudflared Removal**: Replace `trycloudflare.com` placeholder in `LoginScreen.kt` with `https://api.rosterx.online/api/` and remove `trycloudflare.com` check in `UserSessionManager.kt`.
 > 4. **🗄️ DB-Driven Roster Metadata**: Add `includeInRoster`, `displayOrder`, `swapCode` DTO fields; remove hardcoded username allowlists (`Engineer.kt`, `EngineerPortalViewModel.kt`), hardcoded 10-name sort map (`EngineerPortalScreen.kt`), and real names in `GeminiRosterService.kt`, `RosterXAppWidgetProvider.kt`, and `item_widget_shift_pair.xml`.
-> 5. **🔄 Mandatory `git push origin main`**: After build, ADB verify & commit (`v1.33.0` Build 137), immediately run `git push origin main`!"*
+> 5. **🛡️ Zero-Knowledge Team Management + Weekly Offs Shadow Fix (`ManageTeamTab.kt`)**: Remove password field from BOTH Edit Account and Add Member dialogs (make `Phone` full-width + subtle OTP onboarding note on Add Member); fix Weekly Offs adjacent selected-chip white shadow bleed (`Wed`/`Thu`) by replacing `.neumorphicRaised(...)` inside the recessed rail with a crisp dark-only `.shadow(2.dp)` pill + `4.dp` gap.
+> 6. **🔄 Mandatory `git push origin main`**: After build, ADB verify & commit (`v1.33.0` Build 137), immediately run `git push origin main`!"*
 
 ---
 

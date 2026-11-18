@@ -25,6 +25,10 @@
 > - **Dasan (`server.py`, `admin-web/`)**: Support optional `include_in_roster`, `display_order`, `swap_code` in `/api/engineers`; remove all hardcoded team names/usernames/emails from `admin-web/js/app.js`, `userPortal.js`, `constants.js`, `index.html`, `excelService.js`, `rosterAi*.js`, `admin-web/README.md`, and `server.py` comments.
 > - **Vijayan (`Engineer.kt`, `EngineerPortalViewModel.kt`, `EngineerPortalScreen.kt`, `GeminiRosterService.kt`, widget XML/provider)**: Wire `includeInRoster`, `displayOrder`, `swapCode` DTO fields; remove hardcoded username allowlists and 10-member name-order map; scrub all personal names from prompts, comments, and widget XML.
 > 
+> ### 5. 🛡️ Zero-Knowledge Onboarding (Remove Admin Password Change) & Weekly Offs Shadow Fix:
+> - **Dasan (`server.py`, `admin-web/`)**: Block password overwrites on existing accounts in `POST /api/engineers`; auto-generate a secure random password hash on brand-new account creation + send Welcome email guiding new members to set their private password via **"Forgot password?" (Email OTP)**; remove `#formEngPassword` from `admin-web/index.html` & `app.js`.
+> - **Vijayan (`ManageTeamTab.kt`)**: Remove password input from BOTH Edit Account and Add Member dialogs (make `Phone` full-width + show subtle OTP onboarding note on Add Member); fix Weekly Offs adjacent selected-chip white shadow bleed (`Wed`/`Thu`) by replacing `.neumorphicRaised(...)` inside the recessed rail with a crisp dark-only `.shadow(2.dp)` pill + `4.dp` spacing.
+> 
 > Bump to **`v1.33.0` (Build 137)**, verify, commit, and **`git push origin main`**. Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
 
 ---

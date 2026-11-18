@@ -70,10 +70,22 @@ Remove EVERY Cloudflared / `trycloudflare.com` reference from backend, config, a
 
 ---
 
-## 4. Verification, Version Bump & Mandatory Push
+## 4. Task 4 — Zero-Knowledge Account Onboarding & Block Admin Password Overwrites (`server.py` + `admin-web/`)
+Security fix: Admins/Managers must NEVER be able to change or know any user's or manager's password from Team Management!
+1. **Backend Enforcement (`server.py` — `POST /api/engineers`)**:
+   - Check whether the target account already exists in `ATLAS_DB.engineers` (by `eng_user` or `old_user`).
+   - **Existing Account**: Strictly `eng.pop("password", None)` — NEVER overwrite an existing user's or manager's password hash via `POST /api/engineers`! (Users/managers change their own password only via self-service Profile `POST /api/auth/change-password` or `"Forgot password?"` OTP.)
+   - **Brand-New Account**: Ignore any client-supplied password; auto-generate a cryptographically secure random password (`secrets.token_urlsafe(24)`), store its hash via `hash_password(...)` (never return it in the HTTP response), and if `eng_email` is present, dispatch a clean **Welcome to RosterX** email with their username instructing them to set their private password via **"Forgot password?" (Email OTP)** on the login screen.
+2. **Admin Web Modal (`admin-web/index.html` & `admin-web/js/app.js`)**:
+   - Remove `#formEngPassword` (`Initial Password *`) input & visibility toggle from the Add/Edit Team Member modal and never send `password` in `POST /api/engineers` from the web portal. Add a subtle security note: *"Users set and manage their own password privately via Forgot Password (OTP)."*
+
+---
+
+## 5. Verification, Version Bump & Mandatory Push
 1. Run `python -m py_compile server.py` and verify:
    - Broadcast title personalization across Email, FCM, and `GET /api/notifications`.
    - Zero `cloudflared` / `trycloudflare` / `public_tunnel_url` matches in `server.py`, `render.yaml`, `tools/`.
    - Zero hardcoded personal names/emails/passwords in `server.py` and `admin-web/`.
+   - `POST /api/engineers` refuses to overwrite existing account passwords and auto-generates random password hash + welcome email on new account creation.
 2. Bump `SERVER_VERSION = "1.33.0"` in `server.py`.
 3. Commit with semantic message, update `AGENT_HANDOFF.md`, and **run `git push origin main`** so Render (`https://api.rosterx.online`) deploys immediately!
