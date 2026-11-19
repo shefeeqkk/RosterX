@@ -18,7 +18,7 @@
 > 3. **Teammate vs Self Celebration Wishes Parity (`userPortal.js` & Android `CelebrationWishesDialog.kt`)**:
 >    - **Vijayan**: Differentiate `isSelf`:
 >      - Self celebration (`isSelf == true`): "Wishing you a wonderful day...", `[ Thank You! 🙏 ]` with confetti!
->      - Teammate celebration (`isSelf == false`): "Celebrating <Name>'s 1st Work Anniversary!", with `[ 💬 Wish on WhatsApp ]` (prefilled greeting), `[ 📞 Call ]`, `[ ✉️ Email ]`, and `[ Close ]`!
+>      - Teammate celebration (`isSelf == false`): "Celebrating <Name>'s 1st Work Anniversary!", with `[ 💬 Wish on WhatsApp ]` (prefilled greeting), `[ 📞 Call ]`, and `[ Close ]` (email omitted per user directive)!
 > 4. **Web Target Calendar Option & Cross-Device Sync (`calendarSync.js` & `server.py`)**:
 >    - **Vijayan**: Always display `TARGET CALENDAR` section in Web (before and after sync).
 >    - Allows selecting/entering target calendar account, saves to MongoDB Atlas `calendar_sync.{month}.target`, and stays in sync with Android.

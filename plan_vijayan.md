@@ -45,8 +45,7 @@ Fix celebration popup so tapping a coworker's anniversary shows teammate actions
      - Action Buttons:
        - `[ 💬 Wish on WhatsApp ]`: Opens `https://wa.me/<phone>?text=<encoded_wish>` with prefilled greeting!
        - `[ 📞 Call ]`: Opens `tel:<phone>`.
-       - `[ ✉️ Email ]`: Opens `mailto:<email>`.
-       - `[ Close ]`.
+       - `[ Close ]` (Email action omitted as not required).
 2. **Android (`EngineerPortalScreen.kt` & `CelebrationWishesDialog.kt`)**:
    - Fix `isCelebrationSelf`: when tapping a teammate's banner on Dashboard or in Notifications, set `isCelebrationSelf = false` so it renders the WhatsApp and Call actions instead of "Thank You!".
 
