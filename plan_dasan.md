@@ -48,11 +48,27 @@ Enable Android and Web UI to stay 100% in sync regarding which months and Google
 
 ---
 
-## 2. Verification, Version Bump & Mandatory Push
+## 2. Task 2 — Notification Dismissal Sync Support (`server.py`)
+Fix dismissal parity so notifications cleared on Android never reappear on Web!
+
+1. **Accept both `notification_id` and `id` in `POST /api/notifications/dismiss`**:
+   - In `server.py` line ~5087:
+     ```python
+     notif_id = str(body.get("notification_id") or body.get("id") or "").strip()
+     dismiss_all = bool(body.get("all", False))
+     ```
+2. **Comprehensive `dismiss_all` across all in-feed notifications**:
+   - In `dismiss_all`, collect notification IDs not just from `ATLAS_DB.notifications`, but also all active celebration notifications, credential alerts, and broadcast announcements so they are cleanly added to `ATLAS_DB.engineers` `dismissed_notifications` array!
+3. **Return `dismissed_notification_ids` cleanly** in `GET /api/notifications` payload.
+
+---
+
+## 3. Verification, Version Bump & Mandatory Push
 1. Run `python -m py_compile server.py` and verify:
    - Test `POST /api/users/calendar-sync` with test token → returns 200 and records in DB.
    - Test `GET /api/users/calendar-sync?month=2026-11` → returns recorded sync data.
    - Test `POST /api/users/calendar-sync/clear` → cleanly removes the month.
+   - Test `POST /api/notifications/dismiss` with both `id` and `notification_id` keys → successfully adds to `dismissed_notifications`.
    - Zero hardcoded personal names/emails/passwords.
 2. Bump `SERVER_VERSION = "2.1.0"` in `server.py`.
-3. Commit with semantic message (`feat(backend): add cloud-backed calendar sync state endpoints /api/users/calendar-sync v2.1.0 (Build 150)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
+3. Commit with semantic message (`feat(backend): calendar sync endpoints & notification dismissal parity v2.1.0 (Build 150)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!

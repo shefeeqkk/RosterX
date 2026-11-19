@@ -95,7 +95,85 @@
 
 ---
 
-## 4. Verification, Version Bump & Mandatory Push
+## 4. Task 4 — Desktop Balanced 2-Column Architecture & Profile Accordion (`userPortal.js`, `mobile-shell.css`)
+
+### A. Constrain Desktop Viewport Width:
+- In `web/css/mobile-shell.css` / `web/user-portal.html`:
+  - Constrain `#subview_profile`, `#panel_my_calendar`, `#panel_team_shifts` to an optimal `max-width: 1100px` on desktop (`@media (min-width: 900px)`), centered with `margin: 0 auto`.
+  - Leave Month Roster at full width (`max-width: 1720px`) for maximum day column visibility.
+
+### B. Profile & Settings 2-Column Balanced Grid:
+- In `web/js/userPortal.js` (`renderProfileView()`):
+  - On desktop (`@media (min-width: 900px)`), structure `.rx-land-grid-2` as a true 2-column grid (`grid-template-columns: 1.15fr 0.85fr; gap: 20px; align-items: start;`):
+    - **Left Column**:
+      1. Blue Profile Banner (Avatar, Name, Role badge, `@username`, Edit Profile button)
+      2. Tenure & Birthday Cards (2-column sub-grid)
+      3. Default Weekly Offs Strip
+      4. Account Details Card (Domain Username, Registered Email with Copy button, Contact Phone)
+    - **Right Column**:
+      1. **Collapsed Appearance & Theme Accordion**:
+         - Default state: Collapsed!
+         - Header bar shows: `APPEARANCE & THEME` + summary pill (e.g. `System • Tory Blue`) + chevron toggle (`ph-caret-down`).
+         - On click: smoothly toggles open/close, revealing 3-state theme modes and 6 brand color swatches.
+      2. **About RosterX & Specs**:
+         - Change `Application` label from `RosterX Web / iOS PWA` to strictly **`RosterX Web`**!
+         - Specs: Version `v2.1.0`, Gateway `api.rosterx.online`, Timezone `Asia/Kolkata (IST)`.
+      3. **Sign Out Button**:
+         - Red accented Neumorphic button cleanly positioned at bottom of right column.
+
+### C. My Calendar 2-Column Desktop Grid:
+- In `web/js/userPortal.js` (`renderMyCalendar()`):
+  - On desktop (`@media (min-width: 900px)`), structure `.rx-calendar-split` as a 2-column grid (`grid-template-columns: 1.35fr 1fr; gap: 22px; align-items: start;`):
+    - **Left Column**: Month Selector (`← Month Year →`) + Weekday Headers + Calendar Day Grid (with today glow and shift pills).
+    - **Right Column**:
+      1. `Sync to Calendar` CTA button (full width of right column, prominent accent)
+      2. `Shift Legend & Timings` Card (crisp vertical list of shift codes, names, and hours)
+  - Result: The entire calendar and legend fit above the fold without any vertical scrolling!
+
+---
+
+## 5. Task 5 — Notification Timezone, Clear Animations & Dismiss Parity (`userPortal.js`, `mobile-shell.css`, Android)
+
+### A. Android Client Serialization Parity (`RosterApiService.kt`):
+- In `DismissNotificationRequest`:
+  ```kotlin
+  data class DismissNotificationRequest(
+      @SerializedName("notification_id") val notificationId: String? = null,
+      @SerializedName("id") val id: String? = null,
+      @SerializedName("all") val all: Boolean? = null
+  )
+  ```
+  Pass both `notificationId` and `id` so both backend schemas are 100% satisfied.
+
+### B. Device Local / IST Timezone Display:
+- In `web/js/userPortal.js` (`openNotificationsDialog()`):
+  - Parse `n.created_at || n.timestamp` and format in device local time with IST indication (e.g. `19 Nov 2026, 05:56 AM IST` / device locale formatted cleanly via `Intl.DateTimeFormat`).
+  - Zero raw `UTC` strings visible to users!
+
+### C. Clear Animation & Clear All Cascade:
+- In `web/css/mobile-shell.css`:
+  - Add `@keyframes rxNotifSlideOut` (`opacity: 1 -> 0; transform: translateX(0) -> translateX(40px); height: collapse`).
+  - `.rx-notif-dismissing { animation: rxNotifSlideOut 0.28s ease-out forwards; }`
+- In `web/js/userPortal.js`:
+  - Individual dismissal: apply `.rx-notif-dismissing`, wait 260ms, then remove from `this.notifications` and persist dismissal.
+  - "Clear All": apply staggered slide-out animation to all notification elements with 40ms stagger, then show `"You're all caught up! No active notifications."` empty state.
+
+---
+
+## 6. Task 6 — Month Roster Grid Enlargement (Desktop & Mobile)
+
+- In `web/css/mobile-shell.css`:
+  - **Desktop (`min-width: 900px`)**:
+    - `.rx-roster-table tbody td`: `min-width: 44px; height: 38px; padding: 5px 4px; font-size: 12px; font-weight: 800;`
+    - `.rx-roster-table thead th:first-child`, `.rx-roster-table tbody th`: `min-width: 160px; font-size: 12px;`
+    - Shift pills inside cells: larger padding (`4px 6px`), higher contrast, crystal clear readability.
+  - **Mobile (`max-width: 899px`)**:
+    - `.rx-roster-table tbody td`: `min-width: 40px; height: 36px; padding: 4px 3px; font-size: 11.5px;`
+    - `.rx-roster-table thead th:first-child`, `.rx-roster-table tbody th`: `min-width: 140px;`
+
+---
+
+## 7. Verification, Version Bump & Mandatory Push
 1. Bump version to **`v2.1.0` (Build 150)**:
    - `android/app/build.gradle.kts`: `versionName = "2.1.0"`, `versionCode = 150`
    - `server.py`: `SERVER_VERSION = "2.1.0"` (synced with Dasan)
@@ -103,7 +181,12 @@
    - `cmd /c "cd android && safe_build.bat assembleDebug"`
    - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
 3. Verify on device & Web:
-   - Sync calendar on Android -> Open Web UI Calendar Sync modal -> verify `Synced (30)` badge and target calendar appear on Web!
-   - Open Forgot Password modal in `login.html` in Light and Dark mode -> verify crisp contrast, no invisible white text, and beautiful Neumorphic inputs.
-   - Open AI Assistant on mobile and desktop -> verify full 85dvh height, 3D bot header, quick chips, animated typing dots, and Markdown bubbles!
+   - Verify desktop 2-column layout on Profile & Settings and My Calendar (zero vertical scrolling, optimal width).
+   - Verify Appearance & Theme is collapsed by default and expands smoothly.
+   - Verify "RosterX Web" application string.
+   - Verify notification timestamps show IST / device local time, and clear animations slide out smoothly on single dismiss and Clear All.
+   - Verify Month Roster grid cells are enlarged, highly legible, and crisp on both desktop and mobile.
+   - Verify Android Calendar sync state is reflected on Web with target email and Re-Sync / Clear Month actions.
+   - Verify Forgot Password modal has 100% WCAG contrast in Light and Dark mode.
+   - Verify AI Assistant is 85dvh height with 3D bot header, chips, and typing indicator.
 4. Commit with semantic message, update `AGENT_HANDOFF.md` + `android/AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!

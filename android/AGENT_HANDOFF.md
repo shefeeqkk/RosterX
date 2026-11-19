@@ -5,7 +5,7 @@
 
 ---
 
-## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.1.0 - Build 150 — Cloud-Backed Calendar Sync Parity, Forgot Password Visibility & Lively 1:1 AI Assistant):
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.1.0 - Build 150 — Cloud-Backed Calendar Sync Parity, Desktop Balanced Layout, Notifications Parity & Lively 1:1 AI Assistant):
 > *"Dasa, Vijaya! User `/grill-me` session-il nammude next MAJOR Sprint **`v2.1.0` (Build 150)** 100% lock aakki vechittundu:
 >
 > ### 🎯 Core Objectives:
@@ -13,16 +13,24 @@
 >    - **Dasan**: Add `POST /api/users/calendar-sync`, `GET /api/users/calendar-sync`, and `POST /api/users/calendar-sync/clear` backed by MongoDB Atlas (`calendar_sync.{month}`).
 >    - **Vijayan (Android)**: When Google Calendar sync succeeds in `CalendarSyncDialog.kt`, report `{ month, count, target: cal.accountName }` to `POST /api/users/calendar-sync`. On Clear Month, call `/clear`.
 >    - **Vijayan (Web)**: In `web/js/calendarSync.js`, fetch cloud sync state and render **`TARGET CALENDAR [Synced (N)]`** badge, target account email, **`Re-Sync N Days`** button, and **`Clear Month`** button!
-> 2. **Complete Visibility & Contrast Overhaul (`login.html` & All Modals)**:
->    - In `web/login.html`: Rebuild `#forgotPasswordModal` using adaptive Neumorphic CSS variables (`--nm-surface`, `--nm-input-surface`, `--nm-text`, `--nm-border`) with 100% WCAG contrast in BOTH Light and Dark modes (zero invisible white-on-white text or mismatched dark input wells).
->    - Audit and verify all dialogs across `login.html`, `user-portal.html`, and `index.html`.
-> 3. **Lively AI Assistant with Full Space Utilization (`userPortal.js` & `mobile-shell.css`)**:
->    - Utilize all vertical space: `85dvh` height (bottom-sheet docked on mobile, floating panel on desktop, scrollable message area).
->    - 1:1 Android parity: 3D bot header with pulsating green live status, horizontal quick prompt chips (`⚡ On duty now?`, `🌙 NS tomorrow?`, etc.), animated 3-dot typing indicator, Markdown bubble rendering, and Clear Chat button!
+> 2. **Desktop Stretched View Fix & 2-Column Balanced Architecture**:
+>    - **Vijayan**: Constrain container width (`max-width: 1100px`) for standard views.
+>    - **Profile & Settings**: Left = Header Banner, Tenure/Birthday, Default Weekly Offs, Account Details; Right = Collapsed Appearance & Theme Accordion (summary pill `System • Tory Blue` with chevron toggle), About Specs (updated to strictly `RosterX Web`), Sign Out.
+>    - **My Calendar**: Left = Month Selector + Day Grid; Right = Sync to Calendar CTA + Shift Legend & Timings side-by-side (zero vertical scrolling!).
+> 3. **Notification Parity, Device Local/IST Timezone & Clear Animations**:
+>    - **Dasan**: In `POST /api/notifications/dismiss`, accept both `notification_id` and `id`, and ensure `dismiss_all` sweeps all current in-feed alerts (celebrations + credential alerts) into `ATLAS_DB.engineers`.
+>    - **Vijayan (Android)**: In `DismissNotificationRequest`, serialize both `notification_id` and `id`.
+>    - **Vijayan (Web)**: Format notification timestamps using device local time with IST fallback (`19 Nov 2026, 05:56 AM IST`), and add smooth slide/fade-out animations for single dismiss and cascading Clear All.
+> 4. **Month Roster Grid Enlargement (Web Desktop & Mobile)**:
+>    - **Vijayan**: Enlarge table cells (Desktop: `44px` min-width, `38px` row height, `12px` bold font, `160px` engineer column; Mobile: `40px` min-width, `36px` row height, `11.5px` font) with prominent shift pills.
+> 5. **Complete Visibility & Contrast Overhaul (`login.html` & All Modals)**:
+>    - **Vijayan**: Rebuild `#forgotPasswordModal` using adaptive Neumorphic CSS variables (`--nm-surface`, `--nm-input-surface`, `--nm-text`, `--nm-border`) with 100% WCAG contrast in BOTH Light and Dark modes.
+> 6. **Lively AI Assistant with Full Space Utilization (`userPortal.js` & `mobile-shell.css`)**:
+>    - **Vijayan**: Full `85dvh` height with 3D bot header, pulsating live NOC status, horizontal quick prompt chips (`⚡ On duty now?`, `🌙 NS tomorrow?`, etc.), animated 3-dot typing indicator, and Markdown response rendering!
 >
 > ### 🔀 Execution Flow:
 > - **Dasan**: Run `plan_dasan.md` -> Backend endpoints + bump `SERVER_VERSION = "2.1.0"` -> Commit & `git push origin main`.
-> - **Vijayan**: Run `plan_vijayan.md` -> Android sync reporting + Web calendar sync + Forgot password contrast + Lively AI Assistant -> safe_build + ADB install + bump `2.1.0` (Build 150) -> Commit & `git push origin main`.
+> - **Vijayan**: Run `plan_vijayan.md` -> Android & Web UI implementation -> safe_build + ADB install + bump `2.1.0` (Build 150) -> Commit & `git push origin main`.
 >
 > **Strict Zero-PII Policy & Mandatory Push Discipline apply!** Check `plan_dasan.md` & `plan_vijayan.md`!"*
 
