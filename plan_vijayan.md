@@ -83,7 +83,27 @@ Fix the issue where pressing the back button logs the user out and opens the log
 
 ---
 
-## 5. Verification, Version Bump & Mandatory Push
+## 5. Task 5 — Conversational Multi-Turn AI Client Integration (`rosterAiAssistant.js`, `userPortal.js`, Android)
+Enable the client to send conversation history and active month context so the AI remembers context:
+
+1. **Admin Assistant (`web/js/rosterAiAssistant.js`)**:
+   - In `consultGeminiOrSmartSolver`:
+     - Collect recent conversation history: `const history = this.messages.slice(-8).map(m => ({ role: m.role, text: m.text }));`
+     - Collect active period: `const target_month = `${this.app.state.currentYear}-${String(this.app.state.currentMonth).padStart(2, '0')}`;`
+     - Send `{ message: query, history, target_month, current_user: activeUser, platform: 'Web Admin Console' }` to `POST /api/chat/assistant`.
+
+2. **User Portal Assistant (`web/js/userPortal.js`)**:
+   - In `sendAiAssistantMessage`:
+     - Send recent chat history and `target_month` (`${this.gridYear}-${String(this.gridMonth).padStart(2, '0')}`).
+
+3. **Android Client (`RosterApiService.kt` & `EngineerPortalViewModel.kt`)**:
+   - In `AssistantChatRequest`:
+     - Add `val history: List<Map<String, String>>? = null` and `val target_month: String? = null`.
+   - Pass conversation history and current viewed month so Android chats have full multi-turn memory!
+
+---
+
+## 6. Verification, Version Bump & Mandatory Push
 1. Bump version to **`v2.2.0` (Build 151)**:
    - `android/app/build.gradle.kts`: `versionName = "2.2.0"`, `versionCode = 151`
    - `server.py`: `SERVER_VERSION = "2.2.0"` (synced with Dasan)
@@ -91,8 +111,9 @@ Fix the issue where pressing the back button logs the user out and opens the log
    - `cmd /c "cd android && safe_build.bat assembleDebug"`
    - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
 3. Verify on device & Web:
+   - Verify AI Assistant chats naturally like ChatGPT/Gemini, understands casual/broken English, remembers past turns, and accurately reasons about shift schedules (e.g. Manoj's shifts in December).
    - Verify notifications in Web are raised Neumorphic cards with category pill badges (`CELEBRATION`, `SECURITY`, `OPERATIONS`), author attribution, and formatted time.
-   - Verify tapping coworker's celebration opens Teammate Celebration modal with WhatsApp/Call/Email actions.
+   - Verify tapping coworker's celebration opens Teammate Celebration modal with WhatsApp and Call actions.
    - Verify Web Calendar Sync has Target Calendar section with account selector and syncs with Android.
    - Verify pressing back on Web closes modals/subviews without logging out.
    - Verify cleared notifications are permanently deleted on server and never reappear after reinstall.

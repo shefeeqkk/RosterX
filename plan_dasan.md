@@ -65,11 +65,39 @@ Ensure the Target Calendar account selected on Android or Web is securely persis
 
 ---
 
-## 3. Verification, Version Bump & Mandatory Push
+## 3. Task 3 — Intelligent Conversational Gemini AI Engine (`server.py`)
+Eliminate repetitive canned responses and empower the AI to chat naturally like ChatGPT/Gemini:
+
+1. **Multi-Turn Chat History**:
+   - In `POST /api/chat/assistant`, accept `history: [...]` (list of past `{role, text}` messages).
+   - Format `history` into Gemini's multi-turn `contents` array so Gemini remembers past turns and context!
+
+2. **Active Month Grounding (`target_month`)**:
+   - Accept `target_month` (e.g. `"2026-12"`) from client.
+   - In `build_roster_grounding_context(current_user, target_month)`:
+     - Query `ATLAS_DB["rosters"].find_one({"_id": target_month})` (or active period).
+     - Include individual shift summaries (e.g. `"Manoj: 15 NS, 4 OFF, 12 SG"`) in the grounding payload so questions like *"Why Manoj has only night shifts?"* can be accurately reasoned and answered!
+
+3. **Conversational System Prompt**:
+   - Instruct Gemini to converse naturally and warmly like ChatGPT / Gemini.
+   - Instruct it to understand casual everyday English and broken English effortlessly without getting confused.
+   - Direct it to answer shift questions accurately based on DB ground truth, explain allocations clearly, and assist with shift generation proposals.
+
+4. **20-Second Timeout & Intelligent Intent-Aware Fallback**:
+   - Increase Gemini API timeout from 6s to 20s.
+   - Model fallback cascade: `gemini-3.1-flash-lite` -> `gemini-2.5-flash`.
+   - In `execute_deterministic_roster_ai`:
+     - If user asks about a specific person (e.g. "Why manoj..."), look up Manoj's actual shifts for the active month and explain them.
+     - Never repeat the same canned `"Your shift today is OFF..."` string for unrelated queries!
+
+---
+
+## 4. Verification, Version Bump & Mandatory Push
 1. Run `python -m py_compile server.py` and verify:
+   - Test `POST /api/chat/assistant` with multi-turn history & queries like *"Why manoj is having only night shift"* -> returns intelligent, conversational answer without falling back to canned text.
    - Test `POST /api/notifications/dismiss` (single & all) -> verifies database storage.
    - Test `GET /api/notifications` -> verifies dismissed notifications are omitted from feed.
    - Test `POST /api/users/calendar-sync` -> records target account and count.
    - Zero hardcoded personal names/emails/passwords.
 2. Bump `SERVER_VERSION = "2.2.0"` in `server.py`.
-3. Commit with semantic message (`feat(backend): permanent server-side notification deletion & calendar target state engine v2.2.0 (Build 151)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
+3. Commit with semantic message (`feat(backend): conversational multi-turn AI engine & persistent notification deletion v2.2.0 (Build 151)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!

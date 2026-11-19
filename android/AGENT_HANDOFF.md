@@ -26,6 +26,9 @@
 >    - **Vijayan**: Remove destructive session wipe in `login.html` (lines 87-97)!
 >    - Use `window.location.replace('user-portal.html')` on login so login is not in history.
 >    - Handle `popstate`: Back closes open modals -> closes subviews -> returns to Dashboard -> exits without logging out. Never log off until the user taps Sign Out!
+> 6. **Conversational Multi-Turn AI Assistant (Like ChatGPT / Gemini)**:
+>    - **Dasan**: In `server.py`, accept `history: [...]` and `target_month` in `/api/chat/assistant`. Pass multi-turn conversation to Gemini API. Ground with active month's roster data from MongoDB Atlas. Increase timeout to 20s and replace canned repetitive strings with intelligent intent-aware reasoning that understands casual/broken English.
+>    - **Vijayan**: Pass recent conversation history (`history`) and `target_month` from `rosterAiAssistant.js`, `userPortal.js`, and Android `EngineerPortalViewModel.kt`!
 >
 > ### 🔀 Execution Flow:
 > - **Dasan**: Run `plan_dasan.md` -> Backend endpoints + bump `SERVER_VERSION = "2.2.0"` -> Commit & `git push origin main`.
