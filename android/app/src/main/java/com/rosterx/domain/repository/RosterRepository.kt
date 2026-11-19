@@ -91,6 +91,9 @@ interface RosterRepository {
     suspend fun getCredentialTrackerLogs(): Result<List<com.rosterx.data.remote.CredentialTrackerLogDto>>
 
     suspend fun getTodayCelebrations(): Result<List<com.rosterx.data.remote.TodayCelebrationDto>>
+
+    suspend fun recordCalendarSync(month: String, count: Int, target: String): Result<Unit>
+    suspend fun clearCalendarSync(month: String): Result<Unit>
 }
 
 

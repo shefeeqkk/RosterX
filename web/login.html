@@ -566,271 +566,140 @@
 
 
   <!-- ============================================================== -->
-
   <!-- MODAL: FORGOT PASSWORD WITH OTP VERIFICATION -->
-
   <!-- ============================================================== -->
-
-  <div id="forgotPasswordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-
-    <div class="glass-card rounded-2xl w-full max-w-md p-6 relative border border-slate-700/80 shadow-2xl">
-
+  <div id="forgotPasswordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+    <div class="rounded-2xl w-full max-w-md p-6 relative border shadow-2xl transition-all" style="background:var(--nm-surface);border-color:var(--nm-border);box-shadow:var(--nm-shadow-floating);">
       
-
       <!-- Close Button -->
-
-      <button id="btnCloseForgotModal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition p-1 cursor-pointer">
-
+      <button id="btnCloseForgotModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 dark:hover:text-white transition p-1 cursor-pointer" aria-label="Close">
         <i class="ph ph-x text-lg"></i>
-
       </button>
 
-
-
       <!-- Modal Title -->
-
       <div class="flex items-center gap-3 mb-4">
-
-        <div class="w-10 h-10 rounded-xl bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-
+        <div class="w-10 h-10 rounded-xl bg-cyan-600/15 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
           <i class="ph ph-key text-xl"></i>
-
         </div>
-
         <div>
-
-          <h3 class="text-base font-bold text-white font-outfit">Reset Account Password</h3>
-
-          <p class="text-xs text-slate-400">Secure verification using 6-digit OTP</p>
-
+          <h3 class="text-base font-bold font-outfit" style="color:var(--nm-text);">Reset Account Password</h3>
+          <p class="text-xs font-medium" style="color:var(--nm-text-muted);">Secure verification using 6-digit OTP</p>
         </div>
-
       </div>
-
-
 
       <!-- OTP Flow Alert -->
-
       <div id="otpAlert" class="hidden mb-4 p-3 rounded-xl text-xs flex items-start gap-2">
-
         <i class="ph ph-info text-base shrink-0 mt-0.5"></i>
-
         <div id="otpAlertText" class="font-medium"></div>
-
       </div>
-
-
 
       <!-- STEP 1: Enter Username/Email to Request OTP -->
-
       <div id="otpStep1" class="space-y-4">
-
-        <p class="text-xs text-slate-300">
-
+        <p class="text-xs leading-relaxed" style="color:var(--nm-text-muted);">
           Enter your username, registered engineer name, or email. We will generate a secure One-Time Password (OTP) for your identity.
-
         </p>
 
-
-
         <div>
-
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Account Identifier</label>
-
+          <label class="block text-xs font-bold mb-1.5" style="color:var(--nm-text);">Account Identifier</label>
           <div class="relative">
-
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
               <i class="ph ph-user text-base"></i>
-
             </span>
-
             <input 
-
               type="text" 
-
               id="resetIdentifierInput" 
-
               placeholder="Enter username or registered email"
-
-              class="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition shadow-inner"
+              style="background:var(--nm-input-surface);border:1px solid var(--nm-border);color:var(--nm-text);"
             />
-
           </div>
-
         </div>
 
-
-
         <button 
-
           type="button" 
-
           id="btnSendOtp" 
-
-          class="w-full btn-gradient py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer"
-
+          class="w-full btn-gradient py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer shadow-md"
         >
-
           <span>Send Verification OTP</span>
-
           <i class="ph ph-paper-plane-tilt text-base"></i>
-
         </button>
-
       </div>
-
-
 
       <!-- STEP 2: Enter OTP & Set New Password -->
-
       <div id="otpStep2" class="hidden space-y-4">
-
-
-
         <!-- 6-digit OTP Input -->
-
         <div>
-
-          <label class="block text-xs font-semibold text-slate-300 mb-1">
-
+          <label class="block text-xs font-bold mb-1.5" style="color:var(--nm-text);">
             Enter 6-Digit OTP Code
-
           </label>
-
           <div class="relative">
-
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
               <i class="ph ph-password text-base"></i>
-
             </span>
-
             <input 
-
               type="text" 
-
               id="otpInput" 
-
               maxlength="6"
-
               placeholder="Enter 6-digit code"
-
-              class="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm font-mono tracking-widest text-center text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-cyan-500 transition shadow-inner"
+              style="background:var(--nm-input-surface);border:1px solid var(--nm-border);color:var(--nm-text);"
             />
-
           </div>
-
         </div>
-
-
 
         <!-- New Password Input -->
-
         <div>
-
-          <label class="block text-xs font-semibold text-slate-300 mb-1">
-
+          <label class="block text-xs font-bold mb-1.5" style="color:var(--nm-text);">
             New Password
-
           </label>
-
           <input 
-
             type="password" 
-
             id="newPassInput" 
-
             name="new-password"
-
             autocomplete="new-password"
-
             placeholder="Min 6 characters"
-
-            class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
+            class="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition shadow-inner"
+            style="background:var(--nm-input-surface);border:1px solid var(--nm-border);color:var(--nm-text);"
           />
-
         </div>
-
-
 
         <!-- Confirm Password Input -->
-
         <div>
-
-          <label class="block text-xs font-semibold text-slate-300 mb-1">
-
+          <label class="block text-xs font-bold mb-1.5" style="color:var(--nm-text);">
             Confirm New Password
-
           </label>
-
           <input 
-
             type="password" 
-
             id="confirmPassInput" 
-
             name="confirm-password"
-
             autocomplete="new-password"
-
             placeholder="Confirm new password"
-
-            class="w-full px-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-
+            class="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition shadow-inner"
+            style="background:var(--nm-input-surface);border:1px solid var(--nm-border);color:var(--nm-text);"
           />
-
         </div>
-
-
 
         <button 
-
           type="button" 
-
           id="btnSubmitReset" 
-
-          class="w-full btn-gradient py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer"
-
+          class="w-full btn-gradient py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer shadow-md"
         >
-
           <span>Verify OTP & Update Password</span>
-
           <i class="ph ph-check-circle text-base"></i>
-
         </button>
 
-
-
         <div class="text-center pt-1">
-
           <button 
-
             type="button" 
-
             id="btnBackToStep1" 
-
-            class="text-xs text-slate-400 hover:text-white transition cursor-pointer"
-
+            class="text-xs transition cursor-pointer font-semibold"
+            style="color:var(--nm-text-muted);"
           >
-
             ← Change username / Resend OTP
-
           </button>
-
         </div>
-
-
-
       </div>
-
-
-
     </div>
-
   </div>
 
 
@@ -1081,13 +950,9 @@
         otpAlert.classList.remove('hidden');
 
         if (isError) {
-
-          otpAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2 bg-rose-950/60 border border-rose-500/40 text-rose-200';
-
+          otpAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-500/40 text-rose-700 dark:text-rose-200';
         } else {
-
-          otpAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2 bg-emerald-950/60 border border-emerald-500/40 text-emerald-200';
-
+          otpAlert.className = 'mb-4 p-3 rounded-xl text-xs flex items-start gap-2 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200';
         }
 
         otpAlertText.innerHTML = msg;

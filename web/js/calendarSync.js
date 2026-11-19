@@ -8,7 +8,7 @@
  * - Opens natively in Apple Calendar "Add All Events" sheet on iOS Safari!
  */
 
-import { openNeumorphicDialog, closeNeumorphicDialog, escapeHtml } from './pwaHelper.js';
+import { openNeumorphicDialog, closeNeumorphicDialog, escapeHtml, getAuthHeaders } from './pwaHelper.js';
 
 const REMINDER_KEY = 'rosterx_calendar_reminder_minutes';
 
@@ -199,11 +199,21 @@ export function triggerIcsDownload({ content, fileName }) {
 
 /**
  * Opens the authentic frosted-blur Neumorphic "Sync to Calendar" <dialog> modal.
+ * 1:1 Parity with Android CalendarSyncDialog.kt:
+ * - Reflects target Google Calendar / Apple Calendar sync status from server
+ * - Allows Re-Sync, Share/Export .ics, and Clear Month actions
+ * - Persists sync status to MongoDB Atlas via POST /api/users/calendar-sync
  */
 export function openCalendarSyncModal({ engineerName, username, year, month, dayShiftCodes, onToast }) {
   const preview = computeSyncPreview(dayShiftCodes);
+  const monthKey = `${year}-${pad2(month)}`;
   const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   let selectedReminder = getSavedReminder();
+
+  let syncState = null;
+  let isLoadingSync = true;
+  let isSyncing = false;
+  let isClearing = false;
 
   let dialog = document.getElementById('rxCalendarSyncDialog');
   if (!dialog) {
@@ -215,7 +225,122 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
     document.body.appendChild(dialog);
   }
 
+  // Fetch initial sync status from server
+  fetch(`/api/users/calendar-sync?month=${encodeURIComponent(monthKey)}`, {
+    headers: getAuthHeaders()
+  })
+    .then((r) => r.json())
+    .then((res) => {
+      isLoadingSync = false;
+      if (res && res.success && res.sync && res.synced) {
+        syncState = res.sync;
+      }
+      render();
+    })
+    .catch(() => {
+      isLoadingSync = false;
+      render();
+    });
+
+  const recordSyncOnServer = async (count, target) => {
+    try {
+      const res = await fetch('/api/users/calendar-sync', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          month: monthKey,
+          count: count,
+          target: target,
+          synced: true
+        })
+      });
+      const data = await res.json();
+      if (data && data.success && data.data) {
+        syncState = data.data;
+      } else {
+        syncState = { synced: true, count, target, synced_at: 'Just now' };
+      }
+    } catch (_) {
+      syncState = { synced: true, count, target, synced_at: 'Just now' };
+    }
+  };
+
+  const clearSyncOnServer = async () => {
+    try {
+      const res = await fetch('/api/users/calendar-sync/clear', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ month: monthKey })
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  };
+
+  const handleExport = async (isResync = false) => {
+    if (preview.total === 0 || isSyncing || isClearing) return;
+    isSyncing = true;
+    render();
+
+    try {
+      const ics = buildPersonalIcsContent({
+        engineerName,
+        username,
+        year,
+        month,
+        dayShiftCodes,
+        reminderMinutes: selectedReminder
+      });
+
+      if (ics.count > 0) {
+        triggerIcsDownload(ics);
+        const targetLabel = 'Apple / Google Calendar (.ics)';
+        await recordSyncOnServer(ics.count, targetLabel);
+        const msg = isResync
+          ? `Re-synced ${ics.count} personal calendar days for ${monthLabel}`
+          : `Synced ${ics.count} personal calendar days for ${monthLabel}`;
+        onToast?.(msg, 'success');
+      } else {
+        onToast?.('No shifts available to export for this month.', 'info');
+      }
+    } catch (err) {
+      onToast?.(err.message || 'Failed to sync calendar', 'error');
+    } finally {
+      isSyncing = false;
+      render();
+    }
+  };
+
+  const handleClear = async () => {
+    if (isSyncing || isClearing) return;
+    if (!window.confirm(`Clear calendar sync status for ${monthLabel}?`)) return;
+
+    isClearing = true;
+    render();
+
+    try {
+      const res = await clearSyncOnServer();
+      if (res && res.success) {
+        syncState = null;
+        onToast?.(`Cleared calendar sync for ${monthLabel}`, 'success');
+      } else {
+        onToast?.(res?.message || 'Failed to clear calendar sync', 'error');
+      }
+    } catch (err) {
+      onToast?.(err.message || 'Failed to clear calendar sync', 'error');
+    } finally {
+      isClearing = false;
+      render();
+    }
+  };
+
   const render = () => {
+    const isSynced = Boolean(syncState && syncState.synced);
+    const targetName = syncState?.target || 'Google Calendar';
+    const targetSyncedAt = syncState?.synced_at || 'Active';
+    const syncedCount = syncState?.count || preview.total;
+
     dialog.innerHTML = `
       <div class="rx-modal-scroll">
         <div class="rx-modal-header">
@@ -226,10 +351,29 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
               <div style="font-size:12px;font-weight:600;color:var(--nm-text-muted);">${escapeHtml(monthLabel)}</div>
             </div>
           </div>
-          <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close">
+          <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close" ${isSyncing || isClearing ? 'disabled' : ''}>
             <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
+
+        <!-- Target Calendar Status Card (1:1 Android Parity) -->
+        ${isSynced ? `
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--nm-surface);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span class="rx-field-label" style="margin:0;color:var(--nm-accent);font-size:10.5px;letter-spacing:0.04em;">TARGET CALENDAR</span>
+              <span style="font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:8px;background:rgba(16,185,129,0.14);color:#059669;display:flex;align-items:center;gap:4px;">
+                <i class="ph-fill ph-check-circle" style="font-size:12px;"></i> Synced (${syncedCount})
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;min-inline-size:0;">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#059669;flex-shrink:0;"></span>
+                <strong style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(targetName)}</strong>
+              </div>
+              <span style="font-size:11px;color:var(--nm-text-muted);">${escapeHtml(targetSyncedAt)}</span>
+            </div>
+          </div>
+        ` : ''}
 
         <div class="rx-well" style="display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
@@ -260,7 +404,7 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
             ${REMINDER_CHOICES.map((c) => {
               const active = selectedReminder === c.minutes;
               return `
-                <button type="button" class="rx-chip-btn ${active ? 'is-active' : ''}" data-rx-rem="${c.minutes === null ? 'none' : c.minutes}" aria-pressed="${active}">
+                <button type="button" class="rx-chip-btn ${active ? 'is-active' : ''}" data-rx-rem="${c.minutes === null ? 'none' : c.minutes}" aria-pressed="${active}" ${isSyncing || isClearing ? 'disabled' : ''}>
                   ${c.label}
                 </button>
               `;
@@ -271,10 +415,25 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
           </div>
         </div>
 
-        <button type="button" class="rx-btn-primary" style="width:100%;" data-rx-export ${preview.total === 0 ? 'disabled' : ''}>
-          <i class="ph ph-calendar-plus" aria-hidden="true"></i>
-          <span>Add ${preview.total} Days to Calendar (.ics)</span>
-        </button>
+        ${isSynced ? `
+          <button type="button" class="rx-btn-primary" style="width:100%;" data-rx-resync ${preview.total === 0 || isSyncing || isClearing ? 'disabled' : ''}>
+            <i class="ph ph-arrows-clockwise ${isSyncing ? 'ph-spin' : ''}" aria-hidden="true"></i>
+            <span>${isSyncing ? 'Re-Syncing...' : `Re-Sync ${preview.total} Days`}</span>
+          </button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <button type="button" class="rx-btn-surface" data-rx-export-ics style="font-weight:700;" ${isSyncing || isClearing ? 'disabled' : ''}>
+              <i class="ph ph-share-network"></i> Share / .ics
+            </button>
+            <button type="button" class="rx-btn-surface" data-rx-clear-month style="color:#DC2626;font-weight:800;" ${isSyncing || isClearing ? 'disabled' : ''}>
+              <i class="ph ph-trash"></i> ${isClearing ? 'Clearing...' : 'Clear Month'}
+            </button>
+          </div>
+        ` : `
+          <button type="button" class="rx-btn-primary" style="width:100%;" data-rx-export ${preview.total === 0 || isSyncing || isClearing ? 'disabled' : ''}>
+            <i class="ph ph-calendar-plus" aria-hidden="true"></i>
+            <span>${isSyncing ? 'Syncing...' : `Add ${preview.total} Days to Calendar (.ics)`}</span>
+          </button>
+        `}
       </div>
     `;
 
@@ -287,7 +446,10 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
         render();
       });
     });
-    dialog.querySelector('[data-rx-export]')?.addEventListener('click', () => {
+
+    dialog.querySelector('[data-rx-export]')?.addEventListener('click', () => handleExport(false));
+    dialog.querySelector('[data-rx-resync]')?.addEventListener('click', () => handleExport(true));
+    dialog.querySelector('[data-rx-export-ics]')?.addEventListener('click', () => {
       const ics = buildPersonalIcsContent({
         engineerName,
         username,
@@ -298,12 +460,10 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
       });
       if (ics.count > 0) {
         triggerIcsDownload(ics);
-        onToast?.(`Prepared ${ics.count} personal calendar days for ${monthLabel}`, 'success');
-        closeNeumorphicDialog(dialog);
-      } else {
-        onToast?.('No shifts available to export for this month.', 'info');
+        onToast?.(`Downloaded .ics for ${monthLabel}`, 'success');
       }
     });
+    dialog.querySelector('[data-rx-clear-month]')?.addEventListener('click', handleClear);
   };
 
   render();

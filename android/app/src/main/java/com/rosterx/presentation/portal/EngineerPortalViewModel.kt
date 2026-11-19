@@ -785,6 +785,20 @@ class EngineerPortalViewModel @Inject constructor(
         }
     }
 
+    fun recordCalendarSync(month: String, count: Int, target: String) {
+        analyticsManager.logEvent("calendar_sync_recorded", mapOf("month" to month, "count" to count))
+        viewModelScope.launch {
+            repository.recordCalendarSync(month, count, target)
+        }
+    }
+
+    fun clearCalendarSync(month: String) {
+        analyticsManager.logEvent("calendar_sync_cleared", mapOf("month" to month))
+        viewModelScope.launch {
+            repository.clearCalendarSync(month)
+        }
+    }
+
     fun loadBroadcastTemplates() {
         viewModelScope.launch {
             repository.getBroadcastTemplates().onSuccess { tpls ->

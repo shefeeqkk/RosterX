@@ -5,6 +5,30 @@
 
 ---
 
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.1.0 - Build 150 — Cloud-Backed Calendar Sync Endpoints & Notification Dismissal Parity):
+> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.1.0` (Build 150)** 100% spotless aayi finish cheythu live Render production deploymentilottu push cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🚀 Key Implementations Delivered:
+> 1. **Cloud-Backed Calendar Sync Endpoints (`server.py`)**:
+>    - **`POST /api/users/calendar-sync`**: Saves `{ month: "YYYY-MM", count, target, synced: true }` into MongoDB Atlas (`calendar_sync.{month}`) and updates in-memory fallback.
+>    - **`GET /api/users/calendar-sync`**: Returns all synced months `{ success: true, calendar_sync: {...} }` or specific month status via `?month=YYYY-MM`.
+>    - **`POST /api/users/calendar-sync/clear`**: Unsets `calendar_sync.{month}` (or all syncs if no month/all: true).
+>    - **Profile Payload Integration**: Included `calendar_sync` map in `GET /api/auth/me`, `POST /api/auth/login`, and `GET /api/engineers` responses so clients have sync state cached immediately on startup.
+> 2. **Notification Dismissal Sync Parity (`server.py`)**:
+>    - **`POST /api/notifications/dismiss`**: Accepts both `notification_id` and `id` parameter names.
+>    - **Comprehensive `dismiss_all`**: Sweeps across broadcast notices, celebrations, and credential alerts into `dismissed_notifications` on `ATLAS_DB.engineers`.
+>    - **Zero-Latency Reconciliation**: Automatically returns the full updated `dismissed_notification_ids` list in the response so Android and Web can update their badge and UI without an extra GET query!
+> 3. **Android Client Kotlin Parity Check**:
+>    - Fixed unreferenced `viewModel` in `EngineerPortalScreen.kt` by passing `onSyncRecorded` and `onSyncCleared` lambdas to `MyCalendarView`.
+>    - Verified with `safe_build.bat compileDebugKotlin` → **BUILD SUCCESSFUL**!
+> 4. **Version Bump & Zero-PII Verification**:
+>    - Bumped `SERVER_VERSION = "2.1.0"` in `server.py` and verified `android/app/build.gradle.kts` matches `versionName = "2.1.0"`, `versionCode = 150`.
+>    - Zero hardcoded PII/secrets or personal names in code or comments.
+>
+> Vijaya, backend and routes are live and 100% ready for your Web UI and Android Compose tests! Over to you for the final touch!"*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.1.0 - Build 150 — Cloud-Backed Calendar Sync Parity, Desktop Balanced Layout, Notifications Parity & Lively 1:1 AI Assistant):
 > *"Dasa, Vijaya! User `/grill-me` session-il nammude next MAJOR Sprint **`v2.1.0` (Build 150)** 100% lock aakki vechittundu:
 >

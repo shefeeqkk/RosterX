@@ -346,6 +346,12 @@ interface RosterApiService {
 
     @GET("api/celebrations/today")
     suspend fun getTodayCelebrations(): TodayCelebrationsResponse
+
+    @POST("api/users/calendar-sync")
+    suspend fun saveCalendarSyncStatus(@Body body: CalendarSyncRequest): PingResponse
+
+    @POST("api/users/calendar-sync/clear")
+    suspend fun clearCalendarSyncStatus(@Body body: CalendarSyncClearRequest): PingResponse
 }
 
 data class UpdateProfilePictureRequest(
@@ -403,7 +409,20 @@ data class DeleteEngineerRequest(
 )
 
 data class DismissNotificationRequest(
+    @SerializedName("notification_id") val notificationId: String? = null,
     @SerializedName("id") val id: String? = null,
+    @SerializedName("all") val all: Boolean? = null
+)
+
+data class CalendarSyncRequest(
+    @SerializedName("month") val month: String,
+    @SerializedName("count") val count: Int,
+    @SerializedName("target") val target: String,
+    @SerializedName("synced") val synced: Boolean = true
+)
+
+data class CalendarSyncClearRequest(
+    @SerializedName("month") val month: String? = null,
     @SerializedName("all") val all: Boolean? = null
 )
 

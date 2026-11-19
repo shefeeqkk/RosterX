@@ -628,7 +628,7 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
   background: var(--nm-surface-contrast, #E2E8F0);
   text-align: left;
   padding-left: 10px;
-  min-width: 132px;
+  min-width: 140px;
   box-shadow: 2px 0 6px rgba(15, 23, 42, 0.08);
 }
 
@@ -642,6 +642,7 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
   padding: 6px 10px;
   font-weight: 700;
   white-space: nowrap;
+  min-width: 140px;
   border-bottom: 1px solid var(--nm-border);
   border-right: 1px solid var(--nm-border);
   box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
@@ -658,12 +659,29 @@ html.dark .rx-roster-table tbody th {
 }
 
 .rx-roster-table tbody td {
-  padding: 4px 3px;
+  padding: 5px 3.5px;
   text-align: center;
-  min-width: 36px;
+  min-width: 40px;
+  height: 36px;
   font-weight: 800;
+  font-size: 11.5px;
   border-bottom: 1px solid var(--nm-border);
   border-right: 1px solid var(--nm-border);
+}
+
+@media (min-width: 900px) {
+  .rx-roster-table thead th:first-child,
+  .rx-roster-table tbody th {
+    min-width: 160px;
+    font-size: 12px;
+    padding: 7px 12px;
+  }
+  .rx-roster-table tbody td {
+    min-width: 44px;
+    height: 38px;
+    padding: 5px 4px;
+    font-size: 12px;
+  }
 }
 
 /* ==========================================================================
@@ -774,5 +792,283 @@ html.dark .rx-roster-table tbody th {
     right: max(12px, env(safe-area-inset-right, 0px));
     padding: 9px 14px;
     font-size: 12px;
+  }
+}
+
+/* ==========================================================================
+   10. Notification Clear & Dismiss Animations
+   ========================================================================== */
+@keyframes rxNotifSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 160px;
+    margin-bottom: 10px;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(45px);
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    overflow: hidden;
+  }
+}
+
+.rx-notif-dismissing {
+  animation: rxNotifSlideOut 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   11. AI Assistant Dialog (1:1 Android Parity + Bottom Sheet)
+   ========================================================================== */
+#rxAiChatDialog {
+  width: min(94vw, 560px);
+  height: min(85dvh, 760px);
+  max-height: min(85dvh, 760px);
+  border-radius: 26px;
+  display: flex;
+  flex-direction: column;
+}
+
+#rxAiChatDialog .rx-modal-scroll {
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.rx-sheet-drag-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--nm-border);
+  margin: 0 auto 4px auto;
+  flex-shrink: 0;
+  display: none;
+}
+
+@media (max-width: 640px) {
+  #rxAiChatDialog {
+    width: 100%;
+    max-width: 100%;
+    height: 85dvh;
+    max-height: 85dvh;
+    margin: auto auto 0 auto;
+    border-radius: 28px 28px 0 0;
+    border-bottom: 0;
+  }
+
+  .rx-sheet-drag-handle {
+    display: block;
+  }
+}
+
+.rx-pulsing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: rxPulse 1.8s infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes rxPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.rx-ai-chips {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 2px 2px 6px 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.rx-ai-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.rx-ai-chip {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  color: var(--nm-text);
+  box-shadow: var(--nm-shadow-raised-subtle);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.rx-ai-chip:active {
+  transform: scale(0.96);
+  background: var(--nm-accent-soft);
+  color: var(--nm-accent);
+}
+
+.rx-ai-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--nm-input-surface);
+  box-shadow: var(--nm-shadow-inset-subtle);
+}
+
+.rx-ai-bubble-ai {
+  align-self: flex-start;
+  max-width: 90%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.rx-ai-bubble-ai-content {
+  background: var(--nm-surface);
+  color: var(--nm-text);
+  border-radius: 16px 16px 16px 4px;
+  padding: 10px 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  box-shadow: var(--nm-shadow-raised-subtle);
+  word-break: break-word;
+}
+
+.rx-ai-bubble-user {
+  align-self: flex-end;
+  max-width: 88%;
+  background: var(--nm-accent-gradient);
+  color: #ffffff;
+  border-radius: 16px 16px 4px 16px;
+  padding: 9px 13px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-shadow: 0 4px 14px var(--nm-accent-glow);
+  word-break: break-word;
+}
+
+.rx-typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 14px;
+  border-radius: 14px;
+  background: var(--nm-surface);
+  box-shadow: var(--nm-shadow-raised-subtle);
+  width: fit-content;
+}
+
+.rx-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nm-accent);
+  animation: rxTypingBounce 1.2s infinite ease-in-out;
+}
+
+.rx-typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.rx-typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes rxTypingBounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+.rx-chat-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  margin: 0 2px;
+}
+
+/* ==========================================================================
+   12. Desktop Balanced Layout & Profile Accordion
+   ========================================================================== */
+.rx-accordion-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.rx-accordion-body {
+  overflow: hidden;
+  transition: max-height 0.28s ease, opacity 0.22s ease;
+}
+
+.rx-accordion-body.is-collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.rx-accordion-caret {
+  transition: transform 0.22s ease;
+}
+
+.rx-accordion-caret.is-rotated {
+  transform: rotate(180deg);
+}
+
+@media (min-width: 900px) {
+  #subview_profile,
+  #panel_my_calendar,
+  #panel_team_shifts {
+    max-width: 1100px;
+    margin-inline: auto;
+  }
+
+  .rx-land-grid-2 {
+    display: grid !important;
+    grid-template-columns: 1.15fr 0.85fr !important;
+    gap: 20px !important;
+    align-items: start;
+  }
+
+  .rx-calendar-split {
+    display: grid !important;
+    grid-template-columns: 1.35fr 1fr !important;
+    gap: 24px !important;
+    align-items: start;
   }
 }

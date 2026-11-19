@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.0.6"
+SERVER_VERSION = "2.1.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -234,6 +234,8 @@ SERVER_CREDENTIAL_TRACKERS = []  # In-memory fallback if Atlas DB is disconnecte
 SERVER_CREDENTIAL_TRACKER_LOGS = collections.deque(maxlen=1000)  # In-memory fallback for audit logs
 SERVER_BROADCAST_TEMPLATES = []  # In-memory fallback for custom broadcast templates
 LAST_CREDENTIAL_ALERT_DATE = {}  # { tracker_id: "YYYY-MM-DD" } to prevent duplicate alerts on same day
+SERVER_USER_CALENDAR_SYNC = {}  # In-memory fallback: {username: {month: sync_entry}}
+SERVER_USER_DISMISSED_NOTIFICATIONS = {}  # In-memory fallback: {username: set(dismissed_ids)}
 
 def log_server(msg: str):
     """Log to stdout and append timestamped entry to circular SERVER_LOGS buffer in Indian Standard Time (IST)."""
@@ -3408,7 +3410,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 try:
                     user_doc = ATLAS_DB.engineers.find_one({"username": str(claims["username"]).strip().lower()}, {"_id": 0, "password": 0})
                     if user_doc:
-                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "resignation_date", "birthday", "default_weekly_offs"):
+                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "resignation_date", "birthday", "default_weekly_offs", "calendar_sync"):
                             if k in user_doc:
                                 response_user[k] = user_doc[k]
                     if response_user.get("name"):
@@ -3483,6 +3485,61 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     return
                 self.send_json_response({"success": True, "data": tracker})
                 return
+
+        # 1.58 GET /api/users/calendar-sync (Cloud-Backed Calendar Sync State per Month)
+        if clean_path in ("/api/users/calendar-sync", "/api/users/calendar-sync/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            if not caller_username:
+                self.send_json_response({"success": False, "message": "Authentication required."}, 401)
+                return
+
+            query_str = self.path.split("?")[1] if "?" in self.path else ""
+            params = urllib.parse.parse_qs(query_str) if query_str else {}
+            month_param = params.get("month", [None])[0]
+            if month_param:
+                month_param = month_param.strip()
+
+            calendar_sync_data = {}
+            if ATLAS_DB is not None:
+                try:
+                    user_doc = ATLAS_DB.engineers.find_one({"username": caller_username}, {"calendar_sync": 1})
+                    if user_doc and "calendar_sync" in user_doc and isinstance(user_doc["calendar_sync"], dict):
+                        calendar_sync_data = user_doc["calendar_sync"]
+                except Exception as e:
+                    print(f"  [ATLAS CALENDAR SYNC FETCH ERROR] {e}")
+
+            if not calendar_sync_data and caller_username in SERVER_USER_CALENDAR_SYNC:
+                calendar_sync_data = dict(SERVER_USER_CALENDAR_SYNC[caller_username])
+
+            if not calendar_sync_data:
+                # In-memory fallback
+                for e in DEFAULT_SERVER_ENGINEERS:
+                    if str(e.get("username", "")).lower() == caller_username:
+                        cs = e.get("calendar_sync")
+                        if isinstance(cs, dict):
+                            calendar_sync_data = dict(cs)
+                        break
+
+            if month_param:
+                month_sync = calendar_sync_data.get(month_param)
+                self.send_json_response({
+                    "success": True,
+                    "month": month_param,
+                    "sync": month_sync,
+                    "synced": bool(month_sync.get("synced", False)) if isinstance(month_sync, dict) else False
+                })
+                return
+
+            self.send_json_response({
+                "success": True,
+                "calendar_sync": calendar_sync_data,
+                "count": len(calendar_sync_data)
+            })
+            return
 
         # 1.6 GET /api/users/<username>/avatar (Binary image streaming with caching headers)
         if clean_path.startswith("/api/users/") and clean_path.endswith("/avatar"):
@@ -3997,8 +4054,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/users/fcm-token", "/users/fcm-token/unregister", "/fcm/unregister",
             "/users/profile", "/celebrations/check",
             "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant",
-            "/users/profile-picture"
-        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
+            "/users/profile-picture",
+            "/users/calendar-sync", "/users/calendar-sync/clear"
+        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/users/calendar-sync"):
             norm_path = "/api" + norm_path
         norm_path = self._normalize_api_aliases(norm_path)
 
@@ -4068,7 +4126,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             "email": user.get("email") or env.get("ALERT_EMAIL", "admin@rosterx.dev"),
                             "phone": user.get("phone", ""),
                             "role": user.get("role", "admin"),
-                            "profile_picture": user.get("profile_picture")
+                            "profile_picture": user.get("profile_picture"),
+                            "calendar_sync": user.get("calendar_sync", {})
                         }
                         token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                         platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
@@ -4110,7 +4169,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "email": user.get("email", ""),
                         "phone": user.get("phone", ""),
                         "role": role,
-                        "profile_picture": user.get("profile_picture")
+                        "profile_picture": user.get("profile_picture"),
+                        "calendar_sync": user.get("calendar_sync", {})
                     }
                     token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                     platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
@@ -5077,38 +5137,90 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": f"Failed to update profile: {e}"}, 500)
                 return
 
-                # 3.7 POST /api/notifications/dismiss (Persistent Notification Dismissal in Atlas DB)
+        # 3.7 POST /api/notifications/dismiss (Persistent Notification Dismissal in Atlas DB)
         if clean_path in ("/api/notifications/dismiss", "/api/notifications/dismiss/"):
             claims = self.require_auth()
             if not claims:
                 return
 
             username = str(claims.get("username", "")).strip().lower()
-            notif_id = str(body.get("notification_id", "")).strip()
+            notif_id = str(body.get("notification_id") or body.get("id") or "").strip()
             dismiss_all = bool(body.get("all", False))
 
-            if ATLAS_DB is not None and username:
-                try:
-                    if dismiss_all:
+            if not username:
+                self.send_json_response({"success": False, "message": "Authentication required."}, 401)
+                return
+
+            all_ids = set()
+            if dismiss_all:
+                if ATLAS_DB is not None:
+                    try:
                         all_notifs = list(ATLAS_DB.notifications.find())
-                        all_ids = []
                         for n in all_notifs:
-                            nid = str(n.get("id") or n.get("_id") or "")
-                            if nid:
-                                all_ids.append(nid)
+                            for k in ("id", "_id", "celebration_id"):
+                                val = str(n.get(k) or "").strip()
+                                if val:
+                                    all_ids.add(val)
+                    except Exception as e:
+                        print(f"  [DISMISS ALL ATLAS ERROR] {e}")
+
+                for n in SERVER_NOTIFICATIONS:
+                    for k in ("id", "_id", "celebration_id"):
+                        val = str(n.get(k) or "").strip()
+                        if val:
+                            all_ids.add(val)
+
+                if ATLAS_DB is not None and all_ids:
+                    try:
                         ATLAS_DB.engineers.update_one(
                             {"username": username},
-                            {"$addToSet": {"dismissed_notifications": {"$each": all_ids}}}
+                            {"$addToSet": {"dismissed_notifications": {"$each": list(all_ids)}}}
                         )
-                    elif notif_id:
+                    except Exception as e:
+                        print(f"  [DISMISS ALL UPDATE ERROR] {e}")
+            elif notif_id:
+                if ATLAS_DB is not None:
+                    try:
                         ATLAS_DB.engineers.update_one(
                             {"username": username},
                             {"$addToSet": {"dismissed_notifications": notif_id}}
                         )
-                except Exception as e:
-                    print(f"  [DISMISS NOTIF ERROR] {e}")
+                    except Exception as e:
+                        print(f"  [DISMISS NOTIF ERROR] {e}")
 
-            self.send_json_response({"success": True, "message": "Notification dismissed permanently."})
+            # In-memory fallback
+            if username not in SERVER_USER_DISMISSED_NOTIFICATIONS:
+                SERVER_USER_DISMISSED_NOTIFICATIONS[username] = set()
+            if dismiss_all:
+                SERVER_USER_DISMISSED_NOTIFICATIONS[username].update(all_ids)
+            elif notif_id:
+                SERVER_USER_DISMISSED_NOTIFICATIONS[username].add(notif_id)
+
+            # Retrieve updated list of dismissed notification IDs for immediate client reconciliation
+            updated_dismissed_ids = []
+            if ATLAS_DB is not None and username:
+                try:
+                    u_doc = ATLAS_DB.engineers.find_one({"username": username}, {"dismissed_notifications": 1})
+                    if u_doc and "dismissed_notifications" in u_doc and isinstance(u_doc["dismissed_notifications"], list):
+                        updated_dismissed_ids = list(u_doc["dismissed_notifications"])
+                except Exception as e:
+                    print(f"  [DISMISS RETRIEVE ERROR] {e}")
+
+            if not updated_dismissed_ids and username in SERVER_USER_DISMISSED_NOTIFICATIONS:
+                updated_dismissed_ids = sorted(list(SERVER_USER_DISMISSED_NOTIFICATIONS[username]))
+
+            if not updated_dismissed_ids:
+                if dismiss_all:
+                    updated_dismissed_ids = list(all_ids)
+                elif notif_id:
+                    updated_dismissed_ids = [notif_id]
+
+            self.send_json_response({
+                "success": True,
+                "message": "All notifications dismissed permanently." if dismiss_all else "Notification dismissed permanently.",
+                "dismissed_notification_ids": updated_dismissed_ids,
+                "count": len(updated_dismissed_ids)
+            })
             return
 
         # 3.75 POST /api/celebrations/check (Manual or Automated Check for Today's Celebrations)
@@ -5215,6 +5327,128 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     print(f"  [FCM TOKEN UNREGISTER ERROR] {e}")
 
             self.send_json_response({"success": True, "message": "FCM device token unregistered successfully on sign-out."})
+            return
+
+        # 3.82 POST /api/users/calendar-sync (Record Calendar Sync Status for Month)
+        if clean_path in ("/api/users/calendar-sync", "/api/users/calendar-sync/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            if not caller_username:
+                self.send_json_response({"success": False, "message": "Authentication required."}, 401)
+                return
+
+            month = str(body.get("month", "")).strip()
+            if not month:
+                self.send_json_response({"success": False, "message": "Month is required (e.g. 'YYYY-MM')."}, 400)
+                return
+
+            if not re.match(r"^\d{4}-\d{2}$", month):
+                self.send_json_response({"success": False, "message": "Invalid month format. Expected 'YYYY-MM'."}, 400)
+                return
+
+            try:
+                count = int(body.get("count", 0))
+            except Exception:
+                count = 0
+
+            target = str(body.get("target") or "Google Calendar").strip()
+            synced = bool(body.get("synced", True))
+            synced_at = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+            now_ts = time.time()
+
+            sync_entry = {
+                "synced": synced,
+                "count": count,
+                "target": target,
+                "synced_at": synced_at,
+                "timestamp": now_ts
+            }
+
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.engineers.update_one(
+                        {"username": caller_username},
+                        {"$set": {f"calendar_sync.{month}": sync_entry}}
+                    )
+                except Exception as e:
+                    print(f"  [ATLAS CALENDAR SYNC SAVE ERROR] {e}")
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            # Update in-memory fallback
+            if caller_username not in SERVER_USER_CALENDAR_SYNC:
+                SERVER_USER_CALENDAR_SYNC[caller_username] = {}
+            SERVER_USER_CALENDAR_SYNC[caller_username][month] = sync_entry
+
+            for e in DEFAULT_SERVER_ENGINEERS:
+                if str(e.get("username", "")).lower() == caller_username:
+                    if "calendar_sync" not in e or not isinstance(e["calendar_sync"], dict):
+                        e["calendar_sync"] = {}
+                    e["calendar_sync"][month] = sync_entry
+                    break
+
+            self.send_json_response({
+                "success": True,
+                "message": f"Calendar sync recorded for {month}",
+                "month": month,
+                "data": sync_entry
+            })
+            return
+
+        # 3.83 POST /api/users/calendar-sync/clear (Clear Calendar Sync Status for Month or All)
+        if clean_path in ("/api/users/calendar-sync/clear", "/api/users/calendar-sync/clear/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            if not caller_username:
+                self.send_json_response({"success": False, "message": "Authentication required."}, 401)
+                return
+
+            month = str(body.get("month", "")).strip()
+            clear_all = bool(body.get("all", False)) or not month
+
+            if ATLAS_DB is not None:
+                try:
+                    if clear_all:
+                        ATLAS_DB.engineers.update_one(
+                            {"username": caller_username},
+                            {"$unset": {"calendar_sync": ""}}
+                        )
+                    else:
+                        ATLAS_DB.engineers.update_one(
+                            {"username": caller_username},
+                            {"$unset": {f"calendar_sync.{month}": ""}}
+                        )
+                except Exception as e:
+                    print(f"  [ATLAS CALENDAR SYNC CLEAR ERROR] {e}")
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            # Update in-memory fallback
+            if clear_all:
+                SERVER_USER_CALENDAR_SYNC.pop(caller_username, None)
+            elif caller_username in SERVER_USER_CALENDAR_SYNC:
+                SERVER_USER_CALENDAR_SYNC[caller_username].pop(month, None)
+
+            for e in DEFAULT_SERVER_ENGINEERS:
+                if str(e.get("username", "")).lower() == caller_username:
+                    if clear_all:
+                        e.pop("calendar_sync", None)
+                    elif "calendar_sync" in e and isinstance(e["calendar_sync"], dict):
+                        e["calendar_sync"].pop(month, None)
+                    break
+
+            msg = "All calendar sync history cleared." if clear_all else f"Calendar sync cleared for {month}"
+            self.send_json_response({
+                "success": True,
+                "message": msg,
+                "month": None if clear_all else month
+            })
             return
 
         # 3.9 POST /api/broadcast/templates (Create or Update Operational Broadcast Template)

@@ -863,7 +863,8 @@ class RosterRepositoryImpl @Inject constructor(
     override suspend fun dismissNotification(notificationId: String, dismissAll: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val payload = com.rosterx.data.remote.DismissNotificationRequest(
-                id = if (!dismissAll) notificationId else null,
+                notificationId = if (!dismissAll) notificationId.ifBlank { null } else null,
+                id = if (!dismissAll) notificationId.ifBlank { null } else null,
                 all = if (dismissAll) true else null
             )
             val response = apiService.dismissNotification(payload)
@@ -1186,6 +1187,36 @@ class RosterRepositoryImpl @Inject constructor(
             }
         } catch (e: HttpException) {
             Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun recordCalendarSync(month: String, count: Int, target: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.saveCalendarSyncStatus(
+                com.rosterx.data.remote.CalendarSyncRequest(
+                    month = month,
+                    count = count,
+                    target = target,
+                    synced = true
+                )
+            )
+            if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed to save calendar sync"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun clearCalendarSync(month: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.clearCalendarSyncStatus(
+                com.rosterx.data.remote.CalendarSyncClearRequest(
+                    month = month.ifBlank { null },
+                    all = month.isBlank()
+                )
+            )
+            if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed to clear calendar sync"))
         } catch (e: Exception) {
             Result.failure(e)
         }

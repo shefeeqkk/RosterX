@@ -84,7 +84,9 @@ fun CalendarSyncDialog(
     year: Int,
     month: Int,
     dayShiftCodes: Map<Int, String>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onSyncRecorded: ((month: String, count: Int, target: String) -> Unit)? = null,
+    onSyncCleared: ((month: String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val themeAccent = LocalThemeAccent.current
@@ -676,6 +678,9 @@ fun CalendarSyncDialog(
                             isSyncing = false
                             result.onSuccess { stats ->
                                 existingSyncedCount = stats.totalSynced
+                                val monthKey = String.format(Locale.US, "%04d-%02d", year, month)
+                                val chosenAccount = calendars.firstOrNull { it.id == calId }?.accountName ?: "Google Calendar"
+                                onSyncRecorded?.invoke(monthKey, stats.totalSynced, chosenAccount)
                                 val detail = buildString {
                                     append("Synced ${stats.totalSynced} days for $monthLabel")
                                     val parts = mutableListOf<String>()
@@ -789,6 +794,8 @@ fun CalendarSyncDialog(
                                 isClearing = false
                                 res.onSuccess { removed ->
                                     existingSyncedCount = 0
+                                    val monthKey = String.format(Locale.US, "%04d-%02d", year, month)
+                                    onSyncCleared?.invoke(monthKey)
                                     val msg = "Cleared $removed RosterX events for $monthLabel"
                                     statusMessage = msg
                                     statusIsError = false

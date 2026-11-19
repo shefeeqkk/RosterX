@@ -1403,7 +1403,15 @@ fun EngineerPortalScreen(
                                         }
                                     }
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
-                                    2 -> MyCalendarView(state, viewModel::selectDate, viewModel::previousMonth, viewModel::nextMonth, onNavigateToTeam = { selectedTab = 1 })
+                                    2 -> MyCalendarView(
+                                        state = state,
+                                        onDateSelected = viewModel::selectDate,
+                                        onPreviousMonth = viewModel::previousMonth,
+                                        onNextMonth = viewModel::nextMonth,
+                                        onNavigateToTeam = { selectedTab = 1 },
+                                        onSyncRecorded = viewModel::recordCalendarSync,
+                                        onSyncCleared = viewModel::clearCalendarSync
+                                    )
                                     3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
                                     4 -> MoreHubView(
                                         state = state,
@@ -3819,7 +3827,11 @@ fun MyCalendarView(
 
     onNextMonth: () -> Unit,
 
-    onNavigateToTeam: () -> Unit
+    onNavigateToTeam: () -> Unit,
+
+    onSyncRecorded: ((month: String, count: Int, target: String) -> Unit)? = null,
+
+    onSyncCleared: ((month: String) -> Unit)? = null
 
 ) {
 
@@ -3867,7 +3879,9 @@ fun MyCalendarView(
             year = state.gridYear,
             month = state.gridMonth,
             dayShiftCodes = myMonthShiftCodes,
-            onDismiss = { showCalendarSyncDialog = false }
+            onDismiss = { showCalendarSyncDialog = false },
+            onSyncRecorded = onSyncRecorded,
+            onSyncCleared = onSyncCleared
         )
     }
 
