@@ -75,52 +75,17 @@
 
 
         // Auto-redirect ONLY if BOTH user AND token are present
-
         if (user && user.role && token) {
-
-          // Loop Breaker: check if redirected within last 3 seconds
-
-          var lastRedirect = sessionStorage.getItem('rosterx_last_redirect');
-
-          var now = Date.now();
-
-          if (lastRedirect && (now - parseInt(lastRedirect, 10)) < 3000) {
-
-            console.warn('[RosterX] Redirect loop detected. Purging invalid session from storage.');
-
-            sessionStorage.removeItem('rosterx_last_redirect');
-
-            localStorage.removeItem('rosterx_auth_user');
-
-            localStorage.removeItem('rosterx_auth_token');
-
-            return;
-
-          }
-
-
-
-          sessionStorage.setItem('rosterx_last_redirect', String(now));
-
           var hash = window.location.hash || '';
           if (user.role === 'admin') {
-
             window.location.replace('index.html' + hash);
-
           } else {
-
             window.location.replace('user-portal.html' + hash);
-
           }
-
         } else {
-
           // Incomplete session: clear it so login page stays visible
-
           localStorage.removeItem('rosterx_auth_user');
-
           localStorage.removeItem('rosterx_auth_token');
-
         }
 
       } catch (e) {
@@ -878,13 +843,9 @@
 
             const hash = window.location.hash || '';
             if (user.role === 'admin') {
-
-              window.location.href = 'index.html' + hash;
-
+              window.location.replace('index.html' + hash);
             } else {
-
-              window.location.href = 'user-portal.html' + hash;
-
+              window.location.replace('user-portal.html' + hash);
             }
 
           }, 800);

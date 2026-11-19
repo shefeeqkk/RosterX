@@ -5,6 +5,27 @@
 
 ---
 
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.2.0 - Build 151 — Conversational Multi-Turn AI Engine & Permanent Server-Side Notification Deletion):
+> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.2.0` (Build 151)** 100% spotless aayi complete cheythu live Render production deploymentilottu push cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🚀 Key Implementations Delivered:
+> 1. **Permanent Server-Side Notification Filtering (`server.py`)**:
+>    - In `GET /api/notifications`, non-admin engineer feeds permanently filter out any notification whose `id`, `_id`, or `celebration_id` is present in `dismissed_notifications`! Once dismissed, notifications NEVER reappear, even on fresh app reinstalls or hard browser refreshes.
+>    - Admins retain full broadcast history and delivery telemetry in their feed.
+>    - In `POST /api/notifications/dismiss`, `dismiss_all` sweeps all active in-feed notifications, celebrations, and credential alerts into MongoDB Atlas `$addToSet`.
+> 2. **Conversational Multi-Turn Gemini AI Engine (`server.py`)**:
+>    - **Multi-Turn Context**: `POST /api/chat/assistant` accepts client conversation `history` (up to 30 past turns) and formats alternating `user`/`model` turns for the Gemini API.
+>    - **Target Month & Engineer Shift Reasoning**: Computes per-engineer monthly shift breakdowns (e.g., `Manoj: 14 NS, 8 FS, 9 OFF`). Questions like *"Why Manoj has only night shifts?"* are answered with natural, conversational reasoning explaining the night-block policies and post-night rest requirements.
+>    - **Eliminated Canned Fallback**: `execute_deterministic_roster_ai` completely eliminated the repetitive *"Your shift today is OFF..."* template for third-party teammate queries.
+>    - **Timeout & Model Cascade**: Increased timeout to 20s, with fallback cascade `gemini-3.1-flash-lite` -> `gemini-2.5-flash` -> `gemini-2.0-flash`.
+> 3. **Version Bump & Zero-PII Verification**:
+>    - Bumped `SERVER_VERSION = "2.2.0"` in `server.py` and `android/app/build.gradle.kts` (`versionCode = 151`, `versionName = "2.2.0"`).
+>    - Zero hardcoded personal names/emails/secrets anywhere.
+>
+> Vijaya, backend routes and intelligent AI assistant are live and ready on `origin/main`! Over to you for the UI & Compose finish!"*
+
+---
+
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.2.0 - Build 151 — 1:1 Android-Web Parity: Raised Notifications, Teammate Celebrations, Target Calendar & Progressive Back-Stack):
 > *"Dasa, Vijaya! User `/grill-me` session-il nammude next MAJOR Sprint **`v2.2.0` (Build 151)** 100% lock aakki vechittundu:
 >

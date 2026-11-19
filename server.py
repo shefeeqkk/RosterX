@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.1.0"
+SERVER_VERSION = "2.2.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2347,7 +2347,7 @@ SHIFT_DEFINITIONS = {
     "L":   {"name": "Approved Leave", "timings": "Full 24h rest", "desc": "Approved operational absence"}
 }
 
-def build_roster_grounding_context(current_user=None):
+def build_roster_grounding_context(current_user=None, target_month=None):
     """
     Assembles real-time ground truth from MongoDB Atlas, OS runtime, and IST clock.
     Zero synthetic or mock data is injected.
@@ -2356,7 +2356,14 @@ def build_roster_grounding_context(current_user=None):
     cur_year = now_ist.year
     cur_month = now_ist.month
     cur_day = now_ist.day
-    cur_month_key = f"{cur_year}-{str(cur_month).zfill(2)}"
+    default_month_key = f"{cur_year}-{str(cur_month).zfill(2)}"
+    
+    # Resolve active target month (defaults to current IST month)
+    active_target_month = default_month_key
+    if target_month and re.match(r"^\d{4}-\d{2}$", str(target_month).strip()):
+        active_target_month = str(target_month).strip()
+    
+    cur_month_key = active_target_month
     tomorrow_ist = now_ist + timedelta(days=1)
     tomorrow_day = tomorrow_ist.day
     
@@ -2367,6 +2374,8 @@ def build_roster_grounding_context(current_user=None):
     if ATLAS_DB is not None:
         try:
             roster_doc = ATLAS_DB["rosters"].find_one({"_id": cur_month_key})
+            if not roster_doc and cur_month_key != default_month_key:
+                roster_doc = ATLAS_DB["rosters"].find_one({"_id": default_month_key})
             if not roster_doc:
                 roster_doc = ATLAS_DB["rosters"].find_one({}, sort=[("_id", -1)])
         except Exception as e:
@@ -2516,7 +2525,25 @@ def build_roster_grounding_context(current_user=None):
     uptime_str = f"{h}h {m}m {s}s"
 
     import calendar
-    _, days_in_month = calendar.monthrange(cur_year, cur_month)
+    t_year = int(cur_month_key.split("-")[0]) if "-" in cur_month_key else cur_year
+    t_month = int(cur_month_key.split("-")[1]) if "-" in cur_month_key else cur_month
+    _, days_in_month = calendar.monthrange(t_year, t_month)
+
+    # Monthly shift breakdown per engineer for deep reasoning
+    engineer_month_summaries = []
+    for eng in normalized_roster:
+        s_list = eng.get("shifts", [])
+        counts = collections.Counter(str(s).strip().upper() for s in s_list if str(s).strip())
+        parts_str = []
+        for code, cnt in counts.most_common():
+            parts_str.append(f"{cnt} {code}")
+        summary_text = ", ".join(parts_str) if parts_str else "No shifts assigned"
+        engineer_month_summaries.append({
+            "name": eng["name"],
+            "id": eng.get("id"),
+            "summary": summary_text,
+            "counts": dict(counts)
+        })
 
     return {
         "ist_timestamp": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
@@ -2527,11 +2554,13 @@ def build_roster_grounding_context(current_user=None):
         "cur_year": cur_year,
         "days_in_month": days_in_month,
         "current_month_key": cur_month_key,
+        "target_month": cur_month_key,
         "active_shift_slots": active_shift_codes,
         "on_duty_engineers": on_duty_now,
         "today_desk_coverage": today_all,
         "tomorrow_schedule": tomorrow_all,
         "normalized_roster": normalized_roster,
+        "engineer_month_summaries": engineer_month_summaries,
         "current_user_profile": user_details,
         "uptime": uptime_str,
         "total_engineers_in_roster": len(normalized_roster)
@@ -2817,6 +2846,49 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
                 return f"{subject} shift today (**{fmt_day(cur_day)}**) is **`{s_today}`** ({t_today.get('name', s_today)}, {t_today.get('timings', '')})."
             return f"Today (**{fmt_day_short(cur_day)}**): **`{s_today}`** ({t_today.get('name', s_today)}, {t_today.get('timings', '')}).\nTomorrow (**{fmt_day_short(cur_day + 1)}**): **`{s_tom}`** ({t_tom.get('name', s_tom)}, {t_tom.get('timings', '')})."
 
+    # INTENT D2: Explanations / "Why" questions regarding shift allocations
+    if any(k in p for k in ["why", "reason", "how come", "only night", "too many", "why does", "why is"]):
+        if target_eng and target_eng.get("shifts"):
+            shifts = target_eng["shifts"]
+            counts = collections.Counter(str(s).strip().upper() for s in shifts if str(s).strip())
+            ns_cnt = counts.get("NS", 0)
+            off_cnt = counts.get("OFF", 0) + counts.get("L", 0) + sum(v for k, v in counts.items() if k.startswith("SW"))
+            fs_cnt = counts.get("FS", 0)
+            ss_cnt = counts.get("SS", 0)
+            g_cnt = counts.get("G", 0) + counts.get("SG", 0) + counts.get("FG", 0)
+            
+            parts_desc = []
+            if ns_cnt:
+                parts_desc.append(f"{ns_cnt} Night Shifts (`NS`)")
+            if fs_cnt:
+                parts_desc.append(f"{fs_cnt} First Shifts (`FS`)")
+            if ss_cnt:
+                parts_desc.append(f"{ss_cnt} Second Shifts (`SS`)")
+            if g_cnt:
+                parts_desc.append(f"{g_cnt} General Duties")
+            if off_cnt:
+                parts_desc.append(f"{off_cnt} Rest Days (`OFF`)")
+            
+            breakdown_str = ", ".join(parts_desc) if parts_desc else "no active shifts"
+            subject_str = "Your schedule" if is_self else f"**{target_eng_name}**'s schedule"
+            
+            return (
+                f"{subject_str} for {month_name} includes **{breakdown_str}**. "
+                f"Night shifts are structured in blocks (min 3 / max 5 consecutive days) with mandatory 2-day post-night rest periods "
+                f"to guarantee 24/7 desk coverage while complying with operational fatigue management constraints."
+            )
+
+    # INTENT D3: Questions about a teammate's general roster/schedule
+    if target_eng and not is_self and any(k in p for k in ["shift", "duty", "schedule", "work", "roster", "who"]):
+        shifts = target_eng.get("shifts", [])
+        counts = collections.Counter(str(s).strip().upper() for s in shifts if str(s).strip())
+        ns_cnt = counts.get("NS", 0)
+        off_cnt = counts.get("OFF", 0) + counts.get("L", 0) + sum(v for k, v in counts.items() if k.startswith("SW"))
+        other_cnt = len(shifts) - ns_cnt - off_cnt
+        t_shift = shifts[cur_day - 1] if len(shifts) >= cur_day else "OFF"
+        t_tomorrow = shifts[tomorrow_day - 1] if len(shifts) >= tomorrow_day else "OFF"
+        return f"**{target_eng_name}** is on **`{t_shift}`** today and **`{t_tomorrow}`** tomorrow. In {month_name}, they have {ns_cnt} Night Shifts (`NS`), {other_cnt} Day Duties, and {off_cnt} Rest Days (`OFF`)."
+
     # INTENT E: Off days count / schedule
     if any(k in p for k in ["off day", "how many off", "weekly off", "my leaves", "rest days"]):
         if target_eng and target_eng.get("shifts"):
@@ -2838,36 +2910,52 @@ def execute_deterministic_roster_ai(prompt, context, current_user=None):
         return f"Hello{name_str}! I'm your RosterX Assistant. Ask me about your upcoming shifts, next night duty, weekly offs, or current desk coverage."
 
     # INTENT H: Intelligent Situational Fallback (Never return empty canned error)
-    user_name = profile.get('matched_engineer', 'Engineer') if profile else 'Engineer'
-    s_today = profile.get('today_shift', 'OFF') if profile else 'OFF'
-    s_tom = profile.get('tomorrow_shift', 'OFF') if profile else 'OFF'
-    on_duty = context.get("on_duty_engineers", [])
-    staff_str = ", ".join([f"**{e['name']}** (`{e['shift']}`)" for e in on_duty]) if on_duty else "desk transition"
-    return f"**{user_name}**: Your shift today is **`{s_today}`** and tomorrow is **`{s_tom}`**. Currently on duty: {staff_str}. You can ask me about upcoming shifts, teammate duties, or desk coverage!"
+    if is_self and profile and profile.get("matched_engineer"):
+        user_name = profile.get('matched_engineer', 'Engineer')
+        s_today = profile.get('today_shift', 'OFF')
+        s_tom = profile.get('tomorrow_shift', 'OFF')
+        on_duty = context.get("on_duty_engineers", [])
+        staff_str = ", ".join([f"**{e['name']}** (`{e['shift']}`)" for e in on_duty]) if on_duty else "desk transition"
+        return f"**{user_name}**: Your shift today is **`{s_today}`** and tomorrow is **`{s_tom}`**. Currently on duty: {staff_str}. You can ask me about team member schedules, next night shifts, or desk coverage!"
+    elif target_eng:
+        shifts = target_eng.get("shifts", [])
+        t_shift = shifts[cur_day - 1] if len(shifts) >= cur_day else "OFF"
+        return f"**{target_eng_name}** is scheduled for **`{t_shift}`** today. You can ask for their full monthly schedule, next night duty, or weekly off days."
+    else:
+        on_duty = context.get("on_duty_engineers", [])
+        staff_str = ", ".join([f"**{e['name']}** (`{e['shift']}`)" for e in on_duty]) if on_duty else "desk transition"
+        return f"I am your 24/7 RosterX Operations Assistant. Currently on duty: {staff_str}. You can ask me about any engineer's shifts, night duties, rest days, or desk coverage for {month_name}."
 
-def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="Web Portal"):
+def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="Web Portal", history=None, target_month=None):
     """
     Unified RAG orchestration calling Google Gemini API with fallback to deterministic grounded engine.
+    Supports multi-turn chat history, conversational warmth, and target-month reasoning.
     """
     env = load_env_variables()
     gemini_key = env.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
     configured_model = env.get("GEMINI_MODEL", "gemini-3.1-flash-lite").strip()
     
-    context = build_roster_grounding_context(current_user)
+    context = build_roster_grounding_context(current_user, target_month=target_month)
     
-    # Model fallback hierarchy (fast, responsive Gemini 3 models)
+    # Model fallback hierarchy (fast, responsive Gemini 3 & 2.5 models)
     candidate_models = []
-    for m in [configured_model, "gemini-3.1-flash-lite", "gemini-3-flash-preview"]:
+    for m in [configured_model, "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]:
         if m and m not in candidate_models:
             candidate_models.append(m)
 
     system_instruction = (
-        "You are RosterX Operations Assistant, an authoritative 24/7 NOC Roster AI Agent developed by the RosterX NOC Team. "
-        "You operate exclusively with REAL ground truth data provided in the context below from MongoDB Atlas and Indian Standard Time (IST).\n"
-        "Strict Directives:\n"
-        "1. NEVER invent, hallucinate, or assume shift assignments, engineer names, or dates. Only use the provided grounding context.\n"
-        "2. All time references are in Indian Standard Time (IST, UTC+5:30).\n"
-        "3. Operational Shift Structure & Shift Code Definitions:\n"
+        "You are RosterX Operations Assistant, an intelligent, conversational, and authoritative 24/7 NOC Roster AI Agent developed for Project RosterX. "
+        "You converse naturally, warmly, and helpfully like ChatGPT or Google Gemini, while maintaining strict factual discipline based ONLY on the REAL ground truth provided in the context below from MongoDB Atlas and Indian Standard Time (IST).\n\n"
+        "Key Operational Guidelines:\n"
+        "1. Conversational Excellence:\n"
+        "   - Understand natural conversational flow, follow-up questions, casual phrasing, typos, and broken English effortlessly.\n"
+        "   - Give direct, helpful, and friendly answers. Never sound robotic or repeat canned templates.\n"
+        "   - If asked why a team member has certain shifts (e.g. 'Why Manoj has only night shifts?'), check the Monthly Shift Breakdown & Published Roster in context, explain their exact shift breakdown clearly, and note operational constraints (e.g. night block policies, rest days, weekend rotation).\n"
+        "   - If asked for shift generation, swapping, or schedule optimization advice, provide clear, constructive proposals matching RosterX constraints.\n"
+        "2. Ground Truth Strictness:\n"
+        "   - NEVER invent or hallucinate shift assignments or engineer names not in the context.\n"
+        "   - All time references are in Indian Standard Time (IST, UTC+5:30).\n"
+        "3. Shift Structure & Codes:\n"
         "   - FS = First Shift (07:30 – 16:30 IST)\n"
         "   - FG = First General (08:30 – 17:30 IST)\n"
         "   - G = General Shift (09:30 – 18:30 IST)\n"
@@ -2875,17 +2963,19 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         "   - SS = Second Shift / Afternoon (13:00 – 22:00 IST)\n"
         "   - NS = Night Shift (21:00 – 07:30 IST next morning)\n"
         "   - OFF = Weekly Off / Scheduled Rest Day\n"
-        "   - L = Approved Leave\n"
-        "   - SW* = Swapped Off\n"
+        "   - L = Approved Leave | SW* = Swapped Off\n"
         "4. Overnight Night Shift (NS) Rollover Rule:\n"
         "   - Night Shift (NS) runs overnight (21:00 to 07:30 IST next morning).\n"
         "   - Between 00:00 and 07:30 AM IST, the active on-duty NS engineer is the one whose shift started yesterday at 21:00 and ends at 07:30 AM today. Today's scheduled calendar NS engineer does NOT start until 21:00 tonight. Always check 'Engineers On Duty Right Now'.\n"
-        "5. Format your responses with clean, professional Markdown (bullet points, bold highlights, code formatting for shift codes).\n"
-        "6. Keep all responses very brief, concise, and direct (1 to 2 sentences maximum). Do not output headers, telemetry dumps, or system status unless specifically requested."
+        "5. Formatting:\n"
+        "   - Format with clean Markdown: bullet points, bold highlights, and code formatting for shift codes.\n"
+        "   - Be concise yet thorough—do not add unnecessary fluff or telemetry dumps unless asked."
     )
 
+    summaries_text = "\n".join([f"  - {es['name']}: {es['summary']}" for es in context.get("engineer_month_summaries", [])])
     grounding_payload_text = (
         "CURRENT REAL-TIME CONTEXT:\n"
+        f"- Target Month: {context.get('target_month')}\n"
         f"- Indian Standard Time (IST): {context['ist_timestamp']}\n"
         f"- Today's Date: {context['date']} ({context['day_of_week']}), Day {context.get('cur_day', 1)} of {context.get('days_in_month', 30)}\n"
         f"- Active Shift Windows Right Now: {', '.join(context['active_shift_slots'])}\n"
@@ -2893,18 +2983,61 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         f"- Today's Desk Coverage: {json.dumps(context['today_desk_coverage'])}\n"
         f"- Tomorrow's Scheduled Coverage: {json.dumps(context['tomorrow_schedule'])}\n"
         f"- Current User Profile (Target): {json.dumps(context['current_user_profile'])}\n"
-        f"- Monthly Published Roster (All Engineers & Daily Shifts 1 to {context.get('days_in_month', 30)}): {json.dumps(context.get('normalized_roster', []))}\n"
+        f"- Monthly Shift Breakdown per Engineer:\n{summaries_text}\n"
+        f"- Monthly Published Roster (All Daily Shifts 1 to {context.get('days_in_month', 30)}): {json.dumps(context.get('normalized_roster', []))}\n"
+        f"- Operational Constraints: Minimum 1 NS headcount, 2 post-night rest days, max 6 consecutive working days, night block min 3 / max 5 days.\n"
         f"- System Uptime: {context['uptime']}\n\n"
         f"User Query: {user_prompt}"
     )
+
+    # Format multi-turn conversation history for Gemini API
+    contents = []
+    if history and isinstance(history, list):
+        valid_history = []
+        for h in history[-30:]:
+            if not isinstance(h, dict):
+                continue
+            h_role = str(h.get("role") or "").strip().lower()
+            h_text = str(h.get("text") or h.get("message") or h.get("content") or "").strip()
+            if not h_text:
+                continue
+            mapped_role = "model" if h_role in ("assistant", "ai", "model") else "user"
+            valid_history.append({"role": mapped_role, "text": h_text})
+
+        # Alternating user/model sequence starting with user
+        formatted_turns = []
+        for vh in valid_history:
+            if not formatted_turns:
+                if vh["role"] == "user":
+                    formatted_turns.append(vh)
+            else:
+                if formatted_turns[-1]["role"] == vh["role"]:
+                    formatted_turns[-1]["text"] += "\n" + vh["text"]
+                else:
+                    formatted_turns.append(vh)
+
+        if formatted_turns and formatted_turns[-1]["role"] == "user":
+            formatted_turns.pop()
+
+        for ft in formatted_turns:
+            contents.append({
+                "role": ft["role"],
+                "parts": [{"text": ft["text"]}]
+            })
+
+    # Final turn: current user prompt accompanied by real-time grounding payload
+    contents.append({
+        "role": "user",
+        "parts": [{"text": grounding_payload_text}]
+    })
 
     if gemini_key:
         for model in candidate_models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
             gemini_body = {
                 "systemInstruction": {"parts": [{"text": system_instruction}]},
-                "contents": [{"parts": [{"text": grounding_payload_text}]}],
-                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024}
+                "contents": contents,
+                "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1024}
             }
             try:
                 ai_req = urllib.request.Request(
@@ -2912,7 +3045,7 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
                     headers={"Content-Type": "application/json"},
                     data=json.dumps(gemini_body).encode("utf-8")
                 )
-                with urllib.request.urlopen(ai_req, timeout=6) as ai_resp:
+                with urllib.request.urlopen(ai_req, timeout=20) as ai_resp:
                     res_json = json.loads(ai_resp.read().decode("utf-8"))
                     candidates = res_json.get("candidates", [])
                     if candidates and "content" in candidates[0]:
@@ -3883,6 +4016,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     except Exception as e:
                         print(f"  [ATLAS] Dismissed notifs fetch error: {e}")
 
+            caller_un = str(claims.get("username", "")).strip().lower()
+            if not dismissed_ids and caller_un in SERVER_USER_DISMISSED_NOTIFICATIONS:
+                dismissed_ids = sorted(list(SERVER_USER_DISMISSED_NOTIFICATIONS[caller_un]))
+
             # Defensive clean sweep: ensure zero expired celebrations ever leak to engineers or Admin/Manager history
             ist_tz = timezone(timedelta(hours=5, minutes=30))
             now_ist = datetime.now(ist_tz)
@@ -3893,8 +4030,15 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             is_admin = bool(claims.get("role") in ("admin", "manager") or claims.get("is_admin"))
 
             if not is_admin:
-                # Regular engineers do not see soft-retracted broadcasts and only see in-app notices
-                notifs = [n for n in notifs if not n.get("is_retracted") and n.get("send_in_app", True)]
+                # Regular engineers do not see soft-retracted broadcasts and only see in-app notices.
+                # Permanent Server-Side Filtering: Dismissed notifications are NEVER served again to this user!
+                dismissed_set = set(str(did).strip() for did in dismissed_ids if did)
+                notifs = [
+                    n for n in notifs 
+                    if not n.get("is_retracted") 
+                    and n.get("send_in_app", True)
+                    and str(n.get("id") or n.get("_id") or n.get("celebration_id") or "").strip() not in dismissed_set
+                ]
             else:
                 # Admins get live read receipts per broadcast
                 dismissed_map = {}
@@ -4499,17 +4643,21 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 if not current_user.get("role") and claims.get("role"):
                     current_user["role"] = claims["role"]
 
-            user_query = body.get("message") or body.get("prompt") or ""
+            user_query = str(body.get("message") or body.get("prompt") or "").strip()
             client_platform = body.get("platform") or "Web Operations Console"
+            history = body.get("history") or []
+            target_month = body.get("target_month") or body.get("month") or None
 
-            if not user_query.strip():
+            if not user_query:
                 self.send_json_response({"success": False, "message": "Missing 'message' or 'prompt' in payload."}, 400)
                 return
 
             ai_reply, model_name, grounded_time = query_gemini_roster_agent(
                 user_prompt=user_query,
                 current_user=current_user,
-                client_platform=client_platform
+                client_platform=client_platform,
+                history=history,
+                target_month=target_month
             )
 
             self.send_json_response({
@@ -5153,6 +5301,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             all_ids = set()
             if dismiss_all:
+                try:
+                    check_and_trigger_celebrations()
+                except Exception:
+                    pass
                 if ATLAS_DB is not None:
                     try:
                         all_notifs = list(ATLAS_DB.notifications.find())

@@ -687,6 +687,7 @@ class RosterXUserPortal {
         list.push({
           username: eng.username,
           name: eng.full_name || eng.name || 'Team Member',
+          phone: eng.phone || '',
           isBday,
           annYears,
           isSelf: String(eng.username || '').toLowerCase() === String(this.user?.username || '').toLowerCase()
@@ -722,6 +723,97 @@ class RosterXUserPortal {
     }).join('');
   }
 
+  openCelebrationDialog(c) {
+    if (!c) return;
+    const dlg = document.getElementById('rxCelebrationDialog');
+    if (!dlg) return;
+
+    const isSelf = Boolean(c.isSelf);
+    const properName = escapeHtml(c.name || 'Team Member');
+    const annYears = c.annYears || 1;
+    const yrStr = `${annYears}${annYears === 1 ? 'st' : annYears === 2 ? 'nd' : annYears === 3 ? 'rd' : 'th'}`;
+    const yrLabel = annYears === 1 ? '1 year' : `${annYears} years`;
+
+    let heroIcon = c.isBday ? '🎂🎉' : '🏆🎉';
+    let title = '';
+    let subtitle = '';
+    let wishBody = '';
+
+    if (c.isBday && c.annYears) {
+      heroIcon = '🎂🏆';
+      subtitle = isSelf ? 'A DOUBLE MILESTONE TO CHERISH 🌟' : 'DOUBLE MILESTONE 🌟';
+      title = isSelf ? `Double Celebration: Birthday & ${yrStr} Anniversary! 🎂🏆` : `Double Celebration for ${properName}! 🎂🏆`;
+      wishBody = isSelf
+        ? `Today is doubly special! We celebrate both your Birthday and your ${yrStr} Work Anniversary at RosterX! Thank you for being a pillar of our operations. May this year bring you abundant happiness, fulfillment, and great shifts ahead! 🎈🥂🎉`
+        : `Today is doubly special for ${properName} celebrating their birthday and ${yrLabel} with RosterX! Send your warmest congratulations! 🎈🥂🎉`;
+    } else if (c.isBday) {
+      subtitle = isSelf ? 'CELEBRATING YOUR SPECIAL DAY 🎉' : 'TEAM MEMBER BIRTHDAY 🎂';
+      title = isSelf ? 'Happy Birthday! 🎂' : `Happy Birthday, ${properName}! 🎂`;
+      wishBody = isSelf
+        ? 'On this wonderful day, the entire team at RosterX wishes you joy, vibrant health, and extraordinary success! Thank you for bringing your energy, brilliance, and positive spirit to our operations every single day. Have a fabulous birthday celebration! 🎈🥳✨'
+        : `Today is ${properName}'s birthday! Join the entire RosterX team in wishing them immense happiness, vibrant health, and continued success! 🎈🥳✨`;
+    } else {
+      subtitle = 'MILESTONE ACHIEVED 🌟';
+      title = isSelf ? `Happy ${yrStr} Work Anniversary! 🏆` : `Happy ${yrStr} Work Anniversary, ${properName}! 🏆`;
+      wishBody = isSelf
+        ? `Congratulations on completing ${yrStr} with our team! Your unwavering dedication, operational excellence, and teamwork continue to make a lasting impact. Here's to honoring your journey and achieving many more stellar milestones together! 🥂🎊`
+        : `Today ${properName} completes ${yrLabel} of operational excellence with our team! Let's celebrate their dedication, brilliance, and teamwork! 🥂🎊✨`;
+    }
+
+    const cleanDigits = String(c.phone || '').replace(/\D/g, '');
+    const waNumber = cleanDigits.length === 10 ? '91' + cleanDigits : cleanDigits;
+    const waGreeting = c.annYears
+      ? `Happy Work Anniversary, ${c.name || 'Teammate'}! 🏆✨ Congratulations on completing ${yrLabel} with our team! Wishing you continued success and joy!`
+      : `Happy Birthday, ${c.name || 'Teammate'}! 🎉🎂 Wishing you a fantastic year ahead filled with joy and success!`;
+    const waUrl = waNumber
+      ? `https://wa.me/${waNumber}?text=${encodeURIComponent(waGreeting)}`
+      : `https://wa.me/?text=${encodeURIComponent(waGreeting)}`;
+
+    dlg.innerHTML = `
+      <div class="rx-modal-scroll" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 20px;">
+        <div style="font-size:52px;line-height:1;margin-bottom:4px;">${heroIcon}</div>
+        <div style="display:inline-block;padding:3px 10px;border-radius:12px;background:rgba(245,158,11,0.14);color:#B45309;font-size:10.5px;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;">
+          ${escapeHtml(subtitle)}
+        </div>
+        <h2 id="rxCelebDialogTitle" style="margin:0;font-size:19px;font-weight:900;color:var(--nm-text);line-height:1.35;">
+          ${escapeHtml(title)}
+        </h2>
+        <p style="margin:0;font-size:13px;color:var(--nm-text-muted);line-height:1.55;max-width:440px;">
+          ${escapeHtml(wishBody)}
+        </p>
+
+        ${isSelf ? `
+          <button type="button" class="rx-btn-primary" data-rx-close style="width:100%;margin-top:6px;min-block-size:46px;font-size:14.5px;font-weight:800;background:linear-gradient(135deg, #F59E0B 0%, #D97706 100%);color:#FFFFFF;box-shadow:0 4px 14px rgba(245,158,11,0.35);">
+            🎉 Thank You! 🙏
+          </button>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:10px;width:100%;margin-top:6px;">
+            <div style="display:flex;gap:10px;width:100%;">
+              <button type="button" id="btnCelebWhatsApp" class="rx-btn-primary" style="flex:1;min-block-size:46px;background:#25D366;color:#FFFFFF;font-weight:800;font-size:13.5px;box-shadow:0 4px 14px rgba(37,211,102,0.32);">
+                <i class="ph-fill ph-whatsapp-logo" style="font-size:18px;"></i> Wish on WhatsApp
+              </button>
+              ${cleanDigits ? `
+                <a href="tel:${cleanDigits}" id="btnCelebCall" class="rx-btn-surface" style="min-inline-size:46px;min-block-size:46px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:800;color:var(--nm-accent);text-decoration:none;border-radius:14px;">
+                  <i class="ph-fill ph-phone-call" style="font-size:18px;"></i> Call
+                </a>
+              ` : ''}
+            </div>
+            <button type="button" class="rx-btn-surface" data-rx-close style="width:100%;min-block-size:40px;font-size:12.5px;font-weight:700;color:var(--nm-text-muted);">
+              Close
+            </button>
+          </div>
+        `}
+      </div>
+    `;
+
+    dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
+    dlg.querySelector('#btnCelebWhatsApp')?.addEventListener('click', () => {
+      window.open(waUrl, '_blank', 'noopener,noreferrer');
+    });
+
+    openNeumorphicDialog(dlg);
+  }
+
   bindCelebrationEvents(root) {
     root.querySelectorAll('[data-dismiss-celeb]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
@@ -735,22 +827,7 @@ class RosterXUserPortal {
         const uname = card.getAttribute('data-open-celeb');
         const c = this.getTodayCelebrations().find((x) => x.username === uname);
         if (!c) return;
-        const dlg = document.getElementById('rxCelebrationDialog');
-        dlg.innerHTML = `
-          <div class="rx-modal-scroll" style="text-align:center;">
-            <div style="font-size:48px;">${c.isBday ? '🎂🎉' : '🏆🎉'}</div>
-            <h2 id="rxCelebDialogTitle" style="margin:0;font-size:20px;font-weight:900;color:var(--nm-accent);">
-              ${c.isBday ? 'Happy Birthday!' : `Happy ${c.annYears} Year Anniversary!`}
-            </h2>
-            <p style="margin:0;font-size:14px;font-weight:700;">${escapeHtml(c.name)}</p>
-            <p style="margin:0;font-size:12.5px;color:var(--nm-text-muted);line-height:1.5;">
-              Wishing you a wonderful day filled with joy, health, and continued success from the entire RosterX Operations Team!
-            </p>
-            <button type="button" class="rx-btn-primary" data-rx-close style="width:100%;">Thank You!</button>
-          </div>
-        `;
-        dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
-        openNeumorphicDialog(dlg);
+        this.openCelebrationDialog(c);
       });
     });
   }
