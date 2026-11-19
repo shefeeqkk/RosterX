@@ -215,6 +215,13 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
   let isSyncing = false;
   let isClearing = false;
 
+  let userEmail = '';
+  try {
+    const u = JSON.parse(localStorage.getItem('rosterx_auth_user') || '{}');
+    userEmail = u.email || '';
+  } catch (_) {}
+  let chosenTarget = userEmail || 'Google Calendar (Web)';
+
   let dialog = document.getElementById('rxCalendarSyncDialog');
   if (!dialog) {
     dialog = document.createElement('dialog');
@@ -234,6 +241,7 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
       isLoadingSync = false;
       if (res && res.success && res.sync && res.synced) {
         syncState = res.sync;
+        if (syncState.target) chosenTarget = syncState.target;
       }
       render();
     })
@@ -280,6 +288,12 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
 
   const handleExport = async (isResync = false) => {
     if (preview.total === 0 || isSyncing || isClearing) return;
+
+    const targetSelect = dialog.querySelector('#rxTargetCalSelect');
+    if (targetSelect && targetSelect.value) {
+      chosenTarget = targetSelect.value;
+    }
+
     isSyncing = true;
     render();
 
@@ -295,11 +309,10 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
 
       if (ics.count > 0) {
         triggerIcsDownload(ics);
-        const targetLabel = 'Apple / Google Calendar (.ics)';
-        await recordSyncOnServer(ics.count, targetLabel);
+        await recordSyncOnServer(ics.count, chosenTarget);
         const msg = isResync
-          ? `Re-synced ${ics.count} personal calendar days for ${monthLabel}`
-          : `Synced ${ics.count} personal calendar days for ${monthLabel}`;
+          ? `Re-synced ${ics.count} personal calendar days to ${chosenTarget} for ${monthLabel}`
+          : `Synced ${ics.count} personal calendar days to ${chosenTarget} for ${monthLabel}`;
         onToast?.(msg, 'success');
       } else {
         onToast?.('No shifts available to export for this month.', 'info');
@@ -337,7 +350,7 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
 
   const render = () => {
     const isSynced = Boolean(syncState && syncState.synced);
-    const targetName = syncState?.target || 'Google Calendar';
+    const targetName = syncState?.target || chosenTarget || 'Google Calendar';
     const targetSyncedAt = syncState?.synced_at || 'Active';
     const syncedCount = syncState?.count || preview.total;
 
@@ -373,7 +386,26 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
               <span style="font-size:11px;color:var(--nm-text-muted);">${escapeHtml(targetSyncedAt)}</span>
             </div>
           </div>
-        ` : ''}
+        ` : `
+          <div class="rx-card" style="display:flex;flex-direction:column;gap:10px;padding:12px 14px;background:var(--nm-surface);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span class="rx-field-label" style="margin:0;color:var(--nm-accent);font-size:10.5px;letter-spacing:0.04em;display:flex;align-items:center;gap:5px;">
+                <i class="ph ph-calendar-plus"></i> TARGET CALENDAR
+              </span>
+              <span style="font-size:10.5px;font-weight:700;color:var(--nm-text-muted);">
+                Ready to Sync
+              </span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <select id="rxTargetCalSelect" class="rx-select" style="width:100%;font-size:12.5px;font-weight:700;padding:8px 10px;border-radius:12px;background:var(--nm-input-surface);color:var(--nm-text);border:1px solid rgba(0,0,0,0.06);" ${isSyncing ? 'disabled' : ''}>
+                <option value="Google Calendar (Web & Android)" ${chosenTarget.includes('Google') ? 'selected' : ''}>Google Calendar (Web &amp; Android)</option>
+                <option value="Apple Calendar / iOS (.ics)" ${chosenTarget.includes('Apple') ? 'selected' : ''}>Apple Calendar / iOS (.ics)</option>
+                ${userEmail ? `<option value="${escapeHtml(userEmail)}" ${chosenTarget === userEmail ? 'selected' : ''}>Personal Account (${escapeHtml(userEmail)})</option>` : ''}
+              </select>
+              <div style="font-size:10.5px;color:var(--nm-text-muted);">Sync keeps monthly shifts updated in your personal calendar with zero duplicates.</div>
+            </div>
+          </div>
+        `}
 
         <div class="rx-well" style="display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">

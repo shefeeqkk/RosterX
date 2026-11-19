@@ -1598,11 +1598,22 @@ Rules:
       const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      const recentHistory = (this.messages || []).slice(-8).map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        text: m.text
+      }));
+      const targetMonth = this.app?.state?.currentYear && this.app?.state?.currentMonth
+        ? `${this.app.state.currentYear}-${String(this.app.state.currentMonth).padStart(2, '0')}`
+        : null;
+
       const response = await fetch('/api/chat/assistant', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           message: query,
+          prompt: query,
+          history: recentHistory,
+          target_month: targetMonth,
           current_user: activeUser,
           platform: 'Web Admin Console'
         })

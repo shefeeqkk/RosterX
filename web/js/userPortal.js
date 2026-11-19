@@ -17,7 +17,7 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.0.5';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.2.0';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
 import { sortEngineersByWeekOffs } from './constants.js?v=2.0.5';
@@ -28,9 +28,9 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js?v=2.0.5';
+} from './pwaHelper.js?v=2.2.0';
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -304,6 +304,38 @@ class RosterXUserPortal {
       this.renderTeamShifts();
     });
 
+    // Progressive Back-Stack Handling (1:1 Android parity)
+    try {
+      window.history.replaceState({ scope: 'rosterx_root', tab: 'dashboard' }, '');
+    } catch (_) {}
+
+    window.addEventListener('popstate', (e) => {
+      // 1. Close open modal dialog first
+      const openDialog = document.querySelector('dialog.rx-modal[open]');
+      if (openDialog) {
+        closeNeumorphicDialog(openDialog);
+        try { window.history.pushState({ scope: 'rosterx_root', tab: this.activeTab }, ''); } catch (_) {}
+        return;
+      }
+
+      // 2. Close active subview if any
+      if (this.activeSubView) {
+        this.closeSubView();
+        try { window.history.pushState({ scope: 'rosterx_root', tab: this.activeTab }, ''); } catch (_) {}
+        return;
+      }
+
+      // 3. Switch to Dashboard tab if on another tab
+      if (this.activeTab !== 'dashboard') {
+        this.switchTab('dashboard', false);
+        try { window.history.pushState({ scope: 'rosterx_root', tab: 'dashboard' }, ''); } catch (_) {}
+        return;
+      }
+
+      // 4. At dashboard root: stay gracefully on dashboard without logging out or redirecting
+      try { window.history.pushState({ scope: 'rosterx_root', tab: 'dashboard' }, ''); } catch (_) {}
+    });
+
     // Hide bell for management accounts (exact Android parity)
     if (this.isManager) {
       document.getElementById('btnOpenNotifications')?.classList.add('rx-hidden');
@@ -572,8 +604,11 @@ class RosterXUserPortal {
     }
   }
 
-  switchTab(tabId) {
+  switchTab(tabId, pushHistory = true) {
     if (!this.tabs.some((t) => t.id === tabId)) tabId = this.tabs[0].id;
+    if (pushHistory && this.activeTab !== tabId && tabId !== 'dashboard') {
+      try { window.history.pushState({ scope: 'tab', tab: tabId }, ''); } catch (_) {}
+    }
     this.activeTab = tabId;
     this.activeSubView = null;
     this.navShell.setSubViewOpen(false);
@@ -615,6 +650,7 @@ class RosterXUserPortal {
 
   openSubView(viewName) {
     this.activeSubView = viewName;
+    try { window.history.pushState({ scope: 'subview', name: viewName }, ''); } catch (_) {}
     this.navShell.setSubViewOpen(true);
     this.syncAiFabVisibility();
 
@@ -2070,6 +2106,13 @@ class RosterXUserPortal {
       return String(raw).replace(' UTC', ' IST');
     };
 
+    const highlightMentions = (text) => {
+      if (!text) return '';
+      let safe = escapeHtml(text);
+      safe = safe.replace(/(@[a-zA-Z0-9_.-]+)/g, '<strong style="color:var(--nm-accent);background:var(--nm-accent-soft);padding:1px 4px;border-radius:4px;">$1</strong>');
+      return safe;
+    };
+
     const render = () => {
       dlg.innerHTML = `
         <div class="rx-modal-scroll">
@@ -2093,20 +2136,97 @@ class RosterXUserPortal {
               <div>You're all caught up! No active notifications.</div>
             </div>
           ` : `
-            <div class="rx-notif-list" style="display:flex;flex-direction:column;gap:10px;">
+            <div class="rx-notif-list" style="display:flex;flex-direction:column;gap:12px;">
               ${this.notifications.map((n) => {
                 const nid = n.id || n._id;
                 const title = resolveMentions(n.title || 'Announcement', selfEng, this.engineers);
-                const msg = resolveMentions(n.message || n.raw_message || '', selfEng, this.engineers);
+                const rawMsg = resolveMentions(n.message || n.raw_message || '', selfEng, this.engineers);
                 const timeStr = formatNotifTime(n.created_at || n.timestamp);
+
+                const isCelebrationNotif = Boolean(
+                  n.celebration_type ||
+                  (n.sender && /celebration/i.test(n.sender)) ||
+                  (n.title && /🎂|🏆|birthday|anniversary/i.test(n.title)) ||
+                  (n.category === 'celebration')
+                );
+
+                const isCredentialAlert = Boolean(
+                  n.category === 'credential_expiry' ||
+                  /credential/i.test(n.title || '') ||
+                  /credential/i.test(rawMsg)
+                );
+
+                const isRosterAlert = Boolean(
+                  (n.priority && /shift_update/i.test(n.priority)) ||
+                  n.category === 'shift_update' ||
+                  /roster|shift/i.test(n.title || '') ||
+                  /roster|shift/i.test(rawMsg)
+                );
+
+                let badgeText = 'OPERATIONS';
+                let badgeIcon = 'ph-info';
+                let badgeBg = 'rgba(16,185,129,0.14)';
+                let badgeColor = '#047857';
+
+                if (isCelebrationNotif) {
+                  badgeText = 'CELEBRATION 🎉';
+                  badgeIcon = 'ph-cake';
+                  badgeBg = 'rgba(245,158,11,0.14)';
+                  badgeColor = '#B45309';
+                } else if (isCredentialAlert) {
+                  badgeText = 'SECURITY';
+                  badgeIcon = 'ph-shield-check';
+                  badgeBg = 'rgba(239,68,68,0.14)';
+                  badgeColor = '#B91C1C';
+                } else if (isRosterAlert) {
+                  badgeText = 'SHIFT UPDATE';
+                  badgeIcon = 'ph-calendar-check';
+                  badgeBg = 'rgba(99,102,241,0.14)';
+                  badgeColor = '#4338CA';
+                } else if (String(n.priority || '').toLowerCase() === 'urgent') {
+                  badgeText = 'URGENT';
+                  badgeIcon = 'ph-warning';
+                  badgeBg = 'rgba(239,68,68,0.14)';
+                  badgeColor = '#B91C1C';
+                }
+
+                let authorStr = 'By Operations Desk';
+                if (isCelebrationNotif) authorStr = 'By RosterX Celebrations Desk';
+                else if (isCredentialAlert) authorStr = 'By Security Desk';
+                else if (n.sender) authorStr = `By ${n.sender}`;
+
                 return `
-                  <div class="rx-well rx-notif-item" data-notif-card="${escapeHtml(nid)}" style="display:flex;flex-direction:column;gap:6px;transition:all 0.2s ease;">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                      <strong style="font-size:13.5px;color:var(--nm-text);">${escapeHtml(title)}</strong>
-                      <button type="button" class="rx-icon-pill" data-dismiss-one="${escapeHtml(nid)}" aria-label="Dismiss notification" style="width:26px;height:26px;min-inline-size:26px;min-block-size:26px;"><i class="ph ph-x"></i></button>
+                  <div class="rx-notif-card rx-notif-item" data-notif-card="${escapeHtml(nid)}" style="transition:all 0.2s ease;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                      <span class="rx-notif-badge" style="background:${badgeBg};color:${badgeColor};">
+                        <i class="ph ${badgeIcon}"></i> ${escapeHtml(badgeText)}
+                      </span>
+                      <button type="button" class="rx-icon-pill" data-dismiss-one="${escapeHtml(nid)}" aria-label="Dismiss notification" style="width:26px;height:26px;min-inline-size:26px;min-block-size:26px;">
+                        <i class="ph ph-x"></i>
+                      </button>
                     </div>
-                    <div style="font-size:12.5px;color:var(--nm-text-muted);white-space:pre-wrap;line-height:1.45;">${escapeHtml(msg)}</div>
-                    ${timeStr ? `<div style="font-size:10.5px;color:var(--nm-text-muted);opacity:0.75;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> ${escapeHtml(timeStr)}</div>` : ''}
+
+                    <strong style="font-size:13.5px;color:var(--nm-text);">${escapeHtml(title)}</strong>
+                    <div style="font-size:12.5px;color:var(--nm-text-muted);white-space:pre-wrap;line-height:1.45;">${highlightMentions(rawMsg)}</div>
+
+                    ${isCelebrationNotif ? `
+                      <button type="button" class="rx-btn-surface" data-action-celeb="${escapeHtml(nid)}" style="padding:6px 11px;font-size:11.5px;color:#B45309;font-weight:800;display:inline-flex;align-items:center;gap:6px;width:fit-content;border-radius:10px;">
+                        <i class="ph-fill ph-sparkle"></i> Tap to open wishes ✨
+                      </button>
+                    ` : isCredentialAlert ? `
+                      <button type="button" class="rx-btn-surface" data-action-creds="${escapeHtml(nid)}" style="padding:6px 11px;font-size:11.5px;color:#B91C1C;font-weight:800;display:inline-flex;align-items:center;gap:6px;width:fit-content;border-radius:10px;">
+                        <i class="ph-fill ph-shield-check"></i> Tap to view Credential Tracker →
+                      </button>
+                    ` : isRosterAlert ? `
+                      <button type="button" class="rx-btn-surface" data-action-roster="${escapeHtml(nid)}" style="padding:6px 11px;font-size:11.5px;color:#4338CA;font-weight:800;display:inline-flex;align-items:center;gap:6px;width:fit-content;border-radius:10px;">
+                        <i class="ph-fill ph-calendar"></i> Tap to view Month Roster →
+                      </button>
+                    ` : ''}
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10.5px;color:var(--nm-text-muted);margin-top:2px;">
+                      <span>${escapeHtml(authorStr)}</span>
+                      ${timeStr ? `<span style="display:flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> ${escapeHtml(timeStr)}</span>` : ''}
+                    </div>
                   </div>
                 `;
               }).join('')}
@@ -2138,7 +2258,8 @@ class RosterXUserPortal {
       });
 
       dlg.querySelectorAll('[data-dismiss-one]').forEach((b) => {
-        b.addEventListener('click', () => {
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
           const nid = b.getAttribute('data-dismiss-one');
           const card = b.closest('.rx-notif-item');
           if (card) {
@@ -2155,6 +2276,45 @@ class RosterXUserPortal {
             render();
             this.atlas.dismissNotification(nid, false);
           }
+        });
+      });
+
+      // Interactive Action Triggers
+      dlg.querySelectorAll('[data-action-celeb]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const nid = btn.getAttribute('data-action-celeb');
+          const notif = this.notifications.find((x) => String(x.id || x._id) === nid);
+          closeNeumorphicDialog(dlg);
+          if (notif) {
+            const cUser = notif.celebration_user || notif.username || '';
+            const engObj = this.engineers.find((eng) => String(eng.username || '').toLowerCase() === String(cUser).toLowerCase());
+            const celebObj = {
+              username: cUser,
+              name: notif.celebration_name || engObj?.full_name || engObj?.name || cUser || 'Team Member',
+              phone: notif.celebration_phone || engObj?.phone || '',
+              isBday: Boolean(notif.celebration_type === 'birthday' || (notif.title && /birthday|🎂/i.test(notif.title))),
+              annYears: Number(notif.celebration_years || 1),
+              isSelf: String(cUser || '').toLowerCase() === String(this.user?.username || '').toLowerCase()
+            };
+            this.openCelebrationDialog(celebObj);
+          }
+        });
+      });
+
+      dlg.querySelectorAll('[data-action-creds]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeNeumorphicDialog(dlg);
+          this.openSubView('credentials');
+        });
+      });
+
+      dlg.querySelectorAll('[data-action-roster]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeNeumorphicDialog(dlg);
+          this.switchTab('month_roster');
         });
       });
     };
@@ -2210,10 +2370,23 @@ class RosterXUserPortal {
       render();
 
       try {
+        const recentHistory = (this.aiMessages || []).slice(-8).map((m) => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          text: m.text
+        }));
+        const targetMonth = `${this.gridYear}-${String(this.gridMonth).padStart(2, '0')}`;
+
         const resp = await fetch('/api/chat/assistant', {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ prompt: clean, message: clean, platform: 'iOS/Web PWA' })
+          body: JSON.stringify({
+            prompt: clean,
+            message: clean,
+            history: recentHistory,
+            target_month: targetMonth,
+            current_user: this.user,
+            platform: 'iOS/Web PWA'
+          })
         });
         const data = await resp.json();
         this.aiMessages.push({ role: 'ai', text: data.reply || data.response || data.message || 'No response.' });

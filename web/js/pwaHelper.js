@@ -93,6 +93,9 @@ export function openNeumorphicDialog(dialogEl) {
   }
   wireDialogLightDismiss(dialogEl);
   if (!dialogEl.open) {
+    try {
+      window.history.pushState({ scope: 'dialog', id: dialogEl.id || 'rx_modal' }, '');
+    } catch (_) {}
     dialogEl.showModal();
   }
 }

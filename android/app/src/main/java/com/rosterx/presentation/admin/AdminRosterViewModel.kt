@@ -750,7 +750,11 @@ class AdminRosterViewModel @Inject constructor(
                     "role" to it.role.name.lowercase()
                 )
             }
-            val res = repository.queryAssistant(q, userMap)
+            val history = _state.value.assistantMessages.takeLast(8).map {
+                mapOf("role" to it.role, "text" to it.text)
+            }
+            val targetMonth = String.format(java.util.Locale.US, "%04d-%02d", _state.value.currentYear, _state.value.currentMonth)
+            val res = repository.queryAssistant(q, userMap, history, targetMonth)
             val botText = res.getOrNull()?.reply ?: res.exceptionOrNull()?.message ?: "Unable to complete assistant request."
             val botMsg = com.rosterx.presentation.components.AssistantChatMessage(
                 id = "bot_${System.currentTimeMillis()}",

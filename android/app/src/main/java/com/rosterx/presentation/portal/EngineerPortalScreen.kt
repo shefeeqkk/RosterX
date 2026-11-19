@@ -1524,7 +1524,8 @@ fun EngineerPortalScreen(
                 celebrationDialogYears = years
                 celebrationDialogPhone = phone.orEmpty()
                 val myUname = state.loggedInEngineer?.username.orEmpty()
-                isCelebrationSelf = user.isNotBlank() && user.equals(myUname, ignoreCase = true)
+                val myEmailPrefix = state.loggedInEngineer?.email?.substringBefore("@").orEmpty()
+                isCelebrationSelf = user.isNotBlank() && (user.equals(myUname, ignoreCase = true) || user.equals(myEmailPrefix, ignoreCase = true))
                 showCelebrationDialog = true
             },
             onNavigateToCredentialTracker = {

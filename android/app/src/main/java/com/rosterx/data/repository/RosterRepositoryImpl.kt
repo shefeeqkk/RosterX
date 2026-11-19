@@ -1048,12 +1048,19 @@ class RosterRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun queryAssistant(message: String, currentUser: Map<String, Any?>?): Result<AssistantChatResponse> = withContext(Dispatchers.IO) {
+    override suspend fun queryAssistant(
+        message: String,
+        currentUser: Map<String, Any?>?,
+        history: List<Map<String, String>>?,
+        targetMonth: String?
+    ): Result<AssistantChatResponse> = withContext(Dispatchers.IO) {
         try {
             val req = AssistantChatRequest(
                 message = message,
                 current_user = currentUser,
-                platform = "Android App"
+                platform = "Android App",
+                history = history,
+                target_month = targetMonth
             )
             val res = apiService.queryAssistant(req)
             if (res.success) {

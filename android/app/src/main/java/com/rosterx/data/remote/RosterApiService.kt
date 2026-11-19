@@ -550,7 +550,9 @@ data class NotificationsListResponse(
 data class AssistantChatRequest(
     val message: String,
     val current_user: Map<String, Any?>? = null,
-    val platform: String = "Android App"
+    val platform: String = "Android App",
+    val history: List<Map<String, String>>? = null,
+    val target_month: String? = null
 )
 
 data class AssistantChatResponse(

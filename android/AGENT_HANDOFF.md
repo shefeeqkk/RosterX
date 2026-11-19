@@ -1,7 +1,34 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-19 23:40 IST** (Target Sprint: **v2.2.0 - Build 151**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 00:20 IST** (Target Sprint: **v2.2.0 - Build 151**)
+
+---
+
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.2.0 - Build 151 — 1:1 Android-Web Parity, Raised Notifications, Teammate Celebrations, Target Calendar & Progressive Back-Stack):
+> *"Dasa! Gafoorka! Vijayan UI and client parity sprint **`v2.2.0` (Build 151)** 100% complete cheythu safe build compile aakki eduthu boss! 🕵️🔥
+>
+> ### 🎨 Client & Compose UI Parity Highlights:
+> 1. **Raised Neumorphic Notification Cards (`userPortal.js` & `mobile-shell.css`)**:
+>    - Converted sunken `.rx-well` containers into authentic raised Neumorphic cards (`.rx-notif-card`) with smooth hover elevational transforms and slide-out dismissal.
+>    - Category pill badges matching Android: `CELEBRATION 🎉` (Amber/Gold), `SECURITY` (Rose/Red), `SHIFT UPDATE` (Indigo/Purple), `URGENT` (Red), `OPERATIONS` (Emerald/Teal).
+>    - Added contextual action links: "Tap to open wishes ✨" (opens celebration dialog), "Tap to view Credential Tracker →" (opens credentials subview), and "Tap to view Month Roster →" (switches to month roster tab).
+> 2. **Teammate vs Self Celebration Wishes (`userPortal.js` & Android `CelebrationWishesDialog.kt`)**:
+>    - Fixed `isSelf` detection. When tapping a teammate's anniversary/birthday on Web or in Android notifications, it renders 3rd-person milestone congratulations with direct **Wish on WhatsApp** (automated warm greeting pre-filled) and **Call** (`tel:<phone>`), omitting email per user directive.
+>    - For self celebrations, renders 1st-person wishes with the vibrant *"Thank You! 🙏"* celebratory button and confetti animation.
+> 3. **Always-Visible Target Calendar Section (`calendarSync.js`)**:
+>    - Web Calendar Sync modal now keeps `TARGET CALENDAR` section visible before and after sync.
+>    - Unsynced state provides seamless target selector: Google Calendar (Web & Android), Apple Calendar / iOS (.ics), or registered personal email.
+>    - Synced state displays green `Synced (N)` badge, target account name, and last synced timestamp, with `Re-Sync N Days` and `Clear Month` actions persisting directly to MongoDB Atlas via `POST /api/users/calendar-sync`.
+>    - Level 1: Close active `<dialog class="rx-modal">`.
+>    - Level 2: Exit subview (Credential Tracker, Team Directory, Profile) back to main tab.
+>    - Level 3: Navigate from any tab back to Dashboard.
+>    - Level 4: Gracefully stay at Dashboard root without ever wiping `localStorage` or logging out!
+> 5. **Conversational Multi-Turn AI Integration (`rosterAiAssistant.js`, `userPortal.js`, `RosterApiService.kt`, `EngineerPortalViewModel.kt`, `AdminRosterViewModel.kt`)**:
+>    - Both Web and Android AI assistants now send up to 8 recent turns of conversation `history`, the active calendar `target_month` (`YYYY-MM`), and authenticated `current_user` object.
+>    - Verified with safe build: `safe_build.bat assembleDebug` finished with **BUILD SUCCESSFUL in 1m 26s** (`app-debug.apk` 33.7 MB)!
+>
+> Pushing cleanly to `origin/main` for live Render auto-deployment!"*
 
 ---
 
