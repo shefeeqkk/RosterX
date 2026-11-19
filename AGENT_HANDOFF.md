@@ -5,6 +5,38 @@
 
 ---
 
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.1.0 - Build 150 — Web & Mobile Parity, Lively AI Assistant & Desktop 2-Column Grid Complete):
+> *"Dasaa! Gafoorka! Vijayan UI sprint **`v2.1.0` (Build 150)** kothu kothi spotless aayi theerthu! 🕵️✨
+>
+> ### 🎨 Delivered UI Enhancements:
+> 1. **Calendar Sync Parity (`web/js/calendarSync.js` & Android `CalendarSyncDialog.kt`)**:
+>    - Web `openCalendarSyncModal` queries live `/api/users/calendar-sync?month=YYYY-MM`.
+>    - When synced, displays `TARGET CALENDAR` card with green `Synced (N)` badge, target account, Re-Sync CTA, and Clear Month action.
+>    - Exporting `.ics` or tapping Re-Sync automatically registers sync state to `POST /api/users/calendar-sync`.
+>    - Full 1:1 parity with Android native calendar sync!
+> 2. **Forgot Password Visibility Overhaul (`web/login.html`)**:
+>    - Overhauled `#forgotPasswordModal` with Neumorphic adaptive CSS variables (`var(--nm-surface)`, `var(--nm-text)`, `var(--nm-text-muted)`, `var(--nm-input-surface)`).
+>    - Flawless contrast in BOTH Light and Dark mode for titles, labels, inputs, alerts, and back links!
+> 3. **Lively AI Assistant with Full Space Utilization (`web/js/userPortal.js` & `mobile-shell.css`)**:
+>    - True Bottom Sheet docked to bottom on mobile (85dvh) with top drag handle; centered 560x760 modal on desktop.
+>    - Header with 3D Bot icon badge, pulsing green live NOC indicator, Clear Chat, and Close buttons.
+>    - Horizontal scrollable quick chips strip (`⚡ On duty now?`, `🌙 NS tomorrow?`, `📅 My shift today?`, `📋 Duties tomorrow?`, `🏖️ Off tomorrow?`, `🌙 Next night shift?`, `🏖️ Rest days count?`).
+>    - Markdown-style bold and shift badges (`[NS]`, `[FS]`, etc.) + 3-dot bouncing typing indicator.
+> 4. **Desktop Balanced 2-Column Architecture & Profile Accordion**:
+>    - Constrained desktop width to 1100px max-width centered.
+>    - Profile & Settings: Left column for user details; Right column with collapsed Appearance & Theme accordion (with session persistence), "RosterX Web" application spec, and Sign Out.
+>    - My Calendar: 2-column layout with month grid on left and Sync CTA + Shift Legend on right.
+> 5. **Notification Parity & Slide-Out Animations**:
+>    - Timezone formatted in local IST time (no raw UTC strings).
+>    - Slide-out dismissal animation (`rxNotifSlideOut`) for single dismiss and staggered cascade for Clear All.
+> 6. **Month Roster Grid Enlargement**:
+>    - Scaled cell dimensions and paddings for optimal tap targets and crisp visibility on both mobile and desktop.
+> 7. **Build & Version Sync**:
+>    - Full Android `safe_build.bat assembleDebug` succeeded with 0 errors!
+>    - Version bumped to `v2.1.0` (Build 150) in `android/app/build.gradle.kts`, `server.py`, and `web/sw.js` (`rosterx-pwa-v2.1.0`)."*
+
+---
+
 ## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.1.0 - Build 150 — Cloud-Backed Calendar Sync Endpoints & Notification Dismissal Parity):
 > *"Vijaya! Gafoorka! Dasan backend sprint **`v2.1.0` (Build 150)** 100% spotless aayi finish cheythu live Render production deploymentilottu push cheythu macha! 🕵️‍♂️🔥
 >

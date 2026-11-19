@@ -30,7 +30,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.0.5';
 
-const APP_VERSION = '2.0.6';
+const APP_VERSION = '2.1.0';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -1173,7 +1173,7 @@ class RosterXUserPortal {
     }
 
     panel.innerHTML = `
-      <div class="rx-calendar-split" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="rx-calendar-split">
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <button type="button" class="rx-icon-pill" id="btnCalPrevMonth" aria-label="Previous Month"><i class="ph ph-arrow-left"></i></button>
@@ -1195,8 +1195,8 @@ class RosterXUserPortal {
 
         <div style="display:flex;flex-direction:column;gap:12px;">
           ${hasAnyDays ? `
-            <div style="display:flex;justify-content:flex-end;">
-              <button type="button" id="btnSyncToCalendar" class="rx-btn-surface" style="color:var(--nm-accent);font-weight:800;width:100%;max-width:260px;">
+            <div>
+              <button type="button" id="btnSyncToCalendar" class="rx-btn-primary" style="width:100%;">
                 <i class="ph ph-calendar-check" aria-hidden="true"></i>
                 <span>Sync to Calendar</span>
               </button>
@@ -1693,8 +1693,10 @@ class RosterXUserPortal {
     const { tenureText, birthdayLabel, birthdayValue } = computeTenureAndBirthday(eng?.join_date, eng?.birthday);
     const weeklyOffs = Array.isArray(eng?.default_weekly_offs) ? eng.default_weekly_offs.map((d) => String(d).toLowerCase()) : [];
 
+    const isAppearanceOpen = Boolean(this.appearanceExpanded);
+
     view.innerHTML = `
-      <div class="rx-land-grid-2" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="rx-land-grid-2">
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div style="border-radius:24px;padding:18px;background:var(--nm-accent-gradient);color:#fff;box-shadow:0 8px 22px var(--nm-accent-glow);display:flex;align-items:center;justify-content:space-between;gap:12px;">
             <div style="display:flex;align-items:center;gap:14px;min-inline-size:0;">
@@ -1753,12 +1755,20 @@ class RosterXUserPortal {
         </div>
 
         <div style="display:flex;flex-direction:column;gap:14px;">
-          <div class="rx-card" id="rxAppearanceCard">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <div class="rx-field-label" style="margin:0;color:var(--nm-accent);">APPEARANCE &amp; THEME</div>
-              <span data-rx-appearance-summary style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:9px;background:var(--nm-accent-soft);color:var(--nm-accent);"></span>
+          <!-- Appearance & Theme Accordion (Default Collapsed with Summary Pill) -->
+          <div class="rx-card" id="rxAppearanceCard" style="display:flex;flex-direction:column;gap:0;">
+            <div class="rx-accordion-toggle" id="rxAppearanceToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="rx-field-label" style="margin:0;color:var(--nm-accent);font-size:11px;">APPEARANCE &amp; THEME</div>
+                <span data-rx-appearance-summary style="font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:8px;background:var(--nm-accent-soft);color:var(--nm-accent);"></span>
+              </div>
+              <button type="button" class="rx-icon-pill rx-accordion-caret ${isAppearanceOpen ? 'is-rotated' : ''}" style="width:28px;height:28px;min-inline-size:28px;min-block-size:28px;" aria-label="Toggle Appearance Options">
+                <i class="ph ph-caret-down"></i>
+              </button>
             </div>
-            ${themeController.renderAppearancePickerHtml()}
+            <div class="rx-accordion-body ${isAppearanceOpen ? '' : 'is-collapsed'}" id="rxAppearanceBody" style="margin-top:12px;">
+              ${themeController.renderAppearancePickerHtml()}
+            </div>
           </div>
 
           <div class="rx-card" style="display:flex;flex-direction:column;gap:8px;">
@@ -1766,7 +1776,7 @@ class RosterXUserPortal {
               <div class="rx-field-label" style="margin:0;color:var(--nm-accent);">ABOUT ROSTERX &amp; SPECS</div>
               <span style="padding:3px 9px;border-radius:8px;background:var(--nm-accent-soft);color:var(--nm-accent);font-size:11px;font-weight:900;">v${APP_VERSION}</span>
             </div>
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Application</span><strong>RosterX Web / iOS PWA</strong></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Application</span><strong>RosterX Web</strong></div>
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Production Gateway</span><strong>api.rosterx.online</strong></div>
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Timezone Anchor</span><strong>Asia/Kolkata (IST)</strong></div>
           </div>
@@ -1780,6 +1790,19 @@ class RosterXUserPortal {
 
     themeController.bindAppearancePicker(view.querySelector('#rxAppearanceCard'));
     themeController.updatePaletteUi();
+
+    view.querySelector('#rxAppearanceToggle')?.addEventListener('click', () => {
+      this.appearanceExpanded = !this.appearanceExpanded;
+      const body = view.querySelector('#rxAppearanceBody');
+      const caret = view.querySelector('.rx-accordion-caret');
+      if (this.appearanceExpanded) {
+        body?.classList.remove('is-collapsed');
+        caret?.classList.add('is-rotated');
+      } else {
+        body?.classList.add('is-collapsed');
+        caret?.classList.remove('is-rotated');
+      }
+    });
     view.querySelector('#btnOpenEditProfile')?.addEventListener('click', () => this.openEditProfileDialog());
     view.querySelector('#btnCopyEmail')?.addEventListener('click', () => {
       navigator.clipboard?.writeText(eng?.email || '').then(() => this.toast('Email copied to clipboard', 'success'));
@@ -1950,6 +1973,26 @@ class RosterXUserPortal {
   openNotificationsDialog() {
     const dlg = document.getElementById('rxNotificationsDialog');
     const selfEng = this.getSelfEngineer();
+
+    const formatNotifTime = (raw) => {
+      if (!raw) return '';
+      try {
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'Asia/Kolkata'
+          }) + ' IST';
+        }
+      } catch (_) {}
+      return String(raw).replace(' UTC', ' IST');
+    };
+
     const render = () => {
       dlg.innerHTML = `
         <div class="rx-modal-scroll">
@@ -1962,27 +2005,31 @@ class RosterXUserPortal {
               </div>
             </div>
             <div style="display:flex;gap:6px;">
-              ${this.notifications.length ? `<button type="button" class="rx-btn-surface" data-clear-all style="padding:6px 10px;font-size:11px;color:#DC2626;">Clear All</button>` : ''}
+              ${this.notifications.length ? `<button type="button" class="rx-btn-surface" data-clear-all style="padding:6px 10px;font-size:11px;color:#DC2626;font-weight:800;">Clear All</button>` : ''}
               <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close"><i class="ph ph-x"></i></button>
             </div>
           </div>
 
           ${this.notifications.length === 0 ? `
-            <div class="rx-well" style="text-align:center;padding:28px;color:var(--nm-text-muted);">You're all caught up! No active notifications.</div>
+            <div class="rx-well" style="text-align:center;padding:32px 20px;color:var(--nm-text-muted);font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;">
+              <i class="ph ph-bell-slash" style="font-size:32px;color:var(--nm-text-muted);opacity:0.6;"></i>
+              <div>You're all caught up! No active notifications.</div>
+            </div>
           ` : `
-            <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="rx-notif-list" style="display:flex;flex-direction:column;gap:10px;">
               ${this.notifications.map((n) => {
                 const nid = n.id || n._id;
                 const title = resolveMentions(n.title || 'Announcement', selfEng, this.engineers);
                 const msg = resolveMentions(n.message || n.raw_message || '', selfEng, this.engineers);
+                const timeStr = formatNotifTime(n.created_at || n.timestamp);
                 return `
-                  <div class="rx-well" style="display:flex;flex-direction:column;gap:6px;">
+                  <div class="rx-well rx-notif-item" data-notif-card="${escapeHtml(nid)}" style="display:flex;flex-direction:column;gap:6px;transition:all 0.2s ease;">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                      <strong style="font-size:13.5px;">${escapeHtml(title)}</strong>
+                      <strong style="font-size:13.5px;color:var(--nm-text);">${escapeHtml(title)}</strong>
                       <button type="button" class="rx-icon-pill" data-dismiss-one="${escapeHtml(nid)}" aria-label="Dismiss notification" style="width:26px;height:26px;min-inline-size:26px;min-block-size:26px;"><i class="ph ph-x"></i></button>
                     </div>
                     <div style="font-size:12.5px;color:var(--nm-text-muted);white-space:pre-wrap;line-height:1.45;">${escapeHtml(msg)}</div>
-                    <div style="font-size:10.5px;color:var(--nm-text-faint);">${escapeHtml(n.created_at || '')}</div>
+                    ${timeStr ? `<div style="font-size:10.5px;color:var(--nm-text-muted);opacity:0.75;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> ${escapeHtml(timeStr)}</div>` : ''}
                   </div>
                 `;
               }).join('')}
@@ -1990,23 +2037,51 @@ class RosterXUserPortal {
           `}
         </div>
       `;
+
       dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
+
       dlg.querySelector('[data-clear-all]')?.addEventListener('click', async () => {
-        await this.atlas.dismissNotification('', true);
-        this.notifications = [];
-        this.updateNotificationBadge();
-        render();
-      });
-      dlg.querySelectorAll('[data-dismiss-one]').forEach((b) => {
-        b.addEventListener('click', async () => {
-          const nid = b.getAttribute('data-dismiss-one');
-          this.notifications = this.notifications.filter((x) => String(x.id || x._id) !== nid);
+        const items = dlg.querySelectorAll('.rx-notif-item');
+        if (items.length > 0) {
+          items.forEach((el, idx) => {
+            setTimeout(() => el.classList.add('rx-notif-dismissing'), idx * 35);
+          });
+          setTimeout(async () => {
+            this.notifications = [];
+            this.updateNotificationBadge();
+            render();
+            await this.atlas.dismissNotification('', true);
+          }, items.length * 35 + 260);
+        } else {
+          await this.atlas.dismissNotification('', true);
+          this.notifications = [];
           this.updateNotificationBadge();
           render();
-          await this.atlas.dismissNotification(nid, false);
+        }
+      });
+
+      dlg.querySelectorAll('[data-dismiss-one]').forEach((b) => {
+        b.addEventListener('click', () => {
+          const nid = b.getAttribute('data-dismiss-one');
+          const card = b.closest('.rx-notif-item');
+          if (card) {
+            card.classList.add('rx-notif-dismissing');
+            setTimeout(async () => {
+              this.notifications = this.notifications.filter((x) => String(x.id || x._id) !== nid);
+              this.updateNotificationBadge();
+              render();
+              await this.atlas.dismissNotification(nid, false);
+            }, 260);
+          } else {
+            this.notifications = this.notifications.filter((x) => String(x.id || x._id) !== nid);
+            this.updateNotificationBadge();
+            render();
+            this.atlas.dismissNotification(nid, false);
+          }
         });
       });
     };
+
     render();
     openNeumorphicDialog(dlg);
   }
@@ -2024,59 +2099,185 @@ class RosterXUserPortal {
       document.body.appendChild(dlg);
     }
 
+    const QUICK_PROMPTS = [
+      '⚡ On duty now?',
+      '🌙 NS tomorrow?',
+      '📅 My shift today?',
+      '📋 Duties tomorrow?',
+      '🏖️ Off tomorrow?',
+      '🌙 Next night shift?',
+      '🏖️ Rest days count?'
+    ];
+
+    const formatAiMarkdown = (raw) => {
+      if (!raw) return '';
+      let str = escapeHtml(String(raw));
+      str = str.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      str = str.replace(/`([^`]+)`/g, '<code style="background:var(--nm-input-surface);padding:1px 5px;border-radius:4px;font-size:11px;font-family:monospace;">$1</code>');
+      const shiftColors = {
+        FS: '#059669', FG: '#047857', G: '#0284C7', SG: '#EA580C', SS: '#D97706', NS: '#4F46E5', OFF: '#94A3B8', L: '#DC2626'
+      };
+      Object.entries(shiftColors).forEach(([code, color]) => {
+        const re = new RegExp(`\\b(${code})\\b`, 'g');
+        str = str.replace(re, `<span class="rx-chat-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">$1</span>`);
+      });
+      str = str.replace(/\n/g, '<br>');
+      return str;
+    };
+
+    const sendAiPrompt = async (prompt) => {
+      const clean = String(prompt || '').trim();
+      if (!clean || this.aiLoading) return;
+      this.aiMessages.push({ role: 'user', text: clean });
+      this.aiLoading = true;
+      render();
+
+      try {
+        const resp = await fetch('/api/chat/assistant', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ prompt: clean, message: clean, platform: 'iOS/Web PWA' })
+        });
+        const data = await resp.json();
+        this.aiMessages.push({ role: 'ai', text: data.reply || data.response || data.message || 'No response.' });
+      } catch (err) {
+        this.aiMessages.push({ role: 'ai', text: `Error: ${err.message}` });
+      } finally {
+        this.aiLoading = false;
+        render();
+      }
+    };
+
     const render = () => {
       dlg.innerHTML = `
         <div class="rx-modal-scroll">
-          <div class="rx-modal-header">
+          <div class="rx-sheet-drag-handle"></div>
+
+          <div class="rx-modal-header" style="padding-bottom:2px;">
             <div class="rx-modal-title-wrap">
-              <div class="rx-modal-badge-icon"><i class="ph ph-robot"></i></div>
+              <div class="rx-modal-badge-icon" style="box-shadow:0 0 16px var(--nm-accent-glow);"><i class="ph ph-robot"></i></div>
               <div>
-                <h2 style="margin:0;font-size:16px;font-weight:800;">RosterX AI Assistant</h2>
-                <div style="font-size:11.5px;color:var(--nm-text-muted);">Live shift lookup &amp; operational briefing</div>
+                <h2 style="margin:0;font-size:16px;font-weight:900;">RosterX Assistant</h2>
+                <div style="font-size:11px;color:var(--nm-text-muted);display:flex;align-items:center;gap:6px;margin-top:2px;">
+                  <span class="rx-pulsing-dot"></span>
+                  <span>Grounded Gemini • Live Atlas NOC</span>
+                </div>
               </div>
             </div>
-            <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close"><i class="ph ph-x"></i></button>
+            <div style="display:flex;gap:6px;">
+              ${this.aiMessages.length ? `
+                <button type="button" class="rx-icon-pill" id="btnClearAiChat" aria-label="Clear chat" title="Clear chat history">
+                  <i class="ph ph-trash"></i>
+                </button>
+              ` : ''}
+              <button type="button" class="rx-icon-pill" data-rx-close aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
           </div>
 
-          <div class="rx-well" style="min-height:180px;max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
-            ${this.aiMessages.length === 0 ? `
-              <div style="font-size:12.5px;color:var(--nm-text-muted);">Ask anything about today's shift coverage, your upcoming shifts, or next rest day!</div>
-            ` : this.aiMessages.map((m) => `
-              <div style="align-self:${m.role === 'user' ? 'flex-end' : 'flex-start'};max-width:88%;padding:9px 12px;border-radius:14px;font-size:12.5px;line-height:1.45;white-space:pre-wrap;${m.role === 'user' ? 'background:var(--nm-accent);color:#fff;' : 'background:var(--nm-surface);color:var(--nm-text);'}">${escapeHtml(m.text)}</div>
+          <!-- Quick Action Chips Strip -->
+          <div class="rx-ai-chips">
+            ${QUICK_PROMPTS.map((p) => `
+              <button type="button" class="rx-ai-chip" data-quick-prompt="${escapeHtml(p)}" ${this.aiLoading ? 'disabled' : ''}>
+                ${escapeHtml(p)}
+              </button>
             `).join('')}
-            ${this.aiLoading ? `<div style="font-size:12px;color:var(--nm-text-muted);">Thinking...</div>` : ''}
           </div>
 
-          <form id="rxAiForm" style="display:flex;gap:8px;">
-            <input type="text" name="prompt" placeholder="Ask RosterX AI..." required style="flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13px;" />
-            <button type="submit" class="rx-btn-primary" ${this.aiLoading ? 'disabled' : ''}>Send</button>
+          <!-- Message History (Expands to Full Available Space) -->
+          <div class="rx-ai-messages" id="rxAiMessageContainer">
+            ${this.aiMessages.length === 0 ? `
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:24px 16px;color:var(--nm-text-muted);gap:10px;">
+                <div style="width:48px;height:48px;border-radius:16px;background:var(--nm-surface);box-shadow:var(--nm-shadow-raised-subtle);display:flex;align-items:center;justify-content:center;color:var(--nm-accent);font-size:24px;">
+                  <i class="ph ph-sparkle"></i>
+                </div>
+                <div style="font-size:13px;font-weight:700;color:var(--nm-text);">How can I help with your schedule today?</div>
+                <div style="font-size:11.5px;max-width:320px;line-height:1.45;">
+                  Ask about active on-duty engineers, your next night shift, weekend coverage, or tap a quick chip above!
+                </div>
+              </div>
+            ` : this.aiMessages.map((m) => {
+              if (m.role === 'user') {
+                return `
+                  <div class="rx-ai-bubble-user">
+                    ${escapeHtml(m.text)}
+                  </div>
+                `;
+              }
+              return `
+                <div class="rx-ai-bubble-ai">
+                  <div style="width:28px;height:28px;border-radius:10px;background:var(--nm-surface);box-shadow:var(--nm-shadow-raised-subtle);display:flex;align-items:center;justify-content:center;color:var(--nm-accent);font-size:15px;flex-shrink:0;margin-top:2px;">
+                    <i class="ph ph-robot"></i>
+                  </div>
+                  <div class="rx-ai-bubble-ai-content">
+                    ${formatAiMarkdown(m.text)}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+
+            ${this.aiLoading ? `
+              <div class="rx-ai-bubble-ai">
+                <div style="width:28px;height:28px;border-radius:10px;background:var(--nm-surface);box-shadow:var(--nm-shadow-raised-subtle);display:flex;align-items:center;justify-content:center;color:var(--nm-accent);font-size:15px;flex-shrink:0;">
+                  <i class="ph ph-robot"></i>
+                </div>
+                <div class="rx-typing-indicator">
+                  <span class="rx-typing-dot"></span>
+                  <span class="rx-typing-dot"></span>
+                  <span class="rx-typing-dot"></span>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Input Basin -->
+          <form id="rxAiForm" style="display:flex;gap:8px;align-items:center;margin-top:2px;">
+            <input 
+              type="text" 
+              name="prompt" 
+              placeholder="Ask NOC schedules or active shifts..." 
+              required 
+              autocomplete="off"
+              ${this.aiLoading ? 'disabled' : ''}
+              style="flex:1;padding:12px 14px;border-radius:14px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13px;box-shadow:var(--nm-shadow-inset-subtle);outline:none;" 
+            />
+            <button type="submit" class="rx-btn-primary" style="padding:12px 18px;border-radius:14px;" ${this.aiLoading ? 'disabled' : ''} aria-label="Send query">
+              <i class="ph ph-paper-plane-right" style="font-size:16px;"></i>
+            </button>
           </form>
         </div>
       `;
+
+      // Auto-scroll messages to bottom
+      const msgBox = dlg.querySelector('#rxAiMessageContainer');
+      if (msgBox) {
+        msgBox.scrollTop = msgBox.scrollHeight;
+      }
+
       dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
-      dlg.querySelector('#rxAiForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const prompt = e.target.prompt.value.trim();
-        if (!prompt || this.aiLoading) return;
-        this.aiMessages.push({ role: 'user', text: prompt });
-        this.aiLoading = true;
+
+      dlg.querySelector('#btnClearAiChat')?.addEventListener('click', () => {
+        this.aiMessages = [];
         render();
-        try {
-          const resp = await fetch('/api/chat/assistant', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ prompt, message: prompt, platform: 'iOS/Web PWA' })
-          });
-          const data = await resp.json();
-          this.aiMessages.push({ role: 'ai', text: data.reply || data.response || data.message || 'No response.' });
-        } catch (err) {
-          this.aiMessages.push({ role: 'ai', text: `Error: ${err.message}` });
-        } finally {
-          this.aiLoading = false;
-          render();
-        }
+      });
+
+      dlg.querySelectorAll('[data-quick-prompt]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const prompt = btn.getAttribute('data-quick-prompt');
+          sendAiPrompt(prompt);
+        });
+      });
+
+      dlg.querySelector('#rxAiForm')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = e.target.querySelector('input[name="prompt"]');
+        const val = input ? input.value : '';
+        if (input) input.value = '';
+        sendAiPrompt(val);
       });
     };
+
     render();
     openNeumorphicDialog(dlg);
   }
