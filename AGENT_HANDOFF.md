@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-18 16:23 IST** (Target Hotfix: **v2.0.1 - Build 144**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-19 12:45 IST** (Target Sprint: **v2.1.0 - Build 150**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.1.0 - Build 150 — Cloud-Backed Calendar Sync Parity, Forgot Password Visibility & Lively 1:1 AI Assistant):
+> *"Dasa, Vijaya! User `/grill-me` session-il nammude next MAJOR Sprint **`v2.1.0` (Build 150)** 100% lock aakki vechittundu:
+>
+> ### 🎯 Core Objectives:
+> 1. **Cross-Device Calendar Sync Parity (Android ⇄ Web)**:
+>    - **Dasan**: Add `POST /api/users/calendar-sync`, `GET /api/users/calendar-sync`, and `POST /api/users/calendar-sync/clear` backed by MongoDB Atlas (`calendar_sync.{month}`).
+>    - **Vijayan (Android)**: When Google Calendar sync succeeds in `CalendarSyncDialog.kt`, report `{ month, count, target: cal.accountName }` to `POST /api/users/calendar-sync`. On Clear Month, call `/clear`.
+>    - **Vijayan (Web)**: In `web/js/calendarSync.js`, fetch cloud sync state and render **`TARGET CALENDAR [Synced (N)]`** badge, target account email, **`Re-Sync N Days`** button, and **`Clear Month`** button!
+> 2. **Complete Visibility & Contrast Overhaul (`login.html` & All Modals)**:
+>    - In `web/login.html`: Rebuild `#forgotPasswordModal` using adaptive Neumorphic CSS variables (`--nm-surface`, `--nm-input-surface`, `--nm-text`, `--nm-border`) with 100% WCAG contrast in BOTH Light and Dark modes (zero invisible white-on-white text or mismatched dark input wells).
+>    - Audit and verify all dialogs across `login.html`, `user-portal.html`, and `index.html`.
+> 3. **Lively AI Assistant with Full Space Utilization (`userPortal.js` & `mobile-shell.css`)**:
+>    - Utilize all vertical space: `85dvh` height (bottom-sheet docked on mobile, floating panel on desktop, scrollable message area).
+>    - 1:1 Android parity: 3D bot header with pulsating green live status, horizontal quick prompt chips (`⚡ On duty now?`, `🌙 NS tomorrow?`, etc.), animated 3-dot typing indicator, Markdown bubble rendering, and Clear Chat button!
+>
+> ### 🔀 Execution Flow:
+> - **Dasan**: Run `plan_dasan.md` -> Backend endpoints + bump `SERVER_VERSION = "2.1.0"` -> Commit & `git push origin main`.
+> - **Vijayan**: Run `plan_vijayan.md` -> Android sync reporting + Web calendar sync + Forgot password contrast + Lively AI Assistant -> safe_build + ADB install + bump `2.1.0` (Build 150) -> Commit & `git push origin main`.
+>
+> **Strict Zero-PII Policy & Mandatory Push Discipline apply!** Check `plan_dasan.md` & `plan_vijayan.md`!"*
 
 ---
 
