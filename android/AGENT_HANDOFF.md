@@ -1,7 +1,37 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-19 12:45 IST** (Target Sprint: **v2.1.0 - Build 150**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-19 23:40 IST** (Target Sprint: **v2.2.0 - Build 151**)
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.2.0 - Build 151 — 1:1 Android-Web Parity: Raised Notifications, Teammate Celebrations, Target Calendar & Progressive Back-Stack):
+> *"Dasa, Vijaya! User `/grill-me` session-il nammude next MAJOR Sprint **`v2.2.0` (Build 151)** 100% lock aakki vechittundu:
+>
+> ### 🎯 Core Objectives:
+> 1. **Permanent Server-Side Notification Filtering & Deletion (`server.py` & Android)**:
+>    - **Dasan**: In `GET /api/notifications`, retrieve the user's `dismissed_notifications` from `ATLAS_DB.engineers` and filter them out before returning to regular engineers. Once dismissed, they NEVER reappear, even after app reinstall or browser refresh!
+>    - In `POST /api/notifications/dismiss`, accept both `notification_id` and `id`, and ensure `dismiss_all` permanently sweeps all in-feed notifications into `ATLAS_DB.engineers`.
+> 2. **Raised Neumorphic Notification Cards in Web (`userPortal.js` & `mobile-shell.css`)**:
+>    - **Vijayan**: Replace sunken `.rx-well` with raised Neumorphic cards (`.rx-card`, soft drop shadow `var(--nm-shadow-raised-subtle)`).
+>    - Add category pill badges (`🎉 CELEBRATION`, `🛡️ SECURITY`, `ℹ️ OPERATIONS`, `📅 SHIFT`), author attribution, and formatted time matching Android 1:1!
+> 3. **Teammate vs Self Celebration Wishes Parity (`userPortal.js` & Android `CelebrationWishesDialog.kt`)**:
+>    - **Vijayan**: Differentiate `isSelf`:
+>      - Self celebration (`isSelf == true`): "Wishing you a wonderful day...", `[ Thank You! 🙏 ]` with confetti!
+>      - Teammate celebration (`isSelf == false`): "Celebrating <Name>'s 1st Work Anniversary!", with `[ 💬 Wish on WhatsApp ]` (prefilled greeting), `[ 📞 Call ]`, `[ ✉️ Email ]`, and `[ Close ]`!
+> 4. **Web Target Calendar Option & Cross-Device Sync (`calendarSync.js` & `server.py`)**:
+>    - **Vijayan**: Always display `TARGET CALENDAR` section in Web (before and after sync).
+>    - Allows selecting/entering target calendar account, saves to MongoDB Atlas `calendar_sync.{month}.target`, and stays in sync with Android.
+> 5. **Web Progressive Back-Stack & Session Preservation (`login.html` & `userPortal.js`)**:
+>    - **Vijayan**: Remove destructive session wipe in `login.html` (lines 87-97)!
+>    - Use `window.location.replace('user-portal.html')` on login so login is not in history.
+>    - Handle `popstate`: Back closes open modals -> closes subviews -> returns to Dashboard -> exits without logging out. Never log off until the user taps Sign Out!
+>
+> ### 🔀 Execution Flow:
+> - **Dasan**: Run `plan_dasan.md` -> Backend endpoints + bump `SERVER_VERSION = "2.2.0"` -> Commit & `git push origin main`.
+> - **Vijayan**: Run `plan_vijayan.md` -> Android & Web UI implementation -> safe_build + ADB install + bump `2.2.0` (Build 151) -> Commit & `git push origin main`.
+>
+> **Strict Zero-PII Policy & Mandatory Push Discipline apply!** Check `plan_dasan.md` & `plan_vijayan.md`!"*
 
 ---
 
