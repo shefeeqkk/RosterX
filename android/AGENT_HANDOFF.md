@@ -1,7 +1,63 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 07:50 IST** (Target Sprint: **v2.3.0 - Build 152**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 09:50 IST** (Target Sprint: **v2.3.1 - Build 153**)
+
+---
+
+## 🕶️ Gafoorka's Master Architecture Directive (v2.3.1 - Build 153 — Full Parity Suite: Zero-Cropping Logo, Glassmorphic AI, GPM Domain Unification, Edit Profile Parity & Dynamic Festival Suite):
+> *"Dasa! Vijaya! Sprint **`v2.3.0` (Build 152)** is already committed, verified, and deployed on Render!  
+> As confirmed by the user, this active implementation suite is designated **`v2.3.1` (Build 153)**!
+> Here is what we must deliver with surgical precision:
+> 
+> ### 1. 🎨 Full-Fitted App Logo & Zero-Cropping Asset Overhaul (Android Splash, Launcher, Package Installer & Web PWA):
+> - **Android 12+ Splash Screen (`Theme.RosterX.Starting`)**: Replace `@mipmap/ic_launcher_round` with `@drawable/ic_rosterx_splash_logo` (full hexagonal logo with wings on transparent background, scaled within 325px safe radius). Floating seamlessly directly on the splash background without an awkward clipped white box!
+> - **Android Launcher & Package Installer (`ic_launcher`, `ic_launcher_round`)**: Rescale master `ic_rosterx_logo.png` so max radius is $\le 325$px from center (leaving ~195px breathing room inside 1024x1024). Regenerate all densities (`mdpi`..`xxxhdpi`) with pure white `#FFFFFF` background so the Package Installer update prompt and launcher squircles render the full logo with complete side wings!
+> - **Web UI & PWA Shortcuts (`manifest.webmanifest`, `logo.png`, `logo-maskable.png`)**: Provide `logo.png` (transparent, proportioned) for `"any"` purpose and `logo-maskable.png` (white background + safe padding) for `"maskable"` purpose, ensuring home screen shortcuts never crop wings.
+> 
+> ### 2. 📱 Mobile Web / Chrome Shortcut Back-Button Exit Bug:
+> - **Manifest Root (`manifest.webmanifest`)**: Change `"start_url": "/login.html"` to `"start_url": "/"` so shortcuts open directly into the portal when logged in.
+> - **Login BFCache Protection (`login.html`)**: Add `pageshow` listener so back-navigation restores never render frozen login screens when auth tokens exist; redirect forward immediately.
+> - **Dashboard Double-Back Guard (`userPortal.js`)**: When at Dashboard root with no active modal or subview, first back press shows Neumorphic toast *"Press back again to exit"*. Second press within 2.5s allows window close/minimize. **NEVER** clear auth tokens on back press!
+> 
+> ### 3. 🛡️ Background Scroll Lock & Backdrop Focus Lockdown (`pwaHelper.js`, `mobile-shell.css`):
+> - In `openNeumorphicDialog`, add `html.rx-modal-open` and `body.rx-modal-open`.
+> - Enforce `overflow: hidden !important; touch-action: none !important;` on body and `pointer-events: none !important;` on `main.rx-main-shell` while modal is open.
+> - Prevents touch events on the blurred backdrop or empty space from scrolling or focusing the background screen.
+> 
+> ### 4. 📅 Calendar Accounts Synchronization & Target Categorization:
+> - **Categorization**: In `web/js/calendarSync.js`, rename `Personal Account (${userEmail})` to `🏢 Corporate / Work Calendar (${userEmail})`.
+> - **Android Calendar Upload (`ShiftCalendarExporter.kt`)**: Query Android's `CalendarContract.Calendars` and dispatch discovered Google accounts and secondary calendars to `POST /api/users/calendar-accounts`.
+> - **Backend (`server.py`)**: Store `calendar_accounts` in MongoDB Atlas under `engineers` collection and return in profile/sync endpoints.
+> - **Web Dropdown**: Display Corporate Calendar, synced device Google accounts & secondary calendars, Apple Calendar (.ics), plus a manual `[+ Add Personal / Secondary Calendar]` option.
+> - **Bidirectional Sync Status Bridging**: In Android `CalendarSyncDialog.kt`, when existing synced events are discovered (`existingSyncedCount > 0`), immediately dispatch `onSyncRecorded(monthKey, existingSyncedCount, chosenAccount)` to Atlas so Web UI immediately displays `Synced (N)`, `Re-Sync N Days`, and `Clear Month`! Support bidirectional clearing across both platforms.
+> 
+> ### 5. 📱 Smart Home Screen Widget Discovery & Pinning:
+> - **Presence Check**: Use `AppWidgetManager.getAppWidgetIds()`. If already added, suppress all banners completely!
+> - **Dashboard Banner**: Gentle Neumorphic prompt on Dashboard appearing every 4-5 sessions with `[ Add Widget ]` and `[ ✕ ]` (sleeps 7 days on dismiss).
+> - **1-Tap Native Pinning**: `AppWidgetManager.requestPinAppWidget()` triggers Android OS home screen placement dialog.
+> - **Permanent Access**: Permanent 'Home Screen Widget' row in Profile & Settings.
+> 
+> ### 6. 👤 1:1 Unified Edit Profile Parity in Web (`userPortal.js`):
+> - Bring Web's Edit Profile dialog into complete 1:1 parity with Android's `UnifiedEditProfileDialog`:
+>   - Add **Company Join Date** (`join_date`) dual-columned with Birthday.
+>   - Add **Security & Password Section** (`Current Password`, `New Password`, `Confirm Password` with show/hide eye toggles).
+>   - Wired directly to `POST /api/users/profile` which already supports all fields on the backend.
+> 
+> ### 7. 🤖 Ultra-Modern Glassmorphic Animated AI Assistant Dialog (`userPortal.js`, `mobile-shell.css`):
+> - Completely remove bottom-stuck docking (`margin: auto auto 0 auto`).
+> - Center floating modal (`width: min(92vw, 540px); height: min(82dvh, 720px); margin: auto;`) with 24px blur glassmorphism, gradient user bubbles, frosted AI cards, and spring scale/fade open/close animations. Releases dashboard cleanly on close!
+> 
+> ### 8. 🔐 Google Password Manager Domain Unification & Password Update Sync:
+> - **Domain Unification (`AndroidManifest.xml`)**: Add `<meta-data android:name="asset_statements">` pointing to `https://rosterx.online/.well-known/assetlinks.json`. Eliminates `rosterx.com` and generic green robot in GPM; merges all Android & Web credentials seamlessly under **`rosterx.online`** with the official app logo!
+> - **Immediate Update on Change**: In `UnifiedEditProfileDialog.kt`, immediately call `googlePasswordManager.saveCredentials(activity, username, newPassword)` upon password change, triggering GPM's native *"Update password?"* prompt.
+> - **Login Screen Re-Sync**: Prompts GPM update whenever logging in with a new password that differs from stored hash.
+> 
+> ### 9. 🎆 Dynamic Festive Icons & Celebration Suite Engine (`DynamicIconManager.kt`, `server.py`):
+> - Add `<activity-alias>` targets for `Diwali`, `Christmas`, `NewYear`, `Celebration`, `Independence`, `Eid`.
+> - Server endpoint `GET /api/app-config` provides active theme and celebrations.
+> 
+> Both `plan_dasan.md` and `plan_vijayan.md` are locked for **v2.3.1 (Build 153)**. When the user gives the call (`Start work` / `Thudangikko`), execute seamlessly!"*
 
 ---
 
@@ -54,56 +110,6 @@
 >
 > Vijaya, backend routes and data structures are 100% locked and verified! Over to you for the Compose and Web UI glory!"*
 
----
-
-## 🕶️ Gafoorka's Master Architecture Directive (v2.3.0 - Build 152 — Zero-Cropping App Logo Overhaul, Mobile Web Back-Stack Exit Guard, Background Scroll Lock & Calendar Accounts Discovery):
-> *"Dasa! Vijaya! User `/grill-me` alignment has set our target architecture for **`v2.3.0` (Build 152)**!
-> Here is what we must deliver with surgical precision:
-> 
-> ### 1. 🎨 Full-Fitted App Logo & Zero-Cropping Asset Overhaul (Android Splash, Launcher, Package Installer & Web PWA):
-> - **Android 12+ Splash Screen (`Theme.RosterX.Starting`)**: Replace `@mipmap/ic_launcher_round` with `@drawable/ic_rosterx_splash_logo` (full hexagonal logo with wings on transparent background, scaled within 325px safe radius). Floating seamlessly directly on the splash background without an awkward clipped white box!
-> - **Android Launcher & Package Installer (`ic_launcher`, `ic_launcher_round`)**: Rescale master `ic_rosterx_logo.png` so max radius is $\le 325$px from center (leaving ~195px breathing room inside 1024x1024). Regenerate all densities (`mdpi`..`xxxhdpi`) with pure white `#FFFFFF` background so the Package Installer update prompt and launcher squircles render the full logo with complete side wings!
-> - **Web UI & PWA Shortcuts (`manifest.webmanifest`, `logo.png`, `logo-maskable.png`)**: Provide `logo.png` (transparent, proportioned) for `"any"` purpose and `logo-maskable.png` (white background + safe padding) for `"maskable"` purpose, ensuring home screen shortcuts never crop wings.
-> 
-> ### 2. 📱 Mobile Web / Chrome Shortcut Back-Button Exit Bug:
-> - **Manifest Root (`manifest.webmanifest`)**: Change `"start_url": "/login.html"` to `"start_url": "/"` so shortcuts open directly into the portal when logged in.
-> - **Login BFCache Protection (`login.html`)**: Add `pageshow` listener so back-navigation restores never render frozen login screens when auth tokens exist; redirect forward immediately.
-> - **Dashboard Double-Back Guard (`userPortal.js`)**: When at Dashboard root with no active modal or subview, first back press shows Neumorphic toast *"Press back again to exit"*. Second press within 2.5s allows window close/minimize. **NEVER** clear auth tokens on back press!
-> 
-> ### 2. 🛡️ Background Scroll Lock & Backdrop Focus Lockdown (`pwaHelper.js`, `mobile-shell.css`):
-> - In `openNeumorphicDialog`, add `html.rx-modal-open` and `body.rx-modal-open`.
-> - Enforce `overflow: hidden !important; touch-action: none !important;` on body and `pointer-events: none !important;` on `main.rx-main-shell` while modal is open.
-> - Prevents touch events on the blurred backdrop or empty space from scrolling or focusing the background screen.
-> 
-> ### 3. 📅 Calendar Accounts Synchronization & Target Categorization:
-> - **Categorization**: In `web/js/calendarSync.js`, rename `Personal Account (${userEmail})` to `🏢 Corporate / Work Calendar (${userEmail})`.
-> - **Android Calendar Upload (`ShiftCalendarExporter.kt`)**: Query Android's `CalendarContract.Calendars` and dispatch discovered Google accounts and secondary calendars to `POST /api/users/calendar-accounts`.
-> - **Backend (`server.py`)**: Store `calendar_accounts` in MongoDB Atlas under `engineers` collection and return in profile/sync endpoints.
-> - **Web Dropdown**: Display Corporate Calendar, synced device Google accounts & secondary calendars, Apple Calendar (.ics), plus a manual `[+ Add Personal / Secondary Calendar]` option.
-> - **Bidirectional Sync Status Bridging**: In Android `CalendarSyncDialog.kt`, when existing synced events are discovered (`existingSyncedCount > 0`), immediately dispatch `onSyncRecorded(monthKey, existingSyncedCount, chosenAccount)` to Atlas so Web UI immediately displays `Synced (N)`, `Re-Sync N Days`, and `Clear Month`! Support bidirectional clearing across both platforms.
-> 
-> ### 4. 📱 Smart Home Screen Widget Discovery & Pinning:
-> - **Presence Check**: Use `AppWidgetManager.getAppWidgetIds()`. If already added, suppress all banners completely!
-> - **Dashboard Banner**: Gentle Neumorphic prompt on Dashboard appearing every 4-5 sessions with `[ Add Widget ]` and `[ ✕ ]` (sleeps 7 days on dismiss).
-> - **1-Tap Native Pinning**: `AppWidgetManager.requestPinAppWidget()` triggers Android OS home screen placement dialog.
-> - **Permanent Access**: Permanent 'Home Screen Widget' row in Profile & Settings.
-> 
-> ### 5. 👤 1:1 Unified Edit Profile Parity in Web (`userPortal.js`):
-> - Bring Web's Edit Profile dialog into complete 1:1 parity with Android's `UnifiedEditProfileDialog`:
->   - Add **Company Join Date** (`join_date`) dual-columned with Birthday.
->   - Add **Security & Password Section** (`Current Password`, `New Password`, `Confirm Password` with show/hide eye toggles).
->   - Wired directly to `POST /api/users/profile` which already supports all fields on the backend.
-> 
-> ### 6. 🤖 Ultra-Modern Glassmorphic Animated AI Assistant Dialog (`userPortal.js`, `mobile-shell.css`):
-> - Completely remove bottom-stuck docking (`margin: auto auto 0 auto`).
-> - Center floating modal (`width: min(92vw, 540px); height: min(82dvh, 720px); margin: auto;`) with 24px blur glassmorphism, gradient user bubbles, frosted AI cards, and spring scale/fade open/close animations. Releases dashboard cleanly on close!
-> 
-> ### 7. 🔐 Google Password Manager Domain Unification & Password Update Sync:
-> - **Domain Unification (`AndroidManifest.xml`)**: Add `<meta-data android:name="asset_statements">` pointing to `https://rosterx.online/.well-known/assetlinks.json`. Eliminates `rosterx.com` and generic green robot in GPM; merges all Android & Web credentials seamlessly under **`rosterx.online`** with the official app logo!
-> - **Immediate Update on Change**: In `UnifiedEditProfileDialog.kt`, immediately call `googlePasswordManager.saveCredentials(activity, username, newPassword)` upon password change, triggering GPM's native *"Update password?"* prompt.
-> - **Login Screen Re-Sync**: Prompts GPM update whenever logging in with a new password that differs from stored hash.
-> 
-> Both `plan_dasan.md` and `plan_vijayan.md` are activated. When the user gives the call, execute seamlessly!"*
 
 ---
 

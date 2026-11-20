@@ -1,6 +1,6 @@
 # 📋 Execution Plan for Vijayan (UI Specialist — Android & Web)
 
-**Status:** `COMPLETED BY VIJAYAN` (Sprint v2.3.0 - Build 152 Mobile Web Back-Stack Exit Guard, Background Scroll Lock, Device Calendar Sync & Smart Home Screen Widget Discovery)
+**Status:** `READY FOR VIJAYAN` (Sprint v2.3.1 - Build 153 Full Parity Suite: Zero-Cropping Logo, Glassmorphic AI, GPM Domain Unification, Edit Profile Parity & Widget Pinning)
 
 ---
 
@@ -330,9 +330,9 @@ Unify credentials under `rosterx.online`, eliminate `rosterx.com` and generic gr
 ---
 
 ## 9. Task 9 — Verification, Version Bump & Mandatory Push
-1. Bump version to **`v2.3.0` (Build 152)**:
-   - `android/app/build.gradle.kts`: `versionName = "2.3.0"`, `versionCode = 152`
-   - `server.py`: `SERVER_VERSION = "2.3.0"` (synced with Dasan)
+1. Bump version to **`v2.3.1` (Build 153)**:
+   - `android/app/build.gradle.kts`: `versionName = "2.3.1"`, `versionCode = 153`
+   - `server.py`: `SERVER_VERSION = "2.3.1"` (synced with Dasan)
 2. Safe build & ADB install:
    - `cmd /c "cd android && safe_build.bat assembleDebug"`
    - `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`
@@ -340,4 +340,7 @@ Unify credentials under `rosterx.online`, eliminate `rosterx.com` and generic gr
    - Verify opening Chrome shortcut and pressing back on Dashboard shows toast *"Press back again to exit"* and does not log out or open `login.html`.
    - Verify opening floating modals (AI Assistant, Calendar Sync, Celebrations) completely locks background scroll so the main screen never scrolls or takes focus.
    - Verify Calendar Sync dropdown lists Corporate Account properly, displays synced personal/secondary Google accounts, and allows manual secondary calendar entry.
-4. Commit with semantic message (`feat(ui): mobile back-stack exit guard, background scroll lock & calendar accounts discovery v2.3.0 (Build 152)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
+   - Verify GPM unifies credentials under `rosterx.online` with the official logo, and prompts immediate updates on password change.
+   - Verify AI Assistant dialog opens as a centered floating Glassmorphic card with smooth spring animations.
+   - Verify Edit Profile includes Join Date and Security Password change fields.
+4. Commit with semantic message (`feat(ui): full parity suite, zero-cropping logo, glassmorphic AI & GPM sync v2.3.1 (Build 153)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!

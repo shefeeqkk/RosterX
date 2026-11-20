@@ -1,6 +1,6 @@
 # 📋 Execution Plan for Dasan (Backend & Server Infrastructure Lead)
 
-**Status:** `IDLE / NO ACTIVE TASK` (Sprint v2.3.0 - Build 152 Calendar Accounts Synchronization & Target Calendar Multi-Account Engine Verified, Committed & Deployed to Render)
+**Status:** `READY FOR DASAN` (Sprint v2.3.1 - Build 153 Dynamic Festival App Config, Bidirectional Sync Support & Version Bump)
 
 ---
 
@@ -11,88 +11,35 @@
 
 ---
 
-## 1. Task 1 — Device Calendar Accounts Synchronization API (`server.py`)
-Bridge Android native `CalendarContract` discovery with the Web UI by persisting device Google accounts and secondary calendars into MongoDB Atlas:
+## 1. Task 1 — App Configuration & Festival Theme Engine (`server.py`)
+Support the dynamic festive launcher icon and celebration system:
 
-### Implementation Details:
-1. **`POST /api/users/calendar-accounts`**:
-   - Authenticated endpoint for Android/Web clients.
-   - Payload:
-     ```json
-     {
-       "calendar_accounts": [
-         {
-           "id": "1",
-           "name": "Work Shifts",
-           "account_name": "user@gmail.com",
-           "account_type": "com.google",
-           "is_primary": false,
-           "color": "#174EAC"
-         }
-       ]
-     }
-     ```
-   - Validation & Hygiene:
-     - Ensure `account_name` and `name` are trimmed strings.
-     - Avoid saving null/empty accounts.
-   - Database Persistence:
-     - Update caller's engineer profile in `ATLAS_DB.engineers`:
-       ```python
-       ATLAS_DB.engineers.update_one(
-           {"username": caller_username},
-           {"$set": {
-               "calendar_accounts": validated_accounts,
-               "calendar_accounts_updated_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
-           }}
-       )
-       ```
-     - Also maintain in-memory fallback cache for fast responses.
-
-2. **`GET /api/users/calendar-accounts`**:
-   - Returns caller's stored calendar accounts:
+1. **`GET /api/app-config`**:
+   - Return active festival/celebration config:
      ```json
      {
        "success": true,
-       "calendar_accounts": [...],
-       "corporate_email": "user@corporate.com"
+       "version": "2.3.1",
+       "active_theme": "default",
+       "active_celebration": null,
+       "festivals": {
+         "diwali": {"start": "2026-11-06", "end": "2026-11-12"},
+         "christmas": {"start": "2026-12-20", "end": "2026-12-27"},
+         "new_year": {"start": "2026-12-30", "end": "2027-01-03"}
+       }
      }
      ```
-   - Also ensure `calendar_accounts` is returned in `/api/profile` and `/api/login` so the Web UI gets hydrated instantly without extra roundtrips.
+   - Automatically check if today is any team member's birthday or work anniversary from `ATLAS_DB.engineers`. If yes, populate `active_celebration` with `{ type, username, name, profile_picture, years }`.
+
+2. **Digital Asset Links Verification (`/.well-known/assetlinks.json`)**:
+   - Ensure `/.well-known/assetlinks.json` reliably returns the debug and release cert fingerprints with `delegate_permission/common.handle_all_urls` and `delegate_permission/common.get_login_creds` for `com.rosterx`.
 
 ---
 
-## 2. Task 2 — Target Calendar State & Sync Persistence (`server.py`)
-Ensure Target Calendar selection supports Corporate, Personal Google, and Secondary Calendars:
-
-1. **`POST /api/users/calendar-sync`**:
-   - Accept `{ "month": "YYYY-MM", "count": N, "target": "Work Shifts (user@gmail.com)", "target_type": "secondary"|"corporate"|"google", "synced": true }`.
-   - Update `ATLAS_DB.engineers`:
-     ```python
-     ATLAS_DB.engineers.update_one(
-         {"username": caller_username},
-         {"$set": {
-             f"calendar_sync.{month}": {
-                 "synced": bool(body.get("synced", True)),
-                 "count": int(body.get("count", 0)),
-                 "target": str(body.get("target") or "Google Calendar").strip(),
-                 "target_type": str(body.get("target_type") or "google").strip(),
-                 "synced_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
-                 "timestamp": time.time()
-             }
-         }}
-     )
-     ```
-2. **`GET /api/users/calendar-sync`**:
-   - Returns `{ "success": True, "month": month, "sync": data.get("calendar_sync", {}).get(month), "synced": ... }`.
-
----
-
-## 3. Task 3 — Verification, Version Bump & Mandatory Push
+## 2. Task 2 — Verification, Version Bump & Mandatory Push
 1. Run `python -m py_compile server.py` and verify:
-   - Test `POST /api/users/calendar-accounts` -> stores accounts cleanly in MongoDB Atlas.
-   - Test `GET /api/users/calendar-accounts` -> returns stored accounts.
-   - Test `POST /api/users/calendar-sync` -> records target account and count.
-   - Test `POST /api/chat/assistant` multi-turn memory & conversational responses.
-   - Ensure ZERO hardcoded personal names, real emails, or secrets.
-2. Bump `SERVER_VERSION = "2.3.0"` in `server.py`.
-3. Commit with semantic message (`feat(backend): calendar accounts synchronization API & multi-calendar target engine v2.3.0 (Build 152)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
+   - Test `GET /api/app-config` -> returns valid JSON with active celebration/theme.
+   - Test `GET /.well-known/assetlinks.json` -> returns valid delegation targets.
+   - Zero hardcoded personal names, real emails, or secrets.
+2. Bump `SERVER_VERSION = "2.3.1"` in `server.py`.
+3. Commit with semantic message (`feat(backend): festival app-config engine & version bump v2.3.1 (Build 153)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
