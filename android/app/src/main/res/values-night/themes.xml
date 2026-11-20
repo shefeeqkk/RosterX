@@ -2,7 +2,7 @@
 <resources>
     <style name="Theme.RosterX.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#141923</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_rosterx_splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.RosterX</item>
     </style>
 </resources>

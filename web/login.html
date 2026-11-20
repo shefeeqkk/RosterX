@@ -87,17 +87,25 @@
           localStorage.removeItem('rosterx_auth_user');
           localStorage.removeItem('rosterx_auth_token');
         }
-
       } catch (e) {
-
         localStorage.removeItem('rosterx_auth_user');
-
         localStorage.removeItem('rosterx_auth_token');
-
       }
-
     })();
 
+    // BFCache / Back-Navigation Guard: Auto-restore authenticated session without ever clearing credentials
+    window.addEventListener('pageshow', function (event) {
+      try {
+        var token = localStorage.getItem('rosterx_auth_token');
+        var raw = localStorage.getItem('rosterx_auth_user');
+        if (token && raw) {
+          var u = JSON.parse(raw);
+          var hash = window.location.hash || '';
+          if (u && u.role === 'admin') window.location.replace('index.html' + hash);
+          else window.location.replace('user-portal.html' + hash);
+        }
+      } catch (_) {}
+    });
   </script>
 
 

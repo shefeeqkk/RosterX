@@ -205,6 +205,19 @@ body {
 /* ==========================================================================
    2. Authentic Frosted-Blur Native <dialog> Modals (Zero White Outer Halo!)
    ========================================================================== */
+html.rx-modal-open,
+body.rx-modal-open {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  height: 100% !important;
+}
+
+body.rx-modal-open main.rx-main-shell {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
 dialog.rx-modal {
   margin: auto;
   padding: 0;
@@ -216,6 +229,8 @@ dialog.rx-modal {
   max-height: min(90dvh, 780px);
   box-shadow: var(--nm-shadow-floating);
   overflow: hidden;
+  pointer-events: auto !important;
+  overscroll-behavior: contain !important;
 }
 
 dialog.rx-modal::backdrop {
@@ -231,6 +246,8 @@ html.dark dialog.rx-modal::backdrop {
 .rx-modal-scroll {
   max-height: min(88dvh, 760px);
   overflow-y: auto;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   display: flex;
   flex-direction: column;

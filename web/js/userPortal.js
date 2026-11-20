@@ -332,8 +332,21 @@ class RosterXUserPortal {
         return;
       }
 
-      // 4. At dashboard root: stay gracefully on dashboard without logging out or redirecting
-      try { window.history.pushState({ scope: 'rosterx_root', tab: 'dashboard' }, ''); } catch (_) {}
+      // 4. At dashboard root: Android-style double-back exit guard (Never logs out!)
+      const now = Date.now();
+      if (!this.lastBackPressTime || now - this.lastBackPressTime > 2500) {
+        this.lastBackPressTime = now;
+        this.toast('Press back again to exit', 'info');
+        try { window.history.pushState({ scope: 'rosterx_root', tab: 'dashboard' }, ''); } catch (_) {}
+        return;
+      }
+
+      // Second press within 2.5s: allow exit/minimize while keeping credentials 100% intact
+      this.lastBackPressTime = null;
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        try { window.close(); } catch (_) {}
+      }
+      window.history.back();
     });
 
     // Hide bell for management accounts (exact Android parity)

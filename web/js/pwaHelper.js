@@ -59,12 +59,30 @@ export function mountIosInstallBanner(container = document.body) {
 }
 
 /**
- * Attaches mandatory Safari light-dismiss fallback for <dialog closedby="any">
- * (Safari does not yet support closedby declaratively).
+ * Attaches light-dismiss fallback and background touch-lock for <dialog closedby="any">.
  */
 export function wireDialogLightDismiss(dialogEl) {
   if (!dialogEl || dialogEl.dataset.rxLightDismissWired === '1') return;
   dialogEl.dataset.rxLightDismissWired = '1';
+
+  // Backdrop Touch-Lock (prevents background scroll bleed on iOS/Android)
+  dialogEl.addEventListener('touchmove', (event) => {
+    if (event.target === dialogEl) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+
+  const syncBodyScrollLock = () => {
+    setTimeout(() => {
+      if (!document.querySelector('dialog.rx-modal[open]')) {
+        document.documentElement.classList.remove('rx-modal-open');
+        document.body.classList.remove('rx-modal-open');
+      }
+    }, 50);
+  };
+
+  dialogEl.addEventListener('close', syncBodyScrollLock);
+  dialogEl.addEventListener('cancel', syncBodyScrollLock);
 
   if (!('closedBy' in HTMLDialogElement.prototype)) {
     dialogEl.addEventListener('click', (event) => {
@@ -84,7 +102,7 @@ export function wireDialogLightDismiss(dialogEl) {
 }
 
 /**
- * Opens a native <dialog> using showModal() with automatic light-dismiss wiring.
+ * Opens a native <dialog> using showModal() with automatic light-dismiss wiring and background scroll-lock.
  */
 export function openNeumorphicDialog(dialogEl) {
   if (!dialogEl) return;
@@ -96,6 +114,8 @@ export function openNeumorphicDialog(dialogEl) {
     try {
       window.history.pushState({ scope: 'dialog', id: dialogEl.id || 'rx_modal' }, '');
     } catch (_) {}
+    document.documentElement.classList.add('rx-modal-open');
+    document.body.classList.add('rx-modal-open');
     dialogEl.showModal();
   }
 }
@@ -103,6 +123,10 @@ export function openNeumorphicDialog(dialogEl) {
 export function closeNeumorphicDialog(dialogEl) {
   if (dialogEl && dialogEl.open) {
     dialogEl.close();
+  }
+  if (!document.querySelector('dialog.rx-modal[open]')) {
+    document.documentElement.classList.remove('rx-modal-open');
+    document.body.classList.remove('rx-modal-open');
   }
 }
 

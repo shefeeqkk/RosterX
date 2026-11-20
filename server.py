@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.2.0"
+SERVER_VERSION = "2.3.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -236,6 +236,7 @@ SERVER_BROADCAST_TEMPLATES = []  # In-memory fallback for custom broadcast templ
 LAST_CREDENTIAL_ALERT_DATE = {}  # { tracker_id: "YYYY-MM-DD" } to prevent duplicate alerts on same day
 SERVER_USER_CALENDAR_SYNC = {}  # In-memory fallback: {username: {month: sync_entry}}
 SERVER_USER_DISMISSED_NOTIFICATIONS = {}  # In-memory fallback: {username: set(dismissed_ids)}
+SERVER_USER_CALENDAR_ACCOUNTS = {}  # In-memory fallback: {username: [account_dicts]}
 
 def log_server(msg: str):
     """Log to stdout and append timestamped entry to circular SERVER_LOGS buffer in Indian Standard Time (IST)."""
@@ -3543,7 +3544,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 try:
                     user_doc = ATLAS_DB.engineers.find_one({"username": str(claims["username"]).strip().lower()}, {"_id": 0, "password": 0})
                     if user_doc:
-                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "resignation_date", "birthday", "default_weekly_offs", "calendar_sync"):
+                        for k in ("name", "full_name", "email", "phone", "role", "profile_picture", "status", "join_date", "resignation_date", "birthday", "default_weekly_offs", "calendar_sync", "calendar_accounts"):
                             if k in user_doc:
                                 response_user[k] = user_doc[k]
                     if response_user.get("name"):
@@ -3552,6 +3553,12 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         response_user["full_name"] = to_proper_name(response_user["full_name"])
                 except Exception:
                     pass
+
+            caller_un = str(claims.get("username", "")).strip().lower()
+            if "calendar_sync" not in response_user and caller_un in SERVER_USER_CALENDAR_SYNC:
+                response_user["calendar_sync"] = dict(SERVER_USER_CALENDAR_SYNC[caller_un])
+            if "calendar_accounts" not in response_user and caller_un in SERVER_USER_CALENDAR_ACCOUNTS:
+                response_user["calendar_accounts"] = list(SERVER_USER_CALENDAR_ACCOUNTS[caller_un])
             self.send_json_response({
                 "success": True,
                 "user": response_user
@@ -3671,6 +3678,66 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "success": True,
                 "calendar_sync": calendar_sync_data,
                 "count": len(calendar_sync_data)
+            })
+            return
+
+        # 1.59 GET /api/users/calendar-accounts (List Device Google & Secondary Calendars)
+        if clean_path in ("/api/users/calendar-accounts", "/api/users/calendar-accounts/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            if not caller_username:
+                self.send_json_response({"success": False, "message": "Authentication required."}, 401)
+                return
+
+            stored_accounts = []
+            corporate_email = ""
+            if ATLAS_DB is not None:
+                try:
+                    user_doc = ATLAS_DB.engineers.find_one({"username": caller_username}, {"calendar_accounts": 1, "email": 1})
+                    if user_doc:
+                        corporate_email = str(user_doc.get("email") or "").strip()
+                        raw_accs = user_doc.get("calendar_accounts")
+                        if isinstance(raw_accs, list):
+                            stored_accounts = raw_accs
+                except Exception as e:
+                    print(f"  [ATLAS CALENDAR ACCOUNTS FETCH ERROR] {e}")
+
+            if not stored_accounts and caller_username in SERVER_USER_CALENDAR_ACCOUNTS:
+                stored_accounts = list(SERVER_USER_CALENDAR_ACCOUNTS[caller_username])
+
+            if not corporate_email:
+                corporate_email = str(claims.get("email") or "").strip()
+            if not corporate_email:
+                for e in DEFAULT_SERVER_ENGINEERS:
+                    if str(e.get("username", "")).lower() == caller_username:
+                        corporate_email = str(e.get("email") or "").strip()
+                        break
+
+            # Synthesize or ensure default corporate calendar option exists
+            merged_accounts = []
+            if corporate_email:
+                has_corp = any(str(acc.get("account_type", "")).lower() == "corporate" or str(acc.get("account_name", "")).lower() == corporate_email.lower() for acc in stored_accounts)
+                if not has_corp:
+                    merged_accounts.append({
+                        "id": "corporate",
+                        "name": "Corporate Calendar (Work)",
+                        "account_name": corporate_email,
+                        "account_type": "corporate",
+                        "is_primary": True,
+                        "color": "#174EAC"
+                    })
+
+            for acc in stored_accounts:
+                merged_accounts.append(acc)
+
+            self.send_json_response({
+                "success": True,
+                "calendar_accounts": merged_accounts,
+                "corporate_email": corporate_email,
+                "count": len(merged_accounts)
             })
             return
 
@@ -4199,8 +4266,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/users/profile", "/celebrations/check",
             "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant",
             "/users/profile-picture",
-            "/users/calendar-sync", "/users/calendar-sync/clear"
-        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/users/calendar-sync"):
+            "/users/calendar-sync", "/users/calendar-sync/clear",
+            "/users/calendar-accounts"
+        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/users/calendar-sync") or norm_path.startswith("/users/calendar-accounts"):
             norm_path = "/api" + norm_path
         norm_path = self._normalize_api_aliases(norm_path)
 
@@ -4271,7 +4339,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             "phone": user.get("phone", ""),
                             "role": user.get("role", "admin"),
                             "profile_picture": user.get("profile_picture"),
-                            "calendar_sync": user.get("calendar_sync", {})
+                            "calendar_sync": user.get("calendar_sync", {}),
+                            "calendar_accounts": user.get("calendar_accounts", [])
                         }
                         token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                         platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
@@ -4314,7 +4383,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "phone": user.get("phone", ""),
                         "role": role,
                         "profile_picture": user.get("profile_picture"),
-                        "calendar_sync": user.get("calendar_sync", {})
+                        "calendar_sync": user.get("calendar_sync", {}),
+                        "calendar_accounts": user.get("calendar_accounts", [])
                     }
                     token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                     platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
@@ -5481,6 +5551,71 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             self.send_json_response({"success": True, "message": "FCM device token unregistered successfully on sign-out."})
             return
 
+        # 3.81b POST /api/users/calendar-accounts (Synchronize Discovered Device Calendar Accounts)
+        if clean_path in ("/api/users/calendar-accounts", "/api/users/calendar-accounts/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            if not caller_username:
+                self.send_json_response({"success": False, "message": "Authentication required."}, 401)
+                return
+
+            raw_accounts = body.get("calendar_accounts")
+            if not isinstance(raw_accounts, list):
+                raw_accounts = body.get("accounts") if isinstance(body.get("accounts"), list) else []
+
+            validated_accounts = []
+            for acc in raw_accounts:
+                if not isinstance(acc, dict):
+                    continue
+                acc_name = str(acc.get("name") or "").strip()
+                acc_email = str(acc.get("account_name") or acc.get("email") or "").strip()
+                acc_id = str(acc.get("id") or "").strip()
+                if not acc_name and not acc_email:
+                    continue
+                validated_accounts.append({
+                    "id": acc_id or str(len(validated_accounts) + 1),
+                    "name": acc_name or acc_email,
+                    "account_name": acc_email,
+                    "account_type": str(acc.get("account_type") or "com.google").strip(),
+                    "is_primary": bool(acc.get("is_primary", False)),
+                    "color": str(acc.get("color") or "#174EAC").strip()
+                })
+
+            now_utc = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.engineers.update_one(
+                        {"username": caller_username},
+                        {"$set": {
+                            "calendar_accounts": validated_accounts,
+                            "calendar_accounts_updated_at": now_utc
+                        }}
+                    )
+                except Exception as e:
+                    print(f"  [ATLAS CALENDAR ACCOUNTS SAVE ERROR] {e}")
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            # In-memory fallback update
+            SERVER_USER_CALENDAR_ACCOUNTS[caller_username] = validated_accounts
+
+            for e in DEFAULT_SERVER_ENGINEERS:
+                if str(e.get("username", "")).lower() == caller_username:
+                    e["calendar_accounts"] = validated_accounts
+                    e["calendar_accounts_updated_at"] = now_utc
+                    break
+
+            self.send_json_response({
+                "success": True,
+                "message": f"Synchronized {len(validated_accounts)} calendar account(s).",
+                "calendar_accounts": validated_accounts,
+                "count": len(validated_accounts)
+            })
+            return
+
         # 3.82 POST /api/users/calendar-sync (Record Calendar Sync Status for Month)
         if clean_path in ("/api/users/calendar-sync", "/api/users/calendar-sync/"):
             claims = self.require_auth()
@@ -5507,6 +5642,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 count = 0
 
             target = str(body.get("target") or "Google Calendar").strip()
+            target_type = str(body.get("target_type") or "google").strip().lower()
+            target_account_id = str(body.get("target_account_id") or body.get("account_id") or "").strip()
             synced = bool(body.get("synced", True))
             synced_at = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
             now_ts = time.time()
@@ -5515,6 +5652,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "synced": synced,
                 "count": count,
                 "target": target,
+                "target_type": target_type,
+                "target_account_id": target_account_id,
                 "synced_at": synced_at,
                 "timestamp": now_ts
             }
