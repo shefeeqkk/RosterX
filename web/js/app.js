@@ -54,7 +54,7 @@ import {
 
 import { RosterAiEngine } from './rosterAiEngine.js';
 
-import { RosterAiAssistant } from './rosterAiAssistant.js?v=7.1';
+import { RosterAiAssistant } from './rosterAiAssistant.js?v=2.3.2';
 import { AtlasService } from './atlasService.js';
 import { ExcelService } from './excelService.js?v=3.2';
 import { 
@@ -2386,6 +2386,13 @@ class RosterXApp {
 
 
     // Gemini Settings Modal
+    if (this.dom.geminiSettingsModal) {
+      this.dom.geminiSettingsModal.addEventListener('click', (e) => {
+        if (e.target === this.dom.geminiSettingsModal) {
+          this.dom.geminiSettingsModal.classList.add('hidden');
+        }
+      });
+    }
     if (this.dom.btnCloseGeminiSettings) {
       this.dom.btnCloseGeminiSettings.addEventListener('click', () => this.dom.geminiSettingsModal.classList.add('hidden'));
     }
@@ -6952,6 +6959,19 @@ class RosterXApp {
 
   // --- Settings Modals & Multi-Key Pool Manager ---
 
+  getAdminAuthHeaders(extra = {}) {
+    if (this.atlasService && typeof this.atlasService.getAuthHeaders === 'function') {
+      return this.atlasService.getAuthHeaders(extra);
+    }
+    const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('rosterx_auth_token') || localStorage.getItem('rosterx_token'))) ||
+                  (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rosterx_auth_token')) || '';
+    const headers = { 'Accept': 'application/json', ...extra };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
   async openGeminiSettings() {
     this.dom.geminiSettingsModal.classList.remove('hidden');
     await this.fetchGeminiPoolSettings();
@@ -6959,11 +6979,13 @@ class RosterXApp {
 
   async fetchGeminiPoolSettings() {
     try {
-      const resp = await fetch('/api/admin/ai-settings', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
-        }
-      });
+      const headers = this.getAdminAuthHeaders();
+      const resp = await fetch('/api/admin/ai-settings', { headers });
+      if (resp.status === 401) {
+        this.showToast('Authentication required. Please log in as Admin.');
+        this.renderGeminiKeyPool();
+        return;
+      }
       if (resp.ok) {
         const data = await resp.json();
         if (data.success) {
@@ -6995,7 +7017,7 @@ class RosterXApp {
     if (count === 0) {
       const emptyDiv = document.createElement('div');
       emptyDiv.id = 'geminiKeyListEmpty';
-      emptyDiv.className = 'text-slate-400 text-center py-3 italic text-xs';
+      emptyDiv.className = 'text-slate-400 dark:text-slate-400 text-center py-4 italic text-xs';
       emptyDiv.textContent = 'No API keys configured. Add one below to enable RosterX Assistant.';
       container.appendChild(emptyDiv);
       return;
@@ -7003,22 +7025,22 @@ class RosterXApp {
 
     this.geminiPoolKeys.forEach((k, idx) => {
       const row = document.createElement('div');
-      row.className = 'flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-purple-200 transition';
+      row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-white/10 shadow-2xs hover:border-purple-300 dark:hover:border-purple-500/40 transition backdrop-blur-xs';
       row.innerHTML = `
-        <div class="flex items-center gap-2">
-          <div class="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center text-xs font-bold">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs font-bold shrink-0 border border-purple-200/50 dark:border-purple-800/40">
             <i class="ph ph-key"></i>
           </div>
-          <div>
-            <span class="font-mono text-xs font-semibold text-slate-800">${escapeHtml(k.masked || '****')}</span>
-            <span class="text-[10px] text-slate-400 ml-1.5">(${k.length || 39} chars)</span>
+          <div class="min-w-0">
+            <span class="font-mono text-xs font-semibold text-slate-800 dark:text-slate-100 truncate block">${escapeHtml(k.masked || '****')}</span>
+            <span class="text-[10px] text-slate-400 dark:text-slate-400">(${k.length || 39} chars)</span>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <span id="keyStatusBadge_${idx}" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+        <div class="flex items-center gap-2 shrink-0">
+          <span id="keyStatusBadge_${idx}" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/10">
             Active
           </span>
-          <button class="btnDeleteGeminiKey text-slate-400 hover:text-rose-600 p-1 rounded-md transition" data-index="${idx}" title="Remove Key">
+          <button class="btnDeleteGeminiKey text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer" data-index="${idx}" title="Remove Key">
             <i class="ph ph-trash text-sm"></i>
           </button>
         </div>
@@ -7039,13 +7061,17 @@ class RosterXApp {
       return;
     }
 
+    const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('rosterx_auth_token') || localStorage.getItem('rosterx_token'))) ||
+                  (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rosterx_auth_token')) || '';
+    if (!token) {
+      this.showToast('Authentication required. Please log in as Admin.');
+      return;
+    }
+
     try {
       const resp = await fetch('/api/admin/ai-settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
-        },
+        headers: this.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           action: 'add_key',
           key: newKey,
@@ -7053,7 +7079,11 @@ class RosterXApp {
         })
       });
       const data = await resp.json();
-      if (data.success) {
+      if (resp.status === 401) {
+        this.showToast('Authentication required. Please log in.');
+        return;
+      }
+      if (resp.ok && data.success) {
         this.dom.geminiNewKeyInput.value = '';
         this.geminiPoolKeys = data.keys || [];
         this.renderGeminiKeyPool();
@@ -7071,10 +7101,7 @@ class RosterXApp {
     try {
       const resp = await fetch('/api/admin/ai-settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
-        },
+        headers: this.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           action: 'remove_key',
           index: index,
@@ -7082,7 +7109,11 @@ class RosterXApp {
         })
       });
       const data = await resp.json();
-      if (data.success) {
+      if (resp.status === 401) {
+        this.showToast('Authentication required. Please log in.');
+        return;
+      }
+      if (resp.ok && data.success) {
         this.geminiPoolKeys = data.keys || [];
         this.renderGeminiKeyPool();
         this.showToast(data.message || 'API key removed.');
@@ -7109,30 +7140,31 @@ class RosterXApp {
     try {
       const resp = await fetch('/api/admin/ai-settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
-        },
+        headers: this.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           action: 'test_keys',
           selected_model: this.dom.geminiModelSelect ? this.dom.geminiModelSelect.value : 'gemini-3.8-flash'
         })
       });
       const data = await resp.json();
-      if (data.success && data.results) {
+      if (resp.status === 401) {
+        this.showToast('Authentication required. Please log in.');
+        return;
+      }
+      if (resp.ok && data.success && data.results) {
         let healthyCount = 0;
         data.results.forEach((res) => {
           const badge = document.getElementById(`keyStatusBadge_${res.id}`);
           if (badge) {
             if (res.status === 'healthy') {
               healthyCount++;
-              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40';
               badge.textContent = 'Healthy (200)';
             } else if (res.status === 'quota_exhausted') {
-              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40';
               badge.textContent = 'Quota Limit (429)';
             } else {
-              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
+              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40';
               badge.textContent = 'Invalid / Error';
             }
           }
@@ -7156,17 +7188,18 @@ class RosterXApp {
     try {
       const resp = await fetch('/api/admin/ai-settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
-        },
+        headers: this.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           action: 'save_settings',
           selected_model: selectedModel
         })
       });
       const data = await resp.json();
-      if (data.success) {
+      if (resp.status === 401) {
+        this.showToast('Authentication required. Please log in.');
+        return;
+      }
+      if (resp.ok && data.success) {
         this.showToast('AI Settings and Model saved to MongoDB Atlas.');
       }
     } catch (e) {

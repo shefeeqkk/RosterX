@@ -2427,13 +2427,21 @@ Operations Desk</textarea>
 
   <!-- Settings Modals (Gemini & Atlas) -->
 
-  <div id="geminiSettingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
-    <div class="bg-white rounded-xl border border-slate-300 shadow-2xl p-5 w-full max-w-lg">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
-        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-          <i class="ph ph-sparkle text-purple-600 text-xl"></i> Google Gemini API Key Pool & Settings
-        </h3>
-        <button id="btnCloseGeminiSettings" class="text-slate-400 hover:text-slate-600 text-lg">
+  <div id="geminiSettingsModal" class="hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-md transition-opacity">
+    <div class="rx-glass-modal relative w-full max-w-lg rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100" style="background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%);">
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-200/60 dark:border-white/10">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg shadow-sm">
+            <i class="ph ph-sparkle font-bold"></i>
+          </div>
+          <div>
+            <h3 class="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              Google Gemini API Key Pool & Settings
+            </h3>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400">Multi-key failover rotation & model preferences</p>
+          </div>
+        </div>
+        <button id="btnCloseGeminiSettings" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/10 transition cursor-pointer text-base">
           <i class="ph ph-x"></i>
         </button>
       </div>
@@ -2442,15 +2450,15 @@ Operations Desk</textarea>
         <!-- Key Pool Section -->
         <div>
           <div class="flex items-center justify-between mb-1.5">
-            <label class="font-bold text-slate-800 flex items-center gap-1.5">
-              <i class="ph ph-key text-purple-600 text-sm"></i> Active API Key Pool (Round-Robin & Failover):
+            <label class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <i class="ph ph-key text-purple-600 dark:text-purple-400 text-sm"></i> Active API Key Pool (Round-Robin & Failover):
             </label>
-            <span id="geminiKeyPoolCountBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            <span id="geminiKeyPoolCountBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40">
               0 Keys
             </span>
           </div>
-          <div id="geminiKeyListContainer" class="border border-slate-200 rounded-lg p-2 max-h-48 overflow-y-auto space-y-1.5 bg-slate-50/50">
-            <div id="geminiKeyListEmpty" class="text-slate-400 text-center py-3 italic">
+          <div id="geminiKeyListContainer" class="border border-slate-200/70 dark:border-white/10 rounded-2xl p-2.5 max-h-48 overflow-y-auto space-y-2 bg-slate-50/50 dark:bg-slate-900/40 backdrop-blur-xs">
+            <div id="geminiKeyListEmpty" class="text-slate-400 dark:text-slate-400 text-center py-3 italic">
               No API keys configured. Add one below to enable RosterX Assistant.
             </div>
             <!-- Dynamic Key Rows Injected Here -->
@@ -2458,21 +2466,21 @@ Operations Desk</textarea>
         </div>
 
         <!-- Add New Key -->
-        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
-          <label class="block font-semibold text-slate-700">Add New Gemini API Key:</label>
+        <div class="bg-white/50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-white/10 rounded-2xl p-3.5 space-y-2.5 backdrop-blur-xs">
+          <label class="block font-semibold text-slate-700 dark:text-slate-200">Add New Gemini API Key:</label>
           <div class="flex gap-2">
-            <input type="password" id="geminiNewKeyInput" placeholder="Paste AIzaSy... / AQ... key here" class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs bg-white focus:outline-none focus:border-purple-500">
-            <button id="btnAddGeminiKey" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1 shrink-0 shadow-xs">
+            <input type="password" id="geminiNewKeyInput" placeholder="Paste AIzaSy... / AQ... key here" class="flex-1 border border-slate-300/80 dark:border-white/15 rounded-xl px-3 py-2 font-mono text-xs bg-white/90 dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-400 transition">
+            <button id="btnAddGeminiKey" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer">
               <i class="ph ph-plus-circle font-bold"></i> Add Key
             </button>
           </div>
-          <p class="text-[11px] text-slate-500">Keys are securely stored in MongoDB Atlas and shared across production & local instances with round-robin rotation and automatic failover.</p>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">Keys are securely stored in MongoDB Atlas and shared across production & local instances with round-robin rotation and automatic failover.</p>
         </div>
 
         <!-- Model Selection -->
         <div>
-          <label class="block font-semibold text-slate-700 mb-1">Default Model Selection:</label>
-          <select id="geminiModelSelect" class="w-full border border-slate-300 rounded-lg p-2 font-semibold bg-white text-slate-800">
+          <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Default Model Selection:</label>
+          <select id="geminiModelSelect" class="w-full border border-slate-300/80 dark:border-white/15 rounded-xl p-2.5 font-semibold bg-white/90 dark:bg-slate-900/80 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-400 transition">
             <option value="gemini-3.8-flash" selected>gemini-3.8-flash (Latest Model - High Speed & Factual Accuracy)</option>
             <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Ultra Low Latency & High Headroom)</option>
             <option value="gemini-2.5-flash">gemini-2.5-flash</option>
@@ -2481,12 +2489,12 @@ Operations Desk</textarea>
       </div>
 
       <!-- Action Bar -->
-      <div class="flex items-center justify-between pt-3 border-t border-slate-200">
-        <button id="btnTestGeminiKeys" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs transition border border-slate-300 flex items-center gap-1.5">
-          <i class="ph ph-activity text-purple-600"></i> Test All Keys
+      <div class="flex items-center justify-between pt-3.5 border-t border-slate-200/60 dark:border-white/10">
+        <button id="btnTestGeminiKeys" class="bg-white/80 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 font-bold px-3.5 py-2 rounded-xl text-xs transition border border-slate-200 dark:border-white/10 shadow-2xs flex items-center gap-1.5 cursor-pointer">
+          <i class="ph ph-activity text-purple-600 dark:text-purple-400"></i> Test All Keys
         </button>
         <div class="flex items-center gap-2">
-          <button id="btnSaveGeminiSettings" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5">
+          <button id="btnSaveGeminiSettings" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md hover:shadow-purple-500/25 flex items-center gap-1.5 cursor-pointer">
             <i class="ph ph-cloud-arrow-up"></i> Save & Sync to Cloud
           </button>
         </div>
@@ -4068,7 +4076,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.0.5"></script>
+  <script type="module" src="js/app.js?v=2.3.2"></script>
 
 </body>
 

@@ -228,21 +228,56 @@ export class RosterAiAssistant {
           filter: drop-shadow(0 16px 28px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 18px rgba(56, 189, 248, 0.75)) !important;
         }
 
+        /* Modern Glassmorphic AI Assistant */
+        #aiAssistantPanel {
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(28px) saturate(190%);
+          -webkit-backdrop-filter: blur(28px) saturate(190%);
+          border: 1px solid rgba(255, 255, 255, 0.65);
+          box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.32);
+          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out;
+        }
+
+        html.dark #aiAssistantPanel {
+          background: rgba(20, 25, 35, 0.88) !important;
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.65) !important;
+          color: #f8fafc;
+        }
+
         .ai-chat-bubble-user {
           background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+          box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+        }
+
+        @media (max-width: 640px) {
+          #floatingAiBotWidget {
+            right: 12px !important;
+            left: 12px !important;
+            bottom: 84px !important;
+            align-items: center !important;
+          }
+          #aiAssistantPanel {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: min(78dvh, 640px) !important;
+            max-height: min(78dvh, 640px) !important;
+            margin-bottom: 8px !important;
+            border-radius: 26px !important;
+          }
         }
       </style>
 
       <!-- Assistant Chat Drawer / Window -->
-      <div id="aiAssistantPanel" class="hidden mb-3 w-[440px] max-w-[calc(100vw-2.5rem)] h-[620px] max-h-[82vh] bg-white rounded-3xl border border-slate-300 shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-200">
+      <div id="aiAssistantPanel" class="hidden mb-3 w-[460px] max-w-[calc(100vw-2.5rem)] h-[630px] max-h-[82vh] rounded-3xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-200">
         <!-- Header -->
-        <div class="px-4 py-3 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white flex items-center justify-between border-b border-indigo-900/40 shadow-md">
+        <div class="px-4 py-3 bg-slate-950/85 backdrop-blur-md text-white flex items-center justify-between border-b border-white/10 shadow-sm">
           <div class="flex items-center gap-3">
             <div class="relative w-11 h-11 flex items-center justify-center shrink-0">
               <img 
                 src="assets/bot-3d.png" 
                 alt="RosterX AI Assistant" 
-                class="w-full h-full object-contain drop-shadow-[0_4px_8px_rgba(6,182,212,0.45)]" 
+                class="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(6,182,212,0.5)]" 
                 onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
               />
               <div class="hidden w-full h-full items-center justify-center">
@@ -258,7 +293,7 @@ export class RosterAiAssistant {
                   RosterX AI Assistant
                 </h3>
               </div>
-              <p id="aiHeaderStatus" class="text-[11px] text-indigo-200/90 flex items-center gap-1.5">
+              <p id="aiHeaderStatus" class="text-[11px] text-cyan-200/90 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></span>
                 <span id="aiHeaderStatusText">Online • Gemini Flash & Smart Solver</span>
               </p>
@@ -266,59 +301,59 @@ export class RosterAiAssistant {
           </div>
 
           <div class="flex items-center gap-1">
-            <button id="btnClearAiChat" title="Clear chat history" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer text-sm">
+            <button id="btnClearAiChat" title="Clear chat history" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/15 transition cursor-pointer text-sm">
               <i class="ph ph-trash"></i>
             </button>
-            <button id="btnAiSettingsQuick" title="API Key & Model Settings" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer text-sm">
+            <button id="btnAiSettingsQuick" title="API Key & Model Settings" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/15 transition cursor-pointer text-sm">
               <i class="ph ph-gear"></i>
             </button>
-            <button id="btnCloseAiAssistant" title="Close Assistant" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer text-lg">
+            <button id="btnCloseAiAssistant" title="Close Assistant" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/15 transition cursor-pointer text-base">
               <i class="ph ph-x"></i>
             </button>
           </div>
         </div>
 
         <!-- Suggestion Chips Header Row -->
-        <div class="px-3 py-2 bg-slate-50 border-b border-slate-200 overflow-x-auto whitespace-nowrap flex items-center gap-1.5 text-xs no-scrollbar">
-          <span class="text-[10px] uppercase font-bold text-slate-600 px-1">Try:</span>
-          <button class="ai-chip-prompt px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-900 border border-slate-200 hover:border-rose-300 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs" data-prompt="Clear entire month Grid">
+        <div class="px-3 py-2 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border-b border-slate-200/60 dark:border-white/10 overflow-x-auto whitespace-nowrap flex items-center gap-1.5 text-xs no-scrollbar">
+          <span class="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 px-1">Try:</span>
+          <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-rose-50/90 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Clear entire month Grid">
             🗑️ Clear Month Grid
           </button>
-          <button class="ai-chip-prompt px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-700 hover:text-indigo-900 border border-slate-200 hover:border-indigo-300 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs" data-prompt="Prepare a roster for 24th of this month with minimum Day shift count as 3">
+          <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-indigo-50/90 dark:hover:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Prepare a roster for 24th of this month with minimum Day shift count as 3">
             ✨ Day 24 (Min 3 Day Shifts)
           </button>
-          <button class="ai-chip-prompt px-2.5 py-1 bg-white hover:bg-purple-50 text-purple-700 hover:text-purple-900 border border-slate-200 hover:border-purple-300 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs" data-prompt="Prepare a full month roster for next month with 24/7 night coverage and balanced day desk">
+          <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-purple-50/90 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Prepare a full month roster for next month with 24/7 night coverage and balanced day desk">
             📅 Generate Next Month
           </button>
-          <button class="ai-chip-prompt px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 hover:text-emerald-900 border border-slate-200 hover:border-emerald-300 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs" data-prompt="Check current roster fatigue violations and coverage deficit">
+          <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-emerald-50/90 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Check current roster fatigue violations and coverage deficit">
             🛡️ Audit Fatigue & Coverage
           </button>
         </div>
 
         <!-- Messages Scrollable Body -->
-        <div id="aiChatMessages" class="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs bg-gradient-to-b from-slate-50/70 to-white">
+        <div id="aiChatMessages" class="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs bg-white/20 dark:bg-slate-900/30">
           <!-- Dynamic messages will be injected here -->
         </div>
 
         <!-- Typing Indicator -->
-        <div id="aiTypingIndicator" class="hidden px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center gap-2 text-slate-500 text-xs">
+        <div id="aiTypingIndicator" class="hidden px-4 py-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-t border-slate-200/40 dark:border-white/10 flex items-center gap-2 text-slate-500 text-xs">
           <div class="flex items-center gap-1">
-            <span class="w-1.5 h-1.5 bg-cyan-600 rounded-full animate-bounce"></span>
-            <span class="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-            <span class="w-1.5 h-1.5 bg-purple-600 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+            <span class="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce"></span>
+            <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+            <span class="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
           </div>
-          <span class="text-[11px] font-medium text-indigo-700">AI Assistant is computing optimal shifts...</span>
+          <span class="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">AI Assistant is computing optimal shifts...</span>
         </div>
 
         <!-- Chat Input Footer -->
-        <div class="p-3 bg-white border-t border-slate-200">
+        <div class="p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-t border-slate-200/60 dark:border-white/10">
           <form id="aiChatForm" class="flex items-center gap-2">
             <div class="relative flex-1">
               <input 
                 id="aiChatInput" 
                 type="text" 
                 placeholder="Ask e.g. Prepare roster for 24th with min Day shift count as 3..." 
-                class="w-full pl-3.5 pr-8 py-2.5 bg-slate-100 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl text-xs text-slate-900 outline-none transition"
+                class="w-full pl-3.5 pr-8 py-2.5 bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 border border-slate-200/80 dark:border-white/15 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950 rounded-xl text-xs text-slate-900 dark:text-slate-100 outline-none transition"
                 autocomplete="off"
               />
               <button type="button" id="btnVoiceDummy" title="Natural language input" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600">
@@ -328,14 +363,14 @@ export class RosterAiAssistant {
             <button 
               type="submit" 
               id="btnSendAiChat" 
-              class="bg-indigo-600 hover:bg-indigo-700 text-white w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition shadow-sm cursor-pointer disabled:opacity-50"
+              class="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition shadow-sm cursor-pointer disabled:opacity-50"
             >
               <i class="ph ph-paper-plane-right text-base"></i>
             </button>
           </form>
-          <div class="mt-1.5 flex items-center justify-between text-[10px] text-slate-600 px-1">
-            <span id="aiActiveModelFooter">Powered by Google Gemini 1.5 & NOC Rules</span>
-            <span id="aiActivePeriodIndicator" class="font-mono text-indigo-600 font-bold">Current Period</span>
+          <div class="mt-1.5 flex items-center justify-between text-[10px] text-slate-600 dark:text-slate-400 px-1">
+            <span id="aiActiveModelFooter">Powered by Google Gemini & NOC Rules</span>
+            <span id="aiActivePeriodIndicator" class="font-mono text-indigo-600 dark:text-indigo-400 font-bold">Current Period</span>
           </div>
         </div>
       </div>
@@ -625,7 +660,7 @@ export class RosterAiAssistant {
     if (msg.role === 'user') {
       return `
         <div class="flex justify-end">
-          <div class="ai-chat-bubble-user text-white px-3.5 py-2.5 rounded-2xl rounded-br-xs max-w-[85%] shadow-sm">
+          <div class="ai-chat-bubble-user text-white px-4 py-2.5 rounded-2xl rounded-br-xs max-w-[85%] shadow-md">
             <p class="leading-relaxed whitespace-pre-wrap">${this.escapeHtml(msg.text)}</p>
             <div class="text-[9px] text-indigo-200 text-right mt-1 font-mono">${msg.timestamp || ''}</div>
           </div>
@@ -649,11 +684,11 @@ export class RosterAiAssistant {
           </div>
         </div>
         <div class="flex-1 space-y-2">
-          <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-xs shadow-2xs text-slate-800 leading-relaxed">
+          <div class="bg-white/85 dark:bg-slate-800/85 backdrop-blur-md border border-slate-200/70 dark:border-white/10 p-3.5 rounded-2xl rounded-tl-xs shadow-2xs text-slate-800 dark:text-slate-100 leading-relaxed">
             ${this.formatMarkdown(msg.text)}
             ${msg.proposal ? this.renderProposalCard(msg.proposal) : ''}
-            <div class="text-[9px] text-slate-500 mt-1.5 font-mono flex items-center justify-between">
-              <span class="font-semibold text-slate-600">Roster AI</span>
+            <div class="text-[9px] text-slate-500 dark:text-slate-400 mt-2 font-mono flex items-center justify-between">
+              <span class="font-semibold text-slate-600 dark:text-slate-300">Roster AI</span>
               <span>${msg.timestamp || ''}</span>
             </div>
           </div>
@@ -667,25 +702,25 @@ export class RosterAiAssistant {
       const mName = monthLabel(`${p.targetYear}-${String(p.targetMonth || 1).padStart(2, '0')}`, 'long');
       const promptText = `Prepare a full month roster for ${mName} with 24/7 night coverage and balanced day desk`;
       return `
-        <div class="mt-3 p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-2 text-xs">
-          <div class="flex items-center justify-between pb-1.5 border-b border-rose-200/80">
+        <div class="mt-3 p-3 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/40 rounded-xl space-y-2 text-xs backdrop-blur-xs">
+          <div class="flex items-center justify-between pb-1.5 border-b border-rose-200/80 dark:border-rose-900/40">
             <div>
-              <div class="font-extrabold text-rose-950 flex items-center gap-1.5">
-                <i class="ph ph-trash text-rose-600 text-base"></i>
+              <div class="font-extrabold text-rose-950 dark:text-rose-200 flex items-center gap-1.5">
+                <i class="ph ph-trash text-rose-600 dark:text-rose-400 text-base"></i>
                 <span>${p.title}</span>
               </div>
-              <div class="text-[10px] text-rose-700/80 font-medium">${p.subtitle || ''}</div>
+              <div class="text-[10px] text-rose-700/80 dark:text-rose-300/80 font-medium">${p.subtitle || ''}</div>
             </div>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-800/50">
               ✓ Grid Cleared
             </span>
           </div>
           <div class="pt-1 flex items-center justify-between gap-2">
-            <button class="btn-undo-cleared-grid px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-300 font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-2xs">
+            <button class="btn-undo-cleared-grid px-3 py-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 hover:bg-slate-100 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-white/10 font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-2xs">
               <i class="ph ph-arrow-u-up-left"></i>
               Undo / Restore
             </button>
-            <button class="btn-generate-cleared-grid px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-2xs" data-prompt="${promptText}">
+            <button class="btn-generate-cleared-grid px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-2xs" data-prompt="${promptText}">
               <i class="ph ph-sparkle"></i>
               Generate Fresh Roster
             </button>
@@ -697,63 +732,63 @@ export class RosterAiAssistant {
     const isApplied = p.applied;
 
     return `
-      <div class="mt-3 p-3 bg-slate-50 border border-indigo-200 rounded-xl space-y-2.5 text-xs">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+      <div class="mt-3 p-3 bg-white/60 dark:bg-slate-900/60 border border-indigo-200/70 dark:border-indigo-900/40 rounded-xl space-y-2.5 text-xs backdrop-blur-xs">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200/70 dark:border-white/10">
           <div>
-            <div class="font-extrabold text-slate-900 flex items-center gap-1.5">
-              <i class="ph ph-calendar-check text-indigo-600 text-base"></i>
+            <div class="font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <i class="ph ph-calendar-check text-indigo-600 dark:text-indigo-400 text-base"></i>
               <span>${p.title}</span>
             </div>
-            <div class="text-[10px] text-slate-500 font-medium">${p.subtitle || ''}</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">${p.subtitle || ''}</div>
           </div>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isApplied ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-indigo-100 text-indigo-800 border border-indigo-200'}">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isApplied ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/40' : 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40'}">
             ${isApplied ? '✓ Applied to Grid' : 'Preview'}
           </span>
         </div>
 
         <!-- Coverage Stats Header -->
         <div class="grid grid-cols-4 gap-1.5 text-center">
-          <div class="bg-white p-1.5 rounded-lg border border-slate-200">
-            <div class="text-sm font-black text-emerald-700">${p.dayCoverage}</div>
-            <div class="text-[9px] text-slate-500 font-bold uppercase">Day Staff</div>
+          <div class="bg-white/90 dark:bg-slate-800/90 p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10">
+            <div class="text-sm font-black text-emerald-700 dark:text-emerald-400">${p.dayCoverage}</div>
+            <div class="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase">Day Staff</div>
           </div>
-          <div class="bg-white p-1.5 rounded-lg border border-slate-200">
-            <div class="text-sm font-black text-blue-700">${p.nightCoverage}</div>
-            <div class="text-[9px] text-slate-500 font-bold uppercase">Night Staff</div>
+          <div class="bg-white/90 dark:bg-slate-800/90 p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10">
+            <div class="text-sm font-black text-blue-700 dark:text-blue-400">${p.nightCoverage}</div>
+            <div class="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase">Night Staff</div>
           </div>
-          <div class="bg-white p-1.5 rounded-lg border border-slate-200">
-            <div class="text-sm font-black text-slate-700">${p.offCount}</div>
-            <div class="text-[9px] text-slate-500 font-bold uppercase">Weekly Off</div>
+          <div class="bg-white/90 dark:bg-slate-800/90 p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10">
+            <div class="text-sm font-black text-slate-700 dark:text-slate-300">${p.offCount}</div>
+            <div class="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase">Weekly Off</div>
           </div>
-          <div class="bg-white p-1.5 rounded-lg border border-slate-200">
-            <div class="text-sm font-black text-amber-700">${p.apprenticeCount || 0}</div>
-            <div class="text-[9px] text-slate-500 font-bold uppercase">Apprentice</div>
+          <div class="bg-white/90 dark:bg-slate-800/90 p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10">
+            <div class="text-sm font-black text-amber-700 dark:text-amber-400">${p.apprenticeCount || 0}</div>
+            <div class="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase">Apprentice</div>
           </div>
         </div>
 
         <!-- Mini Engineer Shifts Table -->
-        <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white">
+        <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-200/70 dark:border-white/10 bg-white/90 dark:bg-slate-800/90">
           <table class="w-full text-left border-collapse text-[11px]">
             <thead>
-              <tr class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+              <tr class="bg-slate-100/90 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200/70 dark:border-white/10">
                 <th class="py-1 px-2">Engineer</th>
                 <th class="py-1 px-2 text-center">Shift</th>
                 <th class="py-1 px-2">Notes</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 dark:divide-white/5">
               ${p.assignments.map(a => `
-                <tr class="hover:bg-slate-50">
-                  <td class="py-1 px-2 font-bold text-slate-800 flex items-center gap-1">
+                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40">
+                  <td class="py-1 px-2 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1">
                     <span>${a.name}</span>
-                    ${a.role === 'apprentice' ? '<span class="text-[9px] bg-amber-100 text-amber-800 px-1 rounded">Appr</span>' : ''}
+                    ${a.role === 'apprentice' ? '<span class="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-1 rounded">Appr</span>' : ''}
                   </td>
                   <td class="py-1 px-2 text-center">
                     <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-black ${this.getShiftBadgeClass(a.shiftCode)}">
                       ${a.shiftCode}
                     </span>
                   </td>
-                  <td class="py-1 px-2 text-[10px] text-slate-500 truncate max-w-[120px]">${a.note || ''}</td>
+                  <td class="py-1 px-2 text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">${a.note || ''}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -1593,7 +1628,8 @@ Rules:
   // --- General Q&A / Server-Side Grounded Gemini RAG Operations Assistant ---
   async consultGeminiOrSmartSolver(query) {
     try {
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('rosterx_auth_token')) || '';
+      const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('rosterx_auth_token') || localStorage.getItem('rosterx_token'))) ||
+                    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rosterx_auth_token')) || '';
       const activeUser = (window.authService && window.authService.getCurrentUser()) || null;
       const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -1730,6 +1766,16 @@ Rules:
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     // Italic
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code class="bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded text-[11px] font-mono border border-indigo-200/50 dark:border-indigo-800/40">$1</code>');
+    // Shift badges
+    const shiftColors = {
+      FS: '#059669', FG: '#047857', G: '#0284C7', SG: '#EA580C', SS: '#D97706', NS: '#4F46E5', OFF: '#94A3B8', L: '#DC2626'
+    };
+    Object.entries(shiftColors).forEach(([code, color]) => {
+      const re = new RegExp(`\\b(${code})\\b`, 'g');
+      html = html.replace(re, `<span class="inline-block px-1.5 py-0.2 rounded font-bold font-mono text-[10.5px]" style="background:${color}22;color:${color};border:1px solid ${color}44;">$1</span>`);
+    });
     // Line breaks
     html = html.replace(/\n/g, '<br/>');
     return html;

@@ -1,7 +1,32 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 10:40 IST** (Target Sprint: **v2.3.1 - Build 153**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 12:55 IST** (Target Sprint: **v2.3.2 - Build 154**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.2 - Build 154 — Admin AI Assistant Glassmorphic Overhaul, Modal Z-Index Overlap Fix & Gemini API Pool Auth Token Fix):
+> *"Gafoorka! Boss! Sprint **`v2.3.2` (Build 154)** 100% spotless aayi execute cheythu, Android physical device-il build cheythu install cheythu live verify cheythu boss! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Fixes:
+> 1. **Admin AI Assistant Glassmorphic Redesign (`web/js/rosterAiAssistant.js`)**:
+>    - Elevated `#aiAssistantPanel` with modern frosted glass surface: `rgba(255, 255, 255, 0.85)` / `dark:rgba(20, 25, 35, 0.88)`, `backdrop-filter: blur(28px) saturate(190%)`, smooth spring scaling, glass chips, and dark-mode adaptation.
+>    - Frosted translucent gradient header with 3D levitating bot and pulsing cyan/emerald status indicator.
+>    - Formatted markdown with inline code highlight chips and official NOC shift badges (`FS`, `NS`, `SG`, `OFF`, `SS`, `FG`, `G`, `L`).
+>    - Proposal and cleared-grid cards updated to translucent frosted cards matching the unified design system.
+>    - Mobile responsive view: automatically centers and scales smoothly (`max-width: 100%`) without clipping or viewport overflow.
+> 2. **Modal Stacking & Overlap Resolution (`web/index.html`, `web/js/app.js`)**:
+>    - Elevated Google Gemini API Key Pool & Settings modal (`#geminiSettingsModal`) from `z-50` to `z-[80]` with `bg-slate-950/65 backdrop-blur-md` overlay.
+>    - When opened from the AI Assistant gear button (`btnAiSettingsQuick`), Settings floats directly and cleanly on top in the center.
+>    - Dismissing Settings via close button or backdrop click seamlessly restores the active AI Assistant chat without losing conversation state.
+> 3. **Gemini API Key Pool Admin Authentication Fix (`web/js/app.js`, `web/js/rosterAiAssistant.js`)**:
+>    - Fixed the token lookup bug where requests read `rosterx_token` instead of `rosterx_auth_token`, which previously caused 401 `"Authentication required. Please log in."`.
+>    - Implemented centralized `getAdminAuthHeaders()` with support for `rosterx_auth_token` and `sessionStorage`.
+>    - Updated `fetchGeminiPoolSettings`, `addGeminiKeyToPool`, `removeGeminiKeyFromPool`, `testAllGeminiKeys`, and `saveGeminiSettings` to authenticate reliably.
+> 4. **Version Bump & Android Safe Build**:
+>    - Android `versionName = "2.3.2"`, `versionCode = 154`.
+>    - Server `SERVER_VERSION = "2.3.2"`.
+>    - Build successful (`safe_build.bat assembleDebug` in 1m 49s), installed via ADB, app launched on connected device! 🚀"*
 
 ---
 
