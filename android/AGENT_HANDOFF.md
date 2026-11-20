@@ -30,6 +30,12 @@
 > - **Backend (`server.py`)**: Store `calendar_accounts` in MongoDB Atlas under `engineers` collection and return in profile/sync endpoints.
 > - **Web Dropdown**: Display Corporate Calendar, synced device Google accounts & secondary calendars, Apple Calendar (.ics), plus a manual `[+ Add Personal / Secondary Calendar]` option.
 > 
+> ### 4. 📱 Smart Home Screen Widget Discovery & Pinning:
+> - **Presence Check**: Use `AppWidgetManager.getAppWidgetIds()`. If already added, suppress all banners completely!
+> - **Dashboard Banner**: Gentle Neumorphic prompt on Dashboard appearing every 4-5 sessions with `[ Add Widget ]` and `[ ✕ ]` (sleeps 7 days on dismiss).
+> - **1-Tap Native Pinning**: `AppWidgetManager.requestPinAppWidget()` triggers Android OS home screen placement dialog.
+> - **Permanent Access**: Permanent 'Home Screen Widget' row in Profile & Settings.
+> 
 > Both `plan_dasan.md` and `plan_vijayan.md` are activated. When the user gives the call, execute seamlessly!"*
 
 ---

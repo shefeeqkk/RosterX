@@ -144,7 +144,44 @@ Properly categorize Corporate vs Personal accounts and support secondary calenda
 
 ---
 
-## 5. Task 5 — Verification, Version Bump & Mandatory Push
+## 5. Task 5 — Smart Home Screen Widget Discovery & Pinning Engine (`RosterXAppWidgetProvider.kt`, `EngineerPortalScreen.kt`)
+Prompt users about the Android Home Screen Widget, allow 1-tap pinning via native Android APIs, and automatically ignore users who already have it:
+
+1. **Active Widget Detection**:
+   - Use `AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, RosterXAppWidgetProvider::class.java))`.
+   - If `widgetIds.isNotEmpty()`: **User already has the widget on their home screen!** Automatically suppress all widget banners and prompts.
+
+2. **Smart Cadence Banner on Dashboard (`EngineerPortalScreen.kt`)**:
+   - Show a sleek Neumorphic prompt card on Dashboard:
+     - Icon: `⚡` or `📱` (App Widget illustration).
+     - Title: *"Glance at Shifts Instantly!"*
+     - Subtitle: *"Add the RosterX widget to your Home Screen for live duty updates and rest day countdowns."*
+     - Actions:
+       - `[ 📌 Add Widget ]`: Calls `AppWidgetManager.requestPinAppWidget()`.
+       - `[ ✕ ]`: Dismisses the banner and records timestamp in `SharedPreferences` to sleep for 7 days.
+   - Cadence: Appears on every 4th or 5th app session (only if `widgetIds.isEmpty()` and sleep timer expired).
+
+3. **1-Tap Pinning API (`AppWidgetManager.requestPinAppWidget`)**:
+   - When the user taps `[ Add Widget ]`:
+     - On Android 8.0+ (API 26+), call:
+       ```kotlin
+       val appWidgetManager = AppWidgetManager.getInstance(context)
+       val provider = ComponentName(context, RosterXAppWidgetProvider::class.java)
+       if (appWidgetManager.isRequestPinAppWidgetSupported) {
+           appWidgetManager.requestPinAppWidget(provider, null, null)
+       }
+       ```
+     - Triggers Android's official system prompt: *"Add to Home screen? Touch and hold the widget or tap Add to place it on your home screen."*
+     - Once added by the user, `widgetIds` becomes non-empty and the banner vanishes forever!
+
+4. **Permanent Option in Profile & Settings**:
+   - In `ProfileSettingsScreen.kt`, add a row under Preferences / Quick Access:
+     - Row: *"Home Screen Widget"*
+     - Badge/Status: Shows *"Active"* with a green dot if `widgetIds.isNotEmpty()`, or `[ Add to Home Screen ]` button if not yet pinned.
+
+---
+
+## 6. Task 6 — Verification, Version Bump & Mandatory Push
 1. Bump version to **`v2.3.0` (Build 152)**:
    - `android/app/build.gradle.kts`: `versionName = "2.3.0"`, `versionCode = 152`
    - `server.py`: `SERVER_VERSION = "2.3.0"` (synced with Dasan)
