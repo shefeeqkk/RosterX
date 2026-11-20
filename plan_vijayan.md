@@ -230,7 +230,69 @@ Add all missing Android options (Company Join Date & Security Password Change se
 
 ---
 
-## 7. Task 7 — Verification, Version Bump & Mandatory Push
+## 7. Task 7 — Ultra-Modern Glassmorphic Animated AI Assistant Dialog (`userPortal.js`, `mobile-shell.css`)
+Replace the broken, bottom-stuck Neumorphic AI modal with a responsive, smoothly animated centered Glassmorphic dialog:
+
+1. **Root Problem Analysis**:
+   - In `mobile-shell.css`, `@media (max-width: 640px)` had `#rxAiChatDialog { margin: auto auto 0 auto; height: 85dvh; }` which docked it like a broken bottom sheet colliding with the bottom navigation bar (`rxMobileNav`).
+   - Closing lacked animation, and closing state clashed with history `popstate`, freezing the Dashboard background.
+   - Sunken Neumorphic wells wasted vertical space and looked heavy.
+
+2. **Centered Floating Glassmorphic Dialog (`mobile-shell.css`)**:
+   - Both Mobile & Desktop: Centered floating card with margins all around:
+     ```css
+     #rxAiChatDialog {
+       margin: auto;
+       width: min(92vw, 540px);
+       height: min(82dvh, 720px);
+       max-height: min(82dvh, 720px);
+       border-radius: 28px;
+       border: 1px solid rgba(255, 255, 255, 0.45);
+       background: rgba(255, 255, 255, 0.78);
+       backdrop-filter: blur(24px) saturate(180%);
+       -webkit-backdrop-filter: blur(24px) saturate(180%);
+       box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.22);
+       overflow: hidden;
+     }
+     html.dark #rxAiChatDialog {
+       border: 1px solid rgba(255, 255, 255, 0.12);
+       background: rgba(15, 23, 42, 0.82);
+       box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.55);
+     }
+     ```
+   - Eliminates the bottom dock entirely. Floats above the bottom navigation bar with comfortable clearance!
+
+3. **Scale & Fade Spring Open/Close Animations**:
+   - CSS Transitions:
+     ```css
+     #rxAiChatDialog {
+       opacity: 0;
+       transform: scale(0.94);
+       transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1), transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+     }
+     #rxAiChatDialog.is-visible {
+       opacity: 1;
+       transform: scale(1);
+     }
+     #rxAiChatDialog.is-closing {
+       opacity: 0;
+       transform: scale(0.94);
+       transition: opacity 180ms ease-in, transform 180ms ease-in;
+     }
+     ```
+   - Wire clean animation lifecycle in `openAiAssistantDialog`: trigger `is-visible` via `requestAnimationFrame`, and on close, add `is-closing` before executing `dlg.close()`, releasing `rx-modal-open` cleanly so Dashboard is never stuck!
+
+4. **Glassmorphic Chat UI Components**:
+   - Header: 3D Bot icon with glowing green status pulse, title, subtitle, trash & close glass pills.
+   - Quick chips: Frosted glass chips with subtle border and touch glow.
+   - Messages area:
+     - User message: Vibrant gradient bubble (`linear-gradient(135deg, #174EAC, #2563EB)`) with white text.
+     - AI message: Frosted glass card with 3D bot avatar, code highlights, and colorful shift badges (`FS`, `NS`, `SG`, `OFF`).
+   - Input bar: Floating translucent glass pill with glowing paper-plane send button.
+
+---
+
+## 8. Task 8 — Verification, Version Bump & Mandatory Push
 1. Bump version to **`v2.3.0` (Build 152)**:
    - `android/app/build.gradle.kts`: `versionName = "2.3.0"`, `versionCode = 152`
    - `server.py`: `SERVER_VERSION = "2.3.0"` (synced with Dasan)

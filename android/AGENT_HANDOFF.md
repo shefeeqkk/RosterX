@@ -94,6 +94,10 @@
 >   - Add **Security & Password Section** (`Current Password`, `New Password`, `Confirm Password` with show/hide eye toggles).
 >   - Wired directly to `POST /api/users/profile` which already supports all fields on the backend.
 > 
+> ### 6. 🤖 Ultra-Modern Glassmorphic Animated AI Assistant Dialog (`userPortal.js`, `mobile-shell.css`):
+> - Completely remove bottom-stuck docking (`margin: auto auto 0 auto`).
+> - Center floating modal (`width: min(92vw, 540px); height: min(82dvh, 720px); margin: auto;`) with 24px blur glassmorphism, gradient user bubbles, frosted AI cards, and spring scale/fade open/close animations. Releases dashboard cleanly on close!
+> 
 > Both `plan_dasan.md` and `plan_vijayan.md` are activated. When the user gives the call, execute seamlessly!"*
 
 ---
