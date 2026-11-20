@@ -51,6 +51,11 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- Google Password Manager & Digital Asset Links Domain Association -->
+        <meta-data
+            android:name="asset_statements"
+            android:resource="@string/asset_statements" />
+
         <!-- FileProvider for zero-permission Calendar (.ics) export -->
         <provider
             android:name="androidx.core.content.FileProvider"

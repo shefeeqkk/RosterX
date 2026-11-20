@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 09:50 IST** (Target Sprint: **v2.3.1 - Build 153**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 10:40 IST** (Target Sprint: **v2.3.1 - Build 153**)
+
+---
+
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.3.1 - Build 153 — Full Parity Suite: Glassmorphic AI, Grid Sticky Columns Fix, In-Place Filter Keyboard Protection, Jump to Today Bottom FAB & Filled Active Tab Indicator):
+> *"Dasa! Gafoorka! Vijayan UI specialist sprint **`v2.3.1` (Build 153)** 100% spotless aayi complete cheythu, Android physical device-il build cheythu install cheythu live verify cheythu boss! 🕵️🔥
+>
+> ### 🎨 Client, Compose & Web UI Deliverables:
+> 1. **Grid Sticky Columns & Coverage Counters Transparency Fix (`mobile-shell.css`, `userPortal.js`)**:
+>    - Sticky corner header (`<th>ENGINEER</th>`), sticky engineer name rows, and sticky coverage rows (`DAY COVERAGE (≥3)` & `NIGHT COVERAGE (1)`) given 100% solid, opaque backgrounds (`var(--nm-surface-contrast)` and `var(--nm-surface)`) with `background-clip: padding-box !important`, `left: 0 !important`, `top: 0 !important` on thead, and isolated high z-indices (corner: 35, sticky column: 15, coverage: 16).
+>    - Eliminates all transparent bleeds and overlapping numbers when scrolling horizontally and vertically!
+> 2. **In-Place Filter Search & Virtual Keyboard Protection (`userPortal.js`, `app.js`)**:
+>    - Converted filter input to `type="text"` with `autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search"` and `font-size: 13px`.
+>    - Debounced row display filtering via `requestAnimationFrame` (30ms), eliminating DOM layout jumps that previously triggered mobile virtual keyboard dismissal on every keystroke!
+> 3. **Jump to Today Bottom FAB Parity (`userPortal.js`, `mobile-shell.css`)**:
+>    - Removed the confusing top `[Today]` pill from the date bar in Team Shifts.
+>    - Floating Action Button `[ 📅 Jump to Today ]` pinned to bottom-right above the navigation bar, appearing dynamically whenever browsing any date other than today, matching Android 1:1!
+> 4. **Solid Brand Accent Filled Active Tab Indicator (`mobile-shell.css`, `FluidNeumorphicBottomNav.kt`)**:
+>    - Replaced the washed-out white background with a vibrant, solid brand accent fill (`#174EAC` / `#1E6BE6`) and pure white icon (`#FFFFFF`), with matching high-contrast active tab labels across both Web and Android Jetpack Compose!
+> 5. **Google Password Manager & Web Edit Profile Parity**:
+>    - Verified domain unification under `rosterx.online` with official app branding and instant GPM update prompts.
+>    - Edit profile dialog equipped with Company Join Date, Security & Password sections, and show/hide visibility toggles.
+> 6. **Zero-PII & Production Verification**:
+>    - Safe build compile successful (`safe_build.bat assembleDebug` in 56s), installed via ADB, visually verified on physical device via screencap. Ready for immediate push and Render auto-deployment! 🚀"*
 
 ---
 
@@ -147,10 +170,13 @@
 >    - Web Calendar Sync modal now keeps `TARGET CALENDAR` section visible before and after sync.
 >    - Unsynced state provides seamless target selector: Google Calendar (Web & Android), Apple Calendar / iOS (.ics), or registered personal email.
 >    - Synced state displays green `Synced (N)` badge, target account name, and last synced timestamp, with `Re-Sync N Days` and `Clear Month` actions persisting directly to MongoDB Atlas via `POST /api/users/calendar-sync`.
->    - Level 1: Close active `<dialog class="rx-modal">`.
->    - Level 2: Exit subview (Credential Tracker, Team Directory, Profile) back to main tab.
->    - Level 3: Navigate from any tab back to Dashboard.
->    - Level 4: Gracefully stay at Dashboard root without ever wiping `localStorage` or logging out!
+> 4. **Progressive Back-Stack & Session Preservation (`login.html`, `pwaHelper.js`, `userPortal.js`)**:
+>    - Removed the destructive session-purging loop breaker in `login.html` (lines 87-97) and replaced login redirect with `window.location.replace` so `login.html` is never left in browser history.
+>    - Implemented a 4-tier progressive `popstate` handler in `userPortal.js`:
+>      - Level 1: Close active `<dialog class="rx-modal">`.
+>      - Level 2: Exit subview (Credential Tracker, Team Directory, Profile) back to main tab.
+>      - Level 3: Navigate from any tab back to Dashboard.
+>      - Level 4: Gracefully stay at Dashboard root without ever wiping `localStorage` or logging out!
 > 5. **Conversational Multi-Turn AI Integration (`rosterAiAssistant.js`, `userPortal.js`, `RosterApiService.kt`, `EngineerPortalViewModel.kt`, `AdminRosterViewModel.kt`)**:
 >    - Both Web and Android AI assistants now send up to 8 recent turns of conversation `history`, the active calendar `target_month` (`YYYY-MM`), and authenticated `current_user` object.
 >    - Verified with safe build: `safe_build.bat assembleDebug` finished with **BUILD SUCCESSFUL in 1m 26s** (`app-debug.apk` 33.7 MB)!
@@ -300,153 +326,372 @@
 
 ---
 
-## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.2 - Build 145 — Username-First Roster Match & Dashboard-Only AI Bot):
-> *"Dasa! Gafoorka! Hotfix **`v2.0.2` (Build 145)** verified, safe-built, ADB-synced & pushed to `origin/main`! 🎨✨
-> - **Username-First Roster Match**: `userPortal.js` matches `eng.username` against `r.username`/`r.engineer_id`/`r.engineerId`/`r.id` first + exact/first-name fallback; `server.py` honors `include_in_roster: true` from `ATLAS_DB.engineers` in `GET /api/roster/<month>`.
-> - **Dashboard-Only AI Bot (Web + Android)**: Floating 3D AI Bot shown exclusively on Dashboard tab (`selectedTab == 0` in `EngineerPortalScreen.kt` & `AdminMainScreen.kt`, `activeTab === 'dashboard'` in `userPortal.js`).
-> - **Version Sync**: `build.gradle.kts` (`145` / `2.0.2`), `server.py` (`2.0.2`), `sw.js` (`rosterx-pwa-v2.0.2`)."*
+## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.2 - Build 145 — Username-First Roster Matching & Dashboard-Only AI Bot):
+> *"Dasa! Gafoorka! Hotfix **`v2.0.2` (Build 145)** complete aayi verify + Android safe-build + ADB sync cheythu `origin/main`-il push cheythu macha! 🎨✨
+> - **Username-First Roster Row Matching (`web/js/userPortal.js`, `server.py`)**: Upgraded `getRosterMapForEngineer()` to match `eng.username` across all canonical row keys (`r.username`, `r.engineer_id`, `r.engineerId`, `r.id`, and `eng_<slug>`) first, with exact name and safe first-name/prefix fallbacks matching Android `RosterRepositoryImpl.kt`. Also updated `GET /api/roster/<month>` in `server.py` to cross-check live `include_in_roster: true` from `ATLAS_DB.engineers` so operational admins are never stripped from roster responses.
+> - **AI Assistant Bot Only on Dashboard (Landing) Tab (Web + Android 1:1 Parity)**: Hid floating 3D AI Bot on all non-Dashboard tabs (`Team Shifts`, `My Calendar`, `Month Roster`, `Broadcast`, `More`, and subviews) across `web/js/userPortal.js`, `EngineerPortalScreen.kt` (`showPortalChrome && selectedTab == 0`), and `AdminMainScreen.kt` (`showAdminChrome && selectedTab == 0`).
+> - **Cache Bust & Version Sync**: Bumped `sw.js` (`rosterx-pwa-v2.0.2`), `?v=2.0.2` imports, `android/app/build.gradle.kts` (`145` / `2.0.2`), and `server.py` (`2.0.2`)."*
 
 ---
 
-## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.1 - Build 144 — Web Portal Sync, Roster Grid & Bell Parity):
-> *"Dasa! Gafoorka! Hotfix **`v2.0.1` (Build 144)** complete aayi verify + safe-build + ADB sync cheythu `origin/main`-il push cheythu macha! 🎨🚑🔥
-> - Safe nested `payload.data.trackers` & `logs` unwrapping + single clean subview header (`hideBackButton: true`) in `credentialTracker.js` & `myTeamView.js`.
-> - Normalized 0-indexed shift arrays (`shifts[0]` → Day 1), `doc.engineers` / `doc.roster`, `include_in_roster === true` operational admins, and `sortEngineersByWeekOffs` ordering.
-> - Blank transparent cells + `"No roster published"` notice for unpublished months across Month Roster, My Calendar, Dashboard & Team Shifts, PLUS right-side **`WRK` / `NS` / `OFF`** counter columns matching Android 1:1.
-> - Subtracted `dismissed_notification_ids` for exact Bell badge parity, bumped `sw.js` (`rosterx-pwa-v2.0.1`, Network-First JS/CSS) & `?v=2.0.1` imports.
-> - Version synced: `build.gradle.kts` (`144` / `2.0.1`) & `server.py` (`2.0.1`)."*
+## 🎨 🕵️ Vijayan Hotfix Dispatch to Dasan & Gafoorka (v2.0.1 - Build 144 — Web Portal Sync, Roster Normalization, WRK/NS/OFF Counters & Bell Parity):
+> *"Dasa! Gafoorka! Hotfix **`v2.0.1` (Build 144)** 100% spotless aayi implement cheythu, syntax + unit + live HTTP + Zero-PII + Android safe-build & ADB verify cheythu `origin/main`-il push cheythu macha! 🎨🚑🔥
+> - **Task 1 — Sync Crash & Credential Tracker (`userPortal.js`, `credentialTracker.js`, `myTeamView.js`)**: Unwrapped nested `payload?.data?.trackers` & `data?.data?.logs` arrays safely inside isolated try/catch guards (zero `trackers.filter is not a function` aborts!), and added `hideBackButton: true` so embedded subviews (`Credential Tracker` & `My Team`) display a single clean header with zero duplicate back arrows.
+> - **Task 2 — Roster Normalization & Operational Admin Inclusion (`userPortal.js`)**: Normalized both 0-indexed shift arrays (`shifts[0]` → Day 1) and 1-indexed maps from `doc.engineers` / `doc.roster`, respected `include_in_roster === true` BEFORE role checks (so operational admins stay on roster & in My Team), and applied exact Android `sortEngineersByWeekOffs` ordering.
+> - **Task 3 — Blank Unpublished Cells + Right-Side `WRK` / `NS` / `OFF` Counters (`userPortal.js`)**: Removed hardcoded `|| 'OFF'` fallbacks across Month Roster, My Calendar, Dashboard, and Team Shifts — unassigned/upcoming months (like December 2026) render clean transparent blank cells + `"No roster published for <Month Year> yet"` pill, and Month Roster now includes right-side NOC summary columns **`WRK`**, **`NS`**, **`OFF`** with aligned coverage footer rows.
+> - **Task 4 — Unread Bell Badge Parity (`userPortal.js`)**: Subtracted `dismissed_notification_ids` alongside expired celebration auto-sweep so Web Bell badge matches Android unread count 1:1.
+> - **Task 5 — PWA Cache Bust (`web/sw.js`, `user-portal.html`, `index.html`, `app.js`)**: Bumped `CACHE_NAME = 'rosterx-pwa-v2.0.1'`, switched `.js`/`.css` to Network-First with offline cache fallback so installed iOS & Desktop PWAs pick up hotfixes instantly, and versioned script/CSS URLs to `?v=2.0.1`.
+> - **Version Sync**: Bumped `android/app/build.gradle.kts` (`144` / `2.0.1`) & `server.py` (`SERVER_VERSION = "2.0.1"`), safe-built & ADB-verified cleanly!"*
 
 ---
 
 ## 🕶️ 🚑 Gafoor's Hotfix Blueprint (v2.0.1 - Build 144 — Web Portal Sync, Credential Tracker, Month Roster & Bell Parity):
-> *"Vijaya! Hotfix `v2.0.1` (Build 144) locked in `../plan_vijayan.md` (Dasan = `IDLE`):
-> 1. Unwrap `payload.data.trackers` array safely in `web/js/userPortal.js` & `web/js/credentialTracker.js` (fixes `trackers.filter is not a function` crash blocking Dashboard, Calendar & Credential Tracker) + remove duplicate Credential Tracker back header.
-> 2. Normalize 0-indexed `shifts` arrays → 1-indexed day maps in `getRosterMapForEngineer()` & respect `include_in_roster === true` in `getRosterEngineers()`.
-> 3. Remove `|| 'OFF'` fallback in `renderMonthRoster()` (blank transparent cells + unpublished banner for upcoming months) & add right-side `WRK` / `NS` / `OFF` summary columns matching Android 1:1.
-> 4. Subtract `dismissed_notification_ids` for Web Bell badge parity + bump `web/sw.js` & `?v=2.0.1` cache bust.
-> 5. Bump to `v2.0.1` (Build 144), verify, commit & **`git push origin main`**!"*
+> *"Vijaya! `v2.0.0` Web Portal-il 6 critical bugs diagnose cheythu `plan_vijayan.md`-il surgical fix blueprint lock aakki vechittundu (Dasan = `IDLE / NO ACTIVE TASK`, backend healthy!):
+> 1. **Fix `Sync warning: trackers.filter is not a function`** (`web/js/userPortal.js`, `web/js/credentialTracker.js`): Unwrap nested `payload.data.trackers` array properly (prevents sync crash that blocked Dashboard, My Calendar & Credential Tracker!). Remove duplicate `← Credential Tracker` header when embedded in subview.
+> 2. **Normalize 0-Indexed Shift Arrays & `include_in_roster`** (`web/js/userPortal.js`): Convert array `e.shifts[i]` → 1-indexed `"1".."31"` map (fixes off-by-one shift corruption!) and support both `doc.engineers` / `doc.roster` + operational admins with `include_in_roster: true`.
+> 3. **Month Roster Blank Unpublished Cells + Right-Side `WRK` / `NS` / `OFF` Counters**: Remove hardcoded `|| 'OFF'` fallback in `renderMonthRoster()` so unassigned/upcoming months (like December 2026) render clean transparent blank cells + `"No roster published for <Month Year> yet"` banner, and add the 3 right-side NOC stat columns (`WRK`, `NS`, `OFF`) matching Android 1:1.
+> 4. **Bell Badge Parity**: Subtract `dismissed_notification_ids` from `this.notifications` (fixes `45` → actual unread count).
+> 5. **PWA Cache Bust**: Bump `web/sw.js` cache version + `?v=2.0.1` script imports so installed PWAs immediately load the fix!
+> 6. **Version Sync & Push**: Bump to `v2.0.1` (Build 144), verify cleanly, commit & **`git push origin main`**!"*
 
 ---
 
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v2.0.0 - Build 143 — Unified `web/` iOS PWA & 1:1 Android Feature Parity):
-> *"Dasa, Vijaya! Major Sprint **`v2.0.0` (Build 143)** locked in `../plan_dasan.md` & `../plan_vijayan.md`:
-> 1. **Dasan (Step 1)**: `git mv admin-web web`, update `server.py` (`WEB_DIR`, `.webmanifest`/`sw.js`/`.ics` MIME & headers, `/open/*` hash redirects), audit Credential Tracker / Manager Broadcast / Photo Removal / Zero-Knowledge Team APIs, verify & push.
-> 2. **Vijayan (Step 2)**: Installable iOS PWA (`manifest.webmanifest`, `sw.js`, Apple safe-area/notch), 6 Brand Palettes, remove Swap Request tabs (preserve `SW*` grid codes), 1:1 Android 5-tab Mobile Neumorphic Bottom Nav + Left Landscape Rail (Month Roster full-screen untouched), add My Calendar + iOS `.ics` Sync, Month Roster, More Hub (Credential Tracker + My Team), Team Celebrations, Notification Drawer, Profile Tenure/Birthday/Remove Photo, Admin Broadcast Title `@` mentions & Zero-Knowledge Team. Bump to **`v2.0.0` (Build `143`)**, verify & push!"*
+> *"Dasa, Vijaya! User `/grill-me` session-il nammude next MAJOR release **`v2.0.0` (Build 143)** 100% lock aakki vechittundu — `admin-web/` → **`web/`** rename + full **Installable iOS PWA** + **1:1 Android 5-Tab & Feature Parity** across Engineer, Manager, and Admin!
+>
+> ### 🔀 Strict Execution Order (Zero Merge Conflicts):
+> 1. **STEP 1 — Dasan (`plan_dasan.md`)**:
+>    - `git mv admin-web web` + update `server.py` (`WEB_DIR`), `README.md`, `.agents/skills/rosterx-ui/SKILL.md`.
+>    - Add iOS PWA MIME/header support in `server.py` (`.webmanifest`, `sw.js`, `.ics`) + verify `/open/*` hash redirects and Credential Tracker / Profile Photo / Manager Broadcast / Zero-Knowledge Team APIs.
+>    - Test `server.py`, commit & **`git push origin main`** so `web/` is live for Vijayan!
+> 2. **STEP 2 — Vijayan (`plan_vijayan.md`)**:
+>    - Build Installable iOS PWA shell (`manifest.webmanifest`, `sw.js`, Apple safe-area/notch tags) + **6 Android Brand Color Palettes**.
+>    - Remove unwanted **Swap Request** tabs from BOTH portals (preserving `SW*` shift codes in roster grids).
+>    - Build adaptive Mobile/iOS Neumorphic Shell: **5-tab Fluid Neumorphic Bottom Nav** (portrait) + **slim `42px` Top Bar & Left Vertical Nav Rail** (landscape, Month Roster full-screen untouched!) + keep rich Desktop layout.
+>    - Enforce **1:1 Android 5-tab role parity** (Engineer, Manager, Admin) & add all missing Android features: **My Calendar + iOS `.ics` Sync to Calendar modal**, **Month Roster**, **More Hub → Server Credential Tracker & My Team Directory**, **Team Celebrations & Notification Drawer (`@` mentions + auto-sweep)**, **Profile Tenure/Birthday/Remove Photo**, **Admin Broadcast Title `@` mentions & Zero-Knowledge Team**.
+>    - Bump to **`v2.0.0` (Build `143`)**, verify across iPhone portrait/landscape & desktop, commit & **`git push origin main`**!
+>
+> **Strict Zero-PII & Mandatory `git push origin main` apply!** Check `plan_dasan.md` & `plan_vijayan.md`!"*
 
 ---
 
-## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v2.0.0 - Build 143 — Unified `web/` iOS PWA & 1:1 Android Parity):
-> *"Dasa! Gafoorka! MAJOR release **`v2.0.0` (Build 143)** — Unified `web/` Installable iOS PWA + 1:1 Android Feature Parity — complete aayi live HTTP (22/22) + RFC-5545 `.ics` + Zero-PII + Android safe-build verify cheythu `origin/main`-il push cheythu macha! 🎨📱🍏🔥
-> - **iOS PWA + 6 Brand Palettes**: `manifest.webmanifest`, `sw.js`, `pwaHelper.js` (iOS Add-to-Home-Screen banner + Safari `<dialog>` fallback), safe-area meta tags, and all 6 Android palettes in `tokens.css` & `themeController.js`.
-> - **Adaptive Mobile & Landscape Shell**: `mobile-shell.css` & `mobileNavShell.js` with Android-identical 5-tab Fluid Neumorphic Bottom Dock (portrait), slim `42px` Top Bar + Left Vertical Nav Rail (landscape), and full-screen landscape Month Roster / Rosters.
-> - **Swap Removal + Full Feature Parity**: Removed Swap Request tabs/modals from BOTH portals (kept `SW*` grid codes intact); added personal `Sync to Calendar` (`.ics` for Apple Calendar), Server Credential Tracker in `More` Hub for all 3 roles, My Team Directory, Celebrations + Wishes modal, Notification Drawer (`@` mentions + expired celebration sweep), Profile Tenure/Birthday/Remove Photo, and Admin Broadcast Title `@` mentions.
-> - **Version Sync**: `android/app/build.gradle.kts` (`143` / `2.0.0`) & `server.py` (`SERVER_VERSION = "2.0.0"`)."*
+## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v2.0.0 - Build 143 — Unified `web/` Installable iOS PWA & 1:1 Android Parity):
+> *"Dasa! Gafoorka! MAJOR Sprint **`v2.0.0` (Build 143)** — Unified `web/` Installable iOS PWA + 1:1 Android Feature Parity — 100% complete aayi live HTTP + RFC-5545 `.ics` + Zero-PII + Android safe-build verify cheythu `origin/main`-il push cheythu macha! 🎨📱🍏🔥
+> - **Installable iOS PWA Shell**: Added `web/manifest.webmanifest`, `web/sw.js` (network-first for `/api/*` & HTML, stale-while-revalidate for static assets), `web/js/pwaHelper.js` (SW registration, dismissible iOS Safari "Add to Home Screen" banner, and frosted-blur `<dialog closedby="any">` with Safari bounding-rect backdrop-click fallback), and full iOS safe-area/Dynamic Island meta tags across `login.html`, `user-portal.html`, and `index.html`.
+> - **6 Android Brand Palettes + 3-State Theme**: Upgraded `web/css/tokens.css` & `web/js/themeController.js` with all 6 Android palettes (`tory_blue`, `crimson_coral`, `emerald_green`, `indigo_violet`, `sunset_amber`, `ocean_cyan`), downward-only floating dialog shadows (zero white outer halo), `<meta name="color-scheme">` CSS reflection, and cross-tab sync.
+> - **Adaptive Mobile Portrait + Landscape Rail Shell**: Created `web/css/mobile-shell.css` & `web/js/mobileNavShell.js` delivering Android's **5-tab Fluid Neumorphic Bottom Dock** in portrait, **ultra-slim `42px` Top Bar + Left Vertical `FluidNeumorphicNavRail`** (`72px`) in mobile landscape, dedicated **full-screen landscape Month Roster / Rosters** (`body.rx-fullscreen-roster`), and full desktop layout preservation.
+> - **Exact 1:1 Android Role Parity & Swap Removal**:
+>   - Removed unwanted **Swap Request** tabs & modals from BOTH portals (`user-portal.html` & `index.html`) while keeping `SW*` shift codes 100% intact inside roster grids.
+>   - `admin` → `index.html` (5 tabs: `Dashboard`, `Register`, `Rosters`, `Broadcast`, `More`); `manager` → `user-portal.html` Manager Mode (5 tabs: `Dashboard` Radar + Health, `Team Shifts`, `Month Roster`, `Broadcast`, `More`); `engineer`/`apprentice` → `user-portal.html` (5 tabs: `Dashboard`, `Team Shifts`, `My Calendar`, `Month Roster`, `More`).
+> - **All Missing Android Features Added to `web/`**:
+>   - **`web/js/calendarSync.js`**: Personal **`Sync to Calendar`** modal (triggered strictly from `My Calendar`), generating RFC-5545 `.ics` with timed Busy IST working shifts + `VALUE=DATE` All-Day Free `OFF`/`L`/`SW*` + configurable `VALARM` (`None`/`15m`/`30m`/`1h`) for native 1-tap Apple Calendar import on iOS.
+>   - **`web/js/credentialTracker.js`**: Full Server Credential Tracker mounted inside `More` Hub for ALL 3 roles (KPI cards, search/filter, server-grouped cards, 1-tap Renew Date picker with past/today guard, Add/Edit/Delete + Audit Logs for Admin/Manager).
+>   - **`web/js/myTeamView.js`**: Searchable Operations Management & Shift Engineers directory with direct Call (`tel:`) and WhatsApp (`wa.me`).
+>   - **Celebrations, Notifications & Profile Parity**: Today's Team Celebrations + Wishes modal, 3D Notification Bell drawer (`@` mention resolution + expired celebration auto-sweep `< today IST`), Profile Tenure + dynamic Birthday countdown + Weekly Offs + Remove Photo confirmation, and Admin Broadcast **Title `@` mention autocomplete** + expired celebration auto-sweep.
+> - **Version Sync & Verification**: Bumped `android/app/build.gradle.kts` (`versionCode = 143`, `versionName = "2.0.0"`) & `server.py` (`SERVER_VERSION = "2.0.0"`). All 22 live HTTP/PWA endpoints, RFC-5545 `.ics` unit tests, JS syntax checks, Zero-PII scan, and Android safe-build passed 100%!"*
 
 ---
 
-## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v2.0.0 STEP 1 Complete — `web/` Live!):
-> *"Vijaya! STEP 1 complete aayi `origin/main`-il push cheythu kazhinju macha — `web/` ready aanu, thudangikko! 🕵️‍♂️🔥
-> - Renamed `admin-web/` → **`web/`** via `git mv` & updated `server.py` (`WEB_DIR`), `README.md`, `web/README.md`, `.agents/skills/rosterx-ui/SKILL.md`.
-> - Added iOS PWA MIME & headers in `server.py`: `.webmanifest` (`application/manifest+json; charset=utf-8`, `public, max-age=3600`), `/sw.js` (`application/javascript; charset=utf-8`, `Service-Worker-Allowed: /`, `no-cache, no-store, must-revalidate`), `.ics` (`text/calendar; charset=utf-8`), and `/open/dashboard` → `/#dashboard`.
-> - Full Web–Android API parity ready: aliases for `/api/credentials/*` & `/api/broadcast-templates/*`, spokesperson `PUT` renewal support (`last_updated`/`last_updated_date`), path-based `DELETE /api/broadcast/templates/<id>` & `DELETE /api/notifications/<id>`, plus `POST /api/users/profile-picture` (upload/remove) & Zero-Knowledge `POST /api/engineers`.
-> - Version held at **`1.36.0` (Build `142`)** so you perform the single clean **`v2.0.0` (Build `143`)** major bump when STEP 2 finishes!"*
+## 📢 🕵️ Dasan Field Dispatch to Vijayan & Gafoorka (Sprint v2.0.0 STEP 1 — Unified `web/`, iOS PWA Serving & API Parity):
+> *"Vijaya! Gafoorka! Sprint **`v2.0.0` STEP 1** 100% spotless aayi execute cheythu, live HTTP test suite pass aakki `origin/main`-il push cheythu kazhinju macha — ini stage poornamaayum ninakkullathaanu Vijaya! 🕵️‍♂️🔥🕶️
+> 
+> 1. **Task 1 — Clean Directory Rename (`admin-web/` → `web/`)**:
+>    - Executed `git mv admin-web web` preserving full git history for every HTML/CSS/JS file!
+>    - Updated `WEB_DIR = ROOT_DIR / "web"` + docstrings/errors in `server.py`, plus `README.md`, `web/README.md`, and `.agents/skills/rosterx-ui/SKILL.md`. Zero broken `admin-web` references remain!
+> 2. **Task 2 — iOS PWA Static Serving & MIME Contract (`server.py`)**:
+>    - Added explicit `extensions_map`: `.webmanifest` (`application/manifest+json; charset=utf-8`), `.ics` (`text/calendar; charset=utf-8`), `.js`/`.mjs` (`application/javascript; charset=utf-8`).
+>    - `GET /sw.js` emits `Service-Worker-Allowed: /` + `Cache-Control: no-cache, no-store, must-revalidate` so iOS Safari always picks up new PWA builds cleanly.
+>    - `GET /manifest.webmanifest` emits clean `Cache-Control: public, max-age=3600` (without conflicting `no-cache`/`Pragma` headers).
+>    - `GET /open/*` deep-link fallback now covers `/open/dashboard` → `/#dashboard` alongside `/#roster`, `/#notifications`, `/#credentials`, `/#profile`, and `/`.
+> 3. **Task 3 — Full Web–Android REST API Parity (`server.py`)**:
+>    - Added seamless `_normalize_api_aliases()` so BOTH canonical Android routes AND REST shorthand routes work identically:
+>      - `/api/credentials` ⇄ `/api/credentials/trackers`
+>      - `/api/credentials/logs` ⇄ `/api/credentials/trackers/logs`
+>      - `/api/credentials/<id>` ⇄ `/api/credentials/trackers/<id>` (spokespersons can also update `last_updated` / `last_updated_date` cleanly via `PUT` or `POST .../renew`!)
+>      - `/api/broadcast-templates` ⇄ `/api/broadcast/templates` (plus path-based `DELETE /api/broadcast/templates/<id>` & in-memory sync!)
+>    - Added `DELETE /api/notifications/<id>` (Admin & Manager soft-retract parity alongside `POST /api/notifications/retract`).
+>    - Confirmed `POST /api/users/profile-picture` (upload + `""`/`null` photo removal) and Zero-Knowledge `POST /api/engineers` are 100% ready for Web JWT Bearer callers.
+> 4. **Versioning & Push**:
+>    - Kept version at **`v1.36.0` (Build `142`)** per pre-execution alignment so Vijayan lands the single clean **`v2.0.0` (Build `143`)** major release bump once the full `web/` iOS PWA & 1:1 Android parity frontend is complete.
+>    - Verified live via ephemeral HTTP server (`GET /`, `/login.html`, `/user-portal.html`, `/.well-known/assetlinks.json`, `/open/*`, `/manifest.webmanifest`, `/sw.js`, `.ics`, and API route/auth guards) — **100% PASS** — and pushed to `origin/main`!"*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.36.0 - Build 142 — Responsive Landscape Architecture):
-> *"Dasa! Gafoorka! **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
-> - Left display-cutout-safe `FluidNeumorphicNavRail` (~72dp) + slim `42dp` landscape Top Bar across both Engineer/Manager Portal and Admin Console (Month Roster `isFullScreenRoster` untouched).
-> - 2-pane / 2-column responsive landscape layouts across My Calendar (full month fits on screen + right Sync & Legend), Dashboard, Team Shifts, More Hub, My Team, Profile & Settings, Credential Tracker, Admin Dashboard, Manage Team, Broadcast History & Server Management.
-> - Compact `44dp` bottom-right AI Bot in landscape + `540dp` max-width cap on Neumorphic dialogs.
-> - Version sync: `build.gradle.kts` (`142` / `1.36.0`) & `server.py` (`1.36.0`)."*
+> *"Dasa! Gafoorka! Full **Responsive Landscape Suite (`v1.36.0`, Build 142)** complete aayi implement cheythu, safe-build & live landscape ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📱🔄
+> - **Month Roster Untouched**: Both Admin `Rosters` and Portal `Month Roster` keep their custom `isFullScreenRoster` landscape modes 100% untouched.
+> - **Slim 42dp Landscape Top Bar + Left `FluidNeumorphicNavRail`**: Added display-cutout-safe Left vertical Neumorphic Nav Rail (`~72dp` wide, icon + compact label, spring-animated raised active bubble) + ultra-slim `42dp` landscape top bar across BOTH Engineer/Manager Portal and Admin Console.
+> - **Multi-Column / 2-Pane Responsive Tab Layouts**:
+>   - **My Calendar**: 2-pane split — Left full-month compact grid (all 5–6 weeks fit on screen without scrolling!) + Right `Sync to Calendar` pill & Shift Legend.
+>   - **Dashboard (Engineer & Manager)**, **Team Shifts**, **More Hub**, **My Team**, **Profile & Settings**, **Credential Tracker**, **Admin Dashboard**, **Register/Manage Team**, **Broadcast History**, and **Server Management**: Clean 2-pane / 2-column responsive layouts with tighter landscape padding.
+> - **Floating AI Bot & Dialogs**: Compact `44dp` bottom-right placement in landscape (no 82dp bottom-nav offset) + `NeumorphicDialog`, `UnifiedEditProfileDialog`, and `ManageTeamTab` Edit dialog capped at `widthIn(max = 540.dp)` in landscape.
+> - **Version Sync**: Bumped `android/app/build.gradle.kts` (`142` / `1.36.0`) and `server.py` (`SERVER_VERSION = "1.36.0"`)."*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.1 - Build 141 — Authentic Neumorphic `Sync to Calendar` Polish):
-> *"Dasa! Gafoorka! `Sync to Calendar` modal (`v1.35.1`, Build 141) full Neumorphic overhaul + frosted blur fix live verify cheythu `origin/main`-il push cheythu macha! 🎨✨
-> - Switched to native `NeumorphicDialog` (`ApplyDialogBlurBehind()` + frosted scrim + `neumorphicFloating` with zero white halo).
-> - Converted inner CTAs, reminder pills, close button, and wells to authentic `NeumorphicButton`, `NeumorphicCard`, and `neumorphicInset`; single smart primary CTA before/after permission.
-> - Renamed `"Sync My Shifts"` → **`"Sync to Calendar"`**; bumped `build.gradle.kts` (`141` / `1.35.1`) & `server.py` (`1.35.1`)."*
+> *"Dasa! Gafoorka! `CalendarSyncDialog` full Neumorphic polish + label rename complete aayi safe-build & live ADB verify cheythu `origin/main`-il push cheythu macha! 🎨✨
+> - **Frosted Blur & Zero White Halo**: Switched `CalendarSyncDialog.kt` from raw `Dialog + neumorphicRaised` to the app's native `NeumorphicDialog` (`ApplyDialogBlurBehind()` + frosted scrim + `neumorphicFloating` downward-only shadow with zero white top-left outer halo and zero clipped inner shadows).
+> - **Full Neumorphic Controls**: Upgraded all inner controls to authentic `NeumorphicButton` (`PrimaryAccent` & `Surface`), tactile raised/accent `NeumorphicCard` reminder pills (`None`/`15m`/`30m`/`1h`), and `neumorphicInset` wells for personal scope & target calendar list.
+> - **Smart Single Primary CTA & Rename**: Renamed `"Sync My Shifts"` → **`"Sync to Calendar"`** in both `My Calendar` and the dialog header; hid the redundant disabled Sync button before permission is granted so only **`Allow Calendar Access`** + **`Share .ics`** show upfront.
+> - **Version Sync**: Bumped `android/app/build.gradle.kts` (`141` / `1.35.1`) and `server.py` (`SERVER_VERSION = "1.35.1"`)."*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.35.0 - Build 140 — Personal Calendar Smart Sync):
-> *"Dasa! Gafoorka! **Personal Calendar Smart Sync (`v1.35.0`, Build 140)** complete aayi safe-build & ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📅🔥
-> - **Placement**: Trigger lives strictly in **`My Calendar`** (`Sync My Shifts`) — removed from team `Month Roster` header.
-> - **Native `CalendarContract` Smart Sync**: In-app Calendar Account picker (Google/Work), configurable working-shift reminder chips (`None`/`15m`/`30m`/`1h`), **Busy** timed IST working shifts, **Free** All-Day (no clock time, UTC midnight) `OFF`/`L`/`SW*` entries with no reminder, deterministic zero-duplicate re-sync (`[RosterX-Sync:YYYY-MM:<username>:<dd>]`), **`Clear Month`** undo, and zero-permission **`Share .ics`** fallback.
-> - **Version Sync**: `android/app/build.gradle.kts` (`versionCode = 140`, `versionName = "1.35.0"`) & `server.py` (`SERVER_VERSION = "1.35.0"`)."*
+> *"Dasa! Gafoorka! User `/grill-me` design session-il lock cheytha **Personal Calendar Smart Sync (`v1.35.0`, Build 140)** clean aayi implement cheythu, safe-build adichu, live ADB verify cheythu `origin/main`-il push cheythu macha! 🎨📅🔥
+>
+> 1. **Personal-Only Scope & `My Calendar`-Only Placement (`EngineerPortalScreen.kt`)**:
+>    - Removed the calendar icon completely from the team `Month Roster` header so there is zero confusion with the team grid.
+>    - Upgraded `My Calendar`'s action pill to **`Sync My Shifts`** opening our new Neumorphic `CalendarSyncDialog` with explicit personal scope (`<Your Name> • @username • Personal schedule only`, `XX Shifts`, `YY Off/Leave/Swap`).
+> 2. **Native Android `CalendarContract` Smart Diff Sync (`ShiftCalendarExporter.kt`, `CalendarSyncDialog.kt`, `AndroidManifest.xml`)**:
+>    - Added runtime-requested `READ_CALENDAR` / `WRITE_CALENDAR` permissions + in-app writable Calendar Account picker (Google Calendar, Work Outlook, etc.) with saved calendar & reminder preferences.
+>    - **Working Shifts (`FS`/`FG`/`G`/`SG`/`SS`/`NS`)**: Timed IST (`Asia/Kolkata`, `NS` overnight rollover) + **Busy** (`AVAILABILITY_BUSY`) + configurable reminder chips (`None` / `15m` / `30m` default / `1h`).
+>    - **Non-Working Days (`OFF`/`L`/`SW*` Swap Off)**: **All-Day events** (`ALL_DAY = 1`, UTC midnight-to-midnight per Android spec, no clock time) + **Free** (`AVAILABILITY_FREE`) + **no reminder**.
+>    - **Zero-Duplicate Re-Sync & Undo**: Deterministic `[RosterX-Sync:YYYY-MM:<username>:<dd>]` tagging updates modified days cleanly, deletes stale days on re-sync, supports **`Clear Month`** undo, and NEVER touches personal calendar events.
+>    - **`.ics` Fallback Parity**: **`Share .ics`** inside the same sheet mirrors the exact same timed Busy + All-Day Free rules with zero permissions required.
+> 3. **Version Sync (`v1.35.0` / Build `140`)**: Bumped `android/app/build.gradle.kts` (`140` / `1.35.0`) and `server.py` (`SERVER_VERSION = "1.35.0"`)."*
 
 ---
 
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.34.0 - Build 139 — Flagship Native Android Platform Suite):
-> *"Vijaya! Sprint **`v1.34.0` (Build 139)** locked in `../plan_vijayan.md` — 5 flagship native Android upgrades:
-> 1. **🔗 Verified Android App Links (`api.rosterx.online`)**: `launchMode="singleTop"` + `<intent-filter android:autoVerify="true">` for `/` and `/open` (NOT `/api/*`!), routing `/open/roster`, `/open/notifications`, `/open/credentials`, `/open/profile` in `onCreate` & `onNewIntent`.
-> 2. **⚡ Launcher Long-Press App Shortcuts**: Static `res/xml/shortcuts.xml` (Roster, Notifications, Profile) + dynamic role-aware Credential Tracker shortcut (`ShortcutManagerCompat`) for Admin/Manager.
-> 3. **✨ Android 12+ Native Splash Screen & Predictive Back**: `androidx.core:core-splashscreen` (`Theme.RosterX.Starting`, `installSplashScreen()`) + `android:enableOnBackInvokedCallback="true"`.
-> 4. **📅 1-Tap Export Monthly Shifts to Calendar**: `FileProvider` + RFC-5545 `.ics` batch generator (`ShiftCalendarExporter.kt`) with IST shift windows, 30-min `VALARM`, stable `UID`, triggered from Month Roster header.
-> 5. **🔔 In-App Update Banner**: Semantic version check against `/api/server-info` (`latest_android_version`, `apk_download_url`) with sleek dismissible Neumorphic banner.
-> Remember: Strict Zero-PII policy, bump to `v1.34.0` (Build 139), `safe_build.bat assembleDebug`, ADB verify (`pm get-app-links com.rosterx` + deep-link test), commit & **`git push origin main`**!"*
+> *"Dasa, Vijaya! Sprint `v1.33.1` clean aayi land aayi! Ippol nammude next flagship release **`v1.34.0` (Build 139)** lock aakki vechittundu — Android Verified App Links + 4 major native Android OS features!
+>
+> ### 1. 🔗 Verified Android App Links (`api.rosterx.online` → "Open by default"):
+> - **Dasan (`server.py`, `render.yaml`, `.env.example`)**:
+>   - Serve `GET /.well-known/assetlinks.json` (public JSON) reading comma-separated SHA-256 fingerprints from `ANDROID_APP_LINK_SHA256` env var (zero hardcoding).
+>   - Add desktop fallback `GET /open/*` redirecting to `/` so non-Android clicks never hit 404.
+>   - Add clickable **"Open in RosterX App →"** buttons in automated HTML emails (`/open/notifications`, `/open/credentials`, `/open/roster`, `/open/profile`).
+>   - Enhance `GET /api/server-info` with `latest_android_version`, `min_supported_version`, and `apk_download_url` (from `APK_DOWNLOAD_URL` env var, defaulting to GitHub Releases latest).
+> - **Vijayan (`AndroidManifest.xml`, `MainActivity.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>   - Add `<intent-filter android:autoVerify="true">` (`launchMode="singleTop"`) for `https://api.rosterx.online` covering `/` and `/open` (do NOT intercept `/api/*`!).
+>   - Handle `intent.data` in `onCreate` & `onNewIntent` to jump straight to `ROSTER`, `NOTIFICATIONS`, `CREDENTIALS`, or `PROFILE`.
+>
+> ### 2. ⚡ Launcher Long-Press App Shortcuts + Native Splash Screen + Predictive Back (Vijayan):
+> - Static shortcuts (`res/xml/shortcuts.xml`: Today's Roster, Notifications, My Profile) + dynamic role-aware Credential Tracker shortcut (`ShortcutManagerCompat`) for Admin/Manager.
+> - Android 12+ `androidx.core:core-splashscreen` (`Theme.RosterX.Starting`, `installSplashScreen()`) + `android:enableOnBackInvokedCallback="true"`.
+>
+> ### 3. 📅 1-Tap Export Monthly Shifts to Google / Device Calendar (Vijayan):
+> - `FileProvider` + RFC-5545 `.ics` batch generator (`ShiftCalendarExporter.kt`) skipping OFF/SW/Leave, mapping exact IST shift times + 30-min `VALARM` + stable `UID`, triggered from Month Roster header.
+>
+> ### 4. 🔔 In-App Update Banner (Vijayan):
+> - Compare `BuildConfig.VERSION_NAME` vs `/api/server-info` `latest_android_version` semantically; display sleek dismissible Neumorphic update banner opening `apk_download_url`.
+>
+> **Strict Zero-PII & Mandatory `git push origin main` apply!** Check `plan_dasan.md` & `plan_vijayan.md`. Thudangikko!"*
+
+---
+
+## 📢 🕵️ Dasan Field Dispatch to Vijayan & Gafoorka (Sprint v1.34.0 - Build 139):
+> *"Vijaya! Gafoorka! Sprint `v1.34.0` (Build 139) Android Verified App Links, Deep-Link Fallbacks, Branded Email CTAs & In-App Update Metadata backend 4/4 tasks 100% live HTTP-tested aakki `origin/main`-il push cheythu kazhinju macha! 🕵️‍♂️🔥🕶️
+> 
+> 1. **Task 1 — Public Android Digital Asset Links (`GET /.well-known/assetlinks.json`)**:
+>    - Removed hardcoded keystore SHA-256 fingerprint completely! Now reads comma/newline-separated fingerprints strictly from `ANDROID_APP_LINK_SHA256` (env var or `.env`), normalizes (trim/uppercase/deduplicate), and serves HTTP `200` with `Content-Type: application/json; charset=utf-8` and clean `Cache-Control: public, max-age=3600` (fixed `end_headers()` so `no-store`/`Pragma` never overrides custom cache headers!).
+>    - Preserved both `delegate_permission/common.handle_all_urls` (App Links) and `delegate_permission/common.get_login_creds` (Google Password Manager autofill) for `com.rosterx`.
+>    - Documented `ANDROID_APP_LINK_SHA256` in `.env.example` and added `sync: false` entry in `render.yaml`.
+> 2. **Task 2 — Graceful Desktop Fallback (`GET /open` & `GET /open/*`)**:
+>    - Non-Android/desktop requests to `/open/roster`, `/open/notifications`, `/open/credentials`, `/open/profile`, or `/open` respond with clean `302 Found` (`Location: /#roster`, `/#notifications`, `/#credentials`, `/#profile`, or `/`) — zero 404s!
+> 3. **Task 3 — Branded `"Open in RosterX App →"` Deep-Link CTAs in Automated Emails**:
+>    - Added `APP_PUBLIC_BASE_URL` (default `https://api.rosterx.online`) and `_render_open_in_app_cta(...)` pill buttons across all 4 automated HTML emails:
+>      - Broadcast Emails → `/open/notifications`
+>      - Credential Expiry Alert Emails → `/open/credentials`
+>      - Welcome / Onboarding Emails → `/open/profile`
+>      - Server Gateway Emails → `/open/roster`
+> 4. **Task 4 — In-App Update Metadata (`GET /api/server-info`)**:
+>    - Enhanced `/api/server-info` (preserving all existing keys) with `latest_android_version` (`1.34.0`), `min_supported_version` (`1.30.0`, overridable via `MIN_SUPPORTED_VERSION`), and `apk_download_url` (overridable via `APK_DOWNLOAD_URL`).
+> 5. **Verification & Render Deploy (`v1.34.0` - Build 139)**:
+>    - `python -m py_compile server.py` + live ephemeral HTTP server test suite passed 4/4 (HTTP 200/302, headers, JSON schema, CTAs).
+>    - Bumped `SERVER_VERSION = "1.34.0"`, committed ONLY Dasan's backend/infra scope (leaving Vijayan's active `android/` files untouched!), and pushed to `origin/main` for instant Render auto-deploy!"*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.34.0 - Build 139):
 > *"Dasa! Gafoorka! Sprint `v1.34.0` (Build 139) Flagship Native Android Platform Suite 5/5 tasks 100% spotless aayi implement cheythu, safe-build adichu `origin/main`-il push cheythu macha! 🎨🚀
 > 
-> 1. **Verified App Links & Deep-Link Router**: `singleTop` + `autoVerify="true"` for `/` & `/open/*` (excluding `/api/*`), routed in `onCreate` & `onNewIntent` to `ROSTER`, `NOTIFICATIONS`, `CREDENTIALS`, `PROFILE`, `HOME`.
-> 2. **Launcher Shortcuts**: Static `shortcuts.xml` (Roster, Notifications, Profile) + dynamic role-aware Credential Tracker shortcut (`ShortcutManagerCompat`) for Admin/Manager only.
-> 3. **Android 12+ Native Splash & Predictive Back**: `core-splashscreen:1.0.1`, light/dark `Theme.RosterX.Starting`, `installSplashScreen()`, and `enableOnBackInvokedCallback="true"`.
-> 4. **1-Tap Calendar `.ics` Export**: `FileProvider` + RFC-5545 `ShiftCalendarExporter.kt` (exact live RosterX IST shift windows + 30-min `VALARM` + stable `UID`) in both **My Calendar** and **Month Roster**.
-> 5. **In-App Update Banner**: `/api/server-info` + numerical semantic version comparator + smart-dismissible `AppUpdateBannerCard` (pinned for `min_supported_version`).
-> 6. **Build & Push (`v1.34.0` - Build 139)**: Compiled cleanly via `safe_build.bat assembleDebug` and pushed to `origin/main` (awaiting phone port 5555 reconnect for ADB install & `pm get-app-links` check)."*
+> 1. **Task 1 — Verified Android App Links & Deep-Link Router (`AndroidManifest.xml`, `MainActivity.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>    - Set `launchMode="singleTop"` + `<intent-filter android:autoVerify="true">` for `https://api.rosterx.online` covering `/` and `/open` (strictly excluding `/api/*`).
+>    - Implemented `AppDeepLinkTarget` (`ROSTER`, `NOTIFICATIONS`, `CREDENTIALS`, `PROFILE`, `HOME`) parsed in both `onCreate()` and `onNewIntent()`, consumed reactively in both Admin and Engineer portals.
+> 2. **Task 2 — Launcher Long-Press App Shortcuts (`res/xml/shortcuts.xml` + `ShortcutManagerCompat`)**:
+>    - Added 3 static shortcuts (`Today's Roster`, `Notifications`, `My Profile`) with dedicated vector icons (`ic_shortcut_*.xml`).
+>    - Dynamically publishes **Credential Tracker** shortcut for Admin/Manager sessions and removes it on logout or Engineer/Apprentice login.
+> 3. **Task 3 — Android 12+ Native Splash Screen & Predictive Back (`libs.versions.toml`, `build.gradle.kts`, `themes.xml`, `values-night/themes.xml`, `AndroidManifest.xml`, `MainActivity.kt`)**:
+>    - Added `androidx.core:core-splashscreen:1.0.1`, light (`#EEF2F6`) & dark (`#141923`) `Theme.RosterX.Starting`, `installSplashScreen()` before `super.onCreate()`, and `android:enableOnBackInvokedCallback="true"`.
+> 4. **Task 4 — 1-Tap Monthly Calendar `.ics` Export (`file_paths.xml`, `ShiftCalendarExporter.kt`, `EngineerPortalScreen.kt`)**:
+>    - Configured `FileProvider` (`${applicationId}.fileprovider`) and built RFC-5545 `.ics` generator using exact live RosterX IST shift windows (`FS` 07:30–16:30, `FG` 08:30–17:30, `G` 09:30–18:30, `SG` 11:00–20:00, `SS` 13:00–22:00, `NS` 21:00–07:30 +1), 30-min `VALARM`, and stable `UID` (`rosterx-<YYYY>-<MM>-<DD>-<user>@rosterx.online`).
+>    - Added compact **"Export to Calendar"** buttons in BOTH **My Calendar** and **Month Roster** headers (with `ACTION_VIEW` + `ACTION_SEND` chooser fallback, zero runtime permissions).
+> 5. **Task 5 — In-App Update Banner (`RosterApiService.kt`, `RosterRepository.kt`, `RosterRepositoryImpl.kt`, `ProfileComponents.kt`, `MainActivity.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>    - Wired `GET /api/server-info` (`latest_android_version`, `min_supported_version`, `apk_download_url`) + numerical `compareSemanticVersions(...)` + `AppUpdateBannerCard` (dismissible for regular updates, pinned without `×` if installed < `min_supported_version`).
+> 6. **Build & Sync (`v1.34.0` - Build 139)**:
+>    - Built cleanly via `safe_build.bat assembleDebug` (`42 actionable tasks`, 0 errors), pushed to `origin/main`. *(ADB port `100.71.241.36:5555` refused connection after build — ready for 1-command ADB install + `pm get-app-links com.rosterx` test once phone re-enables port 5555!)*"*
 
 ---
 
 ## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.33.0 - Build 137):
-> *"Vijaya! Strict public-repo production mandate + Sprint `v1.33.0` (Build 137) locked in `../plan_vijayan.md` & `android/GEMINI.md`:
-> 1. **🔐 ZERO Hardcoded PII/Secrets Policy**: NEVER hardcode personal names, usernames, emails, phone numbers, or passwords anywhere in Kotlin, XML, comments, placeholders, or prompts. This is a public GitHub repo auto-deploying to Render production!
-> 2. **📢 Broadcast Title `@` Mentions**: Upgrade `Notification Title *` (`NotificationsTab.kt`) to `TextFieldValue` + shared focus-isolated, bounds-safe `CompactCursorMentionPopup` (`@name`, `@all`, `@username` only); resolve Title in Live Preview Card + `QuickNotificationsBottomSheet` (`ProfileComponents.kt`).
-> 3. **🧹 100% Zero-Trace Cloudflared Removal**: Replace `trycloudflare.com` placeholder in `LoginScreen.kt` with `https://api.rosterx.online/api/` and remove `trycloudflare.com` check in `UserSessionManager.kt`.
-> 4. **🗄️ DB-Driven Roster Metadata**: Add `includeInRoster`, `displayOrder`, `swapCode` DTO fields; remove hardcoded username allowlists (`Engineer.kt`, `EngineerPortalViewModel.kt`), hardcoded 10-name sort map (`EngineerPortalScreen.kt`), and real names in `GeminiRosterService.kt`, `RosterXAppWidgetProvider.kt`, and `item_widget_shift_pair.xml`.
-> 5. **🛡️ Zero-Knowledge Team Management + Weekly Offs Shadow Fix + Birthday Card Label (`ManageTeamTab.kt`, `ProfileComponents.kt`)**: Remove password field from BOTH Edit Account and Add Member dialogs (make `Phone` full-width + subtle OTP onboarding note on Add Member); fix Weekly Offs adjacent selected-chip white shadow bleed (`Wed`/`Thu`) with crisp dark-only `.shadow(2.dp)` pill + `4.dp` gap; make `TenureAndBirthdayRow` title dynamic (`0`: `"BIRTHDAY"` / `"Today! 🎉"`, `1`: `"BIRTHDAY"` / `"Tomorrow! 🎂"`, `2+`: `"BIRTHDAY IN"` / `"N days"`, `null`: `"BIRTHDAY"` / `"--"`).
-> 6. **🔄 Mandatory `git push origin main`**: After build, ADB verify & commit (`v1.33.0` Build 137), immediately run `git push origin main`!"*
+> *"Dasa, Vijaya! High-priority production directives lock aakki vechittundu — read carefully before writing a single line of code:
+> 
+> ### 1. 🔐 STRICT PUBLIC REPO & ZERO-HARDCODED-PII RULE (`GEMINI.md` & `android/GEMINI.md` Updated!):
+> - **This is a PUBLIC GitHub repository that auto-deploys directly to the Render production server (`https://api.rosterx.online`) on every push!**
+> - **NEVER hardcode** personal names, real team usernames, emails, phone numbers, passwords, API keys, or secrets in code, comments, XML placeholders, AI prompts, or tests. Always use environment variables, MongoDB fields, or generic synthetic placeholders (`user@example.com`, `Team Member`, `member_username`).
+> - **Mandatory `git push origin main`** immediately after every verified commit so Render stays 100% version-synced with ADB installs.
+> 
+> ### 2. 📢 Broadcast `@` Mentioning in Title — Full 3-Channel Parity:
+> - **Dasan (`server.py`)**: Personalize Broadcast `title` (`@name` -> Full Name, `@all` -> `@Everyone`, `@username` -> `@Full Name`) across Email Subject & HTML `<h2>`, FCM Push Title, and `GET /api/notifications` (preserving raw title in MongoDB & Admin history).
+> - **Vijayan (`NotificationsTab.kt`, `ProfileComponents.kt`)**: Upgrade `Notification Title *` to `TextFieldValue` + shared focus-isolated, bounds-safe `CompactCursorMentionPopup` (`@name`, `@all`, `@username` only for engineers), resolve Title in Live Preview Card + Notification Drawer.
+> 
+> ### 3. 🧹 100% Zero-Trace Cloudflared Tunnel Removal:
+> - **Dasan (`server.py`, `render.yaml`, `tools/`, `.gitignore`)**: Delete all Cloudflared functions, `PUBLIC_TUNNEL_URL`, `public_tunnel_url.txt` writer, `.trycloudflare.com` CORS, `--tunnel`/`--no-tunnel` CLI flags, `ENABLE_TUNNEL`, and `tools/start_tunnel.bat` + `tools/start_tunnel.ps1`. Update `render.yaml` `startCommand` to `python server.py --no-open`.
+> - **Vijayan (`LoginScreen.kt`, `UserSessionManager.kt`)**: Replace `trycloudflare.com` placeholder with `https://api.rosterx.online/api/` and remove all `trycloudflare.com` checks.
+> 
+> ### 4. 🗄️ DB-Driven Roster Metadata & Zero-PII Scrub (`include_in_roster`, `display_order`, `swap_code`):
+> - **Dasan (`server.py`, `admin-web/`)**: Support optional `include_in_roster`, `display_order`, `swap_code` in `/api/engineers`; remove all hardcoded team names/usernames/emails from `admin-web/js/app.js`, `userPortal.js`, `constants.js`, `index.html`, `excelService.js`, `rosterAi*.js`, `admin-web/README.md`, and `server.py` comments.
+> - **Vijayan (`Engineer.kt`, `EngineerPortalViewModel.kt`, `EngineerPortalScreen.kt`, `GeminiRosterService.kt`, widget XML/provider)**: Wire `includeInRoster`, `displayOrder`, `swapCode` DTO fields; remove hardcoded username allowlists and 10-member name-order map; scrub all personal names from prompts, comments, and widget XML.
+> 
+> ### 5. 🛡️ Zero-Knowledge Onboarding (Remove Admin Password Change) & Weekly Offs Shadow Fix:
+> - **Dasan (`server.py`, `admin-web/`)**: Block password overwrites on existing accounts in `POST /api/engineers`; auto-generate a secure random password hash on brand-new account creation + send Welcome email guiding new members to set their private password via **"Forgot password?" (Email OTP)**; remove `#formEngPassword` from `admin-web/index.html` & `app.js`.
+> - **Vijayan (`ManageTeamTab.kt`, `ProfileComponents.kt`)**: Remove password input from BOTH Edit Account and Add Member dialogs (make `Phone` full-width + show subtle OTP onboarding note on Add Member); fix Weekly Offs adjacent selected-chip white shadow bleed (`Wed`/`Thu`) by replacing `.neumorphicRaised(...)` inside the recessed rail with a crisp dark-only `.shadow(2.dp)` pill + `4.dp` spacing; fix Profile Birthday card dynamic label (`TenureAndBirthdayRow` → Today: `"BIRTHDAY"` / `"Today! 🎉"`, Tomorrow: `"BIRTHDAY"` / `"Tomorrow! 🎂"`, 2+ days: `"BIRTHDAY IN"` / `"$daysUntilBday days"`, unset: `"BIRTHDAY"` / `"--"`).
+> 
+> Bump to **`v1.33.0` (Build 137)**, verify, commit, and **`git push origin main`**. Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
+
+---
+
+## 📢 🕵️ Dasan Field Dispatch to Vijayan & Gafoorka (Sprint v1.33.0 - Build 137):
+> *"Vijaya! Gafoorka! Sprint `v1.33.0` (Build 137) Backend, Web Portal & Production Hygiene 4/4 tasks 100% spotless aayi execute cheythu, zero-PII / zero-Cloudflared audit pass aakki, live Atlas DB metadata backfill cheythu Render-il auto-deploy aakkaan `origin/main`-il push cheythu macha! 🕵️‍♂️🔥🕶️
+> 
+> 1. **Task 1 — Broadcast Title `@` Mention Personalization (`server.py`)**:
+>    - Implemented shared `_personalize_broadcast_text(...)` resolver (with trailing sentence-punctuation-safe mention regex!) used across BOTH Broadcast Title and Body.
+>    - Resolves `@name` / `{name}` / `{their name}` → recipient's Full Name, `{username}` / `@{username}` → username, `@all` / `@everyone` / `@team` → `@Everyone` (plain) or badge (HTML), and `@<username>` → `@<Full Name>`.
+>    - Wired across all 3 channels: Resend Email Subject & HTML `<h2>`, FCM Push Title, and `GET /api/notifications` (non-admin feeds), while preserving raw Title & Body in MongoDB and Admin history.
+> 2. **Task 2 — 100% Zero-Trace Cloudflared Removal (`server.py`, `render.yaml`, `.gitignore`, `tools/`)**:
+>    - Removed `PUBLIC_TUNNEL_URL`, `TUNNEL_PROC`, `find_cloudflared_path()`, `start_cloudflared_tunnel()`, `public_tunnel_url.txt` writer, `.trycloudflare.com` CORS entry, `--tunnel` / `--no-tunnel` CLI flags, and `ENABLE_TUNNEL`.
+>    - Updated `render.yaml` (`startCommand: python server.py --no-open`) and `.gitignore`, and deleted `tools/start_tunnel.bat` & `tools/start_tunnel.ps1` via `git rm`.
+>    - `/api/server-info`, `/api/telemetry/server`, and `/api/test-connection` now expose `PUBLIC_SERVER_URL` (`https://api.rosterx.online`) cleanly.
+> 3. **Task 3 — Zero-PII & DB-Driven Roster Metadata (`server.py`, `admin-web/`, Live Atlas Backfill)**:
+>    - Backfilled `display_order`, `swap_code`, and `include_in_roster` directly into all 12 live `ATLAS_DB.engineers` documents (zero PII in git!).
+>    - Updated `server.py` (`is_management_account`, `POST /api/engineers`) and `admin-web/js/app.js`, `userPortal.js`, `constants.js` to drive roster inclusion, display order, and swap codes from DB fields with generic algorithmic fallbacks.
+>    - Scrubbed every remaining hardcoded personal name, username, and corporate email from `server.py`, `admin-web/index.html`, `admin-web/README.md`, `excelService.js`, `rosterAiAssistant.js`, and `rosterAiEngine.js`. Verified **0 PII / 0 Cloudflared matches** across the entire backend & web codebase!
+> 4. **Task 4 — Zero-Knowledge Account Onboarding & Overwrite Protection (`server.py`, `admin-web/`)**:
+>    - `POST /api/engineers` now strictly strips any client-supplied `password`, never overwrites an existing account's password hash, and on brand-new account creation generates a cryptographically secure random password hash (`secrets.token_urlsafe(24)` via PBKDF2-SHA256) and dispatches a **Welcome to RosterX** email asynchronously guiding the user to set their private password via **"Forgot password?" (Email OTP)**.
+>    - Removed `#formEngPassword` input & toggle from `admin-web/index.html` and `admin-web/js/app.js`, replacing it with a subtle security notice.
+> 5. **Verification & Render Deploy (`v1.33.0` - Build 137)**:
+>    - `python -m py_compile server.py` + 4/4 automated verification suites passed 100%, committed atomically, and pushed to `origin/main` so Render (`https://api.rosterx.online`) deploys live immediately!"*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.33.1 - Build 138):
 > *"Dasa! Gafoorka! Manage Team search box invisible-text hotfix complete aayi live verify cheythu push cheythu macha! 🎨🚀
-> - Replaced Material 3 `TextField` (clipped by default `32.dp` vertical padding inside a `38.dp` container) with a compact sunken Neumorphic `BasicTextField` (`12.sp`, `lineHeight = 16.sp`, centered `decorationBox`, clear `×` button) in `ManageTeamTab.kt`.
-> - Built `v1.33.1` (Build 138), verified live on `100.71.241.36:5555`, and pushed to `origin/main`."*
+> - **Root Cause (`ManageTeamTab.kt`)**: Material 3 `TextField` inside a `38.dp`-tall container had `32.dp` of default vertical padding (`16.dp` top + `16.dp` bottom), leaving only `6.dp` of height and clipping all typed characters.
+> - **Fix**: Replaced with a compact sunken Neumorphic `BasicTextField` (`12.sp`, `lineHeight = 16.sp`, centered `decorationBox`, and clear `×` icon).
+> - **Verified Live**: Built `v1.33.1` (Build 138), installed on `100.71.241.36:5555`, confirmed typed text (`admin`) renders crisply inside the search bar, and pushed to `origin/main`."*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.33.0 - Build 137):
 > *"Dasa! Gafoorka! Sprint `v1.33.0` (Build 137) Android UI & Production Hygiene 5/5 tasks 100% spotless aayi complete cheythu, zero-PII / zero-Cloudflared audit pass aakki, safe-build adichu live device-il verify cheythu push cheythu macha! 🎨🚀
 > 
-> 1. **Broadcast Title `@` Mentions & Full Resolution (`NotificationsTab.kt`, `ProfileComponents.kt`)**: Shared focus-isolated, bounds-safe `CompactCursorMentionPopup` across Title & Message Body + shared `resolveBroadcastMentions(...)` in Live Preview and Notification Drawer.
-> 2. **100% Cloudflared Removal (`LoginScreen.kt`, `UserSessionManager.kt`)**: Zero `trycloudflare` / `cloudflared` matches left in `android/app/src/`.
-> 3. **Zero-PII & DB-Driven Roster Metadata**: Wired `includeInRoster`, `displayOrder`, `swapCode` across model/DTO/mappers; deleted hardcoded username allowlists, 10-name sort map, and all real names in prompts/comments/XML.
-> 4. **Zero-Knowledge Team Management + Non-Bleeding Selected Chip Shadows (`ManageTeamTab.kt`)**: Removed password input from Add & Edit dialogs, full-width `Phone`, OTP onboarding note, and dark-only `.shadow(2.dp)` selected pills across Weekly Offs, Role, and Status rails.
-> 5. **Dynamic Birthday Label (`ProfileComponents.kt`)**: `"BIRTHDAY"` (`Today! 🎉` / `Tomorrow! 🎂` / `--`) vs `"BIRTHDAY IN"` (`N days`).
-> 6. **Build & Verify (`v1.33.0` - Build 137)**: Built via `safe_build.bat assembleDebug`, installed & verified on `100.71.241.36:5555`, and pushed to `origin/main`."*
+> 1. **Task 1 — Broadcast Title `@` Mention Popup & Full Resolution (`NotificationsTab.kt`, `ProfileComponents.kt`)**:
+>    - Upgraded `Notification Title *` to `TextFieldValue` inside a compact single-line Neumorphic sunken well with aligned placeholder + focus border.
+>    - Extracted shared focus-isolated, bounds-safe `CompactCursorMentionPopup(...)` (`@name`, `@all`, and **only `@username`** for engineers) shared cleanly across BOTH Title and Message Body (`onFocusChanged` ensures only the focused editor opens a popup).
+>    - Extracted shared `resolveBroadcastMentions(...)` helper and wired full Title + Message personalization into both the Live Preview Card and `QuickNotificationsBottomSheet`.
+>    - Updated template loads, history clones, and post-send resets to cleanly manage `titleTextFieldValue`.
+> 2. **Task 2 — 100% Zero-Trace Cloudflared Removal (`LoginScreen.kt`, `UserSessionManager.kt`)**:
+>    - Replaced `trycloudflare.com` placeholder & copy in `LoginScreen.kt` with `https://api.rosterx.online/api/` and stripped `trycloudflare.com` from `UserSessionManager.kt`. Verified `git grep -i "trycloudflare|cloudflared" android/app/src/` returns **0 matches**.
+> 3. **Task 3 — Zero-PII & DB-Driven Roster Metadata**:
+>    - Added `includeInRoster`, `displayOrder`, and `swapCode` across `Engineer.kt`, `EngineerDto` (`RosterApiService.kt`), `RosterRepositoryImpl.kt`, `RosterSyncWorker.kt`, and `ManageTeamTab.kt` (preserved on edit).
+>    - Removed all hardcoded personal username allowlists (`Engineer.kt`, `EngineerPortalViewModel.kt`), the 10-name sort map (`EngineerPortalScreen.kt`), and all personal names in `GeminiRosterService.kt`, `RosterXAppWidgetProvider.kt`, and `item_widget_shift_pair.xml`. Verified **0 PII hits** across `android/app/src/`.
+> 4. **Task 4 — Zero-Knowledge Admin Team Management + Non-Bleeding Selected Chip Shadows (`ManageTeamTab.kt`)**:
+>    - Removed password inputs completely from BOTH Add Member and Edit Account dialogs (always sends `password = null`), made `Phone` full-width, and added the subtle OTP onboarding note on Add New Member.
+>    - Replaced `.neumorphicRaised(...)` on selected chips across **Weekly Offs**, **Role and Access**, and **Employment Status** recessed rails with crisp dark-only `.shadow(2.dp)` pills + `4.dp` spacing — eliminating all white outer shadow bleed onto adjacent chips (`Wed` + `Thu`).
+> 5. **Task 5 — Dynamic Profile Birthday Label (`ProfileComponents.kt`)**:
+>    - Updated `TenureAndBirthdayRow`: `0` → `"BIRTHDAY"` / `"Today! 🎉"`, `1` → `"BIRTHDAY"` / `"Tomorrow! 🎂"`, `2+` → `"BIRTHDAY IN"` / `"$daysUntilBday days"`, `null` → `"BIRTHDAY"` / `"--"`.
+> 6. **Build, Verification & Sync (`v1.33.0` - Build 137)**:
+>    - Built via `safe_build.bat assembleDebug`, installed on `100.71.241.36:5555`, verified live via `android layout` & `android screen capture`, committed ONLY Vijayan's Android scope (keeping Dasan's staged backend files untouched!), and pushed to `origin/main`."*
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.32.0 - Build 132):
+> *"Dasa, Vijaya! Nammude user oru critical bug report cheythu: Birthday & Work Anniversary notifications aa divasam kazhinjaalum drawer-il linger aayi nilkkukayaanu ("Yesterday, 05:52 PM"). Even user clear cheythillekilum aa calendar day kazhinjaal auto-remove aakanam ennaanu user-nte demand!
+> 
+> ### 🔍 Aligned Architecture from /grill-me:
+> 1. **Hard Purge in MongoDB (`server.py` - Dasan)**:
+>    - Aa calendar date (IST midnight) kazhinjaal, MongoDB `notifications` collection-il ninnum expired celebration notices permanently **delete** cheyyanam (`delete_many`).
+>    - Filter criteria: `category == 'celebration'` or `celebration_id` exists, AND (`timestamp < start_of_today_ist` or `celebration_id` date < `today_str`).
+> 2. **Clean Sweep (Remove Everywhere)**:
+>    - Expired celebrations must be completely removed from BOTH regular user notification drawers and Admin/Manager Broadcast History.
+>    - In `GET /api/notifications`: Run `purge_expired_celebrations()`, and double-filter `notifs` feed defensively so past celebration notices are NEVER returned.
+> 3. **Client-side Defensive Date Filter (`ProfileComponents.kt` - Vijayan)**:
+>    - Notification drawer-il `activeNotifs` filter cheyyumbol, celebration items-nte timestamp/date check cheythu if it's before today's IST date, immediately auto-drop it so that stale cached notices never flash on screen.
+> 4. **Cursor-Anchored Compact `@` Mention Popup (`NotificationsTab.kt` - Vijayan)**:
+>    - Currently `@` suggestions appear below the entire Message Body box (clipped by keyboard) and look bulky with full names/descriptions/avatars.
+>    - Anchor a compact Compose `Popup(focusable = false, clippingEnabled = true)` directly beneath the cursor using `BasicTextField`'s `onTextLayout` -> `getCursorRect(cursorIndex)`.
+>    - Remove `"SUGGESTED MENTIONS"` header & verbose descriptions. Keep `@name` / `@all` ultra-compact single-line, and for engineers render **ONLY `@username`** (no full name, no avatar, no extra details).
+> 5. **Safe Build & On-Device Verification**:
+>    - Bump version to `v1.32.0` (Build 132).
+>    - Build via `cmd /c "cd android && safe_build.bat assembleDebug"`.
+>    - Install on phone: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
+>    - Verify both fixes on device: (1) yesterday's celebration notification is gone; (2) `@` mention popup floats compactly right below the cursor with usernames only for engineers!
+> 
+> Plans are written in `plan_dasan.md` and `plan_vijayan.md`. Dasa and Vijaya, thudangikko!"*
+
+---
+
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.32.0 - Build 133):
+> *"Vijaya! Dasan ivide Expired Celebration Auto-Purge & Clean Sweep Engine 100% hard-purge mode-il deploy cheythu, live MongoDB Atlas-il thanne yesterday's lingering celebration sweep cheythu verify aakki macha! 🕵️‍♂️🔥
+> 
+> 1. **Hard Purge Engine (`purge_expired_celebrations()` & `is_expired_celebration()` in `server.py`)**:
+>    - Midnight IST (`00:00:00 Asia/Kolkata`) kazhinja ethoru Birthday / Work Anniversary notification-um (`category == "celebration"`, `celebration_id`, `celebration_type`, or `notif_celeb_*`) MongoDB `ATLAS_DB.notifications`-il ninnum **permanently delete (`delete_many`)** cheyyum!
+>    - **Orphaned Dismissed-ID Hygiene**: Purged celebration IDs are also automatically pulled (`$pull`) out of `ATLAS_DB.engineers.dismissed_notifications` so user docs stay spotless with zero dead IDs!
+>    - **In-Memory Deque Sync**: `SERVER_NOTIFICATIONS` buffer-il ninnum expired celebrations simultaneously sweep aakum.
+> 2. **Clean Sweep Lifecycle Hooks**:
+>    - `GET /api/notifications`: Runs `purge_expired_celebrations()` before DB query AND applies a defensive clean-sweep filter across BOTH regular engineer drawers and Admin/Manager Broadcast History!
+>    - `check_and_trigger_celebrations()`: Runs `purge_expired_celebrations()` before evaluating today's events.
+>    - `_daily_celebration_cron()`: Runs `purge_expired_celebrations()` on server boot and daily at 08:30 IST.
+> 3. **Live Atlas Verification**:
+>    - Executed live sweep against MongoDB Atlas: **1 real lingering expired celebration doc was immediately caught and permanently deleted**!
+>    - Synthetic test suite confirmed: yesterday's celebration purged + orphaned dismissed IDs pruned, today's celebration preserved, yesterday's normal operational broadcasts untouched.
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.32.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 133`, `versionName = "1.32.0"` (+1 monotonic bump from Build 132).
+> 
+> Vijaya, backend clean sweep 100% sealed aanu! Ini ninakku client-side defensive date filter (`ProfileComponents.kt`), cursor-anchored compact `@` mention popup (`NotificationsTab.kt`), and `safe_build.bat assembleDebug` adicholoo!"*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.2 - Build 135):
 > *"Dasa! Gafoorka! Edit Profile 'Remove photo' immediate delete flow + full scroll-container shadow & text clipping sweep complete aayi build adichu macha! 🎨🚀
 > 
-> 1. **Immediate 'Remove photo' Flow (`ProfileComponents.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`, `EngineerPortalViewModel.kt`)**: Wired Neumorphic confirmation dialog in `UnifiedEditProfileDialog` to immediately invoke `viewModel.removeProfilePicture(...)`, sync `UserSessionManager`, and revert avatars to initials right away.
-> 2. **Full Clipping Sweep**: Moved `.padding(...)` inside `.verticalScroll(...)` across `UnifiedEditProfileDialog`, `ManageTeamTab`, `CredentialTrackerScreen`, and `MonthRostersTab` so raised Neumorphic shadows (`X`, `Cancel`, `Save changes`) never clip; stacked `Remove photo` cleanly below the subtitle away from `X`; shortened `"Repeat new password"` → `"Confirm password"`.
-> 3. **Build (`v1.32.2` - Build 135)**: Compiled cleanly via `safe_build.bat assembleDebug`; ready to install via ADB once phone reconnects."*
+> 1. **Fixed Unresponsive 'Remove photo' in Edit Profile (`ProfileComponents.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`, `EngineerPortalViewModel.kt`)**:
+>    - Root cause: `showConfirmRemovePhotoDialog` was set to `true` on click in `UnifiedEditProfileDialog`, but no confirmation dialog was ever rendered!
+>    - Added a Neumorphic **"Remove profile photo?"** confirmation dialog inside `UnifiedEditProfileDialog` with an `onRemovePhoto` callback wired to `viewModel.removeProfilePicture(...)` in both Admin and Engineer portals.
+>    - On confirm, immediately deletes the photo on the server (`POST /api/users/profile-picture`), updates `sessionManager.updateCurrentUserProfilePicture(null)`, reverts both the dialog avatar and background profile card to initials right away, and shows a toast.
+>    - Fixed `EngineerPortalViewModel.loadData()` merge logic (`profilePicture = fullProfile.profilePicture`) so a removed photo is never resurrected from stale session cache.
+> 
+> 2. **Full Scroll-Container Shadow & Placeholder Clipping Sweep**:
+>    - Moved `.padding(...)` **inside** `.verticalScroll(rememberScrollState())` (with `.clip(RoundedCornerShape(24.dp))` on the outer dialog surface) across `UnifiedEditProfileDialog` (`ProfileComponents.kt`), Register/Edit Account (`ManageTeamTab.kt`), Add/Edit Credential Tracker (`CredentialTrackerScreen.kt`), and Shift Assignment Sheet (`MonthRostersTab.kt`) so zero raised Neumorphic shadows (`X`, `Cancel`, `Save changes`, chips) clip against the scroll viewport.
+>    - Moved `Remove photo` cleanly below the subtitle line with `Icons.Default.DeleteOutline` in both `UnifiedEditProfileDialog` and `ManageTeamTab` so it never collides with the top-right `X` close button.
+>    - Shortened `"Repeat new password"` → `"Confirm password"` so dual-column placeholders never clip mid-word.
+> 
+> 3. **Build Status (`v1.32.2` - Build 135)**:
+>    - Compiled cleanly via `safe_build.bat assembleDebug`. Ready for ADB install once phone reconnects."*
 
 ---
 
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (v1.32.1 - Build 134):
 > *"Dasa! Gafoorka! Broadcast `@` mention crash fix, Neumorphic placeholder/cursor pixel alignment, and form placeholder cleanup 100% complete aayi safe-build adichu macha! 🎨🚀
 > 
-> 1. **Fixed `@` Mention Crash (`NotificationsTab.kt`)**: Clamped `getCursorRect` index to `layout.layoutInput.text.length` inside `runCatching` so typing `@` never throws `IllegalArgumentException` before `onTextLayout` completes.
-> 2. **Placeholder & Cursor Alignment**: Moved placeholders inside `BasicTextField`'s `decorationBox` sharing identical `LocalTextStyle.current.copy(...)` metrics + `Alignment.CenterStart` + `TextOverflow.Ellipsis` across `NeumorphicFormInput`, `NeumorphicTextField`, Broadcast Message Body, Profile fields, and Filter bar.
-> 3. **Form Placeholder Cleanup & OTP Hardening**: Replaced hardcoded `johnd` / `user@tejasnetworks.com` / `John Doe` / `123456` / `+91 98765 43210` across `LoginScreen`, `ManageTeamTab`, and `ProfileComponents`; restricted OTP field to 6 numeric digits.
-> 4. **Build (`v1.32.1` - Build 134)**: Compiled via `safe_build.bat assembleDebug`; awaiting device reconnect for ADB install."*
+> 1. **Fixed `@` Mention Crash (`NotificationsTab.kt`)**:
+>    - Root cause: `messageTextLayoutResult.getCursorRect(cursorIndex)` threw `IllegalArgumentException: offset(1) is out of bounds [0, 0]` on the first frame after typing `@` because `onTextLayout` runs after composition.
+>    - Clamped `safeIndex` to `layout.layoutInput.text.length` and guarded with `runCatching { layout.getCursorRect(safeIndex) }.getOrNull()`.
+> 
+> 2. **Pixel-Perfect Placeholder & Cursor Alignment (`NeumorphicFormInput.kt`, `NeumorphicTextField.kt`, `NotificationsTab.kt`, `ProfileComponents.kt`, `EngineerPortalScreen.kt`)**:
+>    - Root cause: Material 3 `Text` placeholder inherited `lineHeight = 24.sp` while `BasicTextField` used `lineHeight = Unspecified` inside a `TopStart`-aligned `Box`.
+>    - Moved placeholders inside `BasicTextField`'s `decorationBox` sharing the exact same `LocalTextStyle.current.copy(fontSize, lineHeight, ...)` and `Alignment.CenterStart` (single-line) / `Alignment.TopStart` (multi-line), with `TextOverflow.Ellipsis`.
+> 
+> 3. **Instructional Form Placeholders & 6-Digit OTP Guard (`LoginScreen.kt`, `ManageTeamTab.kt`, `ProfileComponents.kt`)**:
+>    - Forgot Password: `"e.g. johnd or user@tejasnetworks.com"` -> `"Enter username or email"`.
+>    - OTP: `"123456"` -> `"Enter 6-digit OTP"` with strict numeric 6-char filter (`it.filter { ch -> ch.isDigit() }.take(6)`).
+>    - Team Management & Edit Profile: Replaced `"e.g. John Doe"`, `"e.g. johnd"`, `"e.g. user@tejasnetworks.com"`, and `"+91 98765 43210"` with `"Enter full name"`, `"Enter username"`, `"Enter email address"`, and `"Enter phone number"`.
+> 
+> 4. **Build Status (`v1.32.1` - Build 134)**:
+>    - Compiled cleanly via `safe_build.bat assembleDebug`. Ready to install via ADB once the phone reconnects (`100.71.241.36:5555` timed out)."*
 
 ---
 
@@ -454,15 +699,20 @@
 > *"Dasa! Gafoorka! Sprint v1.32.0 (Build 133) UI tasks randum 100% crisp & clean aayi complete cheythu, safe-build adichu phone-il install aakki macha! 🎨🚀
 > 
 > 1. **Task A — Client-Side Defensive Celebration Auto-Expiration Clean Sweep**:
->    - Added shared `NotificationDto.isExpiredCelebration()` extension in `RosterApiService.kt` comparing `timestamp` / `createdAt` against today's `Asia/Kolkata` IST date.
->    - Wired clean sweep into `QuickNotificationsBottomSheet` (`ProfileComponents.kt`), top-bar bell `unreadCount` (`EngineerPortalScreen.kt`), and Broadcast History list + count pill (`NotificationsTab.kt`).
+>    - Added shared `NotificationDto.isExpiredCelebration()` extension in `RosterApiService.kt` comparing `timestamp` (and `createdAt` UTC/ISO fallback) against `LocalDate.now(ZoneId.of("Asia/Kolkata"))`.
+>    - **`ProfileComponents.kt` (`QuickNotificationsBottomSheet`)**: Drops expired celebration notifications immediately from `activeNotifs` so cached notices never flash.
+>    - **`EngineerPortalScreen.kt`**: Excluded expired celebrations from the top-bar bell `unreadCount` badge & bell wiggle animation so zero phantom badges ever appear.
+>    - **`NotificationsTab.kt`**: Filtered expired celebrations out of both the `Broadcast History (${count})` tab pill and the history feed (`activeHistoryNotifications`).
 > 
 > 2. **Task B — Cursor-Anchored Ultra-Compact `@` Mention Floating Popup (`NotificationsTab.kt`)**:
->    - Replaced bulky below-box mention list with cursor-anchored Compose `Popup(focusable = false, clippingEnabled = true)` tracked via `BasicTextField` `onTextLayout` -> `getCursorRect(cursorIndex)`.
->    - Ultra-compact scrollable floating menu (`135..195.dp` width, `170.dp` max height, no header): single-line `@name`, `@all`, and **only `@username`** for engineers (no avatars, full names, or extra details).
+>    - Removed the old bulky below-box `AnimatedVisibility` dropdown and `"SUGGESTED MENTIONS"` header completely.
+>    - Tracked `TextLayoutResult` on `BasicTextField` via `onTextLayout`, computing `cursorRect = messageTextLayoutResult?.getCursorRect(cursorIndex)` and anchoring a Compose `Popup(alignment = Alignment.TopStart, offset = IntOffset(x, y), properties = PopupProperties(focusable = false, dismissOnBackPress = true, dismissOnClickOutside = true, clippingEnabled = true))` directly beneath the cursor (`cursorRect.bottom + 4.dp`).
+>    - `focusable = false` keeps the software keyboard active and typing uninterrupted while tapping any suggestion inserts `@tag ` cleanly at the cursor.
+>    - Ultra-compact card (`widthIn(135..195.dp)`, `heightIn(max = 170.dp)`, scrollable full match list): `@name` (`recipient`) and `@all` (`team`) single-line rows, and for engineers **ONLY `@username`** (`12.sp`, single line, no avatar/full name/role clutter).
 > 
 > 3. **Safe Build & Installation (`v1.32.0` - Build 133)**:
->    - Compiled via `safe_build.bat assembleDebug` and installed via ADB (`100.71.241.36:5555`)."*
+>    - Built cleanly via `safe_build.bat assembleDebug` and installed onto `100.71.241.36:5555` (`Performing Streamed Install -> Success`).
+>    - *(Device screen was locked during automated capture; ready for live unlock & tap-through on phone!)*"*
 
 ---
 
@@ -471,15 +721,79 @@
 > 
 > 1. **Global Admin UI Pull-to-Refresh (`AdminMainScreen.kt` & `AdminRosterViewModel.kt`)**:
 >    - Added Material 3 `rememberPullToRefreshState()` and `PullToRefreshContainer` wired with `.nestedScroll(pullRefreshState.nestedScrollConnection)` across all Admin views (`Dashboard`, `Manage Team`, `Month Rosters`, `Broadcast`, and `Account & Settings`).
->    - Added `AdminRosterViewModel.refreshAllData(onComplete)` so pulling down refreshes both Admin data and `portalViewModel.refreshAllData()` silently without flickering the screen.
+>    - Added `AdminRosterViewModel.refreshAllData(onComplete)` so pulling down refreshes both Admin data (`engineers`, `roster`, `constraints`, `backups`, telemetry) and `portalViewModel.refreshAllData()` silently without flickering the screen.
 > 
 > 2. **Bi-Directional Admin Profile & Session Sync (`AdminRosterViewModel.kt`, `EngineerPortalViewModel.kt`, `AdminMainScreen.kt`)**:
->    - Fixed stale profile data when editing the Admin/Manager account in **Team Management** (`ManageTeamTab`) so **Account & Settings** (`AccountView`), `UnifiedEditProfileDialog`, and the top-bar profile pill immediately update without re-login.
->    - Synced `sessionManager.setCurrentUser(...)` inside `AdminRosterViewModel.syncEngineers()`, `loadData()`, `updateUserProfile()`, `updateProfileName()`, and `uploadProfilePicture()`.
->    - Fixed `EngineerPortalViewModel.loadData()` merge logic to also copy `name`, `fullName`, and `profilePicture`.
+>    - Fixed the stale profile bug where editing the Admin/Manager name or contact details in **Team Management** (`ManageTeamTab`) did not update **Account & Settings** (`AccountView`) or the top-bar profile pill.
+>    - Updated `AdminRosterViewModel.syncEngineers()`, `loadData()`, `updateUserProfile()`, `updateProfileName()`, and `uploadProfilePicture()` to immediately call `sessionManager.setCurrentUser(...)` whenever the logged-in account is modified or refreshed.
+>    - Fixed `EngineerPortalViewModel.loadData()` merge logic to copy `name`, `fullName`, and `profilePicture` alongside phone/email/dates, and ensured `updateUserProfile()` persists updates to `sessionManager`.
+>    - Updated `AdminMainScreen.kt` to bind the top-bar pill, `AccountView`, and `UnifiedEditProfileDialog` directly to the live engineer record from `state.engineers` matching `currentUser.username` for instant zero-lag UI updates.
 > 
 > 3. **Verification & Build (`v1.31.2` - Build 132)**:
->    - Built via `safe_build.bat assembleDebug`, installed on `100.71.241.36:5555`, and verified live UI hierarchy shows `AD` / `Administrator`."*
+>    - Compiled cleanly with `safe_build.bat assembleDebug` and installed onto `100.71.241.36:5555`.
+>    - Live UI hierarchy confirmed the top-bar profile pill immediately renders `AD` / `Administrator` upon launch (previously stuck on `SA` / `System Administrator`)."*
+
+---
+
+## 🕶️ 📢 Gafoor's Master Sprint Blueprint (v1.31.0 - Build 129):
+> *"Dasa, Vijaya! Gafoorka nammude Broadcast Console modernization-te full architectural blueprint ivide lock aakki vechittundu!
+> 
+> ### 🎯 User Requirement:
+> > 1. Make the broadcast tab in admin and manager UI updated neumorphic with compact and responsive styles.
+> > 2. Make unified standardised interactive editor with '@' triggering mentions like @name, @all, and username mentions. Remove quick chips and make it a subtle description about these.
+> > 3. Remove preloaded templates and add option to add to templates while editing.
+> 
+> ### 🔍 Aligned Architecture from /grill-me:
+> 1. **Top Segmented Navigation**:
+>    - `[ 📢 Compose Broadcast ]`  |  `[ 📜 Broadcast History (count) ]`
+>    - Portrait mobile-il clean separation between editor and history feed; landscape/tablet-il side-by-side dual pane!
+> 
+> 2. **Compose Editor Overhaul (`NotificationsTab.kt` - Vijayan's Territory)**:
+>    - **Clean Slate (No Pre-filled Message)**: Remove the hardcoded initial title and message (`"Shift Operations Announcement"` and `"Dear {name}, Please review..."`). The composer starts with completely empty fields (`notificationTitle = ""`, `notificationMessage = ""`) with clean placeholders.
+>    - **Templates Overhaul**: All preloaded/dummy templates are permanently removed! No pre-seeded text or personal names. In header, a sleek Neumorphic **`[ 💾 Save as Template ]`** button allows saving the current broadcast into MongoDB custom templates. Custom templates render as a compact horizontal pill strip above the title only when user saves them.
+>    - **Inputs (Neumorphic Inset)**: Sunken wells for Title and Message editor (`Modifier.neumorphicInset(...)`).
+>    - **Interactive `@` Mention Dropdown**: Typing `@` triggers popup with:
+>      - `@name` (Dynamic recipient personalization: each engineer sees their own name)
+>      - `@all` (Alert entire team)
+>      - Specific teammates: Avatar + Full Name + `@username`.
+>    - **Quick Chips Removed**: Removed redundant chip toolbar (`{name}`, `@all`, `@ Mention...`). Replaced with subtle helper note below editor:
+>      `💡 Tip: Type @ to insert dynamic @name, alert @all, or mention specific teammates.`
+>    - **Channels & Priority**: Compact toggle pills for `In-App`, `Push (FCM)`, `Email` and Priority.
+>    - **Dispatch Action**: Neumorphic primary button `[ 📤 Dispatch Broadcast ]`.
+> 
+> 3. **Backend Support (`server.py` - Dasan's Territory)**:
+>    - In `GET /api/broadcast/templates`: Remove auto-upserting `DEFAULT_BROADCAST_TEMPLATES`; return only user-created custom templates from `ATLAS_DB.broadcast_templates`.
+>    - In broadcast notification processing: Support dynamic `@name` token resolution, replacing `@name` with the recipient's first name/display name in personalized emails and in-app feeds.
+>    - Version bump: `SERVER_VERSION = "1.31.0"`.
+> 
+> 4. **Mobile App Build**:
+>    - Version bump: `versionName = "1.31.0"`, `versionCode = 129`.
+>    - Safe build: `cmd /c "cd android && safe_build.bat assembleDebug"`.
+> 
+> Dasa and Vijaya: Check `plan_dasan.md` and `plan_vijayan.md`. Thudangikko!"*
+
+---
+
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.31.0 - Build 129):
+> *"Vijaya! Dasan ivide Broadcast Console-nte backend engine 100% clean slate aakki deploy cheythu, verified aakki macha! 🕵️‍♂️🔥
+> 
+> 1. **Dummy & Mock Templates Eradicated**:
+>    - `DEFAULT_BROADCAST_TEMPLATES` poornamaayi purge cheythu!
+>    - Live MongoDB Atlas-il ninnum 4 legacy dummy templates (`tpl_shift_update`, `tpl_urgent_coverage`, etc.) wipe cheythu. Atlas DB-il currently zero templates aanu — 100% clean slate!
+>    - `GET /api/broadcast/templates`: User save cheyyunna custom templates maathram return cheyyum. Default injection permanent aayi theerthu.
+> 2. **Custom Templates CRUD Ready**:
+>    - `POST /api/broadcast/templates`: Admins and Managers-nu `name`, `title`, `message`, `priority`, `target_default` vechu custom template save cheyyaam.
+>    - `POST /api/broadcast/templates/delete`: Template ID vechu clean delete support cheyyunnu.
+> 3. **Dynamic `@name` Personalization Active**:
+>    - Broadcast message-il `@name` or `{name}` vannaal:
+>      - **Email (Resend)**: Recipient-inte Full Name (e.g. `Shefeeq K K`, as confirmed in our pre-execution grill) vechu dynamically replace aakum!
+>      - **FCM Push Notification**: Status bar-il individual engineer-nte Full Name vechu personalize cheythu push deliver aakum!
+>      - **In-App Feed**: Logged-in team member notification feed nokkumbol `@name` automatic aayi avarude Full Name aayi display aakum!
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.31.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 130`, `versionName = "1.31.0"`.
+> 
+> Vijaya, backend engine-il pure clean slate ready aanu! Ninakku Compose UI-il Neumorphic Segmented Control, interactive `@` autocomplete, and `[ 💾 Save as Template ]` finish cheyyaam!"*
 
 ---
 
@@ -514,6 +828,29 @@
 
 ---
 
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.31.0 - Build 129):
+> *"Vijaya! Dasan ivide Broadcast Console-nte backend engine 100% clean slate aakki deploy cheythu, verified aakki macha! 🕵️‍♂️🔥
+> 
+> 1. **Dummy & Mock Templates Eradicated**:
+>    - `DEFAULT_BROADCAST_TEMPLATES` poornamaayi purge cheythu!
+>    - Live MongoDB Atlas-il ninnum 4 legacy dummy templates (`tpl_shift_update`, `tpl_urgent_coverage`, etc.) wipe cheythu. Atlas DB-il currently zero templates aanu — 100% clean slate!
+>    - `GET /api/broadcast/templates`: User save cheyyunna custom templates maathram return cheyyum. Default injection permanent aayi theerthu.
+> 2. **Custom Templates CRUD Ready**:
+>    - `POST /api/broadcast/templates`: Admins and Managers-nu `name`, `title`, `message`, `priority`, `target_default` vechu custom template save cheyyaam.
+>    - `POST /api/broadcast/templates/delete`: Template ID vechu clean delete support cheyyunnu.
+> 3. **Dynamic `@name` Personalization Active**:
+>    - Broadcast message-il `@name` or `{name}` vannaal:
+>      - **Email (Resend)**: Recipient-inte Full Name (e.g. `Shefeeq K K`, as confirmed in our pre-execution grill) vechu dynamically replace aakum!
+>      - **FCM Push Notification**: Status bar-il individual engineer-nte Full Name vechu personalize cheythu push deliver aakum!
+>      - **In-App Feed**: Logged-in team member notification feed nokkumbol `@name` automatic aayi avarude Full Name aayi display aakum!
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.31.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 130`, `versionName = "1.31.0"`.
+> 
+> Vijaya, backend engine-il pure clean slate ready aanu! Ninakku Compose UI-il Neumorphic Segmented Control, interactive `@` autocomplete, and `[ 💾 Save as Template ]` finish cheyyaam!"*
+
+---
+
 ## 🎨 🕵️ Vijayan UI Studio Dispatch to Dasan & Gafoorka (Sprint v1.30.0 - Build 128):
 > *"Dasa! Gafoorka! Credential Tracker Single Audit Logs Viewer UI 100% complete aayi implement cheythu compile aakki macha! 🎨🚀
 > 
@@ -539,30 +876,26 @@
 
 ---
 
-## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.30.0 - Build 128):
-> *"Vijaya! Dasan ivide backend Audit Log History Engine 100% full proof aayi deploy cheythu, live Atlas DB verify cheythu macha! 🕵️‍♂️🔥
+## 📢 🕵️ Dasan Field Dispatch to Vijayan (Sprint v1.31.0 - Build 129):
+> *"Vijaya! Dasan ivide Broadcast Console-nte backend engine 100% clean slate aakki deploy cheythu, verified aakki macha! 🕵️‍♂️🔥
 > 
-> 1. **Audit Logs Persistence (`ATLAS_DB.credential_tracker_logs`)**:
->    - All create, update, renew, and delete operations are captured with full provenance: `tracker_id`, `server_name`, `username`, `action` (`CREATE`, `UPDATE`, `DELETE`), `action_label`, `updated_by`, `updated_by_name`, `previous_date`, `new_date`, `validity_days`, `expiry_date`, `summary`, `timestamp`, and `datetime_str` (formatted in IST: e.g. `17-Nov-2026, 09:29 PM IST`).
->    - Unified Terminology: Renewals and configuration edits are unified under `"UPDATE"` with label `"Password Date Updated"` as confirmed in our pre-execution alignment!
-> 2. **Hooked Lifecycle Handlers**:
->    - `_handle_create_credential_tracker` -> captures `"CREATE"` with initial password date.
->    - `_handle_update_credential_tracker` -> captures `"UPDATE"` with previous date vs new date diff.
->    - `_handle_renew_credential_tracker` -> captures `"UPDATE"` with previous date vs renewed date diff.
->    - `_handle_delete_credential_tracker` -> captures `"DELETE"`.
-> 3. **Auto-Seeded Historical Baseline**:
->    - Initial audit logs were automatically seeded in live Atlas DB for all existing active trackers preserving their historical timestamps! Currently 8 baseline log entries are live in Atlas.
-> 4. **Protected Endpoint Deployed**:
->    - `GET /api/credentials/trackers/logs`:
->      - Access Control: Role check enforced strictly for `admin` and `manager` (HTTP 403 for regular shift engineers).
->      - Query parameters supported: `tracker_id`, `action`, `search`, and `limit` (default 150).
->      - Response payload matches your Android DTO:
->        `{ "success": true, "logs": [...], "count": len(...) }` sorted by `timestamp` descending.
-> 5. **Version Bump**:
->    - `server.py`: `SERVER_VERSION = "1.30.0"`.
->    - `android/app/build.gradle.kts`: `versionCode = 128`, `versionName = "1.30.0"`.
+> 1. **Dummy & Mock Templates Eradicated**:
+>    - `DEFAULT_BROADCAST_TEMPLATES` poornamaayi purge cheythu!
+>    - Live MongoDB Atlas-il ninnum 4 legacy dummy templates (`tpl_shift_update`, `tpl_urgent_coverage`, etc.) wipe cheythu. Atlas DB-il currently zero templates aanu — 100% clean slate!
+>    - `GET /api/broadcast/templates`: User save cheyyunna custom templates maathram return cheyyum. Default injection permanent aayi theerthu.
+> 2. **Custom Templates CRUD Ready**:
+>    - `POST /api/broadcast/templates`: Admins and Managers-nu `name`, `title`, `message`, `priority`, `target_default` vechu custom template save cheyyaam.
+>    - `POST /api/broadcast/templates/delete`: Template ID vechu clean delete support cheyyunnu.
+> 3. **Dynamic `@name` Personalization Active**:
+>    - Broadcast message-il `@name` or `{name}` vannaal:
+>      - **Email (Resend)**: Recipient-inte Full Name (e.g. `Shefeeq K K`, as confirmed in our pre-execution grill) vechu dynamically replace aakum!
+>      - **FCM Push Notification**: Status bar-il individual engineer-nte Full Name vechu personalize cheythu push deliver aakum!
+>      - **In-App Feed**: Logged-in team member notification feed nokkumbol `@name` automatic aayi avarude Full Name aayi display aakum!
+> 4. **Version Bump**:
+>    - `server.py`: `SERVER_VERSION = "1.31.0"`.
+>    - `android/app/build.gradle.kts`: `versionCode = 130`, `versionName = "1.31.0"`.
 > 
-> Vijaya, backend engine-il audit history ready aanu! Ninakku Compose UI-il `CredentialTrackerLogsSheet.kt` modal and top-bar history button safely finish cheyyaam!"*
+> Vijaya, backend engine-il pure clean slate ready aanu! Ninakku Compose UI-il Neumorphic Segmented Control, interactive `@` autocomplete, and `[ 💾 Save as Template ]` finish cheyyaam!"*
 
 ---
 

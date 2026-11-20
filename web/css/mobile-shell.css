@@ -428,13 +428,18 @@ html.dark dialog.rx-modal::backdrop {
   }
 
   .rx-nav-tab.is-active .rx-nav-tab-bubble {
-    width: 46px;
-    height: 46px;
-    margin-top: -18px;
-    background: var(--nm-accent-gradient);
-    color: #ffffff;
-    box-shadow: 0 6px 16px var(--nm-accent-glow), 0 2px 6px rgba(15, 23, 42, 0.18);
-    font-size: 21px;
+    width: 44px;
+    height: 44px;
+    margin-top: -14px;
+    background: var(--nm-accent, #174EAC) !important;
+    background-image: linear-gradient(135deg, #1E6BE6, var(--nm-accent, #174EAC)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 18px var(--nm-accent-glow, rgba(23, 78, 172, 0.45)), 0 2px 6px rgba(15, 23, 42, 0.22) !important;
+    font-size: 20px;
+  }
+
+  .rx-nav-tab.is-active .rx-nav-tab-bubble i {
+    color: #ffffff !important;
   }
 
   .rx-nav-tab.is-active .rx-nav-tab-label {
@@ -542,13 +547,19 @@ html.dark dialog.rx-modal::backdrop {
   .rx-rail-tab.is-active .rx-rail-bubble {
     width: 36px;
     height: 36px;
-    background: var(--nm-accent-gradient);
-    box-shadow: 0 4px 12px var(--nm-accent-glow), 0 2px 5px rgba(15, 23, 42, 0.18);
-    color: #ffffff;
+    background: var(--nm-accent, #174EAC) !important;
+    background-image: linear-gradient(135deg, #1E6BE6, var(--nm-accent, #174EAC)) !important;
+    box-shadow: 0 4px 12px var(--nm-accent-glow, rgba(23, 78, 172, 0.45)), 0 2px 5px rgba(15, 23, 42, 0.18) !important;
+    color: #ffffff !important;
+  }
+
+  .rx-rail-tab.is-active .rx-rail-bubble i {
+    color: #ffffff !important;
   }
 
   .rx-rail-tab.is-active .rx-rail-label {
     font-weight: 800;
+    color: var(--nm-accent);
   }
 
   main.rx-main-shell {
@@ -624,12 +635,18 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
 
 .rx-roster-table thead {
   position: sticky;
+  top: 0;
   inset-block-start: 0;
-  z-index: 5;
+  z-index: 10;
 }
 
 .rx-roster-table thead th {
-  background: var(--nm-surface-contrast, #E2E8F0);
+  position: sticky;
+  top: 0;
+  inset-block-start: 0;
+  z-index: 10;
+  background-color: var(--nm-surface-contrast, #E2E8F0) !important;
+  background-clip: padding-box !important;
   color: var(--nm-text);
   padding: 6px 4px;
   text-align: center;
@@ -638,22 +655,30 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
   border-right: 1px solid var(--nm-border);
 }
 
-.rx-roster-table thead th:first-child {
-  position: sticky;
-  inset-inline-start: 0;
-  z-index: 7;
-  background: var(--nm-surface-contrast, #E2E8F0);
+.rx-roster-table thead th:first-child,
+.rx-roster-table .rx-sticky-corner {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  inset-block-start: 0 !important;
+  inset-inline-start: 0 !important;
+  z-index: 35 !important;
+  background-color: var(--nm-surface-contrast, #E2E8F0) !important;
+  background-clip: padding-box !important;
   text-align: left;
   padding-left: 10px;
   min-width: 140px;
-  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.08);
+  box-shadow: 2px 2px 6px rgba(15, 23, 42, 0.12);
 }
 
-.rx-roster-table tbody th {
-  position: sticky;
-  inset-inline-start: 0;
-  z-index: 3;
-  background: var(--nm-surface, #EEF2F6);
+.rx-roster-table tbody th,
+.rx-roster-table .rx-sticky-col {
+  position: sticky !important;
+  left: 0 !important;
+  inset-inline-start: 0 !important;
+  z-index: 15 !important;
+  background-color: var(--nm-surface, #EEF2F6) !important;
+  background-clip: padding-box !important;
   color: var(--nm-text);
   text-align: left;
   padding: 6px 10px;
@@ -662,17 +687,33 @@ body.rx-fullscreen-roster .rx-roster-table-wrap {
   min-width: 140px;
   border-bottom: 1px solid var(--nm-border);
   border-right: 1px solid var(--nm-border);
-  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.08);
 }
 
-.rx-roster-table tbody tr.rx-coverage-row th {
-  background: var(--nm-surface-contrast, #E2E8F0) !important;
-  z-index: 4;
+.rx-roster-table tbody tr.rx-coverage-row th,
+.rx-roster-table .rx-sticky-coverage {
+  position: sticky !important;
+  left: 0 !important;
+  inset-inline-start: 0 !important;
+  z-index: 16 !important;
+  background-color: var(--nm-surface-contrast, #E2E8F0) !important;
+  background-clip: padding-box !important;
+  color: var(--nm-accent, #174EAC) !important;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.10);
 }
 
 html.dark .rx-roster-table thead th:first-child,
-html.dark .rx-roster-table tbody th {
-  box-shadow: 2px 0 8px rgba(2, 6, 23, 0.35);
+html.dark .rx-roster-table .rx-sticky-corner,
+html.dark .rx-roster-table tbody th,
+html.dark .rx-roster-table .rx-sticky-col {
+  background-color: #1E293B !important;
+  box-shadow: 2px 0 8px rgba(2, 6, 23, 0.45);
+}
+
+html.dark .rx-roster-table thead th,
+html.dark .rx-roster-table tbody tr.rx-coverage-row th,
+html.dark .rx-roster-table .rx-sticky-coverage {
+  background-color: #334155 !important;
 }
 
 .rx-roster-table tbody td {
@@ -766,21 +807,21 @@ html.dark .rx-roster-table tbody th {
 .rx-today-fab {
   position: fixed;
   right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
   z-index: 43;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 12px 18px;
   border: 0;
-  border-radius: 16px;
-  background: var(--nm-accent);
-  color: #ffffff;
+  border-radius: 9999px;
+  background: var(--nm-accent, #174EAC) !important;
+  color: #ffffff !important;
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 8px 20px var(--nm-accent-glow), 0 4px 12px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 24px var(--nm-accent-glow, rgba(23, 78, 172, 0.45)), 0 4px 12px rgba(15, 23, 42, 0.22);
   transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
 }
 
@@ -869,15 +910,43 @@ html.dark .rx-roster-table tbody th {
 }
 
 /* ==========================================================================
-   11. AI Assistant Dialog (1:1 Android Parity + Bottom Sheet)
+   11. Ultra-Modern Glassmorphic AI Assistant Dialog (Centered Floating)
    ========================================================================== */
 #rxAiChatDialog {
-  width: min(94vw, 560px);
-  height: min(85dvh, 760px);
-  max-height: min(85dvh, 760px);
-  border-radius: 26px;
+  margin: auto !important;
+  width: min(92vw, 540px) !important;
+  max-width: 540px !important;
+  height: min(82dvh, 720px) !important;
+  max-height: min(82dvh, 720px) !important;
+  border-radius: 28px !important;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.28) !important;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.93);
+  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1), transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark #rxAiChatDialog {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(20, 25, 35, 0.86) !important;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.65) !important;
+}
+
+#rxAiChatDialog.is-visible {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+#rxAiChatDialog.is-closing {
+  opacity: 0 !important;
+  transform: scale(0.93) !important;
+  transition: opacity 180ms ease-in, transform 180ms ease-in !important;
 }
 
 #rxAiChatDialog .rx-modal-scroll {
@@ -891,28 +960,17 @@ html.dark .rx-roster-table tbody th {
 }
 
 .rx-sheet-drag-handle {
-  width: 44px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--nm-border);
-  margin: 0 auto 4px auto;
-  flex-shrink: 0;
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 640px) {
   #rxAiChatDialog {
-    width: 100%;
-    max-width: 100%;
-    height: 85dvh;
-    max-height: 85dvh;
-    margin: auto auto 0 auto;
-    border-radius: 28px 28px 0 0;
-    border-bottom: 0;
-  }
-
-  .rx-sheet-drag-handle {
-    display: block;
+    width: calc(100vw - 28px) !important;
+    height: min(82dvh, 680px) !important;
+    max-height: min(82dvh, 680px) !important;
+    margin: auto !important;
+    border-radius: 26px !important;
+    bottom: auto !important;
   }
 }
 

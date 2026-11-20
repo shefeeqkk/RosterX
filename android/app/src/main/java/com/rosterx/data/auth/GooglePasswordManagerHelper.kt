@@ -55,6 +55,13 @@ class GooglePasswordManagerHelper @Inject constructor(
         Log.d(TAG, "Google Password Manager: Recorded credential cache for '${username.trim().lowercase()}'.")
     }
 
+    fun invalidateSavedCredentials(username: String) {
+        if (username.isBlank()) return
+        val key = "last_saved_hash_${username.trim().lowercase()}"
+        prefs.edit().remove(key).apply()
+        Log.d(TAG, "Google Password Manager: Invalidated credential cache for '${username.trim().lowercase()}'.")
+    }
+
     /**
      * Triggers the native Google Password Manager bottom sheet prompt
      * asking the user: "Save password to Google Password Manager?"

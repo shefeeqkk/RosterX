@@ -17,7 +17,7 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.3.0';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.3.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
 import { sortEngineersByWeekOffs } from './constants.js?v=2.0.5';
@@ -28,9 +28,9 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js?v=2.3.0';
+} from './pwaHelper.js?v=2.3.1';
 
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -302,6 +302,7 @@ class RosterXUserPortal {
       const n = getIstNow();
       this.selectedDate = new Date(n.getFullYear(), n.getMonth(), n.getDate());
       this.renderTeamShifts();
+      this.syncAiFabVisibility();
     });
 
     // Progressive Back-Stack Handling (1:1 Android parity)
@@ -655,7 +656,8 @@ class RosterXUserPortal {
     if (todayFab) {
       const today = getIstNow();
       const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const diff = Math.round((this.selectedDate - todayMid) / 86400000);
+      const selectedMid = new Date(this.selectedDate.getFullYear(), this.selectedDate.getMonth(), this.selectedDate.getDate());
+      const diff = Math.round((selectedMid - todayMid) / 86400000);
       const showToday = this.activeTab === 'team_shifts' && !this.activeSubView && diff !== 0;
       todayFab.classList.toggle('rx-hidden', !showToday);
     }
@@ -1191,7 +1193,6 @@ class RosterXUserPortal {
         <div class="rx-card-subtle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;">
           <button type="button" class="rx-icon-pill" id="btnPrevDay" aria-label="Previous Day"><i class="ph ph-arrow-left"></i></button>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;">
-            ${dayTag ? `<span style="padding:2px 8px;border-radius:8px;background:var(--nm-accent);color:#fff;font-size:10px;font-weight:900;">${dayTag}</span>` : ''}
             <strong style="font-size:14px;">${escapeHtml(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' }))}</strong>
           </div>
           <button type="button" class="rx-icon-pill" id="btnNextDay" aria-label="Next Day"><i class="ph ph-arrow-right"></i></button>
@@ -1426,9 +1427,9 @@ class RosterXUserPortal {
             <strong style="font-size:14px;font-weight:900;color:var(--nm-accent);">${escapeHtml(monthLabel)}</strong>
             <button type="button" class="rx-icon-pill" id="btnRosterNext" aria-label="Next Month" style="width:32px;height:32px;min-inline-size:32px;min-block-size:32px;"><i class="ph ph-arrow-right"></i></button>
           </div>
-          <div class="rx-well" style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;width:165px;">
+          <div class="rx-well" style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;width:175px;">
             <i class="ph ph-magnifying-glass" style="color:var(--nm-accent);font-size:14px;"></i>
-            <input type="search" id="rxRosterSearch" value="${escapeHtml(this.rosterSearchQuery)}" placeholder="Filter..." style="flex:1;border:0;background:transparent;color:var(--nm-text);font-size:12px;outline:none;min-inline-size:0;" />
+            <input type="text" id="rxRosterSearch" value="${escapeHtml(this.rosterSearchQuery)}" placeholder="Filter..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" style="flex:1;border:0;background:transparent;color:var(--nm-text);font-size:13px;outline:none;min-inline-size:0;" />
           </div>
         </div>
 
@@ -1443,7 +1444,7 @@ class RosterXUserPortal {
           <table class="rx-roster-table">
             <thead>
               <tr>
-                <th>ENGINEER</th>
+                <th class="rx-sticky-corner">ENGINEER</th>
                 ${dayHeaders.map(({ d, dow }) => `<th><div>${d}</div><div style="font-size:9px;color:var(--nm-text-muted);">${dow}</div></th>`).join('')}
                 <th style="color:#059669;min-width:38px;">WRK</th>
                 <th style="color:#4F46E5;min-width:34px;">NS</th>
@@ -1473,7 +1474,7 @@ class RosterXUserPortal {
                 }).join('');
                 return `
                   <tr data-eng-search="${escapeHtml(searchKey)}" style="${hiddenStyle}">
-                    <th>${escapeHtml(name)}</th>
+                    <th class="rx-sticky-col">${escapeHtml(name)}</th>
                     ${cells}
                     <td style="background:rgba(5,150,105,0.10);color:#059669;font-weight:900;">${wrkCount}</td>
                     <td style="background:rgba(79,70,229,0.10);color:#4F46E5;font-weight:900;">${nsCount}</td>
@@ -1482,14 +1483,14 @@ class RosterXUserPortal {
                 `;
               }).join('')}
               <tr class="rx-coverage-row">
-                <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">DAY COVERAGE (≥3)</th>
+                <th class="rx-sticky-col rx-sticky-coverage" style="font-size:10px;">DAY COVERAGE (≥3)</th>
                 ${dayHeaders.map(({ d }) => `<td style="background:rgba(2,132,199,0.12);color:${hasAnyShifts && dayCov[d] < 3 ? '#DC2626' : '#0284C7'};">${dayCov[d]}</td>`).join('')}
                 <td style="background:var(--nm-surface-contrast);"></td>
                 <td style="background:var(--nm-surface-contrast);"></td>
                 <td style="background:var(--nm-surface-contrast);"></td>
               </tr>
               <tr class="rx-coverage-row">
-                <th style="background:var(--nm-surface-contrast);color:var(--nm-accent);font-size:10px;">NIGHT COVERAGE (1)</th>
+                <th class="rx-sticky-col rx-sticky-coverage" style="font-size:10px;">NIGHT COVERAGE (1)</th>
                 ${dayHeaders.map(({ d }) => `<td style="background:rgba(99,102,241,0.12);color:${hasAnyShifts && nightCov[d] !== 1 ? '#DC2626' : '#4F46E5'};">${nightCov[d]}</td>`).join('')}
                 <td style="background:var(--nm-surface-contrast);"></td>
                 <td style="background:var(--nm-surface-contrast);"></td>
@@ -1511,13 +1512,20 @@ class RosterXUserPortal {
     });
     const searchEl = panel.querySelector('#rxRosterSearch');
     if (searchEl) {
+      let filterRaf = null;
       searchEl.addEventListener('input', (e) => {
         this.rosterSearchQuery = e.target.value;
-        const qNorm = this.rosterSearchQuery.trim().toLowerCase();
-        panel.querySelectorAll('tbody tr[data-eng-search]').forEach((row) => {
-          const hay = row.getAttribute('data-eng-search') || '';
-          row.style.display = (!qNorm || hay.includes(qNorm)) ? '' : 'none';
+        if (filterRaf) cancelAnimationFrame(filterRaf);
+        filterRaf = requestAnimationFrame(() => {
+          const qNorm = (this.rosterSearchQuery || '').trim().toLowerCase();
+          panel.querySelectorAll('tbody tr[data-eng-search]').forEach((row) => {
+            const hay = row.getAttribute('data-eng-search') || '';
+            row.style.display = (!qNorm || hay.includes(qNorm)) ? '' : 'none';
+          });
         });
+      });
+      searchEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') e.preventDefault();
       });
     }
   }
@@ -1979,15 +1987,45 @@ class RosterXUserPortal {
                 <input type="tel" name="phone" value="${escapeHtml(eng?.phone || '')}" placeholder="+1 555-0100" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
               </div>
               <div>
+                <div class="rx-field-label">EMAIL</div>
+                <input type="email" name="email" value="${escapeHtml(eng?.email || '')}" placeholder="user@example.com" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                <div class="rx-field-label">COMPANY JOIN DATE</div>
+                <input type="date" name="join_date" value="${escapeHtml(eng?.joining_date || eng?.join_date || '')}" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+              </div>
+              <div>
                 <div class="rx-field-label">BIRTHDAY</div>
                 <input type="date" name="birthday" value="${escapeHtml(eng?.birthday || '')}" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
               </div>
             </div>
-            <div>
-              <div class="rx-field-label">EMAIL</div>
-              <input type="email" name="email" value="${escapeHtml(eng?.email || '')}" placeholder="user@example.com" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+
+            <div style="margin-top:4px;border-top:1px solid var(--nm-border);padding-top:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span class="rx-field-label" style="margin:0;color:var(--nm-accent);font-size:11px;font-weight:800;">SECURITY &amp; PASSWORD</span>
+                <span style="font-size:10.5px;color:var(--nm-text-muted);">(Leave blank to keep current)</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="position:relative;">
+                  <input type="password" name="current_password" id="rxCurrentPwd" placeholder="Current password..." autocomplete="current-password" style="width:100%;padding:10px 36px 10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13px;" />
+                  <button type="button" class="rx-pwd-toggle" data-rx-toggle="rxCurrentPwd" aria-label="Toggle password visibility" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--nm-text-muted);cursor:pointer;padding:4px;display:flex;align-items:center;"><i class="ph ph-eye"></i></button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div style="position:relative;">
+                    <input type="password" name="new_password" id="rxNewPwd" placeholder="New password (min 6)..." autocomplete="new-password" style="width:100%;padding:10px 36px 10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13px;" />
+                    <button type="button" class="rx-pwd-toggle" data-rx-toggle="rxNewPwd" aria-label="Toggle password visibility" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--nm-text-muted);cursor:pointer;padding:4px;display:flex;align-items:center;"><i class="ph ph-eye"></i></button>
+                  </div>
+                  <div style="position:relative;">
+                    <input type="password" name="confirm_password" id="rxConfirmPwd" placeholder="Confirm password..." autocomplete="new-password" style="width:100%;padding:10px 36px 10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13px;" />
+                    <button type="button" class="rx-pwd-toggle" data-rx-toggle="rxConfirmPwd" aria-label="Toggle password visibility" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--nm-text-muted);cursor:pointer;padding:4px;display:flex;align-items:center;"><i class="ph ph-eye"></i></button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <button type="submit" class="rx-btn-primary" style="width:100%;">Save Profile</button>
+
+            <button type="submit" class="rx-btn-primary" style="width:100%;margin-top:6px;">Save Profile</button>
           </form>
         </div>
       `;
@@ -2059,25 +2097,66 @@ class RosterXUserPortal {
         openNeumorphicDialog(cDlg);
       });
 
+      dlg.querySelectorAll('.rx-pwd-toggle').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-rx-toggle');
+          const input = dlg.querySelector(`#${targetId}`);
+          if (!input) return;
+          const isPwd = input.type === 'password';
+          input.type = isPwd ? 'text' : 'password';
+          const icon = btn.querySelector('i');
+          if (icon) {
+            icon.className = isPwd ? 'ph ph-eye-slash' : 'ph ph-eye';
+          }
+        });
+      });
+
       dlg.querySelector('#rxEditProfileForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const f = e.target;
+
+        const curPwd = f.current_password?.value?.trim() || '';
+        const newPwd = f.new_password?.value?.trim() || '';
+        const confirmPwd = f.confirm_password?.value?.trim() || '';
+
+        if (newPwd || curPwd || confirmPwd) {
+          if (!curPwd) {
+            this.toast('Current password is required to change password', 'error');
+            return;
+          }
+          if (newPwd.length < 6) {
+            this.toast('New password must be at least 6 characters', 'error');
+            return;
+          }
+          if (newPwd !== confirmPwd) {
+            this.toast('New password and confirm password do not match', 'error');
+            return;
+          }
+        }
+
         try {
+          const payload = {
+            username: eng.username,
+            name: f.name.value.trim(),
+            full_name: f.name.value.trim(),
+            phone: f.phone.value.trim(),
+            email: f.email.value.trim(),
+            birthday: f.birthday.value.trim(),
+            join_date: f.join_date?.value?.trim() || ''
+          };
+          if (newPwd) {
+            payload.current_password = curPwd;
+            payload.new_password = newPwd;
+          }
+
           const resp = await fetch('/api/users/profile', {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({
-              username: eng.username,
-              name: f.name.value.trim(),
-              full_name: f.name.value.trim(),
-              phone: f.phone.value.trim(),
-              email: f.email.value.trim(),
-              birthday: f.birthday.value.trim()
-            })
+            body: JSON.stringify(payload)
           });
           const res = await resp.json();
           if (resp.ok && res.success) {
-            this.toast('Profile updated!', 'success');
+            this.toast('Profile & security updated successfully!', 'success');
             closeNeumorphicDialog(dlg);
             await this.refreshAllData();
           } else {
@@ -2518,7 +2597,16 @@ class RosterXUserPortal {
         msgBox.scrollTop = msgBox.scrollHeight;
       }
 
-      dlg.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dlg));
+      const closeAiDialog = () => {
+        dlg.classList.add('is-closing');
+        dlg.classList.remove('is-visible');
+        setTimeout(() => {
+          dlg.classList.remove('is-closing');
+          closeNeumorphicDialog(dlg);
+        }, 190);
+      };
+
+      dlg.querySelector('[data-rx-close]')?.addEventListener('click', closeAiDialog);
 
       dlg.querySelector('#btnClearAiChat')?.addEventListener('click', () => {
         this.aiMessages = [];
@@ -2543,6 +2631,12 @@ class RosterXUserPortal {
 
     render();
     openNeumorphicDialog(dlg);
+    requestAnimationFrame(() => {
+      dlg.classList.add('is-visible');
+    });
+    dlg.addEventListener('close', () => {
+      dlg.classList.remove('is-visible', 'is-closing');
+    }, { once: true });
   }
 }
 

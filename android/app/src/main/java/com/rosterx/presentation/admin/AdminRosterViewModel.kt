@@ -1,5 +1,7 @@
 package com.rosterx.presentation.admin
 
+import android.app.Activity
+
 
 
 import androidx.lifecycle.ViewModel
@@ -91,6 +93,7 @@ class AdminRosterViewModel @Inject constructor(
     private val repository: RosterRepository,
     private val sessionManager: UserSessionManager,
     val analyticsManager: com.rosterx.analytics.AnalyticsManager,
+    val googlePasswordManager: com.rosterx.data.auth.GooglePasswordManagerHelper,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -859,6 +862,13 @@ class AdminRosterViewModel @Inject constructor(
             } else {
                 onResult?.invoke(false, res.exceptionOrNull()?.message ?: "Failed to update profile")
             }
+        }
+    }
+
+    fun saveGpmCredentials(activity: Activity, username: String, password: String) {
+        googlePasswordManager.invalidateSavedCredentials(username)
+        viewModelScope.launch {
+            googlePasswordManager.saveCredentials(activity, username, password)
         }
     }
 }

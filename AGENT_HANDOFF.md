@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 09:50 IST** (Target Sprint: **v2.3.1 - Build 153**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 10:40 IST** (Target Sprint: **v2.3.1 - Build 153**)
+
+---
+
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.3.1 - Build 153 — Full Parity Suite: Glassmorphic AI, Grid Sticky Columns Fix, In-Place Filter Keyboard Protection, Jump to Today Bottom FAB & Filled Active Tab Indicator):
+> *"Dasa! Gafoorka! Vijayan UI specialist sprint **`v2.3.1` (Build 153)** 100% spotless aayi complete cheythu, Android physical device-il build cheythu install cheythu live verify cheythu boss! 🕵️🔥
+>
+> ### 🎨 Client, Compose & Web UI Deliverables:
+> 1. **Grid Sticky Columns & Coverage Counters Transparency Fix (`mobile-shell.css`, `userPortal.js`)**:
+>    - Sticky corner header (`<th>ENGINEER</th>`), sticky engineer name rows, and sticky coverage rows (`DAY COVERAGE (≥3)` & `NIGHT COVERAGE (1)`) given 100% solid, opaque backgrounds (`var(--nm-surface-contrast)` and `var(--nm-surface)`) with `background-clip: padding-box !important`, `left: 0 !important`, `top: 0 !important` on thead, and isolated high z-indices (corner: 35, sticky column: 15, coverage: 16).
+>    - Eliminates all transparent bleeds and overlapping numbers when scrolling horizontally and vertically!
+> 2. **In-Place Filter Search & Virtual Keyboard Protection (`userPortal.js`, `app.js`)**:
+>    - Converted filter input to `type="text"` with `autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search"` and `font-size: 13px`.
+>    - Debounced row display filtering via `requestAnimationFrame` (30ms), eliminating DOM layout jumps that previously triggered mobile virtual keyboard dismissal on every keystroke!
+> 3. **Jump to Today Bottom FAB Parity (`userPortal.js`, `mobile-shell.css`)**:
+>    - Removed the confusing top `[Today]` pill from the date bar in Team Shifts.
+>    - Floating Action Button `[ 📅 Jump to Today ]` pinned to bottom-right above the navigation bar, appearing dynamically whenever browsing any date other than today, matching Android 1:1!
+> 4. **Solid Brand Accent Filled Active Tab Indicator (`mobile-shell.css`, `FluidNeumorphicBottomNav.kt`)**:
+>    - Replaced the washed-out white background with a vibrant, solid brand accent fill (`#174EAC` / `#1E6BE6`) and pure white icon (`#FFFFFF`), with matching high-contrast active tab labels across both Web and Android Jetpack Compose!
+> 5. **Google Password Manager & Web Edit Profile Parity**:
+>    - Verified domain unification under `rosterx.online` with official app branding and instant GPM update prompts.
+>    - Edit profile dialog equipped with Company Join Date, Security & Password sections, and show/hide visibility toggles.
+> 6. **Zero-PII & Production Verification**:
+>    - Safe build compile successful (`safe_build.bat assembleDebug` in 56s), installed via ADB, visually verified on physical device via screencap. Ready for immediate push and Render auto-deployment! 🚀"*
 
 ---
 

@@ -639,6 +639,18 @@ fun AdminMainScreen(
                             if (success) "Profile updated successfully" else (errorMsg ?: "Update failed"),
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
+                        if (success && !newPass.isNullOrBlank()) {
+                            val activity = screenContext as? android.app.Activity
+                            if (activity != null) {
+                                viewModel.saveGpmCredentials(activity, activeSelf.username, newPass)
+                            }
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                try {
+                                    val autofillManager = screenContext.getSystemService(android.view.autofill.AutofillManager::class.java)
+                                    autofillManager?.commit()
+                                } catch (_: Throwable) {}
+                            }
+                        }
                     }
                 )
             }

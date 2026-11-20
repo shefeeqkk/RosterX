@@ -14,6 +14,7 @@ import com.rosterx.presentation.components.*
 
 import com.rosterx.domain.repository.RosterRepository
 
+import android.app.Activity
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -122,6 +123,7 @@ class EngineerPortalViewModel @Inject constructor(
     private val repository: RosterRepository,
     private val sessionManager: UserSessionManager,
     val analyticsManager: com.rosterx.analytics.AnalyticsManager,
+    val googlePasswordManager: com.rosterx.data.auth.GooglePasswordManagerHelper,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -1079,6 +1081,13 @@ class EngineerPortalViewModel @Inject constructor(
                 _state.value = _state.value.copy(isLoading = false, errorMessage = err)
                 onResult?.invoke(false, err)
             }
+        }
+    }
+
+    fun saveGpmCredentials(activity: Activity, username: String, password: String) {
+        googlePasswordManager.invalidateSavedCredentials(username)
+        viewModelScope.launch {
+            googlePasswordManager.saveCredentials(activity, username, password)
         }
     }
 

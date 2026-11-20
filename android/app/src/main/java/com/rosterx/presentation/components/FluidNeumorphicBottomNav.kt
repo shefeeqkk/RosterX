@@ -177,14 +177,14 @@ fun FluidNeumorphicBottomNav(
                     .neumorphicRaised(
                         shape = CircleShape,
                         elevation = NeumorphicTokens.ElevationRaised,
-                        surfaceColor = surfaceColor
+                        surfaceColor = NeumorphicTokens.AccentSalmon
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = activeItem.icon,
                     contentDescription = activeItem.title,
-                    tint = NeumorphicTokens.AccentSalmon,
+                    tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
             }

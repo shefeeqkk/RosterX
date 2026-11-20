@@ -11,4 +11,13 @@
     <string name="shortcut_profile_long">Open Account &amp; Settings</string>
     <string name="shortcut_credentials_short">Credentials</string>
     <string name="shortcut_credentials_long">Open Credential Tracker</string>
+
+    <!-- Google Password Manager & Digital Asset Links Domain Unification -->
+    <string name="asset_statements" translatable="false">
+    [{\n
+      \"include\": \"https://rosterx.online/.well-known/assetlinks.json\"\n
+    },{\n
+      \"include\": \"https://api.rosterx.online/.well-known/assetlinks.json\"\n
+    }]
+    </string>
 </resources>

@@ -1755,11 +1755,11 @@ class RosterXApp {
     // Search Filter
 
     this.dom.searchInput.addEventListener('input', (e) => {
-
       this.state.filterTerm = e.target.value.toLowerCase().trim();
-
-      this.renderRoster();
-
+      clearTimeout(this._searchDebounceTimer);
+      this._searchDebounceTimer = setTimeout(() => {
+        this.renderRoster();
+      }, 60);
     });
 
 
