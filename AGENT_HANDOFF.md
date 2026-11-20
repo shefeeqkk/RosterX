@@ -80,6 +80,7 @@
 > - **Android Calendar Upload (`ShiftCalendarExporter.kt`)**: Query Android's `CalendarContract.Calendars` and dispatch discovered Google accounts and secondary calendars to `POST /api/users/calendar-accounts`.
 > - **Backend (`server.py`)**: Store `calendar_accounts` in MongoDB Atlas under `engineers` collection and return in profile/sync endpoints.
 > - **Web Dropdown**: Display Corporate Calendar, synced device Google accounts & secondary calendars, Apple Calendar (.ics), plus a manual `[+ Add Personal / Secondary Calendar]` option.
+> - **Bidirectional Sync Status Bridging**: In Android `CalendarSyncDialog.kt`, when existing synced events are discovered (`existingSyncedCount > 0`), immediately dispatch `onSyncRecorded(monthKey, existingSyncedCount, chosenAccount)` to Atlas so Web UI immediately displays `Synced (N)`, `Re-Sync N Days`, and `Clear Month`! Support bidirectional clearing across both platforms.
 > 
 > ### 4. 📱 Smart Home Screen Widget Discovery & Pinning:
 > - **Presence Check**: Use `AppWidgetManager.getAppWidgetIds()`. If already added, suppress all banners completely!

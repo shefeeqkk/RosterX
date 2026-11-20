@@ -142,6 +142,18 @@ Properly categorize Corporate vs Personal accounts and support secondary calenda
      - `➕ Add Personal / Secondary Calendar...` (allows typing a custom calendar email/name if not synced from Android yet).
    - Persist selected target and target_type via `POST /api/users/calendar-sync`.
 
+4. **Automatic Bidirectional Month Sync Status Bridging (`CalendarSyncDialog.kt`, `calendarSync.js`)**:
+   - **The Missing Link**: Currently Android detects 30 synced events in its local device database, but only uploads this status to Atlas when the user taps the sync button. If already synced on the phone, Atlas never knew about it!
+   - **Auto-Sync on Discovery (`CalendarSyncDialog.kt`)**: In `refreshCalendars()` or dialog init, if `existingSyncedCount > 0`, immediately call:
+     ```kotlin
+     val chosenAccount = found.firstOrNull { it.id == chosenId }?.let {
+         if (it.displayName != it.accountName) "${it.displayName} (${it.accountName})" else it.accountName
+     } ?: "Google Calendar"
+     onSyncRecorded?.invoke(monthKey, existingSyncedCount, chosenAccount)
+     ```
+   - **Instant Web State**: Web immediately gets `{ synced: true, count: 30, target: "..." }` and renders `Synced (30)`, `Re-Sync 30 Days`, and `Clear Month` in 100% lockstep with Android!
+   - **Bidirectional Clear**: Clicking `Clear Month` in Web unsets sync in Atlas; next time Android checks or opens, it cleans up device events. Clicking `Clear Month` in Android clears device events AND dispatches `POST /api/users/calendar-sync/clear`.
+
 ---
 
 ## 5. Task 5 — Smart Home Screen Widget Discovery & Pinning Engine (`RosterXAppWidgetProvider.kt`, `EngineerPortalScreen.kt`)
