@@ -132,12 +132,20 @@ fun CalendarSyncDialog(
             val validSaved = selectedCalendarId?.takeIf { id -> found.any { it.id == id } }
             val chosenId = validSaved ?: found.firstOrNull()?.id
             selectedCalendarId = chosenId
-            existingSyncedCount = if (chosenId != null) {
+            val count = if (chosenId != null) {
                 withContext(Dispatchers.IO) {
                     ShiftCalendarExporter.countSyncedEventsForMonth(context, chosenId, username, year, month)
                 }
             } else {
                 0
+            }
+            existingSyncedCount = count
+            if (count > 0 && chosenId != null) {
+                val chosenAccount = found.firstOrNull { it.id == chosenId }?.let {
+                    if (it.displayName != it.accountName && it.displayName.isNotBlank()) "${it.displayName} (${it.accountName})" else it.accountName
+                } ?: "Google Calendar"
+                val monthKey = String.format(Locale.US, "%04d-%02d", year, month)
+                onSyncRecorded?.invoke(monthKey, count, chosenAccount)
             }
             isLoadingCalendars = false
         }

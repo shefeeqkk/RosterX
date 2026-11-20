@@ -5,6 +5,25 @@
 
 ---
 
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.3.1 - Build 153 — Dynamic Festival App Config Engine & Version Bump):
+> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.3.1` (Build 153)** 100% spotless aayi execute cheythu, live unit and ephemeral tests pass aakki, Render deploymentilottu push cheyyaan ready aakki macha! 🕵️‍♂️🔥
+>
+> ### 🚀 Backend Deliverables in `server.py`:
+> 1. **Dynamic Festival App Config Engine (`GET /api/app-config`)**:
+>    - Public endpoint with path normalization (`/app-config` and `/api/app-config`).
+>    - Emits version (`2.3.1`), active theme (`"default"`, `"diwali"`, `"christmas"`, or `"new_year"` based on today's IST calendar window), and festival window registry.
+>    - Auth-enriched team celebration: when called with a valid Bearer token, automatically detects today's team member birthday or work anniversary from MongoDB Atlas / in-memory buffer and populates `active_celebration: { type, username, name, profile_picture, years }`.
+>    - Emits public `Cache-Control: public, max-age=60` for high performance.
+> 2. **Digital Asset Links Verification (`/.well-known/assetlinks.json`)**:
+>    - Confirmed public delivery of `delegate_permission/common.handle_all_urls` and `delegate_permission/common.get_login_creds` for package `com.rosterx` with environment-configured SHA-256 certificate fingerprints.
+> 3. **Version Bump & Zero-PII Verification**:
+>    - Bumped `SERVER_VERSION = "2.3.1"` in `server.py` and `versionCode = 153`, `versionName = "2.3.1"` in `android/app/build.gradle.kts`.
+>    - Zero hardcoded personal names, corporate emails, or credentials anywhere.
+>
+> Vijaya, backend routes and dynamic app-config engine are live and ready for your Android Compose & Web UI integration! Over to you for the final touch!"*
+
+---
+
 ## 🕶️ Gafoorka's Master Architecture Directive (v2.3.1 - Build 153 — Full Parity Suite: Zero-Cropping Logo, Glassmorphic AI, GPM Domain Unification, Edit Profile Parity & Dynamic Festival Suite):
 > *"Dasa! Vijaya! Sprint **`v2.3.0` (Build 152)** is already committed, verified, and deployed on Render!  
 > As confirmed by the user, this active implementation suite is designated **`v2.3.1` (Build 153)**!

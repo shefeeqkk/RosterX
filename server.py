@@ -42,7 +42,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.3.0"
+SERVER_VERSION = "2.3.1"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -3212,7 +3212,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/broadcast-templates", "/credentials", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
+        if norm_path in ("/test-connection", "/engineers", "/server-info", "/app-config", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/broadcast-templates", "/credentials", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
             norm_path = "/api" + norm_path
         norm_path = self._normalize_api_aliases(norm_path)
 
@@ -3285,6 +3285,75 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
     def handle_api_get(self, clean_path):
         """Router for GET /api/* requests."""
         lan_ip = get_lan_ip()
+
+        # 0.05 GET /api/app-config (Public App Configuration & Dynamic Festival Theme Engine)
+        if clean_path in ("/api/app-config", "/api/app-config/"):
+            festivals = {
+                "diwali": {"start": "2026-11-06", "end": "2026-11-12"},
+                "christmas": {"start": "2026-12-20", "end": "2026-12-27"},
+                "new_year": {"start": "2026-12-30", "end": "2027-01-03"}
+            }
+            now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+            today_str = now_ist.strftime("%Y-%m-%d")
+
+            active_theme = "default"
+            for fest_name, fest_range in festivals.items():
+                s = str(fest_range.get("start", "")).strip()
+                e = str(fest_range.get("end", "")).strip()
+                if s and e and (s <= today_str <= e):
+                    active_theme = fest_name
+                    break
+
+            active_celebration = None
+            claims = self.get_auth_claims()
+            if claims:
+                try:
+                    engineers_list = []
+                    if ATLAS_DB is not None:
+                        engineers_list = list(ATLAS_DB.engineers.find({}, {"_id": 0, "password": 0}))
+                    if not engineers_list:
+                        engineers_list = DEFAULT_SERVER_ENGINEERS
+
+                    for eng in engineers_list:
+                        bday_raw = eng.get("birthday") or eng.get("dob") or ""
+                        jdate_raw = eng.get("join_date") or eng.get("joining_date") or ""
+                        is_bday, _, _ = parse_celebration_date(bday_raw, now_ist)
+                        is_anniv, yr, _ = parse_celebration_date(jdate_raw, now_ist)
+
+                        uname = str(eng.get("username") or "").strip()
+                        full_name = to_proper_name(eng.get("name") or eng.get("full_name") or uname)
+                        photo = str(eng.get("profile_picture") or eng.get("profilePicture") or "").strip()
+
+                        if is_bday:
+                            active_celebration = {
+                                "type": "birthday",
+                                "username": uname,
+                                "name": full_name,
+                                "profile_picture": photo,
+                                "years": 0
+                            }
+                            break
+                        elif is_anniv and yr > 0:
+                            active_celebration = {
+                                "type": "anniversary",
+                                "username": uname,
+                                "name": full_name,
+                                "profile_picture": photo,
+                                "years": yr
+                            }
+                            break
+                except Exception as e:
+                    log_server(f"[APP-CONFIG CELEBRATION ERROR] {e}")
+
+            self.send_json_response({
+                "success": True,
+                "version": SERVER_VERSION,
+                "active_theme": active_theme,
+                "active_celebration": active_celebration,
+                "festivals": festivals,
+                "today": today_str
+            }, extra_headers={"Cache-Control": "public, max-age=60"})
+            return
 
         # 0. GET /api/server-info (Public connectivity metadata for discovery)
         if clean_path in ("/api/server-info", "/api/server-info/"):
