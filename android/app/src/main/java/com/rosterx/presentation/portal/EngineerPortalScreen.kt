@@ -5,6 +5,11 @@ import com.rosterx.presentation.portal.more.MoreHubView
 import com.rosterx.presentation.portal.more.MyTeamView
 import androidx.activity.compose.BackHandler
 import android.graphics.Color.parseColor
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
+import android.os.Build
+import com.rosterx.widget.RosterXAppWidgetProvider
 
 import android.widget.Toast
 
@@ -1410,7 +1415,8 @@ fun EngineerPortalScreen(
                                         onNextMonth = viewModel::nextMonth,
                                         onNavigateToTeam = { selectedTab = 1 },
                                         onSyncRecorded = viewModel::recordCalendarSync,
-                                        onSyncCleared = viewModel::clearCalendarSync
+                                        onSyncCleared = viewModel::clearCalendarSync,
+                                        onCalendarAccountsDiscovered = viewModel::syncDeviceCalendarAccounts
                                     )
                                     3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
                                     4 -> MoreHubView(
@@ -2606,6 +2612,7 @@ fun DashboardView(
     }
 
     val engineer = state.loggedInEngineer
+    val context = LocalContext.current
     val roster = getRosterForEngineer(state.liveRoster, engineer)
     val today = LocalDate.now()
     val tomorrow = today.plusDays(1)
@@ -3072,6 +3079,122 @@ fun DashboardView(
                     celebrations = activeTeamCelebrations,
                     onDismiss = onDismissCelebration
                 )
+            }
+        }
+
+        // Smart Home Screen Widget Discovery Banner
+        item(key = "widget_discovery_banner") {
+            val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
+            val provider = remember { ComponentName(context, RosterXAppWidgetProvider::class.java) }
+            var isDismissedThisSession by remember { mutableStateOf(false) }
+
+            val shouldShowWidgetBanner = remember(isDismissedThisSession) {
+                if (isDismissedThisSession) return@remember false
+                try {
+                    val hasWidget = appWidgetManager.getAppWidgetIds(provider).isNotEmpty()
+                    if (hasWidget) return@remember false
+
+                    val prefs = context.getSharedPreferences("rosterx_widget_cadence", Context.MODE_PRIVATE)
+                    val snoozeUntil = prefs.getLong("widget_snooze_until", 0L)
+                    val now = System.currentTimeMillis()
+                    if (now < snoozeUntil) return@remember false
+
+                    val launchCount = prefs.getInt("launch_count", 0)
+                    launchCount % 4 == 0 || launchCount == 1
+                } catch (_: Exception) {
+                    false
+                }
+            }
+
+            if (shouldShowWidgetBanner && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NeumorphicCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    style = NeumorphicElevationStyle.Raised,
+                    surfaceColor = NeumorphicTokens.Surface,
+                    contentPadding = 0.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(LocalThemeAccent.current.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Widgets,
+                                        contentDescription = null,
+                                        tint = LocalThemeAccent.current,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Glance at Shifts Instantly! 📱",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = NeumorphicTokens.TextMain
+                                    )
+                                    Text(
+                                        text = "Add the RosterX widget for live duty updates & rest day countdowns.",
+                                        fontSize = 11.5.sp,
+                                        color = NeumorphicTokens.TextMuted,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    isDismissedThisSession = true
+                                    val prefs = context.getSharedPreferences("rosterx_widget_cadence", Context.MODE_PRIVATE)
+                                    val editor = prefs.edit()
+                                    editor.putLong("widget_snooze_until", System.currentTimeMillis() + 7L * 86400000L)
+                                    editor.apply()
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss for 7 days",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                                    appWidgetManager.requestPinAppWidget(provider, null, null)
+                                } else {
+                                    Toast.makeText(context, "Please add the widget from your launcher's widget menu.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = LocalThemeAccent.current),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Default.AddBox, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Add Widget to Home Screen", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+                    }
+                }
             }
         }
 
@@ -3831,9 +3954,8 @@ fun MyCalendarView(
     onNavigateToTeam: () -> Unit,
 
     onSyncRecorded: ((month: String, count: Int, target: String) -> Unit)? = null,
-
-    onSyncCleared: ((month: String) -> Unit)? = null
-
+    onSyncCleared: ((month: String) -> Unit)? = null,
+    onCalendarAccountsDiscovered: ((List<com.rosterx.util.DeviceCalendar>) -> Unit)? = null
 ) {
 
     val yearMonth = YearMonth.of(state.gridYear, state.gridMonth)
@@ -3882,7 +4004,8 @@ fun MyCalendarView(
             dayShiftCodes = myMonthShiftCodes,
             onDismiss = { showCalendarSyncDialog = false },
             onSyncRecorded = onSyncRecorded,
-            onSyncCleared = onSyncCleared
+            onSyncCleared = onSyncCleared,
+            onCalendarAccountsDiscovered = onCalendarAccountsDiscovered
         )
     }
 
@@ -5702,6 +5825,104 @@ fun AccountView(
                 onSetThemeMode = onSetThemeMode,
                 onSetThemePalette = onSetThemePalette
             )
+        }
+
+        // Home Screen Widget Card (1-Tap Pinning & Active Status)
+        item {
+            val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
+            val provider = remember { ComponentName(context, RosterXAppWidgetProvider::class.java) }
+            val isPinned = remember {
+                try {
+                    appWidgetManager.getAppWidgetIds(provider).isNotEmpty()
+                } catch (_: Exception) { false }
+            }
+
+            NeumorphicCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                style = NeumorphicElevationStyle.Raised,
+                surfaceColor = NeumorphicTokens.Surface,
+                contentPadding = 0.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Widgets,
+                                contentDescription = null,
+                                tint = activeAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "HOME SCREEN WIDGET",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = activeAccent
+                            )
+                        }
+
+                        if (isPinned) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF10B981).copy(alpha = 0.15f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF10B981))
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        "Active",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF10B981)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = if (isPinned)
+                            "Your RosterX Home Screen widget is actively displaying shift duties and rest countdowns."
+                        else
+                            "Glance at your current shift, next shift timings, and upcoming rest days right from your Android Home Screen.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+
+                    if (!isPinned && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Button(
+                            onClick = {
+                                if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                                    appWidgetManager.requestPinAppWidget(provider, null, null)
+                                } else {
+                                    Toast.makeText(context, "Please add the widget from your launcher's widget menu.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = activeAccent)
+                        ) {
+                            Icon(Icons.Default.AddBox, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add to Home Screen", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
         }
 
 

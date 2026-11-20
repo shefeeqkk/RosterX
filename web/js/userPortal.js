@@ -17,7 +17,7 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.2.0';
+import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.3.0';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
 import { sortEngineersByWeekOffs } from './constants.js?v=2.0.5';
@@ -28,9 +28,9 @@ import {
   closeNeumorphicDialog,
   escapeHtml,
   getAuthHeaders
-} from './pwaHelper.js?v=2.2.0';
+} from './pwaHelper.js?v=2.3.0';
 
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 

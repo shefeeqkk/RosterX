@@ -86,7 +86,8 @@ fun CalendarSyncDialog(
     dayShiftCodes: Map<Int, String>,
     onDismiss: () -> Unit,
     onSyncRecorded: ((month: String, count: Int, target: String) -> Unit)? = null,
-    onSyncCleared: ((month: String) -> Unit)? = null
+    onSyncCleared: ((month: String) -> Unit)? = null,
+    onCalendarAccountsDiscovered: ((List<DeviceCalendar>) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val themeAccent = LocalThemeAccent.current
@@ -125,6 +126,9 @@ fun CalendarSyncDialog(
                 ShiftCalendarExporter.getWritableCalendars(context)
             }
             calendars = found
+            if (found.isNotEmpty()) {
+                onCalendarAccountsDiscovered?.invoke(found)
+            }
             val validSaved = selectedCalendarId?.takeIf { id -> found.any { it.id == id } }
             val chosenId = validSaved ?: found.firstOrNull()?.id
             selectedCalendarId = chosenId

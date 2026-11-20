@@ -99,6 +99,7 @@ interface RosterRepository {
 
     suspend fun recordCalendarSync(month: String, count: Int, target: String): Result<Unit>
     suspend fun clearCalendarSync(month: String): Result<Unit>
+    suspend fun saveCalendarAccounts(accounts: List<Map<String, Any?>>): Result<Unit>
 }
 
 

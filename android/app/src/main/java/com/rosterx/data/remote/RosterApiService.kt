@@ -352,6 +352,9 @@ interface RosterApiService {
 
     @POST("api/users/calendar-sync/clear")
     suspend fun clearCalendarSyncStatus(@Body body: CalendarSyncClearRequest): PingResponse
+
+    @POST("api/users/calendar-accounts")
+    suspend fun saveCalendarAccounts(@Body body: Map<String, @JvmSuppressWildcards List<Map<String, Any?>>>): PingResponse
 }
 
 data class UpdateProfilePictureRequest(

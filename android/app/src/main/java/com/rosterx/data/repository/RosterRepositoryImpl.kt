@@ -1228,4 +1228,13 @@ class RosterRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun saveCalendarAccounts(accounts: List<Map<String, Any?>>): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.saveCalendarAccounts(mapOf("calendar_accounts" to accounts))
+            if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed to save calendar accounts"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

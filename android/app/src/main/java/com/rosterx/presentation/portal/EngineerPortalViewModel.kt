@@ -799,6 +799,22 @@ class EngineerPortalViewModel @Inject constructor(
         }
     }
 
+    fun syncDeviceCalendarAccounts(calendars: List<com.rosterx.util.DeviceCalendar>) {
+        viewModelScope.launch {
+            val mapped = calendars.map { cal ->
+                mapOf(
+                    "id" to cal.id.toString(),
+                    "name" to cal.displayName,
+                    "account_name" to cal.accountName,
+                    "account_type" to cal.accountType,
+                    "is_primary" to cal.isPrimary,
+                    "color" to String.format(java.util.Locale.US, "#%06X", (0xFFFFFF and cal.color))
+                )
+            }
+            repository.saveCalendarAccounts(mapped)
+        }
+    }
+
     fun loadBroadcastTemplates() {
         viewModelScope.launch {
             repository.getBroadcastTemplates().onSuccess { tpls ->

@@ -14,7 +14,14 @@ default_engineers.json
 
 # Backups & Local Recovery Dumps
 backups/
+*.bak
 *.json.bak
+*.tmp
+*.log
+
+# Local tunneling runtime artifacts
+public_tunnel_url.txt
+tools/public_tunnel_url.txt
 
 # Release binaries & Android Keystores
 *.apk

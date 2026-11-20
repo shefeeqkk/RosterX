@@ -3,7 +3,7 @@ package com.rosterx
 
 
 import android.Manifest
-
+import android.content.Context
 import android.content.Intent
 
 import android.content.pm.PackageManager
@@ -218,6 +218,15 @@ class MainActivity : FragmentActivity() {
 
         // Preload custom Warm Crystal Chime into SoundPool for zero-latency alerts
         com.rosterx.util.RosterXSoundManager.preload(this)
+
+        // Track app session launches for smart widget cadence prompt
+        try {
+            val widgetPrefs = getSharedPreferences("rosterx_widget_cadence", Context.MODE_PRIVATE)
+            val curCount = widgetPrefs.getInt("launch_count", 0)
+            val editor = widgetPrefs.edit()
+            editor.putInt("launch_count", curCount + 1)
+            editor.apply()
+        } catch (_: Exception) {}
 
         setContent {
             val currentUser by sessionManager.currentUser.collectAsState()

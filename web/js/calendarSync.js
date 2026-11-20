@@ -220,7 +220,11 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
     const u = JSON.parse(localStorage.getItem('rosterx_auth_user') || '{}');
     userEmail = u.email || '';
   } catch (_) {}
-  let chosenTarget = userEmail || 'Google Calendar (Web)';
+
+  let calendarAccounts = [];
+  let chosenTargetType = 'corporate';
+  let chosenTarget = userEmail ? `🏢 Corporate / Work Calendar (${userEmail})` : 'Google Calendar';
+  let customCalendarInput = '';
 
   let dialog = document.getElementById('rxCalendarSyncDialog');
   if (!dialog) {
@@ -242,6 +246,7 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
       if (res && res.success && res.sync && res.synced) {
         syncState = res.sync;
         if (syncState.target) chosenTarget = syncState.target;
+        if (syncState.target_type) chosenTargetType = syncState.target_type;
       }
       render();
     })
@@ -250,7 +255,28 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
       render();
     });
 
-  const recordSyncOnServer = async (count, target) => {
+  // Fetch discovered device calendar accounts from server
+  fetch('/api/users/calendar-accounts', {
+    headers: getAuthHeaders()
+  })
+    .then((r) => r.json())
+    .then((res) => {
+      if (res && res.success) {
+        if (Array.isArray(res.calendar_accounts)) {
+          calendarAccounts = res.calendar_accounts;
+        }
+        if (res.corporate_email && !userEmail) {
+          userEmail = res.corporate_email;
+          if (chosenTargetType === 'corporate') {
+            chosenTarget = `🏢 Corporate / Work Calendar (${userEmail})`;
+          }
+        }
+        render();
+      }
+    })
+    .catch(() => {});
+
+  const recordSyncOnServer = async (count, target, targetType = 'corporate') => {
     try {
       const res = await fetch('/api/users/calendar-sync', {
         method: 'POST',
@@ -259,6 +285,7 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
           month: monthKey,
           count: count,
           target: target,
+          target_type: targetType,
           synced: true
         })
       });
@@ -266,10 +293,10 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
       if (data && data.success && data.data) {
         syncState = data.data;
       } else {
-        syncState = { synced: true, count, target, synced_at: 'Just now' };
+        syncState = { synced: true, count, target, target_type: targetType, synced_at: 'Just now' };
       }
     } catch (_) {
-      syncState = { synced: true, count, target, synced_at: 'Just now' };
+      syncState = { synced: true, count, target, target_type: targetType, synced_at: 'Just now' };
     }
   };
 
@@ -290,8 +317,44 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
     if (preview.total === 0 || isSyncing || isClearing) return;
 
     const targetSelect = dialog.querySelector('#rxTargetCalSelect');
-    if (targetSelect && targetSelect.value) {
-      chosenTarget = targetSelect.value;
+    if (targetSelect) {
+      const selVal = targetSelect.value;
+      if (selVal === 'corporate') {
+        chosenTargetType = 'corporate';
+        chosenTarget = userEmail ? `🏢 Corporate / Work Calendar (${userEmail})` : 'Corporate Calendar';
+      } else if (selVal === 'apple') {
+        chosenTargetType = 'apple';
+        chosenTarget = 'Apple Calendar / iOS (.ics)';
+      } else if (selVal === 'custom_new') {
+        chosenTargetType = 'custom';
+        const customIn = dialog.querySelector('#rxCustomCalendarInput');
+        const customVal = (customIn ? customIn.value : customCalendarInput).trim();
+        if (customVal) {
+          chosenTarget = `🗓️ Personal / Secondary (${customVal})`;
+          // Persist custom secondary calendar to Atlas
+          fetch('/api/users/calendar-accounts', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              calendar_accounts: [
+                ...calendarAccounts,
+                { id: `custom_${Date.now()}`, name: customVal, account_name: customVal, account_type: 'custom', is_primary: false }
+              ]
+            })
+          }).catch(() => {});
+        } else {
+          chosenTarget = 'Personal / Secondary Calendar';
+        }
+      } else if (selVal.startsWith('device:')) {
+        const accId = selVal.replace('device:', '');
+        const matched = calendarAccounts.find(a => String(a.id) === accId);
+        if (matched) {
+          chosenTargetType = matched.is_primary ? 'google' : 'secondary';
+          chosenTarget = matched.is_primary
+            ? `📅 Google Calendar (${matched.account_name || matched.name})`
+            : `🗓️ Secondary: ${matched.name} (${matched.account_name || ''})`;
+        }
+      }
     }
 
     isSyncing = true;
@@ -309,7 +372,7 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
 
       if (ics.count > 0) {
         triggerIcsDownload(ics);
-        await recordSyncOnServer(ics.count, chosenTarget);
+        await recordSyncOnServer(ics.count, chosenTarget, chosenTargetType);
         const msg = isResync
           ? `Re-synced ${ics.count} personal calendar days to ${chosenTarget} for ${monthLabel}`
           : `Synced ${ics.count} personal calendar days to ${chosenTarget} for ${monthLabel}`;
@@ -398,10 +461,22 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
             </div>
             <div style="display:flex;flex-direction:column;gap:6px;">
               <select id="rxTargetCalSelect" class="rx-select" style="width:100%;font-size:12.5px;font-weight:700;padding:8px 10px;border-radius:12px;background:var(--nm-input-surface);color:var(--nm-text);border:1px solid rgba(0,0,0,0.06);" ${isSyncing ? 'disabled' : ''}>
-                <option value="Google Calendar (Web & Android)" ${chosenTarget.includes('Google') ? 'selected' : ''}>Google Calendar (Web &amp; Android)</option>
-                <option value="Apple Calendar / iOS (.ics)" ${chosenTarget.includes('Apple') ? 'selected' : ''}>Apple Calendar / iOS (.ics)</option>
-                ${userEmail ? `<option value="${escapeHtml(userEmail)}" ${chosenTarget === userEmail ? 'selected' : ''}>Personal Account (${escapeHtml(userEmail)})</option>` : ''}
+                <option value="corporate" ${chosenTargetType === 'corporate' ? 'selected' : ''}>🏢 Corporate / Work Calendar (${escapeHtml(userEmail || 'work')})</option>
+                ${calendarAccounts.map((acc) => {
+                  const isSec = acc.name && acc.name !== acc.account_name && !acc.is_primary;
+                  const label = isSec
+                    ? `🗓️ Secondary: ${acc.name} (${acc.account_name})`
+                    : `📅 Google Calendar (${acc.account_name || acc.name})`;
+                  const val = `device:${acc.id}`;
+                  const isSel = (chosenTargetType === 'google' || chosenTargetType === 'secondary') && chosenTarget.includes(acc.name || acc.account_name);
+                  return `<option value="${val}" ${isSel ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+                }).join('')}
+                <option value="apple" ${chosenTargetType === 'apple' ? 'selected' : ''}>🍎 Apple Calendar / iOS (.ics)</option>
+                <option value="custom_new" ${chosenTargetType === 'custom' ? 'selected' : ''}>➕ Add Personal / Secondary Calendar...</option>
               </select>
+              ${chosenTargetType === 'custom' ? `
+                <input type="text" id="rxCustomCalendarInput" placeholder="Enter Google email or calendar name..." class="rx-input" value="${escapeHtml(customCalendarInput)}" style="width:100%;font-size:12px;font-weight:600;padding:8px 10px;border-radius:10px;background:var(--nm-input-surface);color:var(--nm-text);border:1px solid rgba(0,0,0,0.08);margin-top:2px;" />
+              ` : ''}
               <div style="font-size:10.5px;color:var(--nm-text-muted);">Sync keeps monthly shifts updated in your personal calendar with zero duplicates.</div>
             </div>
           </div>
@@ -470,6 +545,40 @@ export function openCalendarSyncModal({ engineerName, username, year, month, day
     `;
 
     dialog.querySelector('[data-rx-close]')?.addEventListener('click', () => closeNeumorphicDialog(dialog));
+
+    const targetSelect = dialog.querySelector('#rxTargetCalSelect');
+    if (targetSelect) {
+      targetSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val === 'corporate') {
+          chosenTargetType = 'corporate';
+          chosenTarget = userEmail ? `🏢 Corporate / Work Calendar (${userEmail})` : 'Corporate Calendar';
+        } else if (val === 'apple') {
+          chosenTargetType = 'apple';
+          chosenTarget = 'Apple Calendar / iOS (.ics)';
+        } else if (val === 'custom_new') {
+          chosenTargetType = 'custom';
+        } else if (val.startsWith('device:')) {
+          const accId = val.replace('device:', '');
+          const matched = calendarAccounts.find(a => String(a.id) === accId);
+          if (matched) {
+            chosenTargetType = matched.is_primary ? 'google' : 'secondary';
+            chosenTarget = matched.is_primary
+              ? `📅 Google Calendar (${matched.account_name || matched.name})`
+              : `🗓️ Secondary: ${matched.name} (${matched.account_name || ''})`;
+          }
+        }
+        render();
+      });
+    }
+
+    const customInput = dialog.querySelector('#rxCustomCalendarInput');
+    if (customInput) {
+      customInput.addEventListener('input', (e) => {
+        customCalendarInput = e.target.value;
+      });
+    }
+
     dialog.querySelectorAll('[data-rx-rem]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const raw = btn.getAttribute('data-rx-rem');

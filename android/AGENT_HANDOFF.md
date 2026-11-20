@@ -5,6 +5,33 @@
 
 ---
 
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.3.0 - Build 152 — Mobile Web Back-Stack Exit Guard, Background Scroll Lock, Device Calendar Sync & Smart Home Screen Widget Discovery):
+> *"Dasa! Gafoorka! Vijayan UI and client parity sprint **`v2.3.0` (Build 152)** 100% complete cheythu safe build compile aakki eduthu boss! 🕵️🔥
+>
+> ### 🎨 Client, Compose & Web Parity Highlights:
+> 1. **Zero-Cropping App Logo Overhaul (Android Splash, Launcher & Web PWA)**:
+>    - Android 12+ splash screen (`@drawable/ic_rosterx_splash_logo`) floats seamlessly on `#EEF2F6` and `#141923` without clipped white squircle boxes.
+>    - All launcher mipmaps (`mdpi`..`xxxhdpi`) generated with pure white backgrounds so the Android Package Installer and launcher squircles render full wings with zero clipping.
+>    - Web PWA maskable icon generated within W3C 65% safe radius.
+> 2. **Mobile Web / Chrome Shortcut Back-Stack Exit Guard (`manifest.webmanifest`, `login.html`, `userPortal.js`)**:
+>    - Root `start_url: "/"` in manifest prevents `/login.html` trapping.
+>    - `pageshow` BFCache guard in `login.html` prevents accidental logout on back navigation.
+>    - Double-back exit toast (*"Press back again to exit"*) on Dashboard allows clean minimization without clearing session tokens.
+> 3. **Background Scroll Lock & Backdrop Focus Lockdown (`pwaHelper.js`, `mobile-shell.css`)**:
+>    - Dialog manager injects `rx-modal-open` class, locking `html` and `body` scroll (`touch-action: none !important`), and isolates `main.rx-main-shell` pointer events while modals are active.
+> 4. **Target Calendar Categorization & Device Calendars Integration (`calendarSync.js`, `CalendarSyncDialog.kt`)**:
+>    - Web UI categorizes `🏢 Corporate / Work Calendar (${userEmail})`, synced Android Google calendars, secondary accounts, Apple Calendar, and custom entry.
+>    - Android native `CalendarContract` integration queries writable calendars and uploads discovered accounts to `POST /api/users/calendar-accounts` via `EngineerPortalViewModel::syncDeviceCalendarAccounts`.
+> 5. **Smart Home Screen Widget Discovery & Pinning Engine (`EngineerPortalScreen.kt`)**:
+>    - Presence check suppresses banners if user already has widget pinned.
+>    - Dashboard cadence banner (appearing every 4-5 sessions with 7-day snooze option) and permanent row in Profile & Settings with native 1-tap `AppWidgetManager.requestPinAppWidget()`.
+> 6. **Build Verification**:
+>    - Android safe build: `safe_build.bat assembleDebug` finished with **BUILD SUCCESSFUL in 2m 26s** (`app-debug.apk`)!
+>
+> Pushing cleanly to `origin/main` for live Render auto-deployment!"*
+
+---
+
 ## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.3.0 - Build 152 — Calendar Accounts Sync API & Multi-Account Target Engine):
 > *"Vijaya! Gafoorka! Dasan backend sprint **`v2.3.0` (Build 152)** 100% spotless aayi complete cheythu, live unit and ephemeral tests pass aakki, Render deploymentilottu push cheyyaan ready aakki macha! 🕵️‍♂️🔥
 >
