@@ -14,10 +14,18 @@
 
     <!-- Google Password Manager & Digital Asset Links Domain Unification -->
     <string name="asset_statements" translatable="false">
-    [{\n
-      \"include\": \"https://rosterx.online/.well-known/assetlinks.json\"\n
-    },{\n
-      \"include\": \"https://api.rosterx.online/.well-known/assetlinks.json\"\n
+    [{
+      \"relation\": [\"delegate_permission/common.get_login_creds\"],
+      \"target\": {
+        \"namespace\": \"web\",
+        \"site\": \"https://rosterx.online\"
+      }
+    },
+    {
+      \"include\": \"https://rosterx.online/.well-known/assetlinks.json\"
+    },
+    {
+      \"include\": \"https://api.rosterx.online/.well-known/assetlinks.json\"
     }]
     </string>
 </resources>

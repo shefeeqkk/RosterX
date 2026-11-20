@@ -38,6 +38,14 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
+                    android:host="rosterx.online"
+                    android:path="/" />
+                <data
+                    android:scheme="https"
+                    android:host="rosterx.online"
+                    android:pathPrefix="/open" />
+                <data
+                    android:scheme="https"
                     android:host="api.rosterx.online"
                     android:path="/" />
                 <data
