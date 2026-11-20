@@ -114,14 +114,41 @@ function isExpiredCelebration(notif, todayIstIso) {
 function resolveMentions(rawText, selfUser, engineers) {
   if (!rawText) return '';
   let out = String(rawText);
-  const selfName = selfUser?.full_name || selfUser?.name || 'Team Member';
+  const selfName = selfUser?.full_name || selfUser?.fullName || selfUser?.name || 'Team Member';
   out = out.replace(/@name\b/gi, selfName).replace(/@all\b/gi, 'Everyone');
+
+  const candidates = new Set(['Everyone', 'everyone', 'all', 'team']);
+  const engMap = {};
   (engineers || []).forEach((eng) => {
-    if (!eng?.username) return;
-    const escaped = eng.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(`@${escaped}\\b`, 'gi');
-    out = out.replace(re, eng.full_name || eng.name || eng.username);
+    const fn = (eng.full_name || eng.fullName || eng.name || eng.username || '').trim();
+    const un = (eng.username || '').trim();
+    if (fn) {
+      candidates.add(fn);
+      engMap[fn.toLowerCase()] = fn;
+    }
+    if (eng.name) {
+      candidates.add(eng.name.trim());
+      engMap[eng.name.trim().toLowerCase()] = fn;
+    }
+    if (un) {
+      candidates.add(un);
+      engMap[un.toLowerCase()] = fn;
+    }
   });
+
+  const sorted = Array.from(candidates).filter(Boolean).sort((a, b) => b.length - a.length);
+  const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patternParts = sorted.map(c => escapeRegex(c) + '(?![a-zA-Z0-9_])');
+  patternParts.push('[a-zA-Z0-9_.-]+');
+  const re = new RegExp(`@(${patternParts.join('|')})`, 'gi');
+
+  out = out.replace(re, (match, token) => {
+    const lower = token.toLowerCase();
+    if (lower === 'all' || lower === 'everyone' || lower === 'team') return '@Everyone';
+    if (engMap[lower]) return `@${engMap[lower]}`;
+    return match;
+  });
+
   return out;
 }
 
@@ -2198,10 +2225,29 @@ class RosterXUserPortal {
       return String(raw).replace(' UTC', ' IST');
     };
 
-    const highlightMentions = (text) => {
+    const highlightMentions = (text, engineers) => {
       if (!text) return '';
       let safe = escapeHtml(text);
-      safe = safe.replace(/(@[a-zA-Z0-9_.-]+)/g, '<strong style="color:var(--nm-accent);background:var(--nm-accent-soft);padding:1px 4px;border-radius:4px;">$1</strong>');
+
+      const candidates = new Set(['Everyone', 'everyone', 'all', 'team']);
+      (engineers || []).forEach((eng) => {
+        if (eng.full_name) candidates.add(eng.full_name.trim());
+        if (eng.fullName) candidates.add(eng.fullName.trim());
+        if (eng.name) candidates.add(eng.name.trim());
+        if (eng.username) candidates.add(eng.username.trim());
+      });
+
+      const sorted = Array.from(candidates)
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+
+      const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const patternParts = sorted.map(c => escapeHtml(escapeRegex(c)) + '(?![a-zA-Z0-9_])');
+      patternParts.push('[a-zA-Z0-9_.-]+');
+
+      const mentionRegex = new RegExp(`(@(?:${patternParts.join('|')}))`, 'gi');
+      safe = safe.replace(mentionRegex, '<strong style="color:var(--nm-accent);background:var(--nm-accent-soft);padding:1px 4px;border-radius:4px;">$1</strong>');
       return safe;
     };
 
@@ -2299,7 +2345,7 @@ class RosterXUserPortal {
                     </div>
 
                     <strong style="font-size:13.5px;color:var(--nm-text);">${escapeHtml(title)}</strong>
-                    <div style="font-size:12.5px;color:var(--nm-text-muted);white-space:pre-wrap;line-height:1.45;">${highlightMentions(rawMsg)}</div>
+                    <div style="font-size:12.5px;color:var(--nm-text-muted);white-space:pre-wrap;line-height:1.45;">${highlightMentions(rawMsg, this.engineers)}</div>
 
                     ${isCelebrationNotif ? `
                       <button type="button" class="rx-btn-surface" data-action-celeb="${escapeHtml(nid)}" style="padding:6px 11px;font-size:11.5px;color:#B45309;font-weight:800;display:inline-flex;align-items:center;gap:6px;width:fit-content;border-radius:10px;">

@@ -61,6 +61,8 @@ import com.rosterx.presentation.components.NeumorphicCard
 import com.rosterx.presentation.components.NeumorphicElevationStyle
 import com.rosterx.presentation.components.NeumorphicFormInput
 import com.rosterx.presentation.components.resolveBroadcastMentions
+import com.rosterx.presentation.components.formatBroadcastMentions
+import androidx.compose.ui.text.AnnotatedString
 import com.rosterx.ui.neumorphic.*
 import com.rosterx.ui.theme.LocalIsDarkTheme
 
@@ -1165,8 +1167,17 @@ fun NotificationsTab(
                                             )
                                         }
 
+                                        val previewAccent = NeumorphicTokens.Accent
+                                        val formattedPreviewMessage = remember(resolvedPreviewMessage, activeEngineers, previewAccent) {
+                                            formatBroadcastMentions(
+                                                resolvedMsg = resolvedPreviewMessage,
+                                                engineers = activeEngineers,
+                                                activeAccent = previewAccent
+                                            )
+                                        }
+
                                         Text(
-                                            text = resolvedPreviewMessage.ifBlank { "(Type message above to preview dynamic personalization)" },
+                                            text = if (resolvedPreviewMessage.isNotBlank()) formattedPreviewMessage else AnnotatedString("(Type message above to preview dynamic personalization)"),
                                             fontSize = 12.5.sp,
                                             lineHeight = 17.sp,
                                             color = if (resolvedPreviewMessage.isNotBlank()) NeumorphicTokens.TextMain else NeumorphicTokens.TextMuted

@@ -1562,20 +1562,97 @@ fun resolveBroadcastMentions(
     text = text.replace(Regex("@\\s*\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), "@$recipientUsername")
     text = text.replace(Regex("\\{\\s*username\\s*\\}", RegexOption.IGNORE_CASE), recipientUsername)
 
-    val mentionRegex = Regex("@([a-zA-Z0-9_\\-\\.]+)")
+    val candidates = LinkedHashSet<String>()
+    candidates.add("Everyone")
+    candidates.add("everyone")
+    candidates.add("all")
+    candidates.add("team")
+    candidates.add("name")
+
+    engineers.forEach { eng ->
+        eng.fullName.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
+        eng.name.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
+        eng.username.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
+    }
+
+    val sorted = candidates.filter { it.isNotBlank() }.sortedByDescending { it.length }
+    val pattern = if (sorted.isNotEmpty()) {
+        val branchList = sorted.map { Regex.escape(it) + "(?![a-zA-Z0-9_])" }
+        "@(${branchList.joinToString("|")}|[a-zA-Z0-9_.-]+)"
+    } else {
+        "@([a-zA-Z0-9_.-]+)"
+    }
+    val mentionRegex = Regex(pattern, RegexOption.IGNORE_CASE)
+
     text = mentionRegex.replace(text) { matchResult ->
-        val uname = matchResult.groupValues[1]
+        val uname = matchResult.groupValues[1].trim()
         when {
-            uname.equals("all", ignoreCase = true) || uname.equals("everyone", ignoreCase = true) -> "@Everyone"
+            uname.equals("all", ignoreCase = true) || uname.equals("everyone", ignoreCase = true) || uname.equals("team", ignoreCase = true) -> "@Everyone"
             uname.equals("name", ignoreCase = true) -> recipientFullName
             else -> {
-                val found = engineers.find { it.username.equals(uname, ignoreCase = true) }
-                val resolved = found?.fullName?.takeIf { it.isNotBlank() } ?: found?.name
-                if (resolved != null) "@$resolved" else matchResult.value
+                val found = engineers.find {
+                    it.username.equals(uname, ignoreCase = true) ||
+                    it.fullName.equals(uname, ignoreCase = true) ||
+                    it.name.equals(uname, ignoreCase = true)
+                }
+                val resolved = found?.fullName?.takeIf { it.isNotBlank() } ?: found?.name ?: uname
+                "@$resolved"
             }
         }
     }
     return text
+}
+
+fun formatBroadcastMentions(
+    resolvedMsg: String,
+    engineers: List<com.rosterx.domain.model.Engineer>,
+    activeAccent: Color
+): AnnotatedString {
+    if (resolvedMsg.isBlank()) return AnnotatedString("")
+
+    val candidates = LinkedHashSet<String>()
+    candidates.add("Everyone")
+    candidates.add("everyone")
+    candidates.add("all")
+    candidates.add("team")
+
+    engineers.forEach { eng ->
+        eng.fullName.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
+        eng.name.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
+        eng.username.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
+    }
+
+    val sorted = candidates.filter { it.isNotBlank() }.sortedByDescending { it.length }
+    val pattern = if (sorted.isNotEmpty()) {
+        val branchList = sorted.map { Regex.escape(it) + "(?![a-zA-Z0-9_])" }
+        "@(?:${branchList.joinToString("|")}|[a-zA-Z0-9_.-]+)"
+    } else {
+        "@[a-zA-Z0-9_.-]+"
+    }
+
+    val mentionRegex = Regex(pattern, RegexOption.IGNORE_CASE)
+
+    return buildAnnotatedString {
+        var lastIndex = 0
+        mentionRegex.findAll(resolvedMsg).forEach { match ->
+            if (match.range.first > lastIndex) {
+                append(resolvedMsg.substring(lastIndex, match.range.first))
+            }
+            pushStyle(
+                SpanStyle(
+                    color = activeAccent,
+                    fontWeight = FontWeight.Bold,
+                    background = activeAccent.copy(alpha = 0.12f)
+                )
+            )
+            append(match.value)
+            pop()
+            lastIndex = match.range.last + 1
+        }
+        if (lastIndex < resolvedMsg.length) {
+            append(resolvedMsg.substring(lastIndex))
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -1851,30 +1928,12 @@ fun QuickNotificationsBottomSheet(
                             }
                         }
 
-                        val formattedMessage = remember(resolvedMsg, engName, engUsername, activeAccent) {
-                            buildAnnotatedString {
-                                if (resolvedMsg.isBlank()) return@buildAnnotatedString
-                                val mentionRegex = Regex("(@[a-zA-Z0-9_.-]+|${Regex.escape(engName)})")
-                                var lastIndex = 0
-                                mentionRegex.findAll(resolvedMsg).forEach { match ->
-                                    if (match.range.first > lastIndex) {
-                                        append(resolvedMsg.substring(lastIndex, match.range.first))
-                                    }
-                                    pushStyle(
-                                        SpanStyle(
-                                            color = activeAccent,
-                                            fontWeight = FontWeight.Bold,
-                                            background = activeAccent.copy(alpha = 0.12f)
-                                        )
-                                    )
-                                    append(match.value)
-                                    pop()
-                                    lastIndex = match.range.last + 1
-                                }
-                                if (lastIndex < resolvedMsg.length) {
-                                    append(resolvedMsg.substring(lastIndex))
-                                }
-                            }
+                        val formattedMessage = remember(resolvedMsg, activeAccent, engineers) {
+                            formatBroadcastMentions(
+                                resolvedMsg = resolvedMsg,
+                                engineers = engineers,
+                                activeAccent = activeAccent
+                            )
                         }
 
                         val dismissState = rememberSwipeToDismissBoxState(

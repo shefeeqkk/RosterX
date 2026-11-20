@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.3.3"
+SERVER_VERSION = "2.3.4"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2141,6 +2141,7 @@ def _personalize_broadcast_text(
       - {username} / @{username}      -> recipient's username
       - @all / @everyone / @team      -> @Everyone (plain) or styled badge (HTML)
       - @<username>                   -> @<Full Name> via directory lookup
+      - @<Full Name>                  -> @<Full Name> preserved without truncation
     """
     if not text:
         return ""
@@ -2157,25 +2158,42 @@ def _personalize_broadcast_text(
     res = re.sub(r'\{\s*username\s*\}', safe_uname, res, flags=re.IGNORECASE)
     res = re.sub(r'@\{\s*username\s*\}', f"@{safe_uname}", res, flags=re.IGNORECASE)
 
-    # 2. Remaining @mentions (@all, @everyone, @team, @<username>)
-    # Avoid swallowing trailing sentence punctuation (e.g. '@member_b.')
-    mention_pattern = r'@([a-zA-Z0-9_\-]+(?:\.[a-zA-Z0-9_\-]+)*)'
+    # 2. Build candidates to recognize full names, usernames, and groups
+    candidates = set(["all", "everyone", "team", "Everyone", "All", "Team"])
+    for u, fn in user_map.items():
+        if u:
+            candidates.add(str(u).strip())
+        if fn:
+            candidates.add(str(fn).strip())
+    for i, fn in id_map.items():
+        if i:
+            candidates.add(str(i).strip())
+        if fn:
+            candidates.add(str(fn).strip())
+
+    sorted_cand = sorted([c for c in candidates if c], key=lambda x: len(x), reverse=True)
+    pattern_parts = [f"{re.escape(c)}(?![a-zA-Z0-9_])" for c in sorted_cand]
+    pattern_parts.append(r'[a-zA-Z0-9_\-]+(?:\.[a-zA-Z0-9_\-]+)*')
+    mention_pattern = r'@(' + '|'.join(pattern_parts) + r')'
+
     if html_mode:
         def _fmt_html(m):
-            t_u = m.group(1).lower()
+            token = m.group(1).strip()
+            t_u = token.lower()
             if t_u in ("all", "everyone", "team"):
                 return '<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@Everyone (All Team)</strong>'
-            m_name = user_map.get(t_u) or id_map.get(t_u) or m.group(1)
+            m_name = user_map.get(t_u) or id_map.get(t_u) or token
             return f'<strong style="display:inline-block;padding:2px 8px;border-radius:6px;background:#312e81;color:#c7d2fe;font-size:12px;margin:0 2px;">@{m_name}</strong>'
-        res = re.sub(mention_pattern, _fmt_html, res)
+        res = re.sub(mention_pattern, _fmt_html, res, flags=re.IGNORECASE)
     else:
         def _fmt_plain(m):
-            t_u = m.group(1).lower()
+            token = m.group(1).strip()
+            t_u = token.lower()
             if t_u in ("all", "everyone", "team"):
                 return "@Everyone"
-            m_name = user_map.get(t_u) or id_map.get(t_u) or m.group(1)
+            m_name = user_map.get(t_u) or id_map.get(t_u) or token
             return f"@{m_name}"
-        res = re.sub(mention_pattern, _fmt_plain, res)
+        res = re.sub(mention_pattern, _fmt_plain, res, flags=re.IGNORECASE)
 
     return res
 

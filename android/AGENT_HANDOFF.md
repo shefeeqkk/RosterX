@@ -1,7 +1,31 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 12:55 IST** (Target Sprint: **v2.3.2 - Build 154**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 22:15 IST** (Target Sprint: **v2.3.4 - Build 156**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.4 - Build 156 — Complete Full-Name Highlight in @Mentions Across Web & Android Notifications, Multi-Word Candidate Parsing & Clean Greeting Plaintext):
+> *"Gafoorka! Boss! Sprint **`v2.3.4` (Build 156)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Fixes:
+> 1. **Android Full-Name @Mention Highlighting (`ProfileComponents.kt`, `NotificationsTab.kt`)**:
+>    - Dynamically extracted all registered team members' `fullName`, `name`, and `username` as well as `@Everyone`, `@all`, `@team` tokens.
+>    - Ordered candidates descending by string length so multi-word full names (`@FirstName Middle Initial`, `@First Last`) match before single-word prefixes.
+>    - Pattern uses word boundary lookahead `(?![a-zA-Z0-9_])` so full multi-word names are cleanly matched and wrapped in bold accent pill styling without leaving trailing names or initials outside.
+>    - Kept recipient greetings (`Dear Full Name,`) strictly plain text as instructed during the grill-me session.
+>    - Wired shared `formatBroadcastMentions(...)` into both `QuickNotificationsBottomSheet` and `NotificationsTab` (Broadcast Console Live Preview Card).
+> 2. **Web Portal & Broadcast Controller Highlighting (`web/js/userPortal.js`, `web/js/broadcastController.js`)**:
+>    - Updated `resolveMentions` in `userPortal.js` to build full-name candidate mappings so already-resolved names are preserved without duplication and `@username` maps cleanly to `@FullName`.
+>    - Updated `highlightMentions(rawMsg, this.engineers)` to parse multi-word registered names with descending length priority and wrap the entire `@FullName` in `<strong style="color:var(--nm-accent);background:var(--nm-accent-soft);padding:1px 4px;border-radius:4px;">$1</strong>`.
+>    - Updated `resolveMessageContent` in `broadcastController.js` so live broadcast composer preview highlights full names in styled badges without splitting names.
+> 3. **Backend Multi-Word Mention Resolver (`server.py`)**:
+>    - Updated `_personalize_broadcast_text` to collect all known names and usernames from `user_map` and `id_map`.
+>    - Built length-descending regex so HTML email dispatches (Resend) and in-app feed preserve full-name tokens and wrap them completely without truncating multi-word names.
+> 4. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.4"`, `versionCode = 156`.
+>    - Server `SERVER_VERSION = "2.3.4"`.
+>    - Android build verified: `safe_build.bat assembleDebug` completed with `BUILD SUCCESSFUL`! 🚀"*
 
 ---
 

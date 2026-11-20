@@ -591,34 +591,44 @@ export class BroadcastController {
     if (!rawMessage) return '';
     const engineers = this.getActiveEngineers();
     
-    // Map username/id/name -> Full Name
+    // Map username/id/name/fullName -> Full Name
     const nameByUser = {};
+    const candidates = new Set(['all', 'everyone', 'team']);
     engineers.forEach(e => {
       const uname = (e.username || '').toLowerCase();
       const uid = (e.id || '').toLowerCase();
       const rawName = (e.name || '').toLowerCase();
-      const fname = e.fullName || e.name || uname;
-      if (uname) nameByUser[uname] = fname;
-      if (uid) nameByUser[uid] = fname;
-      if (rawName) nameByUser[rawName] = fname;
+      const rawFullName = (e.fullName || e.full_name || '').toLowerCase();
+      const fname = e.fullName || e.full_name || e.name || uname;
+      if (uname) { nameByUser[uname] = fname; candidates.add(uname); }
+      if (uid) { nameByUser[uid] = fname; candidates.add(uid); }
+      if (rawName) { nameByUser[rawName] = fname; candidates.add(e.name.trim()); }
+      if (rawFullName) { nameByUser[rawFullName] = fname; candidates.add((e.fullName || e.full_name).trim()); }
     });
 
-    const engName = previewEngineer?.fullName || previewEngineer?.name || 'Engineer';
+    const engName = previewEngineer?.fullName || previewEngineer?.full_name || previewEngineer?.name || 'Engineer';
     const engUsername = previewEngineer?.username || 'engineer';
 
-    // 1. Substitute {name} & {username}
+    // 1. Substitute {name} & {username} & @name
     let res = rawMessage
       .replace(/\{\s*(?:Their\s+name|their\s+name|name)\s*\}/gi, engName)
       .replace(/\{\s*username\s*\}/gi, engUsername)
-      .replace(/@\{\s*username\s*\}/gi, `@${engUsername}`);
+      .replace(/@\{\s*username\s*\}/gi, `@${engUsername}`)
+      .replace(/@name\b/gi, engName);
 
-    // 2. Resolve @username mentions to styled badges with Full Name
-    res = res.replace(/@([a-zA-Z0-9_\-\.]+)/g, (match, username) => {
+    // 2. Resolve @mentions to styled badges with Full Name
+    const sorted = Array.from(candidates).filter(Boolean).sort((a, b) => b.length - a.length);
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const patternParts = sorted.map(c => escapeRegex(c) + '(?![a-zA-Z0-9_])');
+    patternParts.push('[a-zA-Z0-9_\\-\\.]+');
+    const mentionRegex = new RegExp(`@(${patternParts.join('|')})`, 'gi');
+
+    res = res.replace(mentionRegex, (match, username) => {
       const u = username.toLowerCase();
       if (u === 'all' || u === 'everyone' || u === 'team') {
         return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold text-purple-700 bg-purple-100 dark:bg-purple-900/60 dark:text-purple-300">@Everyone (All Team)</span>`;
       }
-      const fullName = nameByUser[u] || u;
+      const fullName = nameByUser[u] || username;
       return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold text-purple-700 bg-purple-100 dark:bg-purple-900/60 dark:text-purple-300">@${fullName}</span>`;
     });
 
