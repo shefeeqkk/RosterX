@@ -1,7 +1,31 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 00:20 IST** (Target Sprint: **v2.2.0 - Build 151**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 07:50 IST** (Target Sprint: **v2.3.0 - Build 152**)
+
+---
+
+## 🕶️ Gafoorka's Master Architecture Directive (v2.3.0 - Build 152 — Mobile Web Back-Stack Exit Guard, Background Scroll Lock & Calendar Accounts Discovery):
+> *"Dasa! Vijaya! User `/grill-me` alignment has set our target architecture for **`v2.3.0` (Build 152)**!
+> Here is what we must deliver with surgical precision:
+> 
+> ### 1. 📱 Mobile Web / Chrome Shortcut Back-Button Exit Bug:
+> - **Manifest Root (`manifest.webmanifest`)**: Change `"start_url": "/login.html"` to `"start_url": "/"` so shortcuts open directly into the portal when logged in.
+> - **Login BFCache Protection (`login.html`)**: Add `pageshow` listener so back-navigation restores never render frozen login screens when auth tokens exist; redirect forward immediately.
+> - **Dashboard Double-Back Guard (`userPortal.js`)**: When at Dashboard root with no active modal or subview, first back press shows Neumorphic toast *"Press back again to exit"*. Second press within 2.5s allows window close/minimize. **NEVER** clear auth tokens on back press!
+> 
+> ### 2. 🛡️ Background Scroll Lock & Backdrop Focus Lockdown (`pwaHelper.js`, `mobile-shell.css`):
+> - In `openNeumorphicDialog`, add `html.rx-modal-open` and `body.rx-modal-open`.
+> - Enforce `overflow: hidden !important; touch-action: none !important;` on body and `pointer-events: none !important;` on `main.rx-main-shell` while modal is open.
+> - Prevents touch events on the blurred backdrop or empty space from scrolling or focusing the background screen.
+> 
+> ### 3. 📅 Calendar Accounts Synchronization & Target Categorization:
+> - **Categorization**: In `web/js/calendarSync.js`, rename `Personal Account (${userEmail})` to `🏢 Corporate / Work Calendar (${userEmail})`.
+> - **Android Calendar Upload (`ShiftCalendarExporter.kt`)**: Query Android's `CalendarContract.Calendars` and dispatch discovered Google accounts and secondary calendars to `POST /api/users/calendar-accounts`.
+> - **Backend (`server.py`)**: Store `calendar_accounts` in MongoDB Atlas under `engineers` collection and return in profile/sync endpoints.
+> - **Web Dropdown**: Display Corporate Calendar, synced device Google accounts & secondary calendars, Apple Calendar (.ics), plus a manual `[+ Add Personal / Secondary Calendar]` option.
+> 
+> Both `plan_dasan.md` and `plan_vijayan.md` are activated. When the user gives the call, execute seamlessly!"*
 
 ---
 

@@ -1,6 +1,6 @@
-# 📋 Execution Plan for Dasan (Backend & Server-Side Filtering Engine)
+# 📋 Execution Plan for Dasan (Backend & Server Infrastructure Lead)
 
-**Status:** `COMPLETED` (Sprint v2.2.0 - Build 151 Permanent Notification Deletion & Calendar Target State Engine — Ready for Vijayan)
+**Status:** `READY FOR DASAN` (Sprint v2.3.0 - Build 152 Calendar Accounts Synchronization & Target Calendar Multi-Account Engine)
 
 ---
 
@@ -11,39 +11,61 @@
 
 ---
 
-## 1. Task 1 — Permanent Server-Side Notification Filtering (`server.py`)
-Fix the issue where cleared notifications reappear in Web or after uninstalling/reinstalling Android!
+## 1. Task 1 — Device Calendar Accounts Synchronization API (`server.py`)
+Bridge Android native `CalendarContract` discovery with the Web UI by persisting device Google accounts and secondary calendars into MongoDB Atlas:
 
 ### Implementation Details:
-1. **Filter Out Dismissed Notifications on the Server (`GET /api/notifications`)**:
-   - In `GET /api/notifications`:
-     - Retrieve caller's `dismissed_notifications` set from `ATLAS_DB.engineers` (and in-memory fallback `SERVER_USER_DISMISSED_NOTIFICATIONS`).
-     - For non-admin callers (regular engineers), **filter out** any notification whose `id` or `_id` is present in `dismissed_notifications`:
+1. **`POST /api/users/calendar-accounts`**:
+   - Authenticated endpoint for Android/Web clients.
+   - Payload:
+     ```json
+     {
+       "calendar_accounts": [
+         {
+           "id": "1",
+           "name": "Work Shifts",
+           "account_name": "user@gmail.com",
+           "account_type": "com.google",
+           "is_primary": false,
+           "color": "#174EAC"
+         }
+       ]
+     }
+     ```
+   - Validation & Hygiene:
+     - Ensure `account_name` and `name` are trimmed strings.
+     - Avoid saving null/empty accounts.
+   - Database Persistence:
+     - Update caller's engineer profile in `ATLAS_DB.engineers`:
        ```python
-       dismissed_set = set(dismissed_ids)
-       feed_notifs = [n for n in feed_notifs if str(n.get("id") or n.get("_id") or "") not in dismissed_set]
+       ATLAS_DB.engineers.update_one(
+           {"username": caller_username},
+           {"$set": {
+               "calendar_accounts": validated_accounts,
+               "calendar_accounts_updated_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+           }}
+       )
        ```
-     - Return filtered `notifications: feed_notifs` AND `dismissed_notification_ids: dismissed_ids`.
-     - **Result**: Once a notification is dismissed, the server NEVER serves it to that user again, even after a fresh app install or browser reload!
+     - Also maintain in-memory fallback cache for fast responses.
 
-2. **Harden `POST /api/notifications/dismiss`**:
-   - Accept both `notification_id` and `id` (`notif_id = str(body.get("notification_id") or body.get("id") or "").strip()`).
-   - For `dismiss_all`:
-     - Gather all notification IDs currently present in:
-       1. `ATLAS_DB.notifications`
-       2. Active celebration notifications (`check_and_trigger_celebrations()`)
-       3. Active credential expiry notifications
-       4. `SERVER_NOTIFICATIONS`
-     - Save all collected IDs into `ATLAS_DB.engineers.dismissed_notifications` using `$addToSet: {"$each": ...}`.
-     - Also update `SERVER_USER_DISMISSED_NOTIFICATIONS[username]`.
+2. **`GET /api/users/calendar-accounts`**:
+   - Returns caller's stored calendar accounts:
+     ```json
+     {
+       "success": true,
+       "calendar_accounts": [...],
+       "corporate_email": "user@corporate.com"
+     }
+     ```
+   - Also ensure `calendar_accounts` is returned in `/api/profile` and `/api/login` so the Web UI gets hydrated instantly without extra roundtrips.
 
 ---
 
 ## 2. Task 2 — Target Calendar State & Sync Persistence (`server.py`)
-Ensure the Target Calendar account selected on Android or Web is securely persisted in MongoDB Atlas:
+Ensure Target Calendar selection supports Corporate, Personal Google, and Secondary Calendars:
 
 1. **`POST /api/users/calendar-sync`**:
-   - Accept `{ "month": "YYYY-MM", "count": N, "target": "user@example.com", "synced": true }`.
+   - Accept `{ "month": "YYYY-MM", "count": N, "target": "Work Shifts (user@gmail.com)", "target_type": "secondary"|"corporate"|"google", "synced": true }`.
    - Update `ATLAS_DB.engineers`:
      ```python
      ATLAS_DB.engineers.update_one(
@@ -53,6 +75,7 @@ Ensure the Target Calendar account selected on Android or Web is securely persis
                  "synced": bool(body.get("synced", True)),
                  "count": int(body.get("count", 0)),
                  "target": str(body.get("target") or "Google Calendar").strip(),
+                 "target_type": str(body.get("target_type") or "google").strip(),
                  "synced_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
                  "timestamp": time.time()
              }
@@ -60,44 +83,16 @@ Ensure the Target Calendar account selected on Android or Web is securely persis
      )
      ```
 2. **`GET /api/users/calendar-sync`**:
-   - Return `{ "success": True, "month": month, "sync": data.get("calendar_sync", {}).get(month), "synced": ... }`.
-   - Ensure `calendar_sync` map is included in profile / login responses for instant client hydration.
+   - Returns `{ "success": True, "month": month, "sync": data.get("calendar_sync", {}).get(month), "synced": ... }`.
 
 ---
 
-## 3. Task 3 — Intelligent Conversational Gemini AI Engine (`server.py`)
-Eliminate repetitive canned responses and empower the AI to chat naturally like ChatGPT/Gemini:
-
-1. **Multi-Turn Chat History**:
-   - In `POST /api/chat/assistant`, accept `history: [...]` (list of past `{role, text}` messages).
-   - Format `history` into Gemini's multi-turn `contents` array so Gemini remembers past turns and context!
-
-2. **Active Month Grounding (`target_month`)**:
-   - Accept `target_month` (e.g. `"2026-12"`) from client.
-   - In `build_roster_grounding_context(current_user, target_month)`:
-     - Query `ATLAS_DB["rosters"].find_one({"_id": target_month})` (or active period).
-     - Include individual shift summaries (e.g. `"Manoj: 15 NS, 4 OFF, 12 SG"`) in the grounding payload so questions like *"Why Manoj has only night shifts?"* can be accurately reasoned and answered!
-
-3. **Conversational System Prompt**:
-   - Instruct Gemini to converse naturally and warmly like ChatGPT / Gemini.
-   - Instruct it to understand casual everyday English and broken English effortlessly without getting confused.
-   - Direct it to answer shift questions accurately based on DB ground truth, explain allocations clearly, and assist with shift generation proposals.
-
-4. **20-Second Timeout & Intelligent Intent-Aware Fallback**:
-   - Increase Gemini API timeout from 6s to 20s.
-   - Model fallback cascade: `gemini-3.1-flash-lite` -> `gemini-2.5-flash`.
-   - In `execute_deterministic_roster_ai`:
-     - If user asks about a specific person (e.g. "Why manoj..."), look up Manoj's actual shifts for the active month and explain them.
-     - Never repeat the same canned `"Your shift today is OFF..."` string for unrelated queries!
-
----
-
-## 4. Verification, Version Bump & Mandatory Push
+## 3. Task 3 — Verification, Version Bump & Mandatory Push
 1. Run `python -m py_compile server.py` and verify:
-   - Test `POST /api/chat/assistant` with multi-turn history & queries like *"Why manoj is having only night shift"* -> returns intelligent, conversational answer without falling back to canned text.
-   - Test `POST /api/notifications/dismiss` (single & all) -> verifies database storage.
-   - Test `GET /api/notifications` -> verifies dismissed notifications are omitted from feed.
+   - Test `POST /api/users/calendar-accounts` -> stores accounts cleanly in MongoDB Atlas.
+   - Test `GET /api/users/calendar-accounts` -> returns stored accounts.
    - Test `POST /api/users/calendar-sync` -> records target account and count.
-   - Zero hardcoded personal names/emails/passwords.
-2. Bump `SERVER_VERSION = "2.2.0"` in `server.py`.
-3. Commit with semantic message (`feat(backend): conversational multi-turn AI engine & persistent notification deletion v2.2.0 (Build 151)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
+   - Test `POST /api/chat/assistant` multi-turn memory & conversational responses.
+   - Ensure ZERO hardcoded personal names, real emails, or secrets.
+2. Bump `SERVER_VERSION = "2.3.0"` in `server.py`.
+3. Commit with semantic message (`feat(backend): calendar accounts synchronization API & multi-calendar target engine v2.3.0 (Build 152)`), update `AGENT_HANDOFF.md`, and **immediately run `git push origin main`**!
