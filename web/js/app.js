@@ -3917,6 +3917,11 @@ class RosterXApp {
 
     const tbody = this.dom.teamTableBody;
 
+    if (!tbody) {
+      this.renderTeamTab();
+      return;
+    }
+
     tbody.innerHTML = '';
 
 
@@ -4048,6 +4053,8 @@ class RosterXApp {
       tbody.appendChild(tr);
 
     });
+
+    this.renderTeamTab();
 
   }
 
@@ -4351,104 +4358,132 @@ class RosterXApp {
 
 
   handleSaveEngineer() {
+    try {
+      const id = this.dom.formEngId.value.trim() || `eng_${Date.now().toString().slice(-4)}`;
 
-    const id = this.dom.formEngId.value.trim() || `eng_${Date.now().toString().slice(-4)}`;
+      const name = this.dom.formEngName.value.trim().toUpperCase();
 
-    const name = this.dom.formEngName.value.trim().toUpperCase();
+      const email = this.dom.formEngEmail.value.trim();
 
-    const email = this.dom.formEngEmail.value.trim();
+      const rawUser = this.dom.formEngUsername ? this.dom.formEngUsername.value.trim().toLowerCase() : '';
 
-    const rawUser = this.dom.formEngUsername ? this.dom.formEngUsername.value.trim().toLowerCase() : '';
+      const username = rawUser || this.getEngineerUsername({ name, email });
 
-    const username = rawUser || this.getEngineerUsername({ name, email });
+      const fullName = this.dom.formEngFullName.value.trim();
 
-    const fullName = this.dom.formEngFullName.value.trim();
+      const phone = this.dom.formEngPhone.value.trim();
 
-    const phone = this.dom.formEngPhone.value.trim();
+      const role = this.dom.formEngRole.value;
 
-    const role = this.dom.formEngRole.value;
+      const status = this.dom.formEngStatus.value;
 
-    const status = this.dom.formEngStatus.value;
+      const joinDate = this.dom.formEngJoinDate.value || null;
+      const birthday = (this.dom.formEngBirthday && this.dom.formEngBirthday.value) ? this.dom.formEngBirthday.value : null;
+      const resignDate = this.dom.formEngResignDate.value || null;
 
-    const joinDate = this.dom.formEngJoinDate.value || null;
-    const birthday = (this.dom.formEngBirthday && this.dom.formEngBirthday.value) ? this.dom.formEngBirthday.value : null;
-    const resignDate = this.dom.formEngResignDate.value || null;
+      const off1 = (this.dom.formEngOff1 && this.dom.formEngOff1.value) || 'Saturday';
 
-    const off1 = this.dom.formEngOff1.value;
+      const off2 = (this.dom.formEngOff2 && this.dom.formEngOff2.value) || 'Sunday';
 
-    const off2 = this.dom.formEngOff2.value;
+      if (!name) {
 
-    if (!name) {
+        alert('Roster display name is required.');
 
-      alert('Roster display name is required.');
+        return;
 
-      return;
-
-    }
+      }
 
 
 
-    // Match primarily on username, or id, or original name being edited to prevent duplicate entries on rename
+      // Match primarily on username, or id, or original name being edited to prevent duplicate entries on rename
 
-    const editingUser = (this.state.editingEngineerId && this.state.engineersList.find(e => e.username === this.state.editingEngineerId || e.id === this.state.editingEngineerId)) || null;
+      const editingUser = (this.state.editingEngineerId && this.state.engineersList.find(e => e.username === this.state.editingEngineerId || e.id === this.state.editingEngineerId)) || null;
 
-    const existingIdx = this.state.engineersList.findIndex(e => 
+      const existingIdx = this.state.engineersList.findIndex(e => 
 
-      (editingUser && (e.username === editingUser.username || e.id === editingUser.id)) ||
+        (editingUser && (e.username === editingUser.username || e.id === editingUser.id)) ||
 
-      (username && e.username && e.username.toLowerCase() === username.toLowerCase()) ||
+        (username && e.username && e.username.toLowerCase() === username.toLowerCase()) ||
 
-      (e.id && e.id === id) ||
+        (e.id && e.id === id) ||
 
-      (e.name && e.name.trim().toUpperCase() === name)
+        (e.name && e.name.trim().toUpperCase() === name)
 
-    );
+      );
 
-    const resolvedUsername = username || (editingUser && editingUser.username) || name.toLowerCase().replace(/[\s\W]+/g, '');
-    const oldUsername = (editingUser && editingUser.username) ? editingUser.username.trim().toLowerCase() : null;
+      const resolvedUsername = username || (editingUser && editingUser.username) || name.toLowerCase().replace(/[\s\W]+/g, '');
+      const oldUsername = (editingUser && editingUser.username) ? editingUser.username.trim().toLowerCase() : null;
 
-    const isLeadership = (role === 'admin' || role === 'manager');
-    const resolvedOffs = isLeadership ? [] : [off1, off2];
+      const isLeadership = (role === 'admin' || role === 'manager');
+      const resolvedOffs = isLeadership ? [] : [off1, off2];
 
-    const engData = {
-      name,
-      full_name: fullName,
-      username: resolvedUsername,
-      email,
-      phone,
-      role,
-      status,
-      default_weekly_offs: resolvedOffs,
-      join_date: joinDate,
-      birthday: birthday,
-      resignation_date: resignDate,
-      preferred_shifts: (editingUser && editingUser.preferred_shifts) || ["FS", "FG", "SS"]
-    };
+      const engData = {
+        name,
+        full_name: fullName,
+        username: resolvedUsername,
+        email,
+        phone,
+        role,
+        status,
+        default_weekly_offs: resolvedOffs,
+        join_date: joinDate,
+        birthday: birthday,
+        resignation_date: resignDate,
+        preferred_shifts: (editingUser && editingUser.preferred_shifts) || ["FS", "FG", "SS"]
+      };
 
-    if (editingUser) {
-      if (editingUser.include_in_roster !== undefined) engData.include_in_roster = editingUser.include_in_roster;
-      if (editingUser.display_order !== undefined) engData.display_order = editingUser.display_order;
-      if (editingUser.swap_code !== undefined) engData.swap_code = editingUser.swap_code;
-    }
+      if (editingUser) {
+        if (editingUser.include_in_roster !== undefined) engData.include_in_roster = editingUser.include_in_roster;
+        if (editingUser.display_order !== undefined) engData.display_order = editingUser.display_order;
+        if (editingUser.swap_code !== undefined) engData.swap_code = editingUser.swap_code;
+      }
 
-    if (oldUsername && oldUsername !== resolvedUsername.toLowerCase()) {
-      engData.original_username = oldUsername;
-    }
+      if (oldUsername && oldUsername !== resolvedUsername.toLowerCase()) {
+        engData.original_username = oldUsername;
+      }
 
-    const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));
+      const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));
 
-    if (existingIdx >= 0) {
-      this.state.engineersList[existingIdx] = engData;
-      if (isComingMonth && status === 'Resigned') {
-        this.state.gridRoster = this.state.gridRoster.filter(e => (e.name && e.name.trim().toUpperCase() !== name) && e.id !== id);
+      if (existingIdx >= 0) {
+        this.state.engineersList[existingIdx] = engData;
+        if (isComingMonth && status === 'Resigned') {
+          this.state.gridRoster = this.state.gridRoster.filter(e => (e.name && e.name.trim().toUpperCase() !== name) && e.id !== id);
+        } else {
+          const gridIdx = this.state.gridRoster.findIndex(e => (editingUser && (e.name === editingUser.name || e.username === editingUser.username)) || (e.name && e.name.trim().toUpperCase() === name) || e.id === id);
+          if (gridIdx >= 0) {
+            this.state.gridRoster[gridIdx].name = name;
+            this.state.gridRoster[gridIdx].status = status;
+            this.state.gridRoster[gridIdx].role = role;
+            this.state.gridRoster[gridIdx].default_weekly_offs = resolvedOffs;
+          } else if (status === 'Active' && !isLeadership) {
+
+            this.state.gridRoster.push({
+
+              id,
+
+              name,
+
+              shifts: new Array(this.state.totalDays || 30).fill('OFF'),
+
+              status: 'Active',
+
+              role,
+
+              default_weekly_offs: resolvedOffs
+
+            });
+
+          }
+
+        }
+
       } else {
-        const gridIdx = this.state.gridRoster.findIndex(e => (editingUser && (e.name === editingUser.name || e.username === editingUser.username)) || (e.name && e.name.trim().toUpperCase() === name) || e.id === id);
-        if (gridIdx >= 0) {
-          this.state.gridRoster[gridIdx].name = name;
-          this.state.gridRoster[gridIdx].status = status;
-          this.state.gridRoster[gridIdx].role = role;
-          this.state.gridRoster[gridIdx].default_weekly_offs = resolvedOffs;
-        } else if (status === 'Active') {
+
+        this.state.engineersList.push(engData);
+
+        if (!(isComingMonth && status === 'Resigned') && !isLeadership) {
+
+          const newShifts = new Array(this.state.totalDays || 30).fill('OFF');
 
           this.state.gridRoster.push({
 
@@ -4456,9 +4491,9 @@ class RosterXApp {
 
             name,
 
-            shifts: new Array(this.state.totalDays).fill('OFF'),
+            shifts: newShifts,
 
-            status: 'Active',
+            status,
 
             role,
 
@@ -4470,93 +4505,72 @@ class RosterXApp {
 
       }
 
-    } else {
 
-      this.state.engineersList.push(engData);
 
-      if (!(isComingMonth && status === 'Resigned')) {
+      this.state.engineersList = this.sortEngineersByWeekOffs(this.state.engineersList);
 
-        const newShifts = new Array(this.state.totalDays).fill('OFF');
+      this.state.gridRoster = this.sortGridRosterByWeekOffs(this.state.gridRoster);
 
-        this.state.gridRoster.push({
 
-          id,
 
-          name,
+      this.saveEngineersList();
 
-          shifts: newShifts,
+      this.saveCurrentGridRoster();
 
-          status,
+      this.updateTeamBadge();
 
-          role,
+      this.renderTeamTable();
 
-          default_weekly_offs: [off1, off2]
+      this.renderTeamTab();
+
+      this.renderRoster();
+
+      this.closeEngineerForm();
+
+
+
+      // 1. Sync updated profile into authService if available
+      if (typeof window !== 'undefined' && window.authService && typeof window.authService.syncEngineerProfile === 'function') {
+
+        window.authService.syncEngineerProfile(engData);
+
+      }
+
+
+
+      // 2. Persist to system database asynchronously
+
+      const payloadToSync = JSON.parse(JSON.stringify(engData));
+
+      if (this.atlasService && typeof this.atlasService.saveEngineers === 'function') {
+        this.atlasService.saveEngineers([payloadToSync]).then(res => {
+
+          if (res && res.success) {
+
+            this.atlasService.notifyStatusChange('synced');
+
+            console.log(`[Account Directory] Saved account ${resolvedUsername} to database.`);
+
+          }
+
+        }).catch(err => {
+
+          console.warn('[Account Directory] Failed to save account:', err);
 
         });
-
       }
 
+
+
+      delete engData.password;
+
+
+
+      this.showToast('Account directory updated successfully.');
+    } catch (err) {
+      console.error('[Account Save Error]:', err);
+      alert(`Error saving account: ${err.message || 'Please check form fields'}`);
     }
-
-
-
-    this.state.engineersList = this.sortEngineersByWeekOffs(this.state.engineersList);
-
-    this.state.gridRoster = this.sortGridRosterByWeekOffs(this.state.gridRoster);
-
-
-
-    this.saveEngineersList();
-
-    this.saveCurrentGridRoster();
-
-    this.updateTeamBadge();
-
-    this.renderTeamTable();
-
-    this.renderRoster();
-
-    this.closeEngineerForm();
-
-
-
-    // 1. Sync updated email & phone into authService user accounts and active session
-
-    if (typeof window !== 'undefined' && window.authService) {
-
-      window.authService.syncEngineerProfile(engData);
-
-    }
-
-
-
-    // 2. Persist to system database asynchronously
-
-    const payloadToSync = JSON.parse(JSON.stringify(engData));
-
-    this.atlasService.saveEngineers([payloadToSync]).then(res => {
-
-      if (res && res.success) {
-
-        this.atlasService.notifyStatusChange('synced');
-
-        console.log(`[Account Directory] Saved account ${resolvedUsername} to database.`);
-
-      }
-
-    }).catch(err => {
-
-      console.warn('[Account Directory] Failed to save account:', err);
-
-    });
-
-
-
-    delete engData.password;
-
-
-
-    this.showToast('Account directory updated successfully.');
 
   }
 

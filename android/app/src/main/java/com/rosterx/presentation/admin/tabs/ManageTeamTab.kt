@@ -1020,7 +1020,8 @@ fun ManageTeamTab(
                     text = { Text("Register Account", fontWeight = FontWeight.Bold) },
                     containerColor = NeumorphicTokens.AccentSalmon,
                     contentColor = Color.White,
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.padding(bottom = 76.dp)
                 )
             }
         }
@@ -1039,96 +1040,140 @@ fun ManageTeamTab(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = "REGISTERED ACCOUNTS (${localEngineersList.size})",
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp,
-                            color = NeumorphicTokens.AccentSalmon
+                            fontSize = 12.sp,
+                            color = NeumorphicTokens.AccentSalmon,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Engineers, Managers & Supervisors",
                             fontSize = 10.sp,
-                            color = NeumorphicTokens.TextMuted
+                            color = NeumorphicTokens.TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    val isDarkSearch = LocalIsDarkTheme.current
-                    Box(
-                        modifier = Modifier
-                            .width(170.dp)
-                            .height(38.dp)
-                            .neumorphicInset(
-                                shape = RoundedCornerShape(10.dp),
-                                elevation = NeumorphicTokens.ElevationInsetSubtle,
-                                surfaceColor = NeumorphicTokens.InputSurface
-                            )
-                            .border(
-                                1.dp,
-                                if (isDarkSearch) Color(0x1FFFFFFF) else Color(0x1F94A3B8),
-                                RoundedCornerShape(10.dp)
-                            )
-                            .padding(horizontal = 10.dp),
-                        contentAlignment = Alignment.CenterStart
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = NeumorphicTokens.TextMuted,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            val searchTextStyle = LocalTextStyle.current.copy(
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = NeumorphicTokens.TextMain
-                            )
-                            BasicTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                singleLine = true,
-                                textStyle = searchTextStyle,
-                                cursorBrush = SolidColor(NeumorphicTokens.AccentSalmon),
-                                modifier = Modifier.weight(1f),
-                                decorationBox = { innerTextField ->
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        if (searchQuery.isEmpty()) {
-                                            Text(
-                                                text = "Search...",
-                                                style = searchTextStyle.copy(
-                                                    fontWeight = FontWeight.Normal,
-                                                    color = NeumorphicTokens.TextMuted.copy(alpha = 0.7f)
-                                                ),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        innerTextField()
-                                    }
-                                }
-                            )
-                            if (searchQuery.isNotEmpty()) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear search",
-                                    tint = NeumorphicTokens.TextMuted,
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .clickable { searchQuery = "" }
+                        val isDarkSearch = LocalIsDarkTheme.current
+                        Box(
+                            modifier = Modifier
+                                .widthIn(min = 90.dp, max = 135.dp)
+                                .height(38.dp)
+                                .neumorphicInset(
+                                    shape = RoundedCornerShape(10.dp),
+                                    elevation = NeumorphicTokens.ElevationInsetSubtle,
+                                    surfaceColor = NeumorphicTokens.InputSurface
                                 )
+                                .border(
+                                    1.dp,
+                                    if (isDarkSearch) Color(0x1FFFFFFF) else Color(0x1F94A3B8),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                val searchTextStyle = LocalTextStyle.current.copy(
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = NeumorphicTokens.TextMain
+                                )
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = searchTextStyle,
+                                    cursorBrush = SolidColor(NeumorphicTokens.AccentSalmon),
+                                    modifier = Modifier.weight(1f),
+                                    decorationBox = { innerTextField ->
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            if (searchQuery.isEmpty()) {
+                                                Text(
+                                                    text = "Search...",
+                                                    style = searchTextStyle.copy(
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = NeumorphicTokens.TextMuted.copy(alpha = 0.7f)
+                                                    ),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                    }
+                                )
+                                if (searchQuery.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear search",
+                                        tint = NeumorphicTokens.TextMuted,
+                                        modifier = Modifier
+                                            .size(13.dp)
+                                            .clickable { searchQuery = "" }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!isReadOnly) {
+                            Box(
+                                modifier = Modifier
+                                    .height(38.dp)
+                                    .neumorphicRaised(
+                                        shape = RoundedCornerShape(10.dp),
+                                        surfaceColor = NeumorphicTokens.AccentSalmon
+                                    )
+                                    .clickable {
+                                        editingEngineer = null
+                                        showEditDialog = true
+                                    }
+                                    .padding(horizontal = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PersonAdd,
+                                        contentDescription = "Register Account",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Register",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }
