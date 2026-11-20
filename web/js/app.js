@@ -1641,16 +1641,17 @@ class RosterXApp {
 
 
     // Gemini Settings Modal
-
     this.dom.geminiSettingsModal = document.getElementById('geminiSettingsModal');
-
     this.dom.btnCloseGeminiSettings = document.getElementById('btnCloseGeminiSettings');
-
-    this.dom.geminiApiKeyInput = document.getElementById('geminiApiKeyInput');
-
+    this.dom.geminiKeyPoolCountBadge = document.getElementById('geminiKeyPoolCountBadge');
+    this.dom.geminiKeyListContainer = document.getElementById('geminiKeyListContainer');
+    this.dom.geminiKeyListEmpty = document.getElementById('geminiKeyListEmpty');
+    this.dom.geminiNewKeyInput = document.getElementById('geminiNewKeyInput');
+    this.dom.btnAddGeminiKey = document.getElementById('btnAddGeminiKey');
+    this.dom.btnTestGeminiKeys = document.getElementById('btnTestGeminiKeys');
     this.dom.geminiModelSelect = document.getElementById('geminiModelSelect');
-
     this.dom.btnSaveGeminiSettings = document.getElementById('btnSaveGeminiSettings');
+    this.geminiPoolKeys = [];
 
 
 
@@ -2385,10 +2386,18 @@ class RosterXApp {
 
 
     // Gemini Settings Modal
-
-    this.dom.btnCloseGeminiSettings.addEventListener('click', () => this.dom.geminiSettingsModal.classList.add('hidden'));
-
-    this.dom.btnSaveGeminiSettings.addEventListener('click', () => this.saveGeminiSettings());
+    if (this.dom.btnCloseGeminiSettings) {
+      this.dom.btnCloseGeminiSettings.addEventListener('click', () => this.dom.geminiSettingsModal.classList.add('hidden'));
+    }
+    if (this.dom.btnAddGeminiKey) {
+      this.dom.btnAddGeminiKey.addEventListener('click', () => this.addGeminiKeyToPool());
+    }
+    if (this.dom.btnTestGeminiKeys) {
+      this.dom.btnTestGeminiKeys.addEventListener('click', () => this.testAllGeminiKeys());
+    }
+    if (this.dom.btnSaveGeminiSettings) {
+      this.dom.btnSaveGeminiSettings.addEventListener('click', () => this.saveGeminiSettings());
+    }
 
 
 
@@ -6941,36 +6950,236 @@ class RosterXApp {
 
 
 
-  // --- Settings Modals ---
+  // --- Settings Modals & Multi-Key Pool Manager ---
 
-  openGeminiSettings() {
-
-    this.dom.geminiApiKeyInput.value = this.aiEngine.apiKey || '';
-
-    this.dom.geminiModelSelect.value = this.aiEngine.model || 'gemini-1.5-flash';
-
+  async openGeminiSettings() {
     this.dom.geminiSettingsModal.classList.remove('hidden');
-
+    await this.fetchGeminiPoolSettings();
   }
 
+  async fetchGeminiPoolSettings() {
+    try {
+      const resp = await fetch('/api/admin/ai-settings', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
+        }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success) {
+          this.geminiPoolKeys = data.keys || [];
+          if (this.dom.geminiModelSelect && data.selected_model) {
+            this.dom.geminiModelSelect.value = data.selected_model;
+          }
+          this.renderGeminiKeyPool();
+          return;
+        }
+      }
+      this.renderGeminiKeyPool();
+    } catch (e) {
+      console.warn('Failed to load Gemini pool settings:', e);
+      this.renderGeminiKeyPool();
+    }
+  }
 
+  renderGeminiKeyPool() {
+    if (!this.dom.geminiKeyListContainer) return;
+    const container = this.dom.geminiKeyListContainer;
+    container.innerHTML = '';
 
-  saveGeminiSettings() {
-
-    this.aiEngine.saveApiKey(this.dom.geminiApiKeyInput.value);
-
-    this.aiEngine.saveModel(this.dom.geminiModelSelect.value);
-
-    this.dom.geminiSettingsModal.classList.add('hidden');
-
-    if (this.aiAssistant && typeof this.aiAssistant.updateModelDisplay === 'function') {
-
-      this.aiAssistant.updateModelDisplay();
-
+    const count = (this.geminiPoolKeys || []).length;
+    if (this.dom.geminiKeyPoolCountBadge) {
+      this.dom.geminiKeyPoolCountBadge.textContent = `${count} Key${count === 1 ? '' : 's'}`;
     }
 
-    this.showToast('Gemini API settings saved.');
+    if (count === 0) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.id = 'geminiKeyListEmpty';
+      emptyDiv.className = 'text-slate-400 text-center py-3 italic text-xs';
+      emptyDiv.textContent = 'No API keys configured. Add one below to enable RosterX Assistant.';
+      container.appendChild(emptyDiv);
+      return;
+    }
 
+    this.geminiPoolKeys.forEach((k, idx) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 shadow-2xs hover:border-purple-200 transition';
+      row.innerHTML = `
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center text-xs font-bold">
+            <i class="ph ph-key"></i>
+          </div>
+          <div>
+            <span class="font-mono text-xs font-semibold text-slate-800">${escapeHtml(k.masked || '****')}</span>
+            <span class="text-[10px] text-slate-400 ml-1.5">(${k.length || 39} chars)</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="keyStatusBadge_${idx}" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            Active
+          </span>
+          <button class="btnDeleteGeminiKey text-slate-400 hover:text-rose-600 p-1 rounded-md transition" data-index="${idx}" title="Remove Key">
+            <i class="ph ph-trash text-sm"></i>
+          </button>
+        </div>
+      `;
+      const delBtn = row.querySelector('.btnDeleteGeminiKey');
+      if (delBtn) {
+        delBtn.addEventListener('click', () => this.removeGeminiKeyFromPool(idx));
+      }
+      container.appendChild(row);
+    });
+  }
+
+  async addGeminiKeyToPool() {
+    if (!this.dom.geminiNewKeyInput) return;
+    const newKey = this.dom.geminiNewKeyInput.value.trim();
+    if (!newKey) {
+      this.showToast('Please paste a valid Gemini API key.');
+      return;
+    }
+
+    try {
+      const resp = await fetch('/api/admin/ai-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
+        },
+        body: JSON.stringify({
+          action: 'add_key',
+          key: newKey,
+          selected_model: this.dom.geminiModelSelect ? this.dom.geminiModelSelect.value : 'gemini-3.8-flash'
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        this.dom.geminiNewKeyInput.value = '';
+        this.geminiPoolKeys = data.keys || [];
+        this.renderGeminiKeyPool();
+        this.showToast(data.message || 'API key added to pool.');
+      } else {
+        this.showToast(data.message || 'Failed to add key.');
+      }
+    } catch (e) {
+      this.showToast('Error adding API key: ' + e.message);
+    }
+  }
+
+  async removeGeminiKeyFromPool(index) {
+    if (!confirm('Are you sure you want to remove this API key from the active pool?')) return;
+    try {
+      const resp = await fetch('/api/admin/ai-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
+        },
+        body: JSON.stringify({
+          action: 'remove_key',
+          index: index,
+          selected_model: this.dom.geminiModelSelect ? this.dom.geminiModelSelect.value : 'gemini-3.8-flash'
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        this.geminiPoolKeys = data.keys || [];
+        this.renderGeminiKeyPool();
+        this.showToast(data.message || 'API key removed.');
+      } else {
+        this.showToast(data.message || 'Failed to remove key.');
+      }
+    } catch (e) {
+      this.showToast('Error removing API key: ' + e.message);
+    }
+  }
+
+  async testAllGeminiKeys() {
+    if (!this.geminiPoolKeys || this.geminiPoolKeys.length === 0) {
+      this.showToast('No API keys in pool to test.');
+      return;
+    }
+
+    const testBtn = this.dom.btnTestGeminiKeys;
+    if (testBtn) {
+      testBtn.disabled = true;
+      testBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-purple-600"></i> Testing Pool...';
+    }
+
+    try {
+      const resp = await fetch('/api/admin/ai-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
+        },
+        body: JSON.stringify({
+          action: 'test_keys',
+          selected_model: this.dom.geminiModelSelect ? this.dom.geminiModelSelect.value : 'gemini-3.8-flash'
+        })
+      });
+      const data = await resp.json();
+      if (data.success && data.results) {
+        let healthyCount = 0;
+        data.results.forEach((res) => {
+          const badge = document.getElementById(`keyStatusBadge_${res.id}`);
+          if (badge) {
+            if (res.status === 'healthy') {
+              healthyCount++;
+              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+              badge.textContent = 'Healthy (200)';
+            } else if (res.status === 'quota_exhausted') {
+              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+              badge.textContent = 'Quota Limit (429)';
+            } else {
+              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
+              badge.textContent = 'Invalid / Error';
+            }
+          }
+        });
+        this.showToast(`Key Pool Tested: ${healthyCount}/${data.results.length} Healthy`);
+      } else {
+        this.showToast(data.message || 'Key testing completed.');
+      }
+    } catch (e) {
+      this.showToast('Error testing keys: ' + e.message);
+    } finally {
+      if (testBtn) {
+        testBtn.disabled = false;
+        testBtn.innerHTML = '<i class="ph ph-activity text-purple-600"></i> Test All Keys';
+      }
+    }
+  }
+
+  async saveGeminiSettings() {
+    const selectedModel = this.dom.geminiModelSelect ? this.dom.geminiModelSelect.value : 'gemini-3.8-flash';
+    try {
+      const resp = await fetch('/api/admin/ai-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('rosterx_token') || ''}`
+        },
+        body: JSON.stringify({
+          action: 'save_settings',
+          selected_model: selectedModel
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        this.showToast('AI Settings and Model saved to MongoDB Atlas.');
+      }
+    } catch (e) {
+      console.warn('Error saving model selection:', e);
+    }
+
+    if (this.aiEngine) {
+      this.aiEngine.saveModel(selectedModel);
+    }
+    this.dom.geminiSettingsModal.classList.add('hidden');
+    if (this.aiAssistant && typeof this.aiAssistant.updateModelDisplay === 'function') {
+      this.aiAssistant.updateModelDisplay();
+    }
   }
 
 

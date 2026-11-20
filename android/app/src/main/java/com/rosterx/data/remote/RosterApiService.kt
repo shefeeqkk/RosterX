@@ -563,7 +563,8 @@ data class AssistantChatResponse(
     val reply: String?,
     val model: String? = null,
     @SerializedName("grounded_time") val groundedTime: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val error: String? = null
 )
 
 // --- Credential Tracker DTOs ---

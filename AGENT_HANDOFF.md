@@ -28,34 +28,28 @@
 
 ---
 
-## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.3.1 - Build 153 — Dynamic Festival App Config & Dynamic Grounded RosterX Assistant AI Engine):
-> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.3.1` (Build 153)** 100% spotless aayi execute cheythu, RosterX Assistant-inte canned static template response engine poornamaayi remove cheythu, real-time MongoDB Atlas multi-week window grounding & official `google-genai` SDK integrate cheythu boss! 🕵️‍♂️🔥
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.3.1 - Build 153 — Multi-Gemini API Key Pool Manager, MongoDB Atlas Persistence, Round-Robin Rotation & Admin UI):
+> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.3.1` (Build 153)** Multi-Gemini API Key Pool 100% spotless aayi execute cheythu! Render production-il key missing aayittulla issue solve cheyyaan MongoDB Atlas-il `app_settings` collectionil keys persist cheythu, Admin Portal-il multiple keys add/test/delete cheyyaanulla dynamic UI create cheythu boss! 🕵️‍♂️🔥
 >
-> ### 🚀 Backend Deliverables in `server.py` & `requirements.txt`:
-> 1. **Complete Removal of Static Template & Silent Fallbacks**:
->    - Permanently eradicated `execute_deterministic_roster_ai` and all hardcoded keyword routing / regex matching.
->    - Removed the silent fallback that caught API errors and masked them with canned static output (*"Your shift today is... Currently on duty..."*).
->    - When an unrecoverable API error occurs, returns explicit HTTP 500 with exact error details instead of fake roster output.
-> 2. **Multi-Week MongoDB Atlas Window Grounding**:
->    - `build_roster_grounding_context`: Fetches team roster documents from **yesterday through the next 35 days** (37 days total) across all spanned YYYY-MM months using `Asia/Kolkata` IST dates with `_id` stripped for clean JSON serialization.
->    - Pre-computes exact active shift windows and on-duty engineers, correctly handling overnight Night Shift (`NS`, 21:00 – 07:30 IST) rollover.
-> 3. **Dynamic `system_instruction` with Full Ground Truth**:
->    - Injects exact current IST date, day of week, and 24-hour time.
->    - Resolves active logged-in user (`name`, `username`, `role`) so references to "me", "my", and "I" accurately resolve to the authenticated user.
->    - Supplies complete shift definitions (`FS`, `FG`, `G`, `SG`, `SS`, `NS`, `OFF`, `L`, `SW*`), timing constraints, overnight rules, and full 37-day chronological team schedule.
-> 4. **Official `google-genai` SDK & Model Cascade**:
->    - Added `google-genai>=0.1.1` to `requirements.txt`.
->    - Uses `genai.Client` with `types.GenerateContentConfig(temperature=0.1, max_output_tokens=1024)`.
->    - Cascade: attempts `gemini-2.5-flash` $\rightarrow$ `gemini-3.8-flash` $\rightarrow$ `gemini-3.1-flash-lite`.
->    - Passes multi-turn conversation history (`user` and `model` turns) in `contents` using `types.Content`.
-> 5. **Live Verification**:
->    - Verified live against MongoDB Atlas:
->      - "Who is on duty right now?": Correctly returned on-duty engineers with active shift windows.
->      - "What is my shift today?": Correctly resolved active user Shefeeq to today's shift (`SS`: 13:00 – 22:00 IST).
->      - "When is my next night shift?": Scanned multi-week schedule chronologically from today forward.
->    - Syntax verified (`py_compile server.py`).
->
-> Vijaya, backend AI assistant endpoint is now 100% dynamic and intelligent! Ready for immediate push and Render auto-deployment!"*
+> ### 🚀 Multi-Key Pool & Admin Settings Deliverables:
+> 1. **MongoDB Atlas Key Pool Persistence & Auto-Seeding (`server.py`)**:
+>    - Created `app_settings` collection (`_id: "ai_config"`) in MongoDB Atlas.
+>    - Auto-seeding: Automatically seeds existing `GEMINI_API_KEY` from `.env` on first boot if database is uninitialized, so production Render instances have active keys immediately without manual Render dashboard changes!
+> 2. **Round-Robin Rotation with Auto-Failover**:
+>    - Cycles through all active keys across incoming queries to distribute load.
+>    - When a key encounters a 429 quota exhaustion or temporary API error, it automatically and seamlessly cascades to the next key in the pool without dropping the user's conversation turn.
+> 3. **Admin REST API Endpoints (`GET/POST /api/admin/ai-settings`)**:
+>    - Strictly authorized to `role="admin"`.
+>    - `GET`: Returns masked key list (`AIzaSy...****`), active model, and key count.
+>    - `POST`: Supports `add_key`, `remove_key`, `test_keys` (live health checks), and `save_settings`.
+> 4. **Admin Settings UI Overhaul (`web/index.html` & `web/js/app.js`)**:
+>    - Redesigned Model Settings modal: Key Pool List with masked previews, live health check status badges ("Healthy", "Quota Limit (429)", "Invalid"), one-click Add Key input, and "Save & Sync to Cloud".
+> 5. **Client Error Handling Resilience (`web/js/userPortal.js` & Android DTOs)**:
+>    - Replaced brittle `'No response.'` fallback in Web chat with real server error descriptions.
+>    - Android DTO `AssistantChatResponse` and repository updated to surface `error` and `message` directly in chat.
+> 6. **Production Verification**:
+>    - Safe build compile successful (`BUILD SUCCESSFUL in 1m 22s`).
+>    - Pushing to `origin/main` for live Render auto-deployment! 🚀"*
 
 ---
 

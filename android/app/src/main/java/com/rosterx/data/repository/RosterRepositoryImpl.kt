@@ -1066,7 +1066,7 @@ class RosterRepositoryImpl @Inject constructor(
             if (res.success) {
                 Result.success(res)
             } else {
-                Result.failure(Exception(res.message ?: "Assistant query failed"))
+                Result.failure(Exception(res.message ?: res.error ?: "Assistant query failed"))
             }
         } catch (e: HttpException) {
             Result.failure(Exception(parseErrorMessage(e)))

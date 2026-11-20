@@ -2527,19 +2527,176 @@ def build_roster_grounding_context(current_user=None, target_month=None):
         "uptime": uptime_str
     }
 
+# ==============================================================================
+# Multi-Gemini API Key Pool Manager (MongoDB Atlas Persistence + Round-Robin)
+# ==============================================================================
+
+GEMINI_KEY_INDEX = 0
+GEMINI_KEY_LOCK = threading.Lock()
+
+def mask_api_key(key):
+    """Safely mask an API key for admin UI display (e.g. AIzaSy...AbCd)."""
+    if not key or not isinstance(key, str):
+        return ""
+    k = key.strip()
+    if len(k) <= 10:
+        return "****"
+    return f"{k[:6]}...{k[-4:]}"
+
+def get_gemini_config():
+    """
+    Retrieve Gemini configuration from MongoDB Atlas (app_settings.ai_config).
+    Auto-seeds from local .env / environment variable if uninitialized.
+    """
+    global ATLAS_DB
+    env = load_env_variables()
+    fallback_key = env.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
+    fallback_model = env.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
+
+    keys = []
+    selected_model = fallback_model
+
+    if ATLAS_DB is not None:
+        try:
+            doc = ATLAS_DB["app_settings"].find_one({"_id": "ai_config"})
+            if doc:
+                raw_keys = doc.get("api_keys") or []
+                if isinstance(raw_keys, list):
+                    keys = [str(k).strip() for k in raw_keys if str(k).strip()]
+                elif isinstance(raw_keys, str) and raw_keys.strip():
+                    keys = [raw_keys.strip()]
+                if doc.get("selected_model"):
+                    selected_model = str(doc.get("selected_model")).strip()
+
+            # Auto-seed if database document is missing or has empty keys, but fallback_key is present
+            if not keys and fallback_key:
+                keys = [fallback_key]
+                try:
+                    ATLAS_DB["app_settings"].update_one(
+                        {"_id": "ai_config"},
+                        {
+                            "$set": {
+                                "api_keys": keys,
+                                "selected_model": selected_model,
+                                "updated_at": datetime.now(timezone.utc).isoformat(),
+                                "updated_by": "system_auto_seed"
+                            }
+                        },
+                        upsert=True
+                    )
+                    log_server(f"[AI Pool] Auto-seeded {len(keys)} Gemini API key(s) into MongoDB Atlas app_settings.")
+                except Exception as seed_err:
+                    log_server(f"[AI Pool] Auto-seed error: {seed_err}")
+        except Exception as e:
+            log_server(f"[AI Pool] MongoDB query error: {e}")
+
+    if not keys and fallback_key:
+        keys = [fallback_key]
+
+    return {
+        "api_keys": keys,
+        "selected_model": selected_model or "gemini-3.8-flash"
+    }
+
+def save_gemini_config(keys, selected_model=None, updated_by="admin"):
+    """
+    Persist Gemini keys and model choice into MongoDB Atlas app_settings.
+    """
+    global ATLAS_DB
+    cleaned_keys = []
+    for k in keys:
+        if isinstance(k, str) and k.strip():
+            k_clean = k.strip()
+            if k_clean not in cleaned_keys:
+                cleaned_keys.append(k_clean)
+
+    update_payload = {
+        "api_keys": cleaned_keys,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": updated_by or "admin"
+    }
+    if selected_model:
+        update_payload["selected_model"] = str(selected_model).strip()
+
+    if ATLAS_DB is not None:
+        try:
+            ATLAS_DB["app_settings"].update_one(
+                {"_id": "ai_config"},
+                {"$set": update_payload},
+                upsert=True
+            )
+            log_server(f"[AI Pool] Successfully saved {len(cleaned_keys)} key(s) to MongoDB Atlas.")
+            return True, cleaned_keys
+        except Exception as e:
+            log_server(f"[AI Pool] Error saving to MongoDB Atlas: {e}")
+            return False, cleaned_keys
+    return False, cleaned_keys
+
+def test_single_gemini_key(api_key, model="gemini-3.8-flash"):
+    """
+    Lightweight health & quota check for a specific Gemini API key.
+    """
+    if not api_key:
+        return {"status": "error", "message": "Empty API key"}
+    if genai is None or types is None:
+        return {"status": "error", "message": "google-genai SDK not installed"}
+    
+    try:
+        client = genai.Client(api_key=api_key.strip())
+        candidate_models = [model, "gemini-3.8-flash", "gemini-3.1-flash-lite"]
+        for m in candidate_models:
+            if not m:
+                continue
+            try:
+                resp = client.models.generate_content(
+                    model=m,
+                    contents="Ping",
+                    config=types.GenerateContentConfig(
+                        temperature=0.1,
+                        max_output_tokens=5
+                    )
+                )
+                if resp and resp.text:
+                    return {"status": "healthy", "model": m, "message": "Valid & Active"}
+            except Exception as e:
+                err_str = str(e)
+                if "404" in err_str or "NOT_FOUND" in err_str:
+                    continue  # Try next model
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    return {"status": "quota_exhausted", "model": m, "message": "Quota limit reached (429)"}
+                if "API_KEY_INVALID" in err_str or "400" in err_str or "403" in err_str:
+                    return {"status": "invalid_key", "model": m, "message": "Invalid API key or unauthorized"}
+                return {"status": "error", "model": m, "message": err_str[:120]}
+        return {"status": "error", "message": "All test models failed"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)[:120]}
+
 def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="Web Portal", history=None, target_month=None):
     """
     RAG AI agent powered by official Google GenAI SDK (google-genai).
     Strictly grounded in multi-week MongoDB Atlas rosters (yesterday through next 35 days)
-    and exact Asia/Kolkata IST time. Zero hardcoded templates, keyword fallbacks, or canned text.
+    and exact Asia/Kolkata IST time. Supports Multi-Key Pool with Round-Robin Rotation and Auto-Failover.
+    Zero hardcoded templates, keyword fallbacks, or canned text.
     """
-    env = load_env_variables()
-    gemini_key = env.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
-    configured_model = env.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
+    global GEMINI_KEY_INDEX, GEMINI_KEY_LOCK
+
+    cfg = get_gemini_config()
+    api_keys = cfg.get("api_keys", [])
+    configured_model = cfg.get("selected_model", "gemini-3.8-flash")
     
     context = build_roster_grounding_context(current_user=current_user, target_month=target_month)
     
-    # Model hierarchy: cascade candidate models
+    if not api_keys:
+        err_msg = "No Gemini API keys configured. Please add an API key in Admin Settings."
+        log_server(f"[RAG] Configuration error: {err_msg}")
+        return err_msg, "error", context["ist_timestamp"]
+
+    if genai is None or types is None:
+        err_msg = "google-genai SDK is not installed on the server runtime."
+        log_server(f"[RAG] Import error: {err_msg}")
+        return err_msg, "error", context["ist_timestamp"]
+
+    # Candidate models hierarchy
     candidate_models = []
     for m in [configured_model, "gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite"]:
         if m and m not in candidate_models:
@@ -2592,16 +2749,6 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         "4. TONE & FORMAT: Provide concise, professional, direct, and well-formatted responses suitable for a mobile screen. Use clean Markdown (bolding, lists, code spans for shift codes). Avoid unnecessary preambles or robotic repetition."
     )
 
-    if not gemini_key:
-        err_msg = "GEMINI_API_KEY is not configured on the server."
-        print(f"[RAG] Configuration error: {err_msg}")
-        return err_msg, "error", context["ist_timestamp"]
-
-    if genai is None or types is None:
-        err_msg = "google-genai SDK is not installed on the server runtime."
-        print(f"[RAG] Import error: {err_msg}")
-        return err_msg, "error", context["ist_timestamp"]
-
     # Assemble multi-turn conversation history
     contents = []
     if history and isinstance(history, list):
@@ -2647,40 +2794,62 @@ def query_gemini_roster_agent(user_prompt, current_user=None, client_platform="W
         )
     )
 
+    # Round-Robin Selection with Automatic Failover
+    num_keys = len(api_keys)
+    with GEMINI_KEY_LOCK:
+        start_idx = GEMINI_KEY_INDEX % num_keys
+        GEMINI_KEY_INDEX = (GEMINI_KEY_INDEX + 1) % num_keys
+
+    ordered_indices = [(start_idx + i) % num_keys for i in range(num_keys)]
+
     ai_reply = None
     successful_model = None
     last_error = None
 
-    client = genai.Client(api_key=gemini_key)
-
-    for model in candidate_models:
+    for k_idx in ordered_indices:
+        current_key = api_keys[k_idx]
+        key_masked = mask_api_key(current_key)
         try:
-            config = types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.1,
-                max_output_tokens=1024
-            )
-            response = client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config
-            )
-            if response and response.text:
-                ai_reply = response.text.strip()
-                successful_model = model
-                break
-        except Exception as e:
-            last_error = e
-            print(f"[RAG] Model '{model}' generation failed: {e}")
-            traceback.print_exc()
+            client = genai.Client(api_key=current_key)
+            for model in candidate_models:
+                try:
+                    config = types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.1,
+                        max_output_tokens=1024
+                    )
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=contents,
+                        config=config
+                    )
+                    if response and response.text:
+                        ai_reply = response.text.strip()
+                        successful_model = model
+                        break
+                except Exception as me:
+                    last_error = me
+                    err_text = str(me)
+                    # If model 404 (e.g. 2.5-flash deprecated), cascade to next model for SAME key
+                    if "404" in err_text or "NOT_FOUND" in err_text:
+                        continue
+                    # If 429 quota exhaustion or 403 invalid key, break model loop to failover to NEXT KEY
+                    if "429" in err_text or "RESOURCE_EXHAUSTED" in err_text or "403" in err_text or "API_KEY_INVALID" in err_text:
+                        log_server(f"[RAG] Key [{key_masked}] throttled or invalid ({me}), failing over to next pool key...")
+                        break
+                    log_server(f"[RAG] Key [{key_masked}] model '{model}' failed: {me}")
+                    continue
+
+            if ai_reply and successful_model:
+                return ai_reply, successful_model, context["ist_timestamp"]
+        except Exception as ke:
+            last_error = ke
+            log_server(f"[RAG] Client initialization failed for key [{key_masked}]: {ke}")
             continue
 
-    if ai_reply and successful_model:
-        return ai_reply, successful_model, context["ist_timestamp"]
-
     # No silent fallbacks: return explicit failure details
-    err_detail = f"Gemini API request failed across candidate models {candidate_models}. Error: {last_error}"
-    print(f"[RAG] Error: {err_detail}")
+    err_detail = f"Gemini API request failed across {num_keys} configured key(s) and candidate models {candidate_models}. Last error: {last_error}"
+    log_server(f"[RAG] Error: {err_detail}")
     return err_detail, "error", context["ist_timestamp"]
 
 
@@ -2832,7 +3001,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/server-info", "/app-config", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/broadcast-templates", "/credentials", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
+        if norm_path in ("/test-connection", "/engineers", "/admin/ai-settings", "/ai-settings", "/server-info", "/app-config", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/broadcast-templates", "/credentials", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
             norm_path = "/api" + norm_path
         norm_path = self._normalize_api_aliases(norm_path)
 
@@ -2914,6 +3083,33 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
     def handle_api_get(self, clean_path):
         """Router for GET /api/* requests."""
         lan_ip = get_lan_ip()
+
+        # GET /api/admin/ai-settings (Admin Only)
+        if clean_path in ("/api/admin/ai-settings", "/api/admin/ai-settings/", "/api/ai-settings", "/api/ai-settings/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+            if str(claims.get("role", "")).lower() != "admin":
+                self.send_json_response({"success": False, "message": "Permission denied: Admin role required."}, 403)
+                return
+
+            cfg = get_gemini_config()
+            keys_info = []
+            for idx, k in enumerate(cfg.get("api_keys", [])):
+                keys_info.append({
+                    "id": idx,
+                    "masked": mask_api_key(k),
+                    "length": len(k)
+                })
+
+            self.send_json_response({
+                "success": True,
+                "keys": keys_info,
+                "selected_model": cfg.get("selected_model", "gemini-3.8-flash"),
+                "total_keys": len(keys_info)
+            })
+            return
+
 
         # 0.05 GET /api/app-config (Public App Configuration & Dynamic Festival Theme Engine)
         if clean_path in ("/api/app-config", "/api/app-config/"):
@@ -3961,7 +4157,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/broadcast-templates", "/broadcast-templates/delete",
             "/credentials", "/credentials/trackers",
             "/users/fcm-token", "/users/fcm-token/unregister", "/fcm/unregister",
-            "/users/profile", "/celebrations/check",
+            "/users/profile", "/celebrations/check", "/admin/ai-settings", "/ai-settings",
             "/ai/generate", "/ai/chat", "/chat/assistant", "/ai/assistant",
             "/users/profile-picture",
             "/users/calendar-sync", "/users/calendar-sync/clear",
@@ -4400,6 +4596,98 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # 2. AUTHENTICATED AI PROXY (Eliminates Browser / App API Key Exposure)
         # ======================================================================
 
+        if clean_path in ("/api/admin/ai-settings", "/api/admin/ai-settings/", "/api/ai-settings", "/api/ai-settings/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+            if str(claims.get("role", "")).lower() != "admin":
+                self.send_json_response({"success": False, "message": "Permission denied: Admin role required."}, 403)
+                return
+
+            action = str(body.get("action") or "save_settings").strip().lower()
+            current_cfg = get_gemini_config()
+            current_keys = list(current_cfg.get("api_keys", []))
+            selected_model = body.get("selected_model") or current_cfg.get("selected_model", "gemini-3.8-flash")
+            admin_user = claims.get("username") or claims.get("name") or "admin"
+
+            if action == "add_key":
+                new_key = str(body.get("key") or "").strip()
+                if not new_key:
+                    self.send_json_response({"success": False, "message": "API key cannot be empty."}, 400)
+                    return
+                if new_key in current_keys:
+                    self.send_json_response({"success": False, "message": "This API key is already configured."}, 400)
+                    return
+                current_keys.append(new_key)
+                save_gemini_config(current_keys, selected_model, updated_by=admin_user)
+                self.send_json_response({
+                    "success": True,
+                    "message": "API key added successfully.",
+                    "total_keys": len(current_keys),
+                    "keys": [{"id": i, "masked": mask_api_key(k), "length": len(k)} for i, k in enumerate(current_keys)]
+                })
+                return
+
+            elif action == "remove_key":
+                idx = body.get("index")
+                if idx is not None and isinstance(idx, int) and 0 <= idx < len(current_keys):
+                    removed = current_keys.pop(idx)
+                    save_gemini_config(current_keys, selected_model, updated_by=admin_user)
+                    self.send_json_response({
+                        "success": True,
+                        "message": f"API key {mask_api_key(removed)} removed successfully.",
+                        "total_keys": len(current_keys),
+                        "keys": [{"id": i, "masked": mask_api_key(k), "length": len(k)} for i, k in enumerate(current_keys)]
+                    })
+                    return
+                self.send_json_response({"success": False, "message": "Invalid key index."}, 400)
+                return
+
+            elif action == "test_keys":
+                results = []
+                for idx, k in enumerate(current_keys):
+                    test_res = test_single_gemini_key(k, model=selected_model)
+                    results.append({
+                        "id": idx,
+                        "masked": mask_api_key(k),
+                        "status": test_res.get("status"),
+                        "message": test_res.get("message"),
+                        "model": test_res.get("model")
+                    })
+                self.send_json_response({
+                    "success": True,
+                    "results": results,
+                    "total_keys": len(results)
+                })
+                return
+
+            elif action == "test_single_key":
+                test_k = str(body.get("key") or "").strip()
+                if not test_k:
+                    self.send_json_response({"success": False, "message": "Key is required for test."}, 400)
+                    return
+                res = test_single_gemini_key(test_k, model=selected_model)
+                self.send_json_response({"success": True, "result": res})
+                return
+
+            elif action == "save_settings":
+                new_keys = body.get("keys")
+                if isinstance(new_keys, list):
+                    valid_keys = [str(k).strip() for k in new_keys if str(k).strip() and not str(k).strip().endswith("...****")]
+                    if valid_keys:
+                        current_keys = valid_keys
+                save_gemini_config(current_keys, selected_model, updated_by=admin_user)
+                self.send_json_response({
+                    "success": True,
+                    "message": "AI settings and API key pool saved to MongoDB Atlas.",
+                    "total_keys": len(current_keys),
+                    "selected_model": selected_model
+                })
+                return
+
+            self.send_json_response({"success": False, "message": f"Unknown action '{action}'."}, 400)
+            return
+
         if clean_path in ("/api/chat/assistant", "/api/chat/assistant/", "/api/ai/assistant", "/api/ai/assistant/"):
             claims = self.get_auth_claims()
             current_user = body.get("current_user") or {}
@@ -4432,6 +4720,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({
                     "success": False,
                     "error": ai_reply or "Gemini API failed to return a response.",
+                    "message": ai_reply or "Gemini API failed to return a response.",
                     "model": "error",
                     "grounded_time": grounded_time,
                     "platform": client_platform

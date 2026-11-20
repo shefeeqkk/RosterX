@@ -2481,7 +2481,12 @@ class RosterXUserPortal {
           })
         });
         const data = await resp.json();
-        this.aiMessages.push({ role: 'ai', text: data.reply || data.response || data.message || 'No response.' });
+        if (resp.ok && data.success) {
+          this.aiMessages.push({ role: 'ai', text: data.reply || data.response || data.message || 'No response.' });
+        } else {
+          const errMsg = data.error || data.message || 'Server temporarily unable to reach Gemini API. Please ensure active API keys are configured in Admin Settings.';
+          this.aiMessages.push({ role: 'ai', text: `⚠️ ${errMsg}` });
+        }
       } catch (err) {
         this.aiMessages.push({ role: 'ai', text: `Error: ${err.message}` });
       } finally {
