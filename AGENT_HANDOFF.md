@@ -5,11 +5,16 @@
 
 ---
 
-## 🕶️ Gafoorka's Master Architecture Directive (v2.3.0 - Build 152 — Mobile Web Back-Stack Exit Guard, Background Scroll Lock & Calendar Accounts Discovery):
+## 🕶️ Gafoorka's Master Architecture Directive (v2.3.0 - Build 152 — Zero-Cropping App Logo Overhaul, Mobile Web Back-Stack Exit Guard, Background Scroll Lock & Calendar Accounts Discovery):
 > *"Dasa! Vijaya! User `/grill-me` alignment has set our target architecture for **`v2.3.0` (Build 152)**!
 > Here is what we must deliver with surgical precision:
 > 
-> ### 1. 📱 Mobile Web / Chrome Shortcut Back-Button Exit Bug:
+> ### 1. 🎨 Full-Fitted App Logo & Zero-Cropping Asset Overhaul (Android Splash, Launcher, Package Installer & Web PWA):
+> - **Android 12+ Splash Screen (`Theme.RosterX.Starting`)**: Replace `@mipmap/ic_launcher_round` with `@drawable/ic_rosterx_splash_logo` (full hexagonal logo with wings on transparent background, scaled within 325px safe radius). Floating seamlessly directly on the splash background without an awkward clipped white box!
+> - **Android Launcher & Package Installer (`ic_launcher`, `ic_launcher_round`)**: Rescale master `ic_rosterx_logo.png` so max radius is $\le 325$px from center (leaving ~195px breathing room inside 1024x1024). Regenerate all densities (`mdpi`..`xxxhdpi`) with pure white `#FFFFFF` background so the Package Installer update prompt and launcher squircles render the full logo with complete side wings!
+> - **Web UI & PWA Shortcuts (`manifest.webmanifest`, `logo.png`, `logo-maskable.png`)**: Provide `logo.png` (transparent, proportioned) for `"any"` purpose and `logo-maskable.png` (white background + safe padding) for `"maskable"` purpose, ensuring home screen shortcuts never crop wings.
+> 
+> ### 2. 📱 Mobile Web / Chrome Shortcut Back-Button Exit Bug:
 > - **Manifest Root (`manifest.webmanifest`)**: Change `"start_url": "/login.html"` to `"start_url": "/"` so shortcuts open directly into the portal when logged in.
 > - **Login BFCache Protection (`login.html`)**: Add `pageshow` listener so back-navigation restores never render frozen login screens when auth tokens exist; redirect forward immediately.
 > - **Dashboard Double-Back Guard (`userPortal.js`)**: When at Dashboard root with no active modal or subview, first back press shows Neumorphic toast *"Press back again to exit"*. Second press within 2.5s allows window close/minimize. **NEVER** clear auth tokens on back press!

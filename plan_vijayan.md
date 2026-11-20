@@ -11,7 +11,35 @@
 
 ---
 
-## 1. Task 1 — Chrome Shortcut / Mobile Web Back-Stack & Exit Guard (`manifest.webmanifest`, `login.html`, `userPortal.js`)
+## 1. Task 1 — Full-Fitted App Logo & Zero-Cropping Asset Overhaul (Android Splash, Launcher, Package Installer & Web PWA)
+Eliminate all side wing and top/bottom cropping across Android and Web:
+
+1. **Root Problem Analysis**:
+   - Master logo content bounding box was `(64, 58, 961, 973)` occupying 88% width and 89% height.
+   - Android adaptive icon safe keyline circle is only 66% (radius ~340px in 1024x1024), causing Android splash screen, package installer, and launcher squircles to slice off ~110px of the horizontal wings.
+
+2. **Android 12+ Splash / Loading Screen (Seamless Floating Logo)**:
+   - Create `@drawable/ic_rosterx_splash_logo`: Transparent background with full hexagonal badge and complete horizontal wings scaled safely within 325px radius from center.
+   - Update `Theme.RosterX.Starting` in `values/themes.xml` and `values-night/themes.xml`:
+     `<item name="windowSplashScreenAnimatedIcon">@drawable/ic_rosterx_splash_logo</item>`
+   - Removes the awkward clipped white squircle box, rendering the floating logo cleanly on `#EEF2F6` (light) and `#141923` (dark).
+
+3. **Android Launcher Icons & Package Installer (`ic_launcher`, `ic_launcher_round`)**:
+   - Master `ic_rosterx_logo.png`: Rescale graphic so extreme points (left wing x=188, right wing x=836, top vertex y=188, bottom vertex y=836) sit well inside the 330px safe radius.
+   - In `mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml`, update foreground to use the safe-padded logo on `@color/ic_launcher_background_color` (`#FFFFFF`).
+   - Regenerate all mipmap densities (`mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi`) for `ic_launcher.png` and `ic_launcher_round.png` with clean white background and the complete logo centered inside, so the Android Package Installer ("Do you want to update this app?") displays the full logo with zero clipping!
+
+4. **Web UI & PWA Shortcut Maskable Icon (`web/assets/logo.png`, `logo-maskable.png`)**:
+   - Regenerate `web/assets/logo.png` (transparent background, perfectly proportioned with safe margin).
+   - Generate `web/assets/logo-maskable.png` (pure white `#FFFFFF` background with the logo positioned within the W3C 65% safe circle).
+   - In `web/manifest.webmanifest`, specify:
+     - `src: "/assets/logo.png"`, `purpose: "any"`
+     - `src: "/assets/logo-maskable.png"`, `purpose: "maskable"`
+   - Result: Home screen Chrome shortcuts mask smoothly into squircles without clipping wing tips!
+
+---
+
+## 2. Task 2 — Chrome Shortcut / Mobile Web Back-Stack & Exit Guard (`manifest.webmanifest`, `login.html`, `userPortal.js`)
 Fix the issue where pressing the back button on the Dashboard logs the user out instead of closing/minimizing the application:
 
 1. **Manifest Start URL (`web/manifest.webmanifest`)**:
@@ -48,7 +76,7 @@ Fix the issue where pressing the back button on the Dashboard logs the user out 
 
 ---
 
-## 2. Task 2 — Background Scroll Lock & Backdrop Focus Lockdown (`pwaHelper.js`, `mobile-shell.css`)
+## 3. Task 3 — Background Scroll Lock & Backdrop Focus Lockdown (`pwaHelper.js`, `mobile-shell.css`)
 Fix the issue where clicking outside or scrolling inside a floating dialog scrolls and focuses the underlying main screen:
 
 1. **Scroll-Lock Hook in Dialog Manager (`web/js/pwaHelper.js`)**:
@@ -91,7 +119,7 @@ Fix the issue where clicking outside or scrolling inside a floating dialog scrol
 
 ---
 
-## 3. Task 3 — Target Calendar Categorization & Device Calendars Integration (`calendarSync.js`, Android `ShiftCalendarExporter.kt`)
+## 4. Task 4 — Target Calendar Categorization & Device Calendars Integration (`calendarSync.js`, Android `ShiftCalendarExporter.kt`)
 Properly categorize Corporate vs Personal accounts and support secondary calendars:
 
 1. **Corporate Account Relabeling (`web/js/calendarSync.js`)**:
@@ -116,7 +144,7 @@ Properly categorize Corporate vs Personal accounts and support secondary calenda
 
 ---
 
-## 4. Task 4 — Verification, Version Bump & Mandatory Push
+## 5. Task 5 — Verification, Version Bump & Mandatory Push
 1. Bump version to **`v2.3.0` (Build 152)**:
    - `android/app/build.gradle.kts`: `versionName = "2.3.0"`, `versionCode = 152`
    - `server.py`: `SERVER_VERSION = "2.3.0"` (synced with Dasan)
