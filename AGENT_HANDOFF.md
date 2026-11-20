@@ -28,22 +28,34 @@
 
 ---
 
-## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.3.1 - Build 153 — Dynamic Festival App Config Engine & Version Bump):
-> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.3.1` (Build 153)** 100% spotless aayi execute cheythu, live unit and ephemeral tests pass aakki, Render deploymentilottu push cheyyaan ready aakki macha! 🕵️‍♂️🔥
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.3.1 - Build 153 — Dynamic Festival App Config & Dynamic Grounded RosterX Assistant AI Engine):
+> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.3.1` (Build 153)** 100% spotless aayi execute cheythu, RosterX Assistant-inte canned static template response engine poornamaayi remove cheythu, real-time MongoDB Atlas multi-week window grounding & official `google-genai` SDK integrate cheythu boss! 🕵️‍♂️🔥
 >
-> ### 🚀 Backend Deliverables in `server.py`:
-> 1. **Dynamic Festival App Config Engine (`GET /api/app-config`)**:
->    - Public endpoint with path normalization (`/app-config` and `/api/app-config`).
->    - Emits version (`2.3.1`), active theme (`"default"`, `"diwali"`, `"christmas"`, or `"new_year"` based on today's IST calendar window), and festival window registry.
->    - Auth-enriched team celebration: when called with a valid Bearer token, automatically detects today's team member birthday or work anniversary from MongoDB Atlas / in-memory buffer and populates `active_celebration: { type, username, name, profile_picture, years }`.
->    - Emits public `Cache-Control: public, max-age=60` for high performance.
-> 2. **Digital Asset Links Verification (`/.well-known/assetlinks.json`)**:
->    - Confirmed public delivery of `delegate_permission/common.handle_all_urls` and `delegate_permission/common.get_login_creds` for package `com.rosterx` with environment-configured SHA-256 certificate fingerprints.
-> 3. **Version Bump & Zero-PII Verification**:
->    - Bumped `SERVER_VERSION = "2.3.1"` in `server.py` and `versionCode = 153`, `versionName = "2.3.1"` in `android/app/build.gradle.kts`.
->    - Zero hardcoded personal names, corporate emails, or credentials anywhere.
+> ### 🚀 Backend Deliverables in `server.py` & `requirements.txt`:
+> 1. **Complete Removal of Static Template & Silent Fallbacks**:
+>    - Permanently eradicated `execute_deterministic_roster_ai` and all hardcoded keyword routing / regex matching.
+>    - Removed the silent fallback that caught API errors and masked them with canned static output (*"Your shift today is... Currently on duty..."*).
+>    - When an unrecoverable API error occurs, returns explicit HTTP 500 with exact error details instead of fake roster output.
+> 2. **Multi-Week MongoDB Atlas Window Grounding**:
+>    - `build_roster_grounding_context`: Fetches team roster documents from **yesterday through the next 35 days** (37 days total) across all spanned YYYY-MM months using `Asia/Kolkata` IST dates with `_id` stripped for clean JSON serialization.
+>    - Pre-computes exact active shift windows and on-duty engineers, correctly handling overnight Night Shift (`NS`, 21:00 – 07:30 IST) rollover.
+> 3. **Dynamic `system_instruction` with Full Ground Truth**:
+>    - Injects exact current IST date, day of week, and 24-hour time.
+>    - Resolves active logged-in user (`name`, `username`, `role`) so references to "me", "my", and "I" accurately resolve to the authenticated user.
+>    - Supplies complete shift definitions (`FS`, `FG`, `G`, `SG`, `SS`, `NS`, `OFF`, `L`, `SW*`), timing constraints, overnight rules, and full 37-day chronological team schedule.
+> 4. **Official `google-genai` SDK & Model Cascade**:
+>    - Added `google-genai>=0.1.1` to `requirements.txt`.
+>    - Uses `genai.Client` with `types.GenerateContentConfig(temperature=0.1, max_output_tokens=1024)`.
+>    - Cascade: attempts `gemini-2.5-flash` $\rightarrow$ `gemini-3.8-flash` $\rightarrow$ `gemini-3.1-flash-lite`.
+>    - Passes multi-turn conversation history (`user` and `model` turns) in `contents` using `types.Content`.
+> 5. **Live Verification**:
+>    - Verified live against MongoDB Atlas:
+>      - "Who is on duty right now?": Correctly returned on-duty engineers with active shift windows.
+>      - "What is my shift today?": Correctly resolved active user Shefeeq to today's shift (`SS`: 13:00 – 22:00 IST).
+>      - "When is my next night shift?": Scanned multi-week schedule chronologically from today forward.
+>    - Syntax verified (`py_compile server.py`).
 >
-> Vijaya, backend routes and dynamic app-config engine are live and ready for your Android Compose & Web UI integration! Over to you for the final touch!"*
+> Vijaya, backend AI assistant endpoint is now 100% dynamic and intelligent! Ready for immediate push and Render auto-deployment!"*
 
 ---
 
