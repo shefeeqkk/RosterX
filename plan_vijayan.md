@@ -193,7 +193,44 @@ Prompt users about the Android Home Screen Widget, allow 1-tap pinning via nativ
 
 ---
 
-## 6. Task 6 — Verification, Version Bump & Mandatory Push
+## 6. Task 6 — Unified Edit Profile 1:1 Android Parity in Web (`userPortal.js`)
+Add all missing Android options (Company Join Date & Security Password Change section) to Web's Edit Profile dialog:
+
+1. **Missing Fields Added to Form (`openEditProfileDialog`)**:
+   - **Company Join Date (`join_date`)**:
+     - Dual-column row alongside `BIRTHDAY`: `[ JOIN DATE ]` & `[ BIRTHDAY ]` with native date pickers.
+     - Pre-fills with existing `eng.joining_date` or `eng.join_date` (calculates work tenure & anniversary).
+   - **Security & Password Section**:
+     - Section Header: `SECURITY & PASSWORD` with muted helper `(Leave blank to keep current)`.
+     - `Current Password`: `<input type="password">` with show/hide eye toggle button.
+     - Dual-column row:
+       - `New Password`: Min 6 characters, with show/hide eye toggle.
+       - `Confirm Password`: Must match New Password, with show/hide eye toggle.
+
+2. **Client Validation & Submission (`POST /api/users/profile`)**:
+   - If any password field is touched:
+     - Enforce `current_password.isNotBlank()`.
+     - Enforce `new_password.length >= 6`.
+     - Enforce `new_password === confirm_password`.
+   - On submit, dispatch:
+     ```json
+     {
+       "username": eng.username,
+       "name": name,
+       "full_name": name,
+       "phone": phone,
+       "email": email,
+       "birthday": birthday,
+       "join_date": joinDate,
+       "current_password": currentPassword,
+       "new_password": newPassword
+     }
+     ```
+   - On success: Toast *"Profile & security updated successfully!"*, close dialog, and refresh profile view.
+
+---
+
+## 7. Task 7 — Verification, Version Bump & Mandatory Push
 1. Bump version to **`v2.3.0` (Build 152)**:
    - `android/app/build.gradle.kts`: `versionName = "2.3.0"`, `versionCode = 152`
    - `server.py`: `SERVER_VERSION = "2.3.0"` (synced with Dasan)

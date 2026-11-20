@@ -88,6 +88,12 @@
 > - **1-Tap Native Pinning**: `AppWidgetManager.requestPinAppWidget()` triggers Android OS home screen placement dialog.
 > - **Permanent Access**: Permanent 'Home Screen Widget' row in Profile & Settings.
 > 
+> ### 5. 👤 1:1 Unified Edit Profile Parity in Web (`userPortal.js`):
+> - Bring Web's Edit Profile dialog into complete 1:1 parity with Android's `UnifiedEditProfileDialog`:
+>   - Add **Company Join Date** (`join_date`) dual-columned with Birthday.
+>   - Add **Security & Password Section** (`Current Password`, `New Password`, `Confirm Password` with show/hide eye toggles).
+>   - Wired directly to `POST /api/users/profile` which already supports all fields on the backend.
+> 
 > Both `plan_dasan.md` and `plan_vijayan.md` are activated. When the user gives the call, execute seamlessly!"*
 
 ---
