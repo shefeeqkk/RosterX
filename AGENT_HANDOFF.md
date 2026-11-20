@@ -98,6 +98,11 @@
 > - Completely remove bottom-stuck docking (`margin: auto auto 0 auto`).
 > - Center floating modal (`width: min(92vw, 540px); height: min(82dvh, 720px); margin: auto;`) with 24px blur glassmorphism, gradient user bubbles, frosted AI cards, and spring scale/fade open/close animations. Releases dashboard cleanly on close!
 > 
+> ### 7. 🔐 Google Password Manager Domain Unification & Password Update Sync:
+> - **Domain Unification (`AndroidManifest.xml`)**: Add `<meta-data android:name="asset_statements">` pointing to `https://rosterx.online/.well-known/assetlinks.json`. Eliminates `rosterx.com` and generic green robot in GPM; merges all Android & Web credentials seamlessly under **`rosterx.online`** with the official app logo!
+> - **Immediate Update on Change**: In `UnifiedEditProfileDialog.kt`, immediately call `googlePasswordManager.saveCredentials(activity, username, newPassword)` upon password change, triggering GPM's native *"Update password?"* prompt.
+> - **Login Screen Re-Sync**: Prompts GPM update whenever logging in with a new password that differs from stored hash.
+> 
 > Both `plan_dasan.md` and `plan_vijayan.md` are activated. When the user gives the call, execute seamlessly!"*
 
 ---

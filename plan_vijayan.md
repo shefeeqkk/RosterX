@@ -292,7 +292,44 @@ Replace the broken, bottom-stuck Neumorphic AI modal with a responsive, smoothly
 
 ---
 
-## 8. Task 8 — Verification, Version Bump & Mandatory Push
+## 8. Task 8 — Google Password Manager Domain Unification & Password Update Sync (`AndroidManifest.xml`, `GooglePasswordManagerHelper.kt`, `ProfileComponents.kt`, `LoginScreen.kt`)
+Unify credentials under `rosterx.online`, eliminate `rosterx.com` and generic green robot, and prompt GPM to update passwords immediately on change or login:
+
+1. **Digital Asset Links & Domain Unification (`AndroidManifest.xml`, `strings.xml`)**:
+   - In `android/app/src/main/res/values/strings.xml`, add `asset_statements`:
+     ```xml
+     <string name="asset_statements" translatable="false">
+     [{\n
+       \"include\": \"https://rosterx.online/.well-known/assetlinks.json\"\n
+     },{\n
+       \"include\": \"https://api.rosterx.online/.well-known/assetlinks.json\"\n
+     }]
+     </string>
+     ```
+   - In `AndroidManifest.xml` inside `<application>`, add:
+     ```xml
+     <meta-data
+         android:name="asset_statements"
+         android:resource="@string/asset_statements" />
+     ```
+   - **Result**: Google Password Manager recognizes `com.rosterx` as belonging to `rosterx.online`. It stops saving under `rosterx.com`, replaces the green robot with the official RosterX logo, and shares credentials seamlessly with Chrome Web!
+
+2. **Immediate GPM Update Prompt on Password Change (`ProfileComponents.kt`, `EngineerPortalViewModel.kt`)**:
+   - In `UnifiedEditProfileDialog.kt`, when user changes password and the API call returns success:
+     - Clear `last_saved_hash_<username>` in `GooglePasswordManagerHelper`.
+     - Immediately invoke `googlePasswordManager.saveCredentials(activity, username, newPassword)`.
+     - Google Password Manager detects the updated password for `username` under `rosterx.online` and prompts the native bottom sheet: *"Update password in Google Password Manager?"*.
+     - Call `autofillManager.commit()` to sync OS autofill.
+
+3. **Login Screen Auto-Update (`LoginScreen.kt`, `GooglePasswordManagerHelper.kt`)**:
+   - On successful login, if the password does not match `last_saved_hash`:
+     - Invalidate old hash and launch `saveCredentials(activity, saveUser, creds.second)`.
+     - Prompts the user to update their saved password in GPM if it was changed on Web or elsewhere!
+   - Saves under canonical username (`eng.username`).
+
+---
+
+## 9. Task 9 — Verification, Version Bump & Mandatory Push
 1. Bump version to **`v2.3.0` (Build 152)**:
    - `android/app/build.gradle.kts`: `versionName = "2.3.0"`, `versionCode = 152`
    - `server.py`: `SERVER_VERSION = "2.3.0"` (synced with Dasan)
