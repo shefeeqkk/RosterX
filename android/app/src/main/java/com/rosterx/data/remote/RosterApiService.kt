@@ -163,6 +163,8 @@ data class EngineerDto(
     @SerializedName("id") val id: String?,
     @SerializedName("engineer_id") val engineerId: String?,
     @SerializedName("name") val name: String?,
+    @SerializedName("full_name") val fullNameSnake: String? = null,
+    @SerializedName("fullName") val fullNameCamel: String? = null,
     @SerializedName("username") val username: String?,
     @SerializedName("email") val email: String?,
     @SerializedName("phone") val phone: String?,

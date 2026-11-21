@@ -31,6 +31,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 
@@ -250,6 +254,19 @@ fun MonthRostersTab(
     val daysInMonth = yearMonth.lengthOfMonth()
 
     val scrollState = rememberScrollState()
+
+    // Strict Grid Isolation: Consumes any remaining horizontal delta on the 31-day table so it never switches tabs
+    val gridNestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                return Offset(available.x, 0f)
+            }
+        }
+    }
 
 
 
@@ -1254,6 +1271,7 @@ fun MonthRostersTab(
                             .fillMaxWidth()
                             .height(if (isLandscape) 34.dp else 48.dp)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .nestedScroll(gridNestedScrollConnection)
                     ) {
                         // Left Pinned: "ENGINEER" Label
                         Box(
@@ -1308,8 +1326,11 @@ fun MonthRostersTab(
 
                     // 2. Compact Grid (Engineer Rows + Day Coverage + Night Coverage unified in LazyColumn)
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = if (isLandscape) 72.dp else 160.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .nestedScroll(gridNestedScrollConnection),
+                        contentPadding = PaddingValues(bottom = if (isLandscape) 72.dp else 16.dp)
                     ) {
                         // Engineer Rows
                         items(filteredEngineers, key = { it.id }) { engineer ->
@@ -1596,6 +1617,13 @@ fun MonthRostersTab(
                             }
                         }
                     }
+
+                    // Blank canvas area below table: swiping here smoothly switches tabs left and right
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
                 }
             }
 

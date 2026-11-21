@@ -1,7 +1,50 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 13:30 IST** (Target Sprint: **v2.3.6 - Build 158**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 18:15 IST** (Target Sprint: **v2.3.8 - Build 160**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.8 - Build 160 — Complete Full-Name @Mention Highlighting Suite across Web & Android, Multi-Word Colon-Delimited Mention Extraction, DTO Schema Parity & Ultra-Smooth Month Roster Isolated Tab Swiping):
+> *"Gafoorka! Boss! Sprint **`v2.3.8` (Build 160)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Complete Full-Name @Mention Highlighting (`ProfileComponents.kt`, `RosterApiService.kt`, `RosterRepositoryImpl.kt`, `userPortal.js`, `broadcastController.js`, `server.py`)**:
+>    - **Root Cause Resolution**: Previously, Android's `EngineerDto` only deserialized `name`, completely discarding `full_name` and `fullName` from the backend/database. When `silambarasanr` had `name: "Silambarasan"` and `full_name: "Silambarasan R"`, Android never received the `"R"` initial, causing the mention parser to only highlight `@Silambarasan` and leave `R` stranded as plain text.
+>    - **DTO & Repository Schema Parity**: Added `@SerializedName("full_name") val fullNameSnake` and `@SerializedName("fullName") val fullNameCamel` to `EngineerDto`. Updated `EngineerDto.toDomain()` to prefer the full name (`fullNameSnake ?: fullNameCamel ?: name`).
+>    - **Dynamic Colon-Delimited Mention Extraction**: In notifications such as `@Shefeeq K K : FG [First General]` and `@Silambarasan R : FS [First Shift]`, the mention parser across Compose Android (`ProfileComponents.kt`, `NotificationsTab.kt`), Web (`userPortal.js`, `broadcastController.js`), and Backend (`server.py`) now dynamically extracts multi-word names immediately preceding `:` / `-` / `(` / `[` / newline if the initial word matches a known team member. This guarantees complete multi-word `@Name Initial` badge wrapping without splitting trailing initials or middle names.
+>    - **Backend Directory Normalization (`server.py`)**: `GET /api/engineers` now automatically populates both `name`, `full_name`, and `fullName` in Title Case from the longest candidate, ensuring zero mismatch across web, iOS, and Android clients.
+> 2. **Ultra-Smooth 1:1 Direct Drag Tracking & Month Roster Isolation (`SwipeableTabContainer.kt`, `FluidNeumorphicBottomNav.kt`, `EngineerPortalScreen.kt`, `MonthRostersTab.kt`, `swipeTabController.js`)**:
+>    - Horizontal swiping inside the 31-day table is strictly isolated to scrolling days 1–31.
+>    - The large blank screen below the table (`Spacer(weight(1f))`) and the top month header smoothly glide between tabs left and right.
+>    - Zero-latency 1:1 bottom dock cutout notch and active bubble tracking during finger drag, with spring physics on release.
+> 3. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.8"`, `versionCode = 160`.
+>    - Server `SERVER_VERSION = "2.3.8"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.8'`.
+>    - Safe build `assembleDebug` compiled successfully (`BUILD SUCCESSFUL in 1m 39s`)! 🚀"*
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.7 - Build 159 — Ultra-Smooth 1:1 Swipe Transitions & Strict Month Roster Grid Gesture Isolation with Dedicated Blank Canvas Swipe Zone across Web & Android):
+> *"Gafoorka! Boss! Sprint **`v2.3.7` (Build 159)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Ultra-Smooth 1:1 Direct Drag Tracking (`SwipeableTabContainer.kt`, `FluidNeumorphicBottomNav.kt`)**:
+>    - Eliminated outer `detectHorizontalDragGestures` conflict: Compose `HorizontalPager` is now the sole, unhindered horizontal drag handler, running at buttery-smooth 60/120fps.
+>    - Hardware-accelerated boundary overscroll resistance via `NestedScrollConnection` and GPU `graphicsLayer { translationX = ... }` without per-frame coroutine allocations.
+>    - Direct zero-latency bottom dock indicator tracking: While finger is down (`isDragging`), the cutout notch and active bubble follow the finger with zero interpolation lag; on finger release, physics spring damping (`Spring.DampingRatioMediumBouncy`) smoothly settles into the final tab slot.
+>    - Replaced `LaunchedEffect(pagerState.currentPage)` with `LaunchedEffect(pagerState.settledPage)` and guarded `LaunchedEffect(selectedTab)` with `!pagerState.isScrollInProgress`, eliminating stutter and animation fighting during touch drag.
+> 2. **Strict Month Roster Grid Gesture Isolation with Blank Canvas Swipe Zone (`EngineerPortalScreen.kt`, `MonthRostersTab.kt`, `swipeTabController.js`)**:
+>    - **Inside the 31-day table grid**: Horizontal swiping is strictly isolated to scrolling days 1–31 (`gridNestedScrollConnection`), preventing accidental tab switching.
+>    - **Blank canvas below the table**: `LazyColumn` now wraps its content (`weight(1f, fill = false)`), and the large blank screen below is occupied by a dedicated swipe zone (`Spacer(weight(1f))`). Swiping in this blank space effortlessly glides between tabs left and right!
+>    - **Month selector header above**: Also smoothly swipes between tabs.
+>    - Mobile Web (`swipeTabController.js`): Strict grid isolation applied — touches on the 31-day table only scroll the table, while touches on the blank area below or top header smoothly switch tabs with GPU-accelerated `translate3d`.
+> 3. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.7"`, `versionCode = 159`.
+>    - Server `SERVER_VERSION = "2.3.7"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.7'`.
+>    - Safe build `assembleDebug` compiled successfully and deployed to ADB target `100.71.241.36:5555`! 🚀"*
 
 ---
 

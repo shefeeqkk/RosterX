@@ -109,14 +109,13 @@ export class SwipeTabController {
       return;
     }
 
-    // 3. Edge-safe Month Roster protection
-    // If on Month Roster table, prioritize 31-day table horizontal scrolling unless dragging from screen edge
+    // 3. Strict Month Roster Grid Isolation:
+    // If touch starts ON the 31-day table or inside horizontal scroll cells, strictly isolate to table scrolling (tab swipe disabled).
+    // If touch starts OUTSIDE the table grid (in the blank area below or the month header above), tab swipe is fully active!
     const activeId = this.getActiveTab();
     if (activeId === this.rosterTabId) {
-      const scrollableTable = target.closest('.rx-month-grid, .rx-roster-scroll-table, .overflow-x-auto, table');
-      const touchX = e.touches[0].clientX;
-      const isEdgeSwipe = touchX < 36 || touchX > (window.innerWidth - 36);
-      if (scrollableTable && !isEdgeSwipe) {
+      const scrollableTable = target.closest('.rx-month-grid, .rx-roster-scroll-table, .overflow-x-auto, table, th, td');
+      if (scrollableTable) {
         this.ignoreCurrentGesture = true;
         return;
       }
@@ -192,7 +191,7 @@ export class SwipeTabController {
 
       this.currentPanel.style.transition = 'none';
       this.currentPanel.style.willChange = 'transform';
-      this.currentPanel.style.transform = `translateX(${dampedOffset}px)`;
+      this.currentPanel.style.transform = `translate3d(${dampedOffset}px, 0, 0)`;
 
       this.onDragProgress?.(activeIndex, dampedOffset, false);
       return;
@@ -233,12 +232,12 @@ export class SwipeTabController {
     // 1:1 active translation of both panels
     this.currentPanel.style.transition = 'none';
     this.currentPanel.style.willChange = 'transform';
-    this.currentPanel.style.transform = `translateX(${deltaX}px)`;
+    this.currentPanel.style.transform = `translate3d(${deltaX}px, 0, 0)`;
 
     if (this.adjacentEl) {
       this.adjacentEl.style.transition = 'none';
       const adjacentOffset = deltaX < 0 ? (containerWidth + deltaX) : (-containerWidth + deltaX);
-      this.adjacentEl.style.transform = `translateX(${adjacentOffset}px)`;
+      this.adjacentEl.style.transform = `translate3d(${adjacentOffset}px, 0, 0)`;
     }
 
     // Notify continuous dock indicator
@@ -266,7 +265,7 @@ export class SwipeTabController {
     // 1. Handle boundary spring recoil
     if (this.isBoundaryStretch && this.currentPanel) {
       this.currentPanel.style.transition = 'transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-      this.currentPanel.style.transform = 'translateX(0px)';
+      this.currentPanel.style.transform = 'translate3d(0, 0, 0)';
       this.onDragProgress?.(activeIndex, 0, true);
 
       setTimeout(() => {
@@ -290,8 +289,8 @@ export class SwipeTabController {
       this.currentPanel.style.transition = 'transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1)';
       this.adjacentEl.style.transition = 'transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1)';
 
-      this.currentPanel.style.transform = deltaX < 0 ? `translateX(-${containerWidth}px)` : `translateX(${containerWidth}px)`;
-      this.adjacentEl.style.transform = 'translateX(0px)';
+      this.currentPanel.style.transform = deltaX < 0 ? `translate3d(-${containerWidth}px, 0, 0)` : `translate3d(${containerWidth}px, 0, 0)`;
+      this.adjacentEl.style.transform = 'translate3d(0, 0, 0)';
 
       this.onDragProgress?.(targetIndex, 0, true);
 
@@ -304,11 +303,11 @@ export class SwipeTabController {
       // Snap back to current tab
       if (this.currentPanel) {
         this.currentPanel.style.transition = 'transform 0.22s ease-out';
-        this.currentPanel.style.transform = 'translateX(0px)';
+        this.currentPanel.style.transform = 'translate3d(0, 0, 0)';
       }
       if (this.adjacentEl) {
         this.adjacentEl.style.transition = 'transform 0.22s ease-out';
-        this.adjacentEl.style.transform = deltaX < 0 ? `translateX(${containerWidth}px)` : `translateX(-${containerWidth}px)`;
+        this.adjacentEl.style.transform = deltaX < 0 ? `translate3d(${containerWidth}px, 0, 0)` : `translate3d(-${containerWidth}px, 0, 0)`;
       }
       this.onDragProgress?.(activeIndex, 0, true);
 

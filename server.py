@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.3.6"
+SERVER_VERSION = "2.3.8"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -2171,6 +2171,20 @@ def _personalize_broadcast_text(
         if fn:
             candidates.add(str(fn).strip())
 
+    # Dynamic extraction: if text has '@<KnownFirstWord> <Initials/Words> :'
+    # extract and add full multi-word mention to candidates!
+    known_first_words = set()
+    for c in candidates:
+        first_w = re.split(r'\s+', str(c).strip())[0]
+        if len(first_w) >= 3:
+            known_first_words.add(first_w.lower())
+
+    for m in re.finditer(r'@([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)+)(?=\s*[:\-\(\[\n,])', res):
+        full_tok = m.group(1).strip()
+        f_w = re.split(r'\s+', full_tok)[0].lower()
+        if f_w in known_first_words:
+            candidates.add(full_tok)
+
     sorted_cand = sorted([c for c in candidates if c], key=lambda x: len(x), reverse=True)
     pattern_parts = [f"{re.escape(c)}(?![a-zA-Z0-9_])" for c in sorted_cand]
     pattern_parts.append(r'[a-zA-Z0-9_\-]+(?:\.[a-zA-Z0-9_\-]+)*')
@@ -3835,10 +3849,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 # Purge any legacy artificial IDs - username is the sole identifier
                 item.pop("id", None)
                 item.pop("engineer_id", None)
-                if item.get("name"):
+                fn = item.get("full_name") or item.get("fullName") or item.get("name")
+                if fn:
+                    proper_fn = to_proper_name(fn)
+                    item["full_name"] = proper_fn
+                    item["fullName"] = proper_fn
+                    if not item.get("name") or len(proper_fn) > len(item.get("name", "")):
+                        item["name"] = proper_fn
+                elif item.get("name"):
                     item["name"] = to_proper_name(item["name"])
-                if item.get("full_name"):
-                    item["full_name"] = to_proper_name(item["full_name"])
+                    item["full_name"] = item["name"]
+                    item["fullName"] = item["name"]
                 if not item.get("username") and item.get("email") and "@" in item["email"]:
                     item["username"] = item["email"].split("@")[0].strip().lower()
                 sanitized_docs.append(item)

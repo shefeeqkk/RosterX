@@ -82,6 +82,8 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 import androidx.compose.runtime.*
@@ -572,14 +574,14 @@ fun EngineerPortalScreen(
     val boundaryOverscrollAnim = remember { Animatable(0f) }
     var boundaryOverscrollPx by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (selectedTab != pagerState.currentPage) {
-            selectedTab = pagerState.currentPage
+    LaunchedEffect(pagerState.settledPage) {
+        if (selectedTab != pagerState.settledPage) {
+            selectedTab = pagerState.settledPage
         }
     }
 
     LaunchedEffect(selectedTab) {
-        if (pagerState.currentPage != selectedTab) {
+        if (pagerState.currentPage != selectedTab && !pagerState.isScrollInProgress) {
             pagerState.animateScrollToPage(selectedTab)
         }
     }
@@ -4736,6 +4738,19 @@ fun MonthRosterView(
         }
     }
 
+    // Strict Grid Isolation: Consumes remaining horizontal delta on the 31-day table so it never switches tabs
+    val gridNestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                return Offset(available.x, 0f)
+            }
+        }
+    }
+
 
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -4916,15 +4931,11 @@ fun MonthRosterView(
                     // Header Row
 
                     Row(
-
                         modifier = Modifier
-
                             .fillMaxWidth()
-
                             .height(if (isLandscape) 34.dp else 48.dp)
-
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-
+                            .nestedScroll(gridNestedScrollConnection)
                     ) {
 
                         // Corner Sticky Header
@@ -5088,10 +5099,12 @@ fun MonthRosterView(
 
 
                     // Engineer Matrix Rows
-
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 88.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .nestedScroll(gridNestedScrollConnection),
+                        contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
 
                         items(filteredEngineers) { engineer ->
@@ -5652,11 +5665,18 @@ fun MonthRosterView(
 
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(72.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
 
                     }
+
+                    // Blank canvas area below table: swiping here smoothly switches tabs left and right
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
 
                 }
 

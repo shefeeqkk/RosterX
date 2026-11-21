@@ -61,14 +61,14 @@ fun AdminMainScreen(
     val boundaryOverscrollAnim = remember { Animatable(0f) }
     var boundaryOverscrollPx by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (selectedTab != pagerState.currentPage) {
-            selectedTab = pagerState.currentPage
+    LaunchedEffect(pagerState.settledPage) {
+        if (selectedTab != pagerState.settledPage) {
+            selectedTab = pagerState.settledPage
         }
     }
 
     LaunchedEffect(selectedTab) {
-        if (pagerState.currentPage != selectedTab) {
+        if (pagerState.currentPage != selectedTab && !pagerState.isScrollInProgress) {
             pagerState.animateScrollToPage(selectedTab)
         }
     }

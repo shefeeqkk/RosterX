@@ -910,7 +910,10 @@ class RosterRepositoryImpl @Inject constructor(
 
 
     private fun EngineerDto.toDomain(): Engineer {
-        val rawName = name ?: ""
+        val rawName = fullNameSnake?.takeIf { it.isNotBlank() }
+            ?: fullNameCamel?.takeIf { it.isNotBlank() }
+            ?: name
+            ?: ""
         val resolvedName = rawName.trim().split(" ")
             .filter { it.isNotBlank() }
             .joinToString(" ") { word ->

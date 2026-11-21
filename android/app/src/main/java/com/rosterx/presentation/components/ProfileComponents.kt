@@ -1575,6 +1575,23 @@ fun resolveBroadcastMentions(
         eng.username.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
     }
 
+    // Dynamic extraction: if message contains @<FirstWord> <Initials/Words> followed by : / - / ( / [ / newline / comma
+    // where FirstWord matches a known engineer first name/username, add the full multi-word token!
+    val knownFirstWords = HashSet<String>()
+    candidates.forEach { c ->
+        val first = c.split("\\s+".toRegex()).firstOrNull()?.trim() ?: ""
+        if (first.length >= 3) knownFirstWords.add(first.lowercase())
+    }
+
+    val colonMentionRegex = Regex("""@([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)+)(?=\s*[:\-\(\[\n,])""")
+    colonMentionRegex.findAll(text).forEach { match ->
+        val fullToken = match.groupValues[1].trim()
+        val first = fullToken.split("\\s+".toRegex()).firstOrNull()?.trim()?.lowercase() ?: ""
+        if (first in knownFirstWords) {
+            candidates.add(fullToken)
+        }
+    }
+
     val sorted = candidates.filter { it.isNotBlank() }.sortedByDescending { it.length }
     val pattern = if (sorted.isNotEmpty()) {
         val branchList = sorted.map { Regex.escape(it) + "(?![a-zA-Z0-9_])" }
@@ -1620,6 +1637,23 @@ fun formatBroadcastMentions(
         eng.fullName.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
         eng.name.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
         eng.username.takeIf { it.isNotBlank() }?.let { candidates.add(it.trim()) }
+    }
+
+    // Dynamic extraction: if message contains @<FirstWord> <Initials/Words> followed by : / - / ( / [ / newline / comma
+    // where FirstWord matches a known engineer first name/username, add the full multi-word token!
+    val knownFirstWords = HashSet<String>()
+    candidates.forEach { c ->
+        val first = c.split("\\s+".toRegex()).firstOrNull()?.trim() ?: ""
+        if (first.length >= 3) knownFirstWords.add(first.lowercase())
+    }
+
+    val colonMentionRegex = Regex("""@([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)+)(?=\s*[:\-\(\[\n,])""")
+    colonMentionRegex.findAll(resolvedMsg).forEach { match ->
+        val fullToken = match.groupValues[1].trim()
+        val first = fullToken.split("\\s+".toRegex()).firstOrNull()?.trim()?.lowercase() ?: ""
+        if (first in knownFirstWords) {
+            candidates.add(fullToken)
+        }
     }
 
     val sorted = candidates.filter { it.isNotBlank() }.sortedByDescending { it.length }

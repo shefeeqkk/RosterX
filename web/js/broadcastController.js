@@ -616,6 +616,25 @@ export class BroadcastController {
       .replace(/@\{\s*username\s*\}/gi, `@${engUsername}`)
       .replace(/@name\b/gi, engName);
 
+    // Dynamic extraction: if text has '@<KnownFirstWord> <Initials/Words> :'
+    // extract and add full multi-word mention to candidates!
+    const knownFirstWords = new Set();
+    candidates.forEach(c => {
+      const firstWord = c.split(/\s+/)[0]?.trim();
+      if (firstWord && firstWord.length >= 3) knownFirstWords.add(firstWord.toLowerCase());
+    });
+
+    const colonMentionRegex = /@([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)+)(?=\s*[:\-\(\[\n,])/g;
+    let cm;
+    while ((cm = colonMentionRegex.exec(res)) !== null) {
+      const fullToken = cm[1].trim();
+      const first = fullToken.split(/\s+/)[0]?.trim()?.toLowerCase();
+      if (first && knownFirstWords.has(first)) {
+        candidates.add(fullToken);
+        nameByUser[fullToken.toLowerCase()] = fullToken;
+      }
+    }
+
     // 2. Resolve @mentions to styled badges with Full Name
     const sorted = Array.from(candidates).filter(Boolean).sort((a, b) => b.length - a.length);
     const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

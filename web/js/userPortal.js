@@ -17,7 +17,7 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.3.6';
+import { SwipeTabController } from './swipeTabController.js?v=2.3.8';
 import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.3.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
@@ -136,6 +136,23 @@ function resolveMentions(rawText, selfUser, engineers) {
       engMap[un.toLowerCase()] = fn;
     }
   });
+
+  const knownFirstWords = new Set();
+  candidates.forEach(c => {
+    const firstWord = c.split(/\s+/)[0]?.trim();
+    if (firstWord && firstWord.length >= 3) knownFirstWords.add(firstWord.toLowerCase());
+  });
+
+  const colonMentionRegex = /@([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)+)(?=\s*[:\-\(\[\n,])/g;
+  let cm;
+  while ((cm = colonMentionRegex.exec(out)) !== null) {
+    const fullToken = cm[1].trim();
+    const first = fullToken.split(/\s+/)[0]?.trim()?.toLowerCase();
+    if (first && knownFirstWords.has(first)) {
+      candidates.add(fullToken);
+      engMap[fullToken.toLowerCase()] = fullToken;
+    }
+  }
 
   const sorted = Array.from(candidates).filter(Boolean).sort((a, b) => b.length - a.length);
   const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2276,6 +2293,23 @@ class RosterXUserPortal {
         if (eng.name) candidates.add(eng.name.trim());
         if (eng.username) candidates.add(eng.username.trim());
       });
+
+      // Dynamic extraction for colon/delimiter-separated shift update lines (e.g. @Shefeeq K K : or @Silambarasan R :)
+      const knownFirstWords = new Set();
+      candidates.forEach((c) => {
+        const first = c.split(/\s+/)[0]?.trim();
+        if (first && first.length >= 3) knownFirstWords.add(first.toLowerCase());
+      });
+
+      const colonMentionRegex = /@([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)+)(?=\s*[:\-\(\[\n,])/g;
+      let cm;
+      while ((cm = colonMentionRegex.exec(text)) !== null) {
+        const fullToken = cm[1].trim();
+        const first = fullToken.split(/\s+/)[0]?.trim()?.toLowerCase();
+        if (first && knownFirstWords.has(first)) {
+          candidates.add(fullToken);
+        }
+      }
 
       const sorted = Array.from(candidates)
         .filter(Boolean)

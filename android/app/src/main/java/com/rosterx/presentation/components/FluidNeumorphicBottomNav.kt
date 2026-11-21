@@ -76,19 +76,18 @@ fun FluidNeumorphicBottomNav(
     // Fluid spring-dampened X-axis translation animation
     val animatedNotchCenterX by animateFloatAsState(
         targetValue = targetNotchCenterX,
-        animationSpec = if (isDragging) {
-            spring(dampingRatio = 1.0f, stiffness = 1200f) // Near-instant direct tracking while finger is touching
-        } else {
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "notchXAnimation"
     )
 
+    // Direct zero-latency tracking while finger is touching; spring physics when settled/released!
+    val effectiveNotchCenterX = if (isDragging) targetNotchCenterX else animatedNotchCenterX
+
     // Physics Squash & Stretch deformation during transition
-    val isMoving = abs(targetNotchCenterX - animatedNotchCenterX) > with(density) { 4.dp.toPx() }
+    val isMoving = isDragging || abs(targetNotchCenterX - animatedNotchCenterX) > with(density) { 4.dp.toPx() }
     val bubbleScaleX by animateFloatAsState(
         targetValue = if (isMoving) 1.15f else 1.0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
@@ -134,7 +133,7 @@ fun FluidNeumorphicBottomNav(
 
                     val path = createFluidDockPath(
                         size = size,
-                        notchCenterX = animatedNotchCenterX,
+                        notchCenterX = effectiveNotchCenterX,
                         notchWidth = notchWidthPx,
                         notchDepth = notchDepthPx,
                         cornerRadius = cornerRadiusPx
@@ -173,7 +172,7 @@ fun FluidNeumorphicBottomNav(
             val activeItem = items[activeIndex]
             val bubbleSize = 56.dp
             val bubbleSizePx = with(density) { bubbleSize.toPx() }
-            val bubbleLeftPx = animatedNotchCenterX - (bubbleSizePx / 2f)
+            val bubbleLeftPx = effectiveNotchCenterX - (bubbleSizePx / 2f)
             val bubbleLeftDp = with(density) { bubbleLeftPx.toDp() }
 
             Box(
