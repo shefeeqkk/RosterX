@@ -1,7 +1,26 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 00:55 IST** (Target Sprint: **v2.3.13 - Build 165**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 01:20 IST** (Target Sprint: **v2.3.14 - Build 166**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.14 - Build 166 — Zero Starting Lag Touch Slop Optimization & Isolated Dashboard Pull-To-Refresh):
+> *"Gafoorka! Boss! Sprint **`v2.3.14` (Build 166)** 100% complete aayi execute cheythu, Android safe build passed, ADB installed, verified on device, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Zero-Delay Touch Slop Optimization (`SwipeableTabContainer.kt`)**:
+>    - **Root Cause Eliminated**: In Jetpack Compose, the default `LocalViewConfiguration.touchSlop` requires ~18dp to 24dp of finger travel before a `HorizontalPager` starts tracking touch drag. This caused the perceived 'starting trouble' (a small millisecond dead-zone gap when touching down on Dashboard before horizontal motion engages).
+>    - **Ultra-Responsive 5dp Touch Slop**: Provided custom `ViewConfiguration` overriding `touchSlop = 5.dp.toPx()`. The pager and bottom navigation bubble now begin 1:1 live tracking from the very first millimeter of touch movement!
+>    - **Restored Child Slop**: Child contents inside pages retain standard `ViewConfiguration` so vertical lists (`LazyColumn`) scroll naturally without accidental micro-jitter.
+> 2. **Pull-to-Refresh Gesture Isolation (`EngineerPortalScreen.kt`, `AdminMainScreen.kt`)**:
+>    - **Parent Interception Removed**: Removed `.nestedScroll(pullRefreshState.nestedScrollConnection)` from the root Box wrapping the pager.
+>    - **Isolated to Dashboard**: Attached pull-to-refresh directly inside Tab 0 (`DashboardView` / `AdminDashboardTab`), so the root pager container never negotiates pull gestures during horizontal finger swipes.
+> 3. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.14"`, `versionCode = 166`.
+>    - Server `SERVER_VERSION = "2.3.14"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.14'`.
+>    - Web caches bumped to `?v=2.3.14` across HTML and JS modules."*
 
 ---
 

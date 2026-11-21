@@ -1256,7 +1256,6 @@ fun EngineerPortalScreen(
                             Modifier
                         }
                     )
-                    .nestedScroll(pullRefreshState.nestedScrollConnection)
             ) {
 
             if (state.isLoading && state.engineers.isEmpty()) {
@@ -1355,24 +1354,34 @@ fun EngineerPortalScreen(
                         ) { tab ->
                             if (isManager) {
                                 when (tab) {
-                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                        if (appUpdateInfo != null) {
-                                            AppUpdateBannerCard(
-                                                updateInfo = appUpdateInfo,
-                                                onDismiss = onDismissUpdateBanner,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                            )
+                                    0 -> Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .nestedScroll(pullRefreshState.nestedScrollConnection)
+                                    ) {
+                                        Column(modifier = Modifier.fillMaxSize()) {
+                                            if (appUpdateInfo != null) {
+                                                AppUpdateBannerCard(
+                                                    updateInfo = appUpdateInfo,
+                                                    onDismiss = onDismissUpdateBanner,
+                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                )
+                                            }
+                                            Box(modifier = Modifier.weight(1f)) {
+                                                DashboardView(
+                                                    state = state,
+                                                    onDismissNotification = viewModel::dismissNotification,
+                                                    onClearAllNotifications = viewModel::clearAllNotifications,
+                                                    onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                                    onOpenCelebrationWishes = openSelfCelebration,
+                                                    onDismissCelebration = viewModel::dismissCelebration
+                                                )
+                                            }
                                         }
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            DashboardView(
-                                                state = state,
-                                                onDismissNotification = viewModel::dismissNotification,
-                                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                onOpenCelebrationWishes = openSelfCelebration,
-                                                onDismissCelebration = viewModel::dismissCelebration
-                                            )
-                                        }
+                                        PullToRefreshContainer(
+                                            state = pullRefreshState,
+                                            modifier = Modifier.align(Alignment.TopCenter)
+                                        )
                                     }
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
@@ -1410,24 +1419,34 @@ fun EngineerPortalScreen(
                                 }
                             } else {
                                 when (tab) {
-                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                        if (appUpdateInfo != null) {
-                                            AppUpdateBannerCard(
-                                                updateInfo = appUpdateInfo,
-                                                onDismiss = onDismissUpdateBanner,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                            )
+                                    0 -> Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .nestedScroll(pullRefreshState.nestedScrollConnection)
+                                    ) {
+                                        Column(modifier = Modifier.fillMaxSize()) {
+                                            if (appUpdateInfo != null) {
+                                                AppUpdateBannerCard(
+                                                    updateInfo = appUpdateInfo,
+                                                    onDismiss = onDismissUpdateBanner,
+                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                )
+                                            }
+                                            Box(modifier = Modifier.weight(1f)) {
+                                                DashboardView(
+                                                    state = state,
+                                                    onDismissNotification = viewModel::dismissNotification,
+                                                    onClearAllNotifications = viewModel::clearAllNotifications,
+                                                    onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                                    onOpenCelebrationWishes = openSelfCelebration,
+                                                    onDismissCelebration = viewModel::dismissCelebration
+                                                )
+                                            }
                                         }
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            DashboardView(
-                                                state = state,
-                                                onDismissNotification = viewModel::dismissNotification,
-                                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                onOpenCelebrationWishes = openSelfCelebration,
-                                                onDismissCelebration = viewModel::dismissCelebration
-                                            )
-                                        }
+                                        PullToRefreshContainer(
+                                            state = pullRefreshState,
+                                            modifier = Modifier.align(Alignment.TopCenter)
+                                        )
                                     }
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MyCalendarView(
@@ -1462,11 +1481,6 @@ fun EngineerPortalScreen(
                 }
 
             }
-
-            PullToRefreshContainer(
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
 
             if (showPortalChrome && selectedTab == 0) {
                 com.rosterx.presentation.components.FloatingAiBotButton(

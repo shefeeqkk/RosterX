@@ -464,7 +464,6 @@ fun AdminMainScreen(
                             Modifier
                         }
                     )
-                    .nestedScroll(pullRefreshState.nestedScrollConnection)
             ) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -534,7 +533,12 @@ fun AdminMainScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) { tab ->
                                 when (tab) {
-                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                    0 -> Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .nestedScroll(pullRefreshState.nestedScrollConnection)
+                                    ) {
+                                        Column(modifier = Modifier.fillMaxSize()) {
                                             if (appUpdateInfo != null) {
                                                 AppUpdateBannerCard(
                                                     updateInfo = appUpdateInfo,
@@ -547,18 +551,23 @@ fun AdminMainScreen(
                                                     state = state,
                                                     onRefreshDiagnostics = viewModel::loadData,
                                                     onNavigateToMonthRoster = { engQuery ->
-                                                        if (!engQuery.isNullOrBlank()) {
-                                                            targetEngineerSearch = engQuery
-                                                        }
-                                                        selectedTab = 2
-                                                    },
-                                                    onSaveConstraints = viewModel::saveConstraints,
-                                                    todayCelebrations = portalState.todayCelebrations,
-                                                    dismissedCelebrationIds = portalState.dismissedCelebrationIds,
-                                                    onDismissCelebration = portalViewModel::dismissCelebration
-                                                )
+                                                         if (!engQuery.isNullOrBlank()) {
+                                                             targetEngineerSearch = engQuery
+                                                         }
+                                                         selectedTab = 2
+                                                     },
+                                                     onSaveConstraints = viewModel::saveConstraints,
+                                                     todayCelebrations = portalState.todayCelebrations,
+                                                     dismissedCelebrationIds = portalState.dismissedCelebrationIds,
+                                                     onDismissCelebration = portalViewModel::dismissCelebration
+                                                 )
                                             }
                                         }
+                                        PullToRefreshContainer(
+                                            state = pullRefreshState,
+                                            modifier = Modifier.align(Alignment.TopCenter)
+                                        )
+                                    }
                                         1 -> ManageTeamTab(
                                             state = state,
                                             onSyncEngineers = viewModel::syncEngineers,
@@ -596,11 +605,6 @@ fun AdminMainScreen(
                         }
                     }
                 }
-
-            PullToRefreshContainer(
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
 
             if (showAdminChrome && selectedTab == 0) {
                 FloatingAiBotButton(

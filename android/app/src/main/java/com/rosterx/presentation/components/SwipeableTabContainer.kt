@@ -17,6 +17,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -93,6 +95,15 @@ fun RealtimeSwipeableTabPager(
         }
     }
 
+    val currentViewConfig = LocalViewConfiguration.current
+    val customViewConfig = remember(currentViewConfig, density) {
+        object : ViewConfiguration by currentViewConfig {
+            // Ultra-low touch slop (~5dp instead of default ~18dp) eliminates starting hesitation for instant 1:1 finger tracking
+            override val touchSlop: Float
+                get() = with(density) { 5.dp.toPx() }
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -101,13 +112,18 @@ fun RealtimeSwipeableTabPager(
             }
             .nestedScroll(boundaryNestedScrollConnection)
     ) {
-        HorizontalPager(
-            state = pagerState,
-            userScrollEnabled = !isSuspended,
-            beyondBoundsPageCount = 1,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            content(page)
+        CompositionLocalProvider(LocalViewConfiguration provides customViewConfig) {
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = !isSuspended,
+                beyondBoundsPageCount = 1,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                // Restore standard ViewConfiguration for page child contents (e.g. vertical LazyColumns)
+                CompositionLocalProvider(LocalViewConfiguration provides currentViewConfig) {
+                    content(page)
+                }
+            }
         }
     }
 }
