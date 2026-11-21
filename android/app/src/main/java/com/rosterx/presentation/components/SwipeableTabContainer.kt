@@ -38,7 +38,7 @@ fun RealtimeSwipeableTabPager(
     pagerState: PagerState,
     isSuspended: Boolean,
     overscrollAnim: Animatable<Float, AnimationVector1D>,
-    onBoundaryOverscroll: (Float) -> Unit,
+    onBoundaryOverscroll: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
     isRosterTab: Boolean = false,
     content: @Composable (page: Int) -> Unit

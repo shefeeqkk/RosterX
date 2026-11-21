@@ -572,7 +572,6 @@ fun EngineerPortalScreen(
     val pagerState = rememberPagerState(initialPage = selectedTab) { 5 }
     val coroutineScope = rememberCoroutineScope()
     val boundaryOverscrollAnim = remember { Animatable(0f) }
-    var boundaryOverscrollPx by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(pagerState.settledPage) {
         if (selectedTab != pagerState.settledPage) {
@@ -1218,8 +1217,7 @@ fun EngineerPortalScreen(
                         }
                     },
                     fractionalPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
-                    boundaryOverscrollOffsetPx = boundaryOverscrollPx,
-                    isDragging = pagerState.isScrollInProgress || boundaryOverscrollPx != 0f
+                    boundaryOverscrollOffsetPx = { boundaryOverscrollAnim.value }
                 )
             }
 
@@ -1352,7 +1350,7 @@ fun EngineerPortalScreen(
                             isRosterTab = isRosterTab,
                             isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingMyTeam || showCelebrationDialog || showQuickNotificationsSheet,
                             overscrollAnim = boundaryOverscrollAnim,
-                            onBoundaryOverscroll = { boundaryOverscrollPx = it },
+                            onBoundaryOverscroll = {},
                             modifier = Modifier.fillMaxSize()
                         ) { tab ->
                             if (isManager) {
