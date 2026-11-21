@@ -586,7 +586,6 @@ fun EngineerPortalScreen(
         }
     }
 
-    val continuousTabPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
     var isViewingCredentialTracker by rememberSaveable { mutableStateOf(false) }
     var isViewingMyTeam by rememberSaveable { mutableStateOf(false) }
@@ -1218,7 +1217,7 @@ fun EngineerPortalScreen(
                             pagerState.animateScrollToPage(tab)
                         }
                     },
-                    fractionalPosition = continuousTabPosition,
+                    fractionalPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
                     boundaryOverscrollOffsetPx = boundaryOverscrollPx,
                     isDragging = pagerState.isScrollInProgress || boundaryOverscrollPx != 0f
                 )
@@ -3679,7 +3678,10 @@ fun TeamShiftsView(
         ) {
 
             val groupedRows = if (isLandscape) sortedShiftGroups.chunked(2) else sortedShiftGroups.map { listOf(it) }
-            items(groupedRows) { rowGroups ->
+            items(
+                items = groupedRows,
+                key = { rowGroups -> rowGroups.joinToString("_") { it.key.code } }
+            ) { rowGroups ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),

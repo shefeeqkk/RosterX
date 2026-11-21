@@ -61,7 +61,7 @@ fun FluidNeumorphicBottomNav(
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    fractionalPosition: Float = selectedIndex.toFloat(),
+    fractionalPosition: () -> Float = { selectedIndex.toFloat() },
     boundaryOverscrollOffsetPx: Float = 0f,
     isDragging: Boolean = false
 ) {
@@ -70,12 +70,6 @@ fun FluidNeumorphicBottomNav(
 
     val itemCount = items.size.coerceAtLeast(1)
     val tabWidthPx = if (containerWidthPx > 0) containerWidthPx / itemCount else 0f
-
-    // Pure 1:1 Unified Fluid Notch Center X: Continuous hardware-accelerated tracking
-    // perfectly locked with Compose HorizontalPager drag & fling at 60/120fps with zero dual-spring fighting
-    val effectiveNotchCenterX = if (tabWidthPx > 0) {
-        (fractionalPosition * tabWidthPx) + (tabWidthPx / 2f) + (boundaryOverscrollOffsetPx * 0.16f)
-    } else 0f
 
     val notchWidthPx = with(density) { 120.dp.toPx() }
     val notchDepthPx = with(density) { 22.dp.toPx() }
@@ -87,6 +81,32 @@ fun FluidNeumorphicBottomNav(
     val textMutedColor = NeumorphicTokens.TextMuted
     val shadowDarkColor = NeumorphicTokens.ShadowDark
     val shadowLightColor = NeumorphicTokens.ShadowLight
+
+    // Pre-allocated cached Paint and BlurMaskFilter instances (Zero GC allocations per frame!)
+    val darkBlurFilter = remember(density) { with(density) { BlurMaskFilter(14.dp.toPx(), BlurMaskFilter.Blur.NORMAL) } }
+    val lightBlurFilter = remember(density) { with(density) { BlurMaskFilter(12.dp.toPx(), BlurMaskFilter.Blur.NORMAL) } }
+    val darkPaint = remember(shadowDarkColor, density) {
+        val blur = with(density) { 14.dp.toPx() }
+        val dx = with(density) { 6.dp.toPx() }
+        val dy = with(density) { 6.dp.toPx() }
+        android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = shadowDarkColor.toArgb()
+            setShadowLayer(blur, dx, dy, shadowDarkColor.toArgb())
+            maskFilter = darkBlurFilter
+        }
+    }
+    val lightPaint = remember(shadowLightColor, density) {
+        val blur = with(density) { 12.dp.toPx() }
+        val dx = with(density) { -4.dp.toPx() }
+        val dy = with(density) { -4.dp.toPx() }
+        android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = shadowLightColor.toArgb()
+            setShadowLayer(blur, dx, dy, shadowLightColor.toArgb())
+            maskFilter = lightBlurFilter
+        }
+    }
 
     val navBarInsets = WindowInsets.navigationBars
     val bottomInsetDp = with(density) { navBarInsets.getBottom(density).toDp() }
@@ -100,7 +120,7 @@ fun FluidNeumorphicBottomNav(
                 containerWidthPx = coordinates.size.width.toFloat()
             }
     ) {
-        // A. Custom Neumorphic Dock Surface with Concave Cutout
+        // A. Custom Neumorphic Dock Surface with Concave Cutout (Draw-phase evaluated, zero recomposition)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -109,9 +129,14 @@ fun FluidNeumorphicBottomNav(
                 .drawBehind {
                     if (size.width <= 0 || size.height <= 0) return@drawBehind
 
+                    val pos = fractionalPosition()
+                    val notchCenterX = if (tabWidthPx > 0) {
+                        (pos * tabWidthPx) + (tabWidthPx / 2f) + (boundaryOverscrollOffsetPx * 0.16f)
+                    } else 0f
+
                     val path = createFluidDockPath(
                         size = size,
-                        notchCenterX = effectiveNotchCenterX,
+                        notchCenterX = notchCenterX,
                         notchWidth = notchWidthPx,
                         notchDepth = notchDepthPx,
                         cornerRadius = cornerRadiusPx
@@ -119,27 +144,11 @@ fun FluidNeumorphicBottomNav(
 
                     drawIntoCanvas { canvas ->
                         val nativeCanvas = canvas.nativeCanvas
-
-                        // 1. Bottom-Right Soft Occlusion Shadow (+X, +Y)
-                        val darkPaint = android.graphics.Paint().apply {
-                            isAntiAlias = true
-                            color = shadowDarkColor.toArgb()
-                            setShadowLayer(14.dp.toPx(), 6.dp.toPx(), 6.dp.toPx(), shadowDarkColor.toArgb())
-                            maskFilter = BlurMaskFilter(14.dp.toPx(), BlurMaskFilter.Blur.NORMAL)
-                        }
                         nativeCanvas.drawPath(path.asAndroidPath(), darkPaint)
-
-                        // 2. Top-Left Diffuse Specular Highlight (-X, -Y)
-                        val lightPaint = android.graphics.Paint().apply {
-                            isAntiAlias = true
-                            color = shadowLightColor.toArgb()
-                            setShadowLayer(12.dp.toPx(), -4.dp.toPx(), -4.dp.toPx(), shadowLightColor.toArgb())
-                            maskFilter = BlurMaskFilter(12.dp.toPx(), BlurMaskFilter.Blur.NORMAL)
-                        }
                         nativeCanvas.drawPath(path.asAndroidPath(), lightPaint)
                     }
 
-                    // 3. Molded Canvas Base Fill
+                    // Molded Canvas Base Fill
                     drawPath(path = path, color = surfaceColor)
                 }
         )
@@ -149,19 +158,14 @@ fun FluidNeumorphicBottomNav(
             val bubbleSize = 56.dp
             val bubbleSizePx = with(density) { bubbleSize.toPx() }
 
-            // Continuous adjacent index and blend progress for 1:1 smooth icon morphing
-            val clampedFraction = fractionalPosition.coerceIn(0f, (items.size - 1).toFloat())
-            val baseIndex = clampedFraction.toInt().coerceIn(items.indices)
-            val nextIndex = (baseIndex + 1).coerceIn(items.indices)
-            val blendProgress = (clampedFraction - baseIndex).coerceIn(0f, 1f)
-
-            val baseItem = items[baseIndex]
-            val nextItem = items[nextIndex]
-
             Box(
                 modifier = Modifier
                     .offset {
-                        val bubbleLeftPx = effectiveNotchCenterX - (bubbleSizePx / 2f)
+                        val pos = fractionalPosition()
+                        val notchCenterX = if (tabWidthPx > 0) {
+                            (pos * tabWidthPx) + (tabWidthPx / 2f) + (boundaryOverscrollOffsetPx * 0.16f)
+                        } else 0f
+                        val bubbleLeftPx = notchCenterX - (bubbleSizePx / 2f)
                         IntOffset(bubbleLeftPx.roundToInt(), 0)
                     }
                     .size(bubbleSize)
@@ -173,30 +177,19 @@ fun FluidNeumorphicBottomNav(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                if (baseIndex == nextIndex) {
+                // Stack tab icons and smoothly blend alpha on GPU RenderNode based on continuous distance
+                items.forEach { item ->
                     Icon(
-                        imageVector = baseItem.icon,
-                        contentDescription = baseItem.title,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                } else {
-                    // Smooth continuous cross-blend between adjacent icons matching finger glide
-                    Icon(
-                        imageVector = baseItem.icon,
-                        contentDescription = baseItem.title,
+                        imageVector = item.icon,
+                        contentDescription = item.title,
                         tint = Color.White,
                         modifier = Modifier
                             .size(24.dp)
-                            .graphicsLayer { alpha = 1f - blendProgress }
-                    )
-                    Icon(
-                        imageVector = nextItem.icon,
-                        contentDescription = nextItem.title,
-                        tint = Color.White,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .graphicsLayer { alpha = blendProgress }
+                            .graphicsLayer {
+                                val pos = fractionalPosition()
+                                val dist = abs(pos - item.index)
+                                alpha = (1f - dist).coerceIn(0f, 1f)
+                            }
                     )
                 }
             }
@@ -219,12 +212,6 @@ fun FluidNeumorphicBottomNav(
                     animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                     label = "tabItemScale"
                 )
-
-                // Continuous distance from current continuous tab position
-                val distance = abs(fractionalPosition - item.index)
-                // Dock icon fades out as the floating bubble slides directly over it (distance -> 0)
-                val iconAlpha = distance.coerceIn(0f, 1f)
-                val isNearActive = distance < 0.5f
 
                 Box(
                     modifier = Modifier
@@ -251,17 +238,24 @@ fun FluidNeumorphicBottomNav(
                             tint = textMutedColor,
                             modifier = Modifier
                                 .size(20.dp)
-                                .graphicsLayer { alpha = iconAlpha }
+                                .graphicsLayer {
+                                    val dist = abs(fractionalPosition() - item.index)
+                                    alpha = dist.coerceIn(0f, 1f)
+                                }
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = item.title,
-                            fontSize = if (isNearActive) 10.sp else 9.sp,
+                            fontSize = 9.5.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center,
-                            fontWeight = if (isNearActive) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (isNearActive) NeumorphicTokens.AccentSalmon else textMutedColor
+                            fontWeight = FontWeight.Bold,
+                            color = textMutedColor,
+                            modifier = Modifier.graphicsLayer {
+                                val dist = abs(fractionalPosition() - item.index)
+                                alpha = if (dist < 0.5f) 1.0f else 0.72f
+                            }
                         )
                     }
                 }
@@ -269,6 +263,28 @@ fun FluidNeumorphicBottomNav(
         }
     }
 }
+
+/**
+ * Backward compatibility overload accepting Float.
+ */
+@Composable
+fun FluidNeumorphicBottomNav(
+    items: List<NavTabItem>,
+    selectedIndex: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    fractionalPosition: Float,
+    boundaryOverscrollOffsetPx: Float = 0f,
+    isDragging: Boolean = false
+) = FluidNeumorphicBottomNav(
+    items = items,
+    selectedIndex = selectedIndex,
+    onTabSelected = onTabSelected,
+    modifier = modifier,
+    fractionalPosition = { fractionalPosition },
+    boundaryOverscrollOffsetPx = boundaryOverscrollOffsetPx,
+    isDragging = isDragging
+)
 
 /**
  * Creates an organic cubic-bezier concave cutout wave shape along the top perimeter of the dock.

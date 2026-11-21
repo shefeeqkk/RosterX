@@ -73,7 +73,6 @@ fun AdminMainScreen(
         }
     }
 
-    val continuousTabPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
     var targetEngineerSearch by rememberSaveable { mutableStateOf("") }
 
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
@@ -427,7 +426,7 @@ fun AdminMainScreen(
                         }
                         selectedTab = tab
                     },
-                    fractionalPosition = continuousTabPosition,
+                    fractionalPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
                     boundaryOverscrollOffsetPx = boundaryOverscrollPx,
                     isDragging = pagerState.isScrollInProgress
                 )

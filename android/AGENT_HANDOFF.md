@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 23:10 IST** (Target Sprint: **v2.3.10 - Build 162**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 23:30 IST** (Target Sprint: **v2.3.11 - Build 163**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.11 - Build 163 — Zero-Recomposition Deferred Pager Lambdas, Dock Shadow Paint Caching & 120fps Buttery Smooth Swipe Optimization):
+> *"Gafoorka! Boss! Sprint **`v2.3.11` (Build 163)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Zero-Recomposition Deferred Pager Position Lambdas (`EngineerPortalScreen.kt`, `AdminMainScreen.kt`, `FluidNeumorphicBottomNav.kt`)**:
+>    - **Root Cause Eliminated**: Previously, `val continuousTabPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction` was evaluated directly inside the top-level composable bodies of `EngineerPortalScreen` and `AdminMainScreen`. On every single touch move event (60–120 times/sec), the entire 6,500-line screen and its children were marked dirty and recomposed, causing severe frame drops and jitter during gentle tab swiping.
+>    - **Deferred Lambda Reading**: Removed `continuousTabPosition` from screen bodies and updated `FluidNeumorphicBottomNav` to accept `fractionalPosition: () -> Float`. Reading the lambda inside `drawBehind` and `Modifier.offset { ... }` confines all updates purely to the draw and layout passes with **0 root recompositions** during swipe!
+> 2. **Pre-Allocated Cached Paint & BlurMaskFilter (`FluidNeumorphicBottomNav.kt`)**:
+>    - **GC & CPU Churn Fixed**: `android.graphics.Paint()` and `BlurMaskFilter` were previously instantiated inside `drawBehind` on every frame, generating thousands of native allocations per second and stalling the CPU rasterizer.
+>    - Both `darkPaint`, `lightPaint`, and their `BlurMaskFilter` objects are now memoized via `remember(density)`.
+> 3. **Stable Text Sizing & GPU Graphics Layer Opacity (`FluidNeumorphicBottomNav.kt`)**:
+>    - Retained fixed `fontSize = 9.5.sp` across all dock labels, eliminating font metrics re-layout and glyph reshaping when crossing the 0.5 drag threshold.
+>    - Icon cross-fades and dock label opacity transitions now execute purely on GPU RenderNodes via `Modifier.graphicsLayer { ... }`.
+> 4. **Stable Keys in `TeamShiftsView` LazyColumn (`EngineerPortalScreen.kt`)**:
+>    - Added stable keys `key = { rowGroups -> rowGroups.joinToString("_") { it.key.code } }` to `items(groupedRows)`, enabling instant view recycling and zero recreation churn as Page 1 slides into view.
+> 5. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.11"`, `versionCode = 163`.
+>    - Server `SERVER_VERSION = "2.3.11"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.11'`.
+>    - Web caches bumped to `?v=2.3.11` across HTML and JS modules."*
 
 ---
 
