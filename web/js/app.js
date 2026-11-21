@@ -72,6 +72,7 @@ import { themeController } from './themeController.js?v=2.0.5';
 import { broadcastController } from './broadcastController.js?v=2.0.5';
 import { registerPwaServiceWorker, mountIosInstallBanner } from './pwaHelper.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
+import { SwipeTabController } from './swipeTabController.js?v=2.3.5';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
@@ -683,6 +684,17 @@ class RosterXApp {
     });
     this.mobileNavShell.mount();
     this.mobileNavShell.setActive(this.activeTab);
+
+    // 4.1 Horizontal Swipe Tab Switching with Rubber-Band Spring Recoil
+    this.swipeController = new SwipeTabController({
+      container: document.getElementById('printArea'),
+      getTabs: () => this.mobileNavShell.tabs,
+      getActiveTab: () => this.activeTab,
+      onSwitchTab: (tabId) => this.switchTab(tabId),
+      rosterTabId: 'matrix',
+      isSuspended: () => Boolean(document.querySelector('.rx-modal-backdrop, #geminiSettingsModal:not(.hidden), #accountModal:not(.hidden), #quickEditModal:not(.hidden)'))
+    });
+    this.swipeController.mount();
 
     // 5. Server Credential Tracker & 6-Palette Appearance inside Admin More Hub
     const credHost = document.getElementById('adminCredentialTrackerHost');

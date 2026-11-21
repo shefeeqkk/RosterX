@@ -503,76 +503,86 @@ fun AdminMainScreen(
                             )
                         }
                         else -> {
-                            AnimatedContent(
-                                targetState = selectedTab,
-                                transitionSpec = {
-                                    if (targetState > initialState) {
-                                        slideInHorizontally(animationSpec = tween(250)) { it } + fadeIn() togetherWith
-                                                slideOutHorizontally(animationSpec = tween(250)) { -it } + fadeOut()
-                                    } else {
-                                        slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn() togetherWith
-                                                slideOutHorizontally(animationSpec = tween(250)) { it } + fadeOut()
-                                    }
-                                },
-                                label = "AdminTabTransition"
-                            ) { tab ->
-                                when (tab) {
-                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                        if (appUpdateInfo != null) {
-                                            AppUpdateBannerCard(
-                                                updateInfo = appUpdateInfo,
-                                                onDismiss = onDismissUpdateBanner,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                            )
+                            val isRosterTab = selectedTab == 2
+                            SwipeableTabContainer(
+                                selectedTab = selectedTab,
+                                totalTabs = 5,
+                                isRosterTab = isRosterTab,
+                                isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingServerManagement,
+                                onTabSelected = { newTab -> selectedTab = newTab },
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                AnimatedContent(
+                                    targetState = selectedTab,
+                                    transitionSpec = {
+                                        if (targetState > initialState) {
+                                            slideInHorizontally(animationSpec = tween(250)) { it } + fadeIn() togetherWith
+                                                    slideOutHorizontally(animationSpec = tween(250)) { -it } + fadeOut()
+                                        } else {
+                                            slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn() togetherWith
+                                                    slideOutHorizontally(animationSpec = tween(250)) { it } + fadeOut()
                                         }
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            AdminDashboardTab(
-                                                state = state,
-                                                onRefreshDiagnostics = viewModel::loadData,
-                                                onNavigateToMonthRoster = { engQuery ->
-                                                    if (!engQuery.isNullOrBlank()) {
-                                                        targetEngineerSearch = engQuery
-                                                    }
-                                                    selectedTab = 2
-                                                },
-                                                onSaveConstraints = viewModel::saveConstraints,
-                                                todayCelebrations = portalState.todayCelebrations,
-                                                dismissedCelebrationIds = portalState.dismissedCelebrationIds,
-                                                onDismissCelebration = portalViewModel::dismissCelebration
-                                            )
+                                    },
+                                    label = "AdminTabTransition"
+                                ) { tab ->
+                                    when (tab) {
+                                        0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                            if (appUpdateInfo != null) {
+                                                AppUpdateBannerCard(
+                                                    updateInfo = appUpdateInfo,
+                                                    onDismiss = onDismissUpdateBanner,
+                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                )
+                                            }
+                                            Box(modifier = Modifier.weight(1f)) {
+                                                AdminDashboardTab(
+                                                    state = state,
+                                                    onRefreshDiagnostics = viewModel::loadData,
+                                                    onNavigateToMonthRoster = { engQuery ->
+                                                        if (!engQuery.isNullOrBlank()) {
+                                                            targetEngineerSearch = engQuery
+                                                        }
+                                                        selectedTab = 2
+                                                    },
+                                                    onSaveConstraints = viewModel::saveConstraints,
+                                                    todayCelebrations = portalState.todayCelebrations,
+                                                    dismissedCelebrationIds = portalState.dismissedCelebrationIds,
+                                                    onDismissCelebration = portalViewModel::dismissCelebration
+                                                )
+                                            }
                                         }
+                                        1 -> ManageTeamTab(
+                                            state = state,
+                                            onSyncEngineers = viewModel::syncEngineers,
+                                            onDeleteEngineer = viewModel::deleteEngineer,
+                                            isReadOnly = isManagerReadOnly
+                                        )
+                                        2 -> MonthRostersTab(
+                                            state = state,
+                                            onPreviousMonth = viewModel::previousMonth,
+                                            onNextMonth = viewModel::nextMonth,
+                                            onSaveRoster = viewModel::saveRoster,
+                                            onUpdateShift = viewModel::updateShift,
+                                            onLoadBackups = viewModel::loadBackups,
+                                            onRestoreBackup = viewModel::restoreBackup,
+                                            initialSearchQuery = targetEngineerSearch,
+                                            isReadOnly = isManagerReadOnly
+                                        )
+                                        3 -> NotificationsTab(
+                                            state = state,
+                                            onSendNotification = viewModel::sendNotification,
+                                            onRetractNotification = viewModel::retractNotification,
+                                            onRefreshNotifications = viewModel::loadNotifications,
+                                            onSaveTemplate = viewModel::saveBroadcastTemplate,
+                                            onDeleteTemplate = viewModel::deleteBroadcastTemplate
+                                        )
+                                        4 -> MoreHubView(
+                                            state = portalState,
+                                            isAdmin = true,
+                                            onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
+                                            onNavigateToServerManagement = { isViewingServerManagement = true }
+                                        )
                                     }
-                                    1 -> ManageTeamTab(
-                                        state = state,
-                                        onSyncEngineers = viewModel::syncEngineers,
-                                        onDeleteEngineer = viewModel::deleteEngineer,
-                                        isReadOnly = isManagerReadOnly
-                                    )
-                                    2 -> MonthRostersTab(
-                                        state = state,
-                                        onPreviousMonth = viewModel::previousMonth,
-                                        onNextMonth = viewModel::nextMonth,
-                                        onSaveRoster = viewModel::saveRoster,
-                                        onUpdateShift = viewModel::updateShift,
-                                        onLoadBackups = viewModel::loadBackups,
-                                        onRestoreBackup = viewModel::restoreBackup,
-                                        initialSearchQuery = targetEngineerSearch,
-                                        isReadOnly = isManagerReadOnly
-                                    )
-                                    3 -> NotificationsTab(
-                                        state = state,
-                                        onSendNotification = viewModel::sendNotification,
-                                        onRetractNotification = viewModel::retractNotification,
-                                        onRefreshNotifications = viewModel::loadNotifications,
-                                        onSaveTemplate = viewModel::saveBroadcastTemplate,
-                                        onDeleteTemplate = viewModel::deleteBroadcastTemplate
-                                    )
-                                    4 -> MoreHubView(
-                                        state = portalState,
-                                        isAdmin = true,
-                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
-                                        onNavigateToServerManagement = { isViewingServerManagement = true }
-                                    )
                                 }
                             }
                         }

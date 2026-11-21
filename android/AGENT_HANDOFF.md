@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-20 22:15 IST** (Target Sprint: **v2.3.4 - Build 156**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 12:05 IST** (Target Sprint: **v2.3.5 - Build 157**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.5 - Build 157 — Full-Stack Horizontal Swipe Tab Switching with Edge Spring Recoil across Mobile Web & Android):
+> *"Gafoorka! Boss! Sprint **`v2.3.5` (Build 157)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Features:
+> 1. **Mobile Web Edge-Safe Swipe & Spring Recoil Controller (`web/js/swipeTabController.js`, `web/js/userPortal.js`, `web/js/app.js`)**:
+>    - Created high-performance `SwipeTabController` handling touch gesture tracking on mobile viewports (<1024px).
+>    - Intuitive tab switching: Swipe Left switches to Next Tab; Swipe Right switches to Previous Tab, with directional entry transitions.
+>    - **Rubber-band pull & Spring recoil**: Dragging past Tab 0 (Dashboard) to the right or past Last Tab (More) to the left applies decaying resistance (up to ~62px), and on finger release, snaps back smoothly with physical spring easing (`cubic-bezier(0.175, 0.885, 0.32, 1.275)`).
+>    - **Month Roster 31-Day Content Protection**: Horizontal swipes inside Month Roster table (`.rx-month-grid`, `.rx-roster-scroll-table`, `table`) prioritize calendar table panning; tab switching on Month Roster is triggered via screen edge gestures (<36px) or bottom dock taps.
+>    - Automatically suspends gesture listening when full-screen subviews (Credential Tracker, Edit Profile, My Team) or open modals are active.
+> 2. **Android Jetpack Compose Swipe Container (`SwipeableTabContainer.kt`, `EngineerPortalScreen.kt`, `AdminMainScreen.kt`)**:
+>    - Created reusable `SwipeableTabContainer` wrapping `AnimatedContent` for both `EngineerPortalScreen` (Engineer & Manager) and `AdminMainScreen` (Admin).
+>    - Real-time boundary rubber-band tracking with `overscrollAnim.snapTo(damped)` and tactile spring recoil (`spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)`).
+>    - Smooth tab transition threshold evaluation with velocity flick support (`velocity > 0.40f`), seamlessly syncing with `FluidNeumorphicBottomNav`.
+>    - Month Roster edge-zone safety (<40.dp) and automatic subview suspension (`isViewingCredentialTracker`, `isViewingMyTeam`, `isViewingSettings`, etc.).
+> 3. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.5"`, `versionCode = 157`.
+>    - Server `SERVER_VERSION = "2.3.5"`.
+>    - Android safe build verified: `safe_build.bat assembleDebug` completed with `BUILD SUCCESSFUL`! 🚀"*
 
 ---
 
