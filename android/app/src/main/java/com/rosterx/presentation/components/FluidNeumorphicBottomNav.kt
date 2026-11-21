@@ -1,6 +1,7 @@
 package com.rosterx.presentation.components
 
 import android.graphics.BlurMaskFilter
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -68,36 +69,11 @@ fun FluidNeumorphicBottomNav(
     val itemCount = items.size.coerceAtLeast(1)
     val tabWidthPx = if (containerWidthPx > 0) containerWidthPx / itemCount else 0f
 
-    // Target center X position of active tab (continuous floating with finger drag and boundary nudge)
-    val targetNotchCenterX = if (tabWidthPx > 0) {
+    // Pure 1:1 Unified Fluid Notch Center X: Continuous hardware-accelerated tracking
+    // perfectly locked with Compose HorizontalPager drag & fling at 60/120fps with zero dual-spring fighting
+    val effectiveNotchCenterX = if (tabWidthPx > 0) {
         (fractionalPosition * tabWidthPx) + (tabWidthPx / 2f) + (boundaryOverscrollOffsetPx * 0.16f)
     } else 0f
-
-    // Fluid spring-dampened X-axis translation animation
-    val animatedNotchCenterX by animateFloatAsState(
-        targetValue = targetNotchCenterX,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "notchXAnimation"
-    )
-
-    // Direct zero-latency tracking while finger is touching; spring physics when settled/released!
-    val effectiveNotchCenterX = if (isDragging) targetNotchCenterX else animatedNotchCenterX
-
-    // Physics Squash & Stretch deformation during transition
-    val isMoving = isDragging || abs(targetNotchCenterX - animatedNotchCenterX) > with(density) { 4.dp.toPx() }
-    val bubbleScaleX by animateFloatAsState(
-        targetValue = if (isMoving) 1.15f else 1.0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "bubbleScaleX"
-    )
-    val bubbleScaleY by animateFloatAsState(
-        targetValue = if (isMoving) 0.85f else 1.0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "bubbleScaleY"
-    )
 
     val notchWidthPx = with(density) { 120.dp.toPx() }
     val notchDepthPx = with(density) { 22.dp.toPx() }
@@ -166,7 +142,7 @@ fun FluidNeumorphicBottomNav(
                 }
         )
 
-        // B. Floating Active Circular Bubble (Icon only, fluid morphing)
+        // B. Floating Active Circular Bubble (Icon only, pure fluid tracking)
         val activeIndex = kotlin.math.round(fractionalPosition).toInt().coerceIn(items.indices)
         if (containerWidthPx > 0 && activeIndex in items.indices) {
             val activeItem = items[activeIndex]
@@ -179,7 +155,6 @@ fun FluidNeumorphicBottomNav(
                 modifier = Modifier
                     .offset(x = bubbleLeftDp, y = 0.dp)
                     .size(bubbleSize)
-                    .scale(scaleX = bubbleScaleX, scaleY = bubbleScaleY)
                     .neumorphicAccentGlow(radius = 10.dp)
                     .neumorphicRaised(
                         shape = CircleShape,
@@ -188,12 +163,18 @@ fun FluidNeumorphicBottomNav(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = activeItem.icon,
-                    contentDescription = activeItem.title,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
+                Crossfade(
+                    targetState = activeItem,
+                    animationSpec = tween(durationMillis = 150),
+                    label = "activeTabIcon"
+                ) { target ->
+                    Icon(
+                        imageVector = target.icon,
+                        contentDescription = target.title,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
 

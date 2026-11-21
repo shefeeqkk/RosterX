@@ -255,14 +255,29 @@ fun MonthRostersTab(
 
     val scrollState = rememberScrollState()
 
-    // Strict Grid Isolation: Consumes any remaining horizontal delta on the 31-day table so it never switches tabs
-    val gridNestedScrollConnection = remember {
+    // Natural Boundary & Outer Swipe: Inside days 1..31, horizontal drag scrolls the table.
+    // At Day 1 (scrollState == 0), right-swipe beyond Day 1 smoothly transitions to Tab 2 (Calendar).
+    // At Day 31 (scrollState >= maxValue), left-swipe beyond Day 31 smoothly transitions to Tab 4 (More).
+    val gridNestedScrollConnection = remember(scrollState) {
         object : NestedScrollConnection {
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
+                val isAtStart = scrollState.value == 0
+                val isAtEnd = scrollState.value >= scrollState.maxValue
+
+                // If user swipes right at Day 1 (isAtStart && available.x > 0), let pager switch tabs
+                if (isAtStart && available.x > 0f) {
+                    return Offset.Zero
+                }
+                // If user swipes left at Day 31 (isAtEnd && available.x < 0), let pager switch tabs
+                if (isAtEnd && available.x < 0f) {
+                    return Offset.Zero
+                }
+
+                // Inside the table, isolate horizontal scrolling so it doesn't accidentally trigger pager
                 return Offset(available.x, 0f)
             }
         }
@@ -1324,13 +1339,12 @@ fun MonthRostersTab(
                         }
                     }
 
-                    // 2. Compact Grid (Engineer Rows + Day Coverage + Night Coverage unified in LazyColumn)
+                    // 2. Compact Grid (Full height with 96dp bottom padding for complete visibility)
                     LazyColumn(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false)
+                            .fillMaxSize()
                             .nestedScroll(gridNestedScrollConnection),
-                        contentPadding = PaddingValues(bottom = if (isLandscape) 72.dp else 16.dp)
+                        contentPadding = PaddingValues(bottom = if (isLandscape) 72.dp else 96.dp)
                     ) {
                         // Engineer Rows
                         items(filteredEngineers, key = { it.id }) { engineer ->
@@ -1617,13 +1631,6 @@ fun MonthRostersTab(
                             }
                         }
                     }
-
-                    // Blank canvas area below table: swiping here smoothly switches tabs left and right
-                    Spacer(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                    )
                 }
             }
 

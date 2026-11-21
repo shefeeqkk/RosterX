@@ -1,7 +1,31 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 18:15 IST** (Target Sprint: **v2.3.8 - Build 160**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 22:35 IST** (Target Sprint: **v2.3.9 - Build 161**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.9 - Build 161 — Full-Height Month Roster Grid Restoration, Natural Boundary Edge Swiping & Pure 1:1 Unified Fluid Glide Navigation Bar):
+> *"Gafoorka! Boss! Sprint **`v2.3.9` (Build 161)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Month Roster Full-Height Grid Restoration (`EngineerPortalScreen.kt`, `MonthRostersTab.kt`)**:
+>    - **Root Cause Fixed**: Removed the artificial half-screen `Spacer(weight(1f))` that restricted `LazyColumn` to ~50% of the screen height and cut off Rohit N, Dhanush, and the Day/Night Coverage rows.
+>    - `LazyColumn` restored to `fillMaxSize()` with generous `PaddingValues(bottom = 96.dp)` so that every single engineer and the coverage footers scroll completely above the 82dp floating bottom nav dock.
+> 2. **Natural Boundary & Outer Swipe (`EngineerPortalScreen.kt`, `MonthRostersTab.kt`)**:
+>    - **Inside Table (Days 1–31)**: Horizontal dragging scrolls the table.
+>    - **Edge Boundary Passthrough**: When scrolled to Day 1 (`scrollState.value == 0`), swiping further right smoothly transitions the pager to Tab 2 (Calendar); when scrolled to Day 31 (`scrollState.value >= scrollState.maxValue`), swiping further left smoothly transitions to Tab 4 (More).
+>    - **Top Month Header**: Swiping on the header directly switches tabs without obstruction.
+> 3. **Pure 1:1 Unified Fluid Glide Navigation Bar (`FluidNeumorphicBottomNav.kt`)**:
+>    - **Root Cause of Jerkiness Eliminated**: Previously, `effectiveNotchCenterX` snapped between direct `targetNotchCenterX` during drag and a lagging `animatedNotchCenterX` spring on finger lift, causing the bubble to jump backwards. In addition, `bubbleScaleX` / `bubbleScaleY` squash-and-stretch pulsed erratically during small velocity changes.
+>    - Unified direct continuous glide: Cutout notch and floating circular bubble are locked directly to the continuous pager position at native 60/120fps.
+>    - Removed erratic scale deformation for a calm, premium aesthetic.
+>    - Added smooth 150ms `Crossfade` to active tab icons for seamless visual transitions.
+> 4. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.9"`, `versionCode = 161`.
+>    - Server `SERVER_VERSION = "2.3.9"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.9'`.
+>    - Safe build `assembleDebug` compiled successfully and deployed via ADB to target device `I2202`! 🚀"*
 
 ---
 
