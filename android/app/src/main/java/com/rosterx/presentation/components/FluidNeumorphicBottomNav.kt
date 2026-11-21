@@ -1,7 +1,6 @@
 package com.rosterx.presentation.components
 
 import android.graphics.BlurMaskFilter
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -31,12 +31,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rosterx.ui.neumorphic.NeumorphicTokens
 import com.rosterx.ui.neumorphic.neumorphicAccentGlow
 import com.rosterx.ui.neumorphic.neumorphicRaised
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 data class NavTabItem(
     val index: Int,
@@ -142,18 +144,26 @@ fun FluidNeumorphicBottomNav(
                 }
         )
 
-        // B. Floating Active Circular Bubble (Icon only, pure fluid tracking)
-        val activeIndex = kotlin.math.round(fractionalPosition).toInt().coerceIn(items.indices)
-        if (containerWidthPx > 0 && activeIndex in items.indices) {
-            val activeItem = items[activeIndex]
+        // B. Floating Active Circular Bubble (Continuous Hardware-Accelerated Fluid Glide)
+        if (containerWidthPx > 0 && items.isNotEmpty()) {
             val bubbleSize = 56.dp
             val bubbleSizePx = with(density) { bubbleSize.toPx() }
-            val bubbleLeftPx = effectiveNotchCenterX - (bubbleSizePx / 2f)
-            val bubbleLeftDp = with(density) { bubbleLeftPx.toDp() }
+
+            // Continuous adjacent index and blend progress for 1:1 smooth icon morphing
+            val clampedFraction = fractionalPosition.coerceIn(0f, (items.size - 1).toFloat())
+            val baseIndex = clampedFraction.toInt().coerceIn(items.indices)
+            val nextIndex = (baseIndex + 1).coerceIn(items.indices)
+            val blendProgress = (clampedFraction - baseIndex).coerceIn(0f, 1f)
+
+            val baseItem = items[baseIndex]
+            val nextItem = items[nextIndex]
 
             Box(
                 modifier = Modifier
-                    .offset(x = bubbleLeftDp, y = 0.dp)
+                    .offset {
+                        val bubbleLeftPx = effectiveNotchCenterX - (bubbleSizePx / 2f)
+                        IntOffset(bubbleLeftPx.roundToInt(), 0)
+                    }
                     .size(bubbleSize)
                     .neumorphicAccentGlow(radius = 10.dp)
                     .neumorphicRaised(
@@ -163,22 +173,36 @@ fun FluidNeumorphicBottomNav(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Crossfade(
-                    targetState = activeItem,
-                    animationSpec = tween(durationMillis = 150),
-                    label = "activeTabIcon"
-                ) { target ->
+                if (baseIndex == nextIndex) {
                     Icon(
-                        imageVector = target.icon,
-                        contentDescription = target.title,
+                        imageVector = baseItem.icon,
+                        contentDescription = baseItem.title,
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    // Smooth continuous cross-blend between adjacent icons matching finger glide
+                    Icon(
+                        imageVector = baseItem.icon,
+                        contentDescription = baseItem.title,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { alpha = 1f - blendProgress }
+                    )
+                    Icon(
+                        imageVector = nextItem.icon,
+                        contentDescription = nextItem.title,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { alpha = blendProgress }
                     )
                 }
             }
         }
 
-        // C. Interactive Inactive Tab Triggers
+        // C. Interactive Inactive Tab Triggers (Smooth opacity cross-fade, zero layout jumping)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -187,7 +211,6 @@ fun FluidNeumorphicBottomNav(
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { item ->
-                val isSelected = item.index == activeIndex
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -196,6 +219,12 @@ fun FluidNeumorphicBottomNav(
                     animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                     label = "tabItemScale"
                 )
+
+                // Continuous distance from current continuous tab position
+                val distance = abs(fractionalPosition - item.index)
+                // Dock icon fades out as the floating bubble slides directly over it (distance -> 0)
+                val iconAlpha = distance.coerceIn(0f, 1f)
+                val isNearActive = distance < 0.5f
 
                 Box(
                     modifier = Modifier
@@ -209,44 +238,31 @@ fun FluidNeumorphicBottomNav(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (!isSelected) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = item.title,
-                                tint = textMutedColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(
-                                text = item.title,
-                                fontSize = 9.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Medium,
-                                color = textMutedColor
-                            )
-                        }
-                    } else {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Bottom,
-                            modifier = Modifier.padding(bottom = 8.dp).fillMaxHeight()
-                        ) {
-                            Text(
-                                text = item.title,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = NeumorphicTokens.AccentSalmon
-                            )
-                        }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.title,
+                            tint = textMutedColor,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .graphicsLayer { alpha = iconAlpha }
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = item.title,
+                            fontSize = if (isNearActive) 10.sp else 9.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                            fontWeight = if (isNearActive) FontWeight.ExtraBold else FontWeight.Medium,
+                            color = if (isNearActive) NeumorphicTokens.AccentSalmon else textMutedColor
+                        )
                     }
                 }
             }

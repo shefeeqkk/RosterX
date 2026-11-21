@@ -1,7 +1,27 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 22:35 IST** (Target Sprint: **v2.3.9 - Build 161**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 23:10 IST** (Target Sprint: **v2.3.10 - Build 162**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.10 - Build 162 — Strict Month Roster Grid Isolation, Blank-Zone Tab Swiping & Continuous Zero-Jerk Fluid Navigation Glide):
+> *"Gafoorka! Boss! Sprint **`v2.3.10` (Build 162)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Strict Month Roster Table Isolation (`EngineerPortalScreen.kt`, `MonthRostersTab.kt`)**:
+>    - **Grill-Me Aligned**: Dragging anywhere on the 31-day table (including Header Row, Engineer Rows, and Day/Night Coverage Rows) strictly scrolls days 1..31 and consumes 100% horizontal delta (`Offset(available.x, 0f)`). Reaching Day 1 or Day 31 NEVER triggers tab switching.
+>    - **Blank-Zone Tab Swiping**: Attached an un-isolated trailing `item { Box(modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp)) }` in `LazyColumn` directly beneath the Coverage rows. Dragging in this blank area (and the top header) passes 100% of horizontal touch deltas to `HorizontalPager`, smoothly gliding between tabs left and right.
+>    - **Full-Height Grid Preserved**: `LazyColumn` remains at `fillMaxSize()` with `contentPadding = 96.dp`, ensuring all engineers (including Rohit N and Dhanush B) and Day/Night coverage rows are completely visible without half-screen truncation.
+> 2. **Eliminated Bottom Nav Bar Jerkiness (`FluidNeumorphicBottomNav.kt`)**:
+>    - **Zero-Recomposition Layout Offsets**: Converted active bubble position from `Modifier.offset(Dp, Dp)` to `Modifier.offset { IntOffset(bubbleLeftPx.roundToInt(), 0) }`, executing purely on the RenderThread/layout pass.
+>    - **Continuous Real-Time Adjacent Icon Cross-Blending**: Replaced the abrupt 0.5 threshold snap with continuous distance-based alpha cross-blending (`1f - blendProgress` and `blendProgress`) directly tracking finger motion.
+>    - **Consistent Bottom-Aligned Dock Labels & GPU-Faded Icons**: Dock icons fade smoothly via `graphicsLayer { alpha = iconAlpha }` as the floating bubble slides above them, and tab titles remain stably positioned at `Arrangement.Bottom`, eliminating layout jumping.
+> 3. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.10"`, `versionCode = 162`.
+>    - Server `SERVER_VERSION = "2.3.10"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.10'`.
+>    - Web caches bumped to `?v=2.3.10` across HTML and JS modules."*
 
 ---
 

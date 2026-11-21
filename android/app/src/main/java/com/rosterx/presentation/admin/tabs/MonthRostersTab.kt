@@ -255,28 +255,15 @@ fun MonthRostersTab(
 
     val scrollState = rememberScrollState()
 
-    // Natural Boundary & Outer Swipe: Inside days 1..31, horizontal drag scrolls the table.
-    // At Day 1 (scrollState == 0), right-swipe beyond Day 1 smoothly transitions to Tab 2 (Calendar).
-    // At Day 31 (scrollState >= maxValue), left-swipe beyond Day 31 smoothly transitions to Tab 4 (More).
-    val gridNestedScrollConnection = remember(scrollState) {
+    // Strict Grid Isolation: Consumes 100% of horizontal delta on table rows even at Day 1 / Day 31.
+    // The grid NEVER switches tabs when reaching the end; swiping only switches tabs below the grid!
+    val gridNestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                val isAtStart = scrollState.value == 0
-                val isAtEnd = scrollState.value >= scrollState.maxValue
-
-                // If user swipes right at Day 1 (isAtStart && available.x > 0), let pager switch tabs
-                if (isAtStart && available.x > 0f) {
-                    return Offset.Zero
-                }
-                // If user swipes left at Day 31 (isAtEnd && available.x < 0), let pager switch tabs
-                if (isAtEnd && available.x < 0f) {
-                    return Offset.Zero
-                }
-
                 // Inside the table, isolate horizontal scrolling so it doesn't accidentally trigger pager
                 return Offset(available.x, 0f)
             }
@@ -1341,9 +1328,7 @@ fun MonthRostersTab(
 
                     // 2. Compact Grid (Full height with 96dp bottom padding for complete visibility)
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .nestedScroll(gridNestedScrollConnection),
+                        modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = if (isLandscape) 72.dp else 96.dp)
                     ) {
                         // Engineer Rows
@@ -1374,6 +1359,7 @@ fun MonthRostersTab(
                                     .fillMaxWidth()
                                     .height(if (isLandscape) 32.dp else 40.dp)
                                     .background(MaterialTheme.colorScheme.surface)
+                                    .nestedScroll(gridNestedScrollConnection)
                             ) {
                                 // Left Pinned: Engineer Name + Avatar
                                 Box(
@@ -1464,6 +1450,7 @@ fun MonthRostersTab(
                                     .fillMaxWidth()
                                     .height(if (isLandscape) 36.dp else 44.dp)
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                                    .nestedScroll(gridNestedScrollConnection)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -1550,6 +1537,7 @@ fun MonthRostersTab(
                                     .fillMaxWidth()
                                     .height(if (isLandscape) 36.dp else 44.dp)
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                                    .nestedScroll(gridNestedScrollConnection)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -1629,6 +1617,15 @@ fun MonthRostersTab(
                                     SummaryCoverageFooterColumns(wrkText = "-", nsText = totalNightDuties.toString(), offText = "-", isLandscape = true)
                                 }
                             }
+                        }
+
+                        // Generous blank touch canvas below the table for seamless horizontal tab swiping
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 280.dp)
+                            )
                         }
                     }
                 }

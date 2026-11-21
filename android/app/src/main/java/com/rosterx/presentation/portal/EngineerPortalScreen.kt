@@ -4738,29 +4738,15 @@ fun MonthRosterView(
         }
     }
 
-    // Natural Boundary & Outer Swipe: Inside days 1..31, horizontal drag scrolls the table.
-    // At Day 1 (scrollState == 0), right-swipe beyond Day 1 smoothly transitions to Tab 2 (Calendar).
-    // At Day 31 (scrollState >= maxValue), left-swipe beyond Day 31 smoothly transitions to Tab 4 (More).
-    val gridNestedScrollConnection = remember(scrollState) {
+    // Strict Grid Isolation: Consumes 100% of horizontal delta on table rows even at Day 1 / Day 31.
+    // The grid NEVER switches tabs when reaching the end; swiping only switches tabs below the grid!
+    val gridNestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                val isAtStart = scrollState.value == 0
-                val isAtEnd = scrollState.value >= scrollState.maxValue
-
-                // If user swipes right at Day 1 (isAtStart && available.x > 0), let pager switch to Calendar
-                if (isAtStart && available.x > 0f) {
-                    return Offset.Zero
-                }
-                // If user swipes left at Day 31 (isAtEnd && available.x < 0), let pager switch to More
-                if (isAtEnd && available.x < 0f) {
-                    return Offset.Zero
-                }
-
-                // Inside the table, isolate horizontal scrolling so it doesn't accidentally trigger pager
                 return Offset(available.x, 0f)
             }
         }
@@ -5115,9 +5101,7 @@ fun MonthRosterView(
 
                     // Engineer Matrix Rows (Full height with 96dp bottom padding for complete visibility)
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .nestedScroll(gridNestedScrollConnection),
+                        modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = if (isLandscape) 72.dp else 96.dp)
                     ) {
 
@@ -5138,6 +5122,8 @@ fun MonthRosterView(
                                     .height(if (isLandscape) 32.dp else 40.dp)
 
                                     .background(if (isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface)
+
+                                    .nestedScroll(gridNestedScrollConnection)
 
                             ) {
 
@@ -5397,7 +5383,7 @@ fun MonthRosterView(
 
 
 
-                            Column {
+                            Column(modifier = Modifier.nestedScroll(gridNestedScrollConnection)) {
 
                                 // Day Coverage Row
 
@@ -5681,6 +5667,15 @@ fun MonthRosterView(
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
+                        }
+
+                        // Generous blank touch canvas below the table for seamless horizontal tab swiping
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 280.dp)
+                            )
                         }
 
                     }
