@@ -3,7 +3,9 @@ package com.rosterx.presentation.portal
 import com.rosterx.presentation.portal.credentials.CredentialTrackerScreen
 import com.rosterx.presentation.portal.more.MoreHubView
 import com.rosterx.presentation.portal.more.MyTeamView
-import com.rosterx.presentation.components.SwipeableTabContainer
+import com.rosterx.presentation.components.RealtimeSwipeableTabPager
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.activity.compose.BackHandler
 import android.graphics.Color.parseColor
 import android.appwidget.AppWidgetManager
@@ -548,7 +550,7 @@ fun Photorealistic3DBell(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 
 @Composable
 
@@ -565,6 +567,24 @@ fun EngineerPortalScreen(
     val state by viewModel.state.collectAsState()
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(initialPage = selectedTab) { 5 }
+    val coroutineScope = rememberCoroutineScope()
+    val boundaryOverscrollAnim = remember { Animatable(0f) }
+    var boundaryOverscrollPx by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(pagerState.currentPage) {
+        if (selectedTab != pagerState.currentPage) {
+            selectedTab = pagerState.currentPage
+        }
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (pagerState.currentPage != selectedTab) {
+            pagerState.animateScrollToPage(selectedTab)
+        }
+    }
+
+    val continuousTabPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
     var isViewingCredentialTracker by rememberSaveable { mutableStateOf(false) }
     var isViewingMyTeam by rememberSaveable { mutableStateOf(false) }
@@ -1192,7 +1212,13 @@ fun EngineerPortalScreen(
                             viewModel.resetToCurrentDateAndMonth()
                         }
                         selectedTab = tab
-                    }
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(tab)
+                        }
+                    },
+                    fractionalPosition = continuousTabPosition,
+                    boundaryOverscrollOffsetPx = boundaryOverscrollPx,
+                    isDragging = pagerState.isScrollInProgress || boundaryOverscrollPx != 0f
                 )
             }
 
@@ -1320,130 +1346,116 @@ fun EngineerPortalScreen(
                         )
                     } else {
                         val isRosterTab = (isManager && selectedTab == 2) || (!isManager && selectedTab == 3)
-                        SwipeableTabContainer(
-                            selectedTab = selectedTab,
-                            totalTabs = 5,
+                        RealtimeSwipeableTabPager(
+                            pagerState = pagerState,
                             isRosterTab = isRosterTab,
                             isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingMyTeam || showCelebrationDialog || showQuickNotificationsSheet,
-                            onTabSelected = { newTab -> selectedTab = newTab },
+                            overscrollAnim = boundaryOverscrollAnim,
+                            onBoundaryOverscroll = { boundaryOverscrollPx = it },
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            AnimatedContent(
-                                targetState = selectedTab,
-                                transitionSpec = {
-                                    if (targetState > initialState) {
-                                        slideInHorizontally(animationSpec = tween(250)) { it } + fadeIn() togetherWith
-                                                slideOutHorizontally(animationSpec = tween(250)) { -it } + fadeOut()
-                                    } else {
-                                        slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn() togetherWith
-                                                slideOutHorizontally(animationSpec = tween(250)) { it } + fadeOut()
-                                    }
-                                },
-                                label = "TabTransition"
-                            ) { tab ->
-                                if (isManager) {
-                                    when (tab) {
-                                        0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                            if (appUpdateInfo != null) {
-                                                AppUpdateBannerCard(
-                                                    updateInfo = appUpdateInfo,
-                                                    onDismiss = onDismissUpdateBanner,
-                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                                )
-                                            }
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                DashboardView(
-                                                    state = state,
-                                                    onDismissNotification = viewModel::dismissNotification,
-                                                    onClearAllNotifications = viewModel::clearAllNotifications,
-                                                    onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                    onOpenCelebrationWishes = openSelfCelebration,
-                                                    onDismissCelebration = viewModel::dismissCelebration
-                                                )
-                                            }
+                        ) { tab ->
+                            if (isManager) {
+                                when (tab) {
+                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                        if (appUpdateInfo != null) {
+                                            AppUpdateBannerCard(
+                                                updateInfo = appUpdateInfo,
+                                                onDismiss = onDismissUpdateBanner,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                            )
                                         }
-                                        1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
-                                        2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
-                                        3 -> NotificationsTab(
-                                            state = AdminRosterState(
-                                                engineers = state.engineers,
-                                                broadcastTemplates = state.broadcastTemplates,
-                                                isSendingNotification = state.isSendingBroadcast,
-                                                notifications = state.broadcastHistory
-                                            ),
-                                            onSendNotification = { title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete ->
-                                                viewModel.sendBroadcast(title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete)
-                                            },
-                                            onRetractNotification = { notifId, onComplete ->
-                                                viewModel.retractBroadcast(notifId, onComplete)
-                                            },
-                                            onRefreshNotifications = viewModel::loadBroadcastHistory,
-                                            onSaveTemplate = viewModel::saveBroadcastTemplate,
-                                            onDeleteTemplate = viewModel::deleteBroadcastTemplate
-                                        )
-                                        4 -> MoreHubView(
-                                            state = state,
-                                            isAdmin = false,
-                                            onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
-                                            onNavigateToMyTeam = { isViewingMyTeam = true }
-                                        )
-                                        else -> DashboardView(
-                                            state = state,
-                                            onDismissNotification = viewModel::dismissNotification,
-                                            onClearAllNotifications = viewModel::clearAllNotifications,
-                                            onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                            onOpenCelebrationWishes = openSelfCelebration,
-                                            onDismissCelebration = viewModel::dismissCelebration
-                                        )
-                                    }
-                                } else {
-                                    when (tab) {
-                                        0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                            if (appUpdateInfo != null) {
-                                                AppUpdateBannerCard(
-                                                    updateInfo = appUpdateInfo,
-                                                    onDismiss = onDismissUpdateBanner,
-                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                                )
-                                            }
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                DashboardView(
-                                                    state = state,
-                                                    onDismissNotification = viewModel::dismissNotification,
-                                                    onClearAllNotifications = viewModel::clearAllNotifications,
-                                                    onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                    onOpenCelebrationWishes = openSelfCelebration,
-                                                    onDismissCelebration = viewModel::dismissCelebration
-                                                )
-                                            }
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            DashboardView(
+                                                state = state,
+                                                onDismissNotification = viewModel::dismissNotification,
+                                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                                onOpenCelebrationWishes = openSelfCelebration,
+                                                onDismissCelebration = viewModel::dismissCelebration
+                                            )
                                         }
-                                        1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
-                                        2 -> MyCalendarView(
-                                            state = state,
-                                            onDateSelected = viewModel::selectDate,
-                                            onPreviousMonth = viewModel::previousMonth,
-                                            onNextMonth = viewModel::nextMonth,
-                                            onNavigateToTeam = { selectedTab = 1 },
-                                            onSyncRecorded = viewModel::recordCalendarSync,
-                                            onSyncCleared = viewModel::clearCalendarSync,
-                                            onCalendarAccountsDiscovered = viewModel::syncDeviceCalendarAccounts
-                                        )
-                                        3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
-                                        4 -> MoreHubView(
-                                            state = state,
-                                            isAdmin = false,
-                                            onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
-                                            onNavigateToMyTeam = { isViewingMyTeam = true }
-                                        )
-                                        else -> DashboardView(
-                                            state = state,
-                                            onDismissNotification = viewModel::dismissNotification,
-                                            onClearAllNotifications = viewModel::clearAllNotifications,
-                                            onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                            onOpenCelebrationWishes = openSelfCelebration,
-                                            onDismissCelebration = viewModel::dismissCelebration
-                                        )
                                     }
+                                    1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
+                                    2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
+                                    3 -> NotificationsTab(
+                                        state = AdminRosterState(
+                                            engineers = state.engineers,
+                                            broadcastTemplates = state.broadcastTemplates,
+                                            isSendingNotification = state.isSendingBroadcast,
+                                            notifications = state.broadcastHistory
+                                        ),
+                                        onSendNotification = { title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete ->
+                                            viewModel.sendBroadcast(title, message, target, priority, sendEmail, sendInApp, sendPush, onComplete)
+                                        },
+                                        onRetractNotification = { notifId, onComplete ->
+                                            viewModel.retractBroadcast(notifId, onComplete)
+                                        },
+                                        onRefreshNotifications = viewModel::loadBroadcastHistory,
+                                        onSaveTemplate = viewModel::saveBroadcastTemplate,
+                                        onDeleteTemplate = viewModel::deleteBroadcastTemplate
+                                    )
+                                    4 -> MoreHubView(
+                                        state = state,
+                                        isAdmin = false,
+                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
+                                        onNavigateToMyTeam = { isViewingMyTeam = true }
+                                    )
+                                    else -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = openSelfCelebration,
+                                        onDismissCelebration = viewModel::dismissCelebration
+                                    )
+                                }
+                            } else {
+                                when (tab) {
+                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                        if (appUpdateInfo != null) {
+                                            AppUpdateBannerCard(
+                                                updateInfo = appUpdateInfo,
+                                                onDismiss = onDismissUpdateBanner,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                            )
+                                        }
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            DashboardView(
+                                                state = state,
+                                                onDismissNotification = viewModel::dismissNotification,
+                                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                                onOpenCelebrationWishes = openSelfCelebration,
+                                                onDismissCelebration = viewModel::dismissCelebration
+                                            )
+                                        }
+                                    }
+                                    1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
+                                    2 -> MyCalendarView(
+                                        state = state,
+                                        onDateSelected = viewModel::selectDate,
+                                        onPreviousMonth = viewModel::previousMonth,
+                                        onNextMonth = viewModel::nextMonth,
+                                        onNavigateToTeam = { selectedTab = 1 },
+                                        onSyncRecorded = viewModel::recordCalendarSync,
+                                        onSyncCleared = viewModel::clearCalendarSync,
+                                        onCalendarAccountsDiscovered = viewModel::syncDeviceCalendarAccounts
+                                    )
+                                    3 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
+                                    4 -> MoreHubView(
+                                        state = state,
+                                        isAdmin = false,
+                                        onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
+                                        onNavigateToMyTeam = { isViewingMyTeam = true }
+                                    )
+                                    else -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = openSelfCelebration,
+                                        onDismissCelebration = viewModel::dismissCelebration
+                                    )
                                 }
                             }
                         }
@@ -4689,7 +4701,7 @@ fun MyCalendarView(
 
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 
 @Composable
 

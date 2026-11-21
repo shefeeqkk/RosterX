@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 12:05 IST** (Target Sprint: **v2.3.5 - Build 157**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 13:30 IST** (Target Sprint: **v2.3.6 - Build 158**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.6 - Build 158 — WhatsApp-Style Active 1:1 Horizontal Swipe Tab Switching, Continuous Fluid Dock Indicator Glide & Synchronized Boundary Spring Recoil across Web & Android):
+> *"Gafoorka! Boss! Sprint **`v2.3.6` (Build 158)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Android Active 1:1 Real-Time Finger Tracking (`RealtimeSwipeableTabPager.kt`, `FluidNeumorphicBottomNav.kt`, `EngineerPortalScreen.kt`, `AdminMainScreen.kt`)**:
+>    - Upgraded from gesture-detection-after-the-fact to Compose `HorizontalPager` (`beyondBoundsPageCount = 1`) for buttery smooth 60/120fps direct finger tracking.
+>    - Content glides 1:1 with finger touch across all 5 tabs (Dashboard, Team Shifts, Calendar, Month Roster, More Hub).
+>    - **Continuous Dock Indicator Glide**: Connected `continuousTabPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction` to `FluidNeumorphicBottomNav`. The bottom dock cutout notch and active bubble glide smoothly across the screen in real-time as finger drags.
+>    - Active tab bubble and label highlight switch dynamically at the 50% midpoint (`fractionalPosition.roundToInt()`).
+>    - **Synchronized Subtle Nudge & Spring Recoil**: Boundary overscroll (`overscrollAnim`) applies rubber-band resistance when pulling past Tab 0 to the right or Tab 4 to the left, nudging both screen content and bottom dock indicator together (`targetNotchCenterX += boundaryOverscrollOffsetPx * 0.16f`). On release, both spring back in lockstep with bouncy physics (`Spring.DampingRatioMediumBouncy`, `Spring.StiffnessLow`).
+>    - Preserved 31-day horizontal table scrolling on Month Roster unless dragging from edge (<40.dp).
+> 2. **Mobile Web Active 1:1 Swipe & Continuous Dock Glide (`web/js/swipeTabController.js`, `web/js/mobileNavShell.js`, `web/js/userPortal.js`, `web/js/app.js`, `web/css/mobile-shell.css`)**:
+>    - Rewrote `SwipeTabController` with active 1:1 translation of both current and adjacent tab panels during `touchmove`.
+>    - Pre-mounts adjacent tab panel with `ensureTabRendered` so adjacent tab content is already visible and rendered without blank flashes while sliding.
+>    - Added `.rx-dock-slider` to `MobileNavShell` that glides continuously across the 5-tab dock in real-time via `setDragProgress(fractionalIndex, boundaryOffsetPx)`.
+>    - Synchronized rubber-band boundary stretch and bouncy spring recoil (`cubic-bezier(0.175, 0.885, 0.32, 1.275)`) on web.
+> 3. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.6"`, `versionCode = 158`.
+>    - Server `SERVER_VERSION = "2.3.6"`.
+>    - Safe build `assembleDebug` compiled successfully and deployed to ADB target `100.71.241.36:5555`! 🚀"*
 
 ---
 

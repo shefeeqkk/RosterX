@@ -3,11 +3,14 @@ package com.rosterx.presentation.admin
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -37,7 +40,7 @@ import com.rosterx.presentation.portal.credentials.CredentialTrackerScreen
 import com.rosterx.presentation.portal.more.MoreHubView
 import com.rosterx.ui.neumorphic.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AdminMainScreen(
     viewModel: AdminRosterViewModel = hiltViewModel(),
@@ -53,6 +56,24 @@ fun AdminMainScreen(
     val isManagerReadOnly = currentUser?.role == com.rosterx.domain.model.EngineerRole.MANAGER
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(initialPage = selectedTab) { 5 }
+    val coroutineScope = rememberCoroutineScope()
+    val boundaryOverscrollAnim = remember { Animatable(0f) }
+    var boundaryOverscrollPx by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(pagerState.currentPage) {
+        if (selectedTab != pagerState.currentPage) {
+            selectedTab = pagerState.currentPage
+        }
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (pagerState.currentPage != selectedTab) {
+            pagerState.animateScrollToPage(selectedTab)
+        }
+    }
+
+    val continuousTabPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
     var targetEngineerSearch by rememberSaveable { mutableStateOf("") }
 
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
@@ -405,7 +426,10 @@ fun AdminMainScreen(
                             viewModel.resetToCurrentMonth()
                         }
                         selectedTab = tab
-                    }
+                    },
+                    fractionalPosition = continuousTabPosition,
+                    boundaryOverscrollOffsetPx = boundaryOverscrollPx,
+                    isDragging = pagerState.isScrollInProgress
                 )
             }
         }
@@ -504,29 +528,16 @@ fun AdminMainScreen(
                         }
                         else -> {
                             val isRosterTab = selectedTab == 2
-                            SwipeableTabContainer(
-                                selectedTab = selectedTab,
-                                totalTabs = 5,
+                            RealtimeSwipeableTabPager(
+                                pagerState = pagerState,
                                 isRosterTab = isRosterTab,
                                 isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingServerManagement,
-                                onTabSelected = { newTab -> selectedTab = newTab },
+                                overscrollAnim = boundaryOverscrollAnim,
+                                onBoundaryOverscroll = { boundaryOverscrollPx = it },
                                 modifier = Modifier.fillMaxSize()
-                            ) {
-                                AnimatedContent(
-                                    targetState = selectedTab,
-                                    transitionSpec = {
-                                        if (targetState > initialState) {
-                                            slideInHorizontally(animationSpec = tween(250)) { it } + fadeIn() togetherWith
-                                                    slideOutHorizontally(animationSpec = tween(250)) { -it } + fadeOut()
-                                        } else {
-                                            slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn() togetherWith
-                                                    slideOutHorizontally(animationSpec = tween(250)) { it } + fadeOut()
-                                        }
-                                    },
-                                    label = "AdminTabTransition"
-                                ) { tab ->
-                                    when (tab) {
-                                        0 -> Column(modifier = Modifier.fillMaxSize()) {
+                            ) { tab ->
+                                when (tab) {
+                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
                                             if (appUpdateInfo != null) {
                                                 AppUpdateBannerCard(
                                                     updateInfo = appUpdateInfo,
@@ -588,7 +599,6 @@ fun AdminMainScreen(
                         }
                     }
                 }
-            }
 
             PullToRefreshContainer(
                 state = pullRefreshState,

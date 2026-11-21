@@ -72,7 +72,7 @@ import { themeController } from './themeController.js?v=2.0.5';
 import { broadcastController } from './broadcastController.js?v=2.0.5';
 import { registerPwaServiceWorker, mountIosInstallBanner } from './pwaHelper.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.3.5';
+import { SwipeTabController } from './swipeTabController.js?v=2.3.6';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
@@ -691,6 +691,9 @@ class RosterXApp {
       getTabs: () => this.mobileNavShell.tabs,
       getActiveTab: () => this.activeTab,
       onSwitchTab: (tabId) => this.switchTab(tabId),
+      onDragProgress: (fractional, boundaryOffset, isSpring) => {
+        this.mobileNavShell.setDragProgress(fractional, boundaryOffset, isSpring);
+      },
       rosterTabId: 'matrix',
       isSuspended: () => Boolean(document.querySelector('.rx-modal-backdrop, #geminiSettingsModal:not(.hidden), #accountModal:not(.hidden), #quickEditModal:not(.hidden)'))
     });

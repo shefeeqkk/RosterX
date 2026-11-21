@@ -384,6 +384,21 @@ html.dark dialog.rx-modal::backdrop {
     box-shadow: 0 -8px 24px rgba(2, 6, 23, 0.65), inset 0 1px 0 rgba(148, 163, 184, 0.15);
   }
 
+  .rx-dock-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: var(--nm-accent, #174EAC);
+    background-image: linear-gradient(90deg, #1E6BE6, var(--nm-accent, #174EAC));
+    border-radius: 9999px;
+    box-shadow: 0 2px 8px var(--nm-accent-glow, rgba(23, 78, 172, 0.45));
+    pointer-events: none;
+    will-change: transform;
+    z-index: 50;
+    transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+
   .rx-nav-tab {
     flex: 1;
     min-inline-size: 0;

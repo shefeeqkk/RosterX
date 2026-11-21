@@ -57,7 +57,10 @@ fun FluidNeumorphicBottomNav(
     items: List<NavTabItem>,
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fractionalPosition: Float = selectedIndex.toFloat(),
+    boundaryOverscrollOffsetPx: Float = 0f,
+    isDragging: Boolean = false
 ) {
     val density = LocalDensity.current
     var containerWidthPx by remember { mutableFloatStateOf(0f) }
@@ -65,18 +68,22 @@ fun FluidNeumorphicBottomNav(
     val itemCount = items.size.coerceAtLeast(1)
     val tabWidthPx = if (containerWidthPx > 0) containerWidthPx / itemCount else 0f
 
-    // Target center X position of active tab
+    // Target center X position of active tab (continuous floating with finger drag and boundary nudge)
     val targetNotchCenterX = if (tabWidthPx > 0) {
-        (selectedIndex * tabWidthPx) + (tabWidthPx / 2f)
+        (fractionalPosition * tabWidthPx) + (tabWidthPx / 2f) + (boundaryOverscrollOffsetPx * 0.16f)
     } else 0f
 
     // Fluid spring-dampened X-axis translation animation
     val animatedNotchCenterX by animateFloatAsState(
         targetValue = targetNotchCenterX,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = if (isDragging) {
+            spring(dampingRatio = 1.0f, stiffness = 1200f) // Near-instant direct tracking while finger is touching
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        },
         label = "notchXAnimation"
     )
 
@@ -161,8 +168,9 @@ fun FluidNeumorphicBottomNav(
         )
 
         // B. Floating Active Circular Bubble (Icon only, fluid morphing)
-        if (containerWidthPx > 0 && selectedIndex in items.indices) {
-            val activeItem = items[selectedIndex]
+        val activeIndex = kotlin.math.round(fractionalPosition).toInt().coerceIn(items.indices)
+        if (containerWidthPx > 0 && activeIndex in items.indices) {
+            val activeItem = items[activeIndex]
             val bubbleSize = 56.dp
             val bubbleSizePx = with(density) { bubbleSize.toPx() }
             val bubbleLeftPx = animatedNotchCenterX - (bubbleSizePx / 2f)
@@ -199,7 +207,7 @@ fun FluidNeumorphicBottomNav(
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { item ->
-                val isSelected = item.index == selectedIndex
+                val isSelected = item.index == activeIndex
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
 

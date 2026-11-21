@@ -17,7 +17,7 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.3.5';
+import { SwipeTabController } from './swipeTabController.js?v=2.3.6';
 import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.3.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
@@ -272,6 +272,10 @@ class RosterXUserPortal {
       getTabs: () => this.tabs,
       getActiveTab: () => this.activeTab,
       onSwitchTab: (id) => this.switchTab(id),
+      onDragProgress: (fractional, boundaryOffset, isSpring) => {
+        this.navShell.setDragProgress(fractional, boundaryOffset, isSpring);
+      },
+      ensureTabRendered: (tabId) => this.ensureTabRendered(tabId),
       rosterTabId: 'month_roster',
       isSuspended: () => Boolean(this.activeSubView || document.querySelector('.rx-modal-backdrop, [data-modal-open="true"]'))
     });
@@ -752,6 +756,31 @@ class RosterXUserPortal {
       this.renderManagerBroadcast();
     } else if (this.activeTab === 'more') {
       this.renderMoreHub();
+    }
+  }
+
+  ensureTabRendered(tabId) {
+    if (tabId === 'dashboard') {
+      const p = document.getElementById('panel_dashboard');
+      if (p && !p.hasChildNodes()) {
+        if (this.isManager) this.renderManagerDashboard();
+        else this.renderEngineerDashboard();
+      }
+    } else if (tabId === 'team_shifts') {
+      const p = document.getElementById('panel_team_shifts');
+      if (p && !p.hasChildNodes()) this.renderTeamShifts();
+    } else if (tabId === 'my_calendar') {
+      const p = document.getElementById('panel_my_calendar');
+      if (p && !p.hasChildNodes()) this.renderMyCalendar();
+    } else if (tabId === 'month_roster') {
+      const p = document.getElementById('panel_month_roster');
+      if (p && !p.hasChildNodes()) this.renderMonthRoster();
+    } else if (tabId === 'broadcast') {
+      const p = document.getElementById('panel_broadcast');
+      if (p && !p.hasChildNodes()) this.renderManagerBroadcast();
+    } else if (tabId === 'more') {
+      const p = document.getElementById('panel_more');
+      if (p && !p.hasChildNodes()) this.renderMoreHub();
     }
   }
 

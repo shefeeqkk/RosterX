@@ -24,6 +24,7 @@ export class MobileNavShell {
     this.activeTab = this.tabs[0]?.id || '';
     this.bottomNavEl = null;
     this.railEl = null;
+    this.sliderEl = null;
   }
 
   mount() {
@@ -35,12 +36,15 @@ export class MobileNavShell {
     bottomNav.id = 'rxMobileBottomNav';
     bottomNav.className = 'rx-mobile-bottom-nav no-print';
     bottomNav.setAttribute('aria-label', 'Primary navigation');
-    bottomNav.innerHTML = this.tabs.map((tab) => `
-      <button type="button" class="rx-nav-tab" data-rx-tab="${escapeHtml(tab.id)}" aria-label="${escapeHtml(tab.label)}">
-        <span class="rx-nav-tab-bubble"><i class="ph ${escapeHtml(tab.icon)}" aria-hidden="true"></i></span>
-        <span class="rx-nav-tab-label">${escapeHtml(tab.label)}</span>
-      </button>
-    `).join('');
+    bottomNav.innerHTML = `
+      <div class="rx-dock-slider" style="width: ${100 / Math.max(1, this.tabs.length)}%;"></div>
+      ${this.tabs.map((tab) => `
+        <button type="button" class="rx-nav-tab" data-rx-tab="${escapeHtml(tab.id)}" aria-label="${escapeHtml(tab.label)}">
+          <span class="rx-nav-tab-bubble"><i class="ph ${escapeHtml(tab.icon)}" aria-hidden="true"></i></span>
+          <span class="rx-nav-tab-label">${escapeHtml(tab.label)}</span>
+        </button>
+      `).join('')}
+    `;
 
     // 2. Mobile Landscape Left Vertical Rail
     const rail = document.createElement('nav');
@@ -73,6 +77,7 @@ export class MobileNavShell {
     document.body.appendChild(rail);
     this.bottomNavEl = bottomNav;
     this.railEl = rail;
+    this.sliderEl = bottomNav.querySelector('.rx-dock-slider');
 
     this.setActive(this.activeTab);
   }
@@ -87,7 +92,55 @@ export class MobileNavShell {
         btn.setAttribute('aria-current', active ? 'page' : 'false');
       });
     });
+
+    const index = this.tabs.findIndex((t) => t.id === tabId);
+    if (index !== -1 && this.sliderEl) {
+      this.sliderEl.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
+      this.sliderEl.style.transform = `translateX(${index * 100}%)`;
+    }
+    if (this.bottomNavEl && this.bottomNavEl.style.transform) {
+      this.bottomNavEl.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
+      this.bottomNavEl.style.transform = 'translateX(0px)';
+    }
+
     this.syncFullscreenRoster();
+  }
+
+  setDragProgress(fractionalIndex, boundaryOffsetPx = 0, isSpring = false) {
+    if (!this.bottomNavEl) return;
+
+    if (this.sliderEl) {
+      if (isSpring) {
+        this.sliderEl.style.transition = 'transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      } else {
+        this.sliderEl.style.transition = 'none';
+      }
+      const boundaryExtra = boundaryOffsetPx ? ` + ${boundaryOffsetPx * 0.16}px` : '';
+      this.sliderEl.style.transform = `translateX(calc(${fractionalIndex * 100}%${boundaryExtra}))`;
+    }
+
+    // Entire dock boundary stretch & spring recoil
+    if (boundaryOffsetPx) {
+      this.bottomNavEl.style.transition = isSpring ? 'transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275)' : 'none';
+      this.bottomNavEl.style.transform = `translateX(${boundaryOffsetPx * 0.16}px)`;
+    } else if (isSpring) {
+      this.bottomNavEl.style.transition = 'transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      this.bottomNavEl.style.transform = 'translateX(0px)';
+    } else if (this.bottomNavEl.style.transform && this.bottomNavEl.style.transform !== 'translateX(0px)') {
+      this.bottomNavEl.style.transition = 'none';
+      this.bottomNavEl.style.transform = 'translateX(0px)';
+    }
+
+    // Active button highlight updates at 50% midpoint
+    const roundedIndex = Math.round(fractionalIndex);
+    if (roundedIndex >= 0 && roundedIndex < this.tabs.length) {
+      const activeId = this.tabs[roundedIndex].id;
+      this.bottomNavEl.querySelectorAll('[data-rx-tab]').forEach((btn) => {
+        const active = btn.getAttribute('data-rx-tab') === activeId;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-current', active ? 'page' : 'false');
+      });
+    }
   }
 
   setSubViewOpen(isSubView) {
