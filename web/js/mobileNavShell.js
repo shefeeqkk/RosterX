@@ -36,15 +36,12 @@ export class MobileNavShell {
     bottomNav.id = 'rxMobileBottomNav';
     bottomNav.className = 'rx-mobile-bottom-nav no-print';
     bottomNav.setAttribute('aria-label', 'Primary navigation');
-    bottomNav.innerHTML = `
-      <div class="rx-dock-slider" style="width: ${100 / Math.max(1, this.tabs.length)}%;"></div>
-      ${this.tabs.map((tab) => `
+    bottomNav.innerHTML = this.tabs.map((tab) => `
         <button type="button" class="rx-nav-tab" data-rx-tab="${escapeHtml(tab.id)}" aria-label="${escapeHtml(tab.label)}">
           <span class="rx-nav-tab-bubble"><i class="ph ${escapeHtml(tab.icon)}" aria-hidden="true"></i></span>
           <span class="rx-nav-tab-label">${escapeHtml(tab.label)}</span>
         </button>
-      `).join('')}
-    `;
+      `).join('');
 
     // 2. Mobile Landscape Left Vertical Rail
     const rail = document.createElement('nav');
@@ -77,7 +74,7 @@ export class MobileNavShell {
     document.body.appendChild(rail);
     this.bottomNavEl = bottomNav;
     this.railEl = rail;
-    this.sliderEl = bottomNav.querySelector('.rx-dock-slider');
+    this.sliderEl = null;
 
     this.setActive(this.activeTab);
   }

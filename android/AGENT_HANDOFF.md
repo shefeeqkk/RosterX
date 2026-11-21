@@ -1,7 +1,22 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-21 23:30 IST** (Target Sprint: **v2.3.11 - Build 163**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 00:25 IST** (Target Sprint: **v2.3.12 - Build 164**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.12 - Build 164 — Clean Floating Bubble Bottom Navigation, Removal of Obtrusive Horizontal Top Slider Bar & PWA Sync):
+> *"Gafoorka! Boss! Sprint **`v2.3.12` (Build 164)** 100% complete aayi execute cheythu, Android safe build passed, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Removal of Obtrusive Horizontal Dock Slider Bar (`web/css/mobile-shell.css`, `web/js/mobileNavShell.js`)**:
+>    - **Root Cause Eliminated**: In the Mobile Web App / PWA shell, a 3px horizontal glowing blue bar (`.rx-dock-slider`) was placed at `top: 0` along the top edge of the bottom navigation dock. When the active tab bubble floated upward (`margin-top: -14px`), this horizontal bar sliced directly behind the lower half of the circular bubble, creating an awkward, unpolished skewer line.
+>    - **Clean Elevated Floating Bubble**: Removed `.rx-dock-slider` from the CSS and DOM structure completely. The active tab bubble now floats cleanly with its neumorphic gradient, subtle drop shadow, and active text label as the sole, elegant indicator over the curved dock perimeter.
+> 2. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.12"`, `versionCode = 164`.
+>    - Server `SERVER_VERSION = "2.3.12"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.12'`.
+>    - Web caches bumped to `?v=2.3.12` across HTML and JS modules."*
 
 ---
 
