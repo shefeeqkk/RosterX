@@ -764,8 +764,9 @@ data class EligibleLeavePartnersResponse(
 
 data class AdminLeaveQueueResponse(
     val success: Boolean,
-    @SerializedName("pending_requests") val pendingRequests: List<LeaveRequestDto> = emptyList(),
-    @SerializedName("historical_requests") val historicalRequests: List<LeaveRequestDto> = emptyList(),
+    @SerializedName("pending_requests") val pendingRequests: List<LeaveRequestDto>? = emptyList(),
+    @SerializedName("historical_requests") val historicalRequests: List<LeaveRequestDto>? = emptyList(),
+    @SerializedName("requests") val allRequests: List<LeaveRequestDto>? = emptyList(),
     @SerializedName("pending_count") val pendingCount: Int = 0,
     @SerializedName("history_count") val historyCount: Int = 0,
     val message: String? = null

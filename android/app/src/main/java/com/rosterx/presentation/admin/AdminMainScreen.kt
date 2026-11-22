@@ -180,7 +180,7 @@ fun AdminMainScreen(
     Scaffold(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
-            if (!isFullScreenRoster && !isViewingCredentialTracker) {
+            if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingServerManagement && !isViewingLeaveApprovals) {
                 if (isLandscape) {
                     // Ultra-slim 42dp Landscape Top Bar
                     val activeHeaderUser = state.engineers.find {
@@ -485,7 +485,7 @@ fun AdminMainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = if (!isFullScreenRoster && !isViewingCredentialTracker) paddingValues.calculateTopPadding()
+                    top = if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingServerManagement && !isViewingLeaveApprovals) paddingValues.calculateTopPadding()
                     else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
                 )
                 .background(NeumorphicTokens.Canvas)

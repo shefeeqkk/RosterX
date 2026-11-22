@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.4.1"
+SERVER_VERSION = "2.4.3"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -4019,10 +4019,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                     req["candidate_suggestions"] = date_suggestions
 
+            pending_requests = [r for r in requests_list if str(r.get("status", "")).lower() == "pending"]
+            historical_requests = [r for r in requests_list if str(r.get("status", "")).lower() != "pending"]
+
             self.send_json_response({
                 "success": True,
+                "pending_requests": pending_requests,
+                "historical_requests": historical_requests,
                 "requests": requests_list,
-                "pending_count": pending_count,
+                "pending_count": len(pending_requests),
+                "history_count": len(historical_requests),
                 "total_count": len(requests_list)
             })
             return

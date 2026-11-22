@@ -1378,7 +1378,7 @@ class EngineerPortalViewModel @Inject constructor(
             val res = repository.getMyLeaveRequests()
             res.onSuccess { data ->
                 _state.value = _state.value.copy(
-                    myLeaveRequests = data.requests,
+                    myLeaveRequests = data.requests ?: emptyList(),
                     leaveApprovedDays = data.approvedLeaveDays,
                     leaveRemainingDays = data.remainingLeaveBalance,
                     leaveAnnualQuota = data.annualQuota,
@@ -1408,10 +1408,17 @@ class EngineerPortalViewModel @Inject constructor(
             if (!silent) _state.value = _state.value.copy(isLoadingAdminLeave = true)
             val res = repository.getAdminLeaveQueue()
             res.onSuccess { data ->
+                val pending = data.pendingRequests?.takeIf { it.isNotEmpty() }
+                    ?: data.allRequests?.filter { it.status.equals("pending", ignoreCase = true) }
+                    ?: emptyList()
+                val historical = data.historicalRequests?.takeIf { it.isNotEmpty() }
+                    ?: data.allRequests?.filter { !it.status.equals("pending", ignoreCase = true) }
+                    ?: emptyList()
+
                 _state.value = _state.value.copy(
-                    adminPendingLeaveRequests = data.pendingRequests,
-                    adminHistoricalLeaveRequests = data.historicalRequests,
-                    adminPendingLeaveCount = data.pendingCount,
+                    adminPendingLeaveRequests = pending,
+                    adminHistoricalLeaveRequests = historical,
+                    adminPendingLeaveCount = if (data.pendingCount > 0) data.pendingCount else pending.size,
                     isLoadingAdminLeave = false
                 )
             }.onFailure {
