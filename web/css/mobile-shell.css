@@ -18,12 +18,18 @@ html {
   -webkit-text-size-adjust: 100%;
   scroll-padding-top: calc(4.25rem + env(safe-area-inset-top, 0px));
   scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  overflow-x: hidden !important;
+  width: 100% !important;
+  max-width: 100vw !important;
 }
 
 body {
   background-color: var(--nm-canvas);
   color: var(--nm-text);
   -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden !important;
+  width: 100% !important;
+  max-width: 100vw !important;
 }
 
 /* ==========================================================================
@@ -366,9 +372,13 @@ html.dark dialog.rx-modal::backdrop {
   .rx-mobile-bottom-nav {
     display: flex;
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
     z-index: 45;
     background: var(--nm-surface);
     border-top-left-radius: 24px;
@@ -448,6 +458,11 @@ html.dark dialog.rx-modal::backdrop {
   }
 
   main.rx-main-shell {
+    position: relative !important;
+    overflow-x: clip !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
     padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
@@ -1184,6 +1199,7 @@ html.dark #rxAiChatDialog {
   html, body, main.rx-main-shell {
     overscroll-behavior-y: contain !important;
     overscroll-behavior-x: none !important;
+    overflow-x: hidden !important;
   }
   .rx-tab-panel {
     touch-action: pan-y !important;

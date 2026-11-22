@@ -96,8 +96,7 @@ export class MobileNavShell {
       this.sliderEl.style.transform = `translateX(${index * 100}%)`;
     }
     if (this.bottomNavEl && this.bottomNavEl.style.transform) {
-      this.bottomNavEl.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
-      this.bottomNavEl.style.transform = 'translateX(0px)';
+      this.bottomNavEl.style.transform = '';
     }
 
     this.syncFullscreenRoster();
@@ -112,20 +111,12 @@ export class MobileNavShell {
       } else {
         this.sliderEl.style.transition = 'none';
       }
-      const boundaryExtra = boundaryOffsetPx ? ` + ${boundaryOffsetPx * 0.16}px` : '';
-      this.sliderEl.style.transform = `translateX(calc(${fractionalIndex * 100}%${boundaryExtra}))`;
+      this.sliderEl.style.transform = `translateX(${fractionalIndex * 100}%)`;
     }
 
-    // Entire dock boundary stretch & spring recoil
-    if (boundaryOffsetPx) {
-      this.bottomNavEl.style.transition = isSpring ? 'transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275)' : 'none';
-      this.bottomNavEl.style.transform = `translateX(${boundaryOffsetPx * 0.16}px)`;
-    } else if (isSpring) {
-      this.bottomNavEl.style.transition = 'transform 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-      this.bottomNavEl.style.transform = 'translateX(0px)';
-    } else if (this.bottomNavEl.style.transform && this.bottomNavEl.style.transform !== 'translateX(0px)') {
-      this.bottomNavEl.style.transition = 'none';
-      this.bottomNavEl.style.transform = 'translateX(0px)';
+    // Entire dock remains rigidly pinned to the viewport (zero translation jitter)
+    if (this.bottomNavEl.style.transform) {
+      this.bottomNavEl.style.transform = '';
     }
 
     // Active button highlight updates at 50% midpoint

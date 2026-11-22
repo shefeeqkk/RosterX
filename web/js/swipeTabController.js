@@ -226,8 +226,11 @@ export class SwipeTabController {
         this.adjacentEl.style.willChange = 'transform';
 
         const parentEl = this.adjacentEl.parentElement || (this.container !== document.body ? this.container : document.getElementById('rxMainContainer'));
-        if (parentEl && getComputedStyle(parentEl).position === 'static') {
-          parentEl.style.position = 'relative';
+        if (parentEl) {
+          if (getComputedStyle(parentEl).position === 'static') {
+            parentEl.style.position = 'relative';
+          }
+          parentEl.style.overflowX = 'clip';
         }
       }
     }
@@ -358,6 +361,10 @@ export class SwipeTabController {
       this.adjacentEl.style.zIndex = '';
       this.adjacentEl.style.willChange = '';
       this.adjacentEl.classList.add('rx-hidden', 'hidden');
+      const parentEl = this.adjacentEl.parentElement || (this.container !== document.body ? this.container : document.getElementById('rxMainContainer'));
+      if (parentEl && parentEl.style.overflowX === 'clip') {
+        parentEl.style.overflowX = '';
+      }
       this.adjacentEl = null;
       this.adjacentTabId = null;
     }

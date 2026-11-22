@@ -232,7 +232,7 @@ fun AdminMainScreen(
                                 }
                             }
 
-                            if (!isViewingSettings && !isViewingServerManagement && selectedTab != 4 && activeHeaderUser != null) {
+                            if (!isViewingSettings && !isViewingServerManagement && activeHeaderUser != null) {
                                 val displayName = (activeHeaderUser.fullName?.takeIf { it.isNotBlank() } ?: activeHeaderUser.name).toProperCase()
                                 val firstName = displayName.split(" ")[0]
                                 NeumorphicCard(
@@ -343,7 +343,7 @@ fun AdminMainScreen(
                         }
                     },
                     actions = {
-                        if (!isViewingSettings && !isViewingServerManagement && !isViewingCredentialTracker && selectedTab != 4) {
+                        if (!isViewingSettings && !isViewingServerManagement && !isViewingCredentialTracker) {
                             val refreshInfiniteTransition = rememberInfiniteTransition(label = "admin_refresh_spin")
                             val refreshRotation by if (isManualRefreshing) {
                                 refreshInfiniteTransition.animateFloat(

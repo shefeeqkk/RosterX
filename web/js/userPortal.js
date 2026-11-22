@@ -17,11 +17,10 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.3.18';
-import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.3.1';
+import { SwipeTabController } from './swipeTabController.js?v=2.3.19';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
-import { sortEngineersByWeekOffs } from './constants.js?v=2.0.5';
+import { sortEngineersByWeekOffs, SHIFT_SPECS } from './constants.js?v=2.3.19';
 import {
   registerPwaServiceWorker,
   mountIosInstallBanner,
@@ -1405,15 +1404,6 @@ class RosterXUserPortal {
         </div>
 
         <div style="display:flex;flex-direction:column;gap:12px;">
-          ${hasAnyDays ? `
-            <div>
-              <button type="button" id="btnSyncToCalendar" class="rx-btn-primary" style="width:100%;">
-                <i class="ph ph-calendar-check" aria-hidden="true"></i>
-                <span>Sync to Calendar</span>
-              </button>
-            </div>
-          ` : ''}
-
           <div class="rx-card" style="display:flex;flex-direction:column;gap:10px;">
             <div style="font-size:11px;font-weight:900;color:var(--nm-accent);letter-spacing:0.05em;">SHIFT LEGEND &amp; TIMINGS</div>
             <div style="display:flex;flex-direction:column;gap:7px;">
@@ -1442,16 +1432,6 @@ class RosterXUserPortal {
     panel.querySelector('#btnCalNextMonth')?.addEventListener('click', () => {
       if (this.gridMonth === 12) { this.gridMonth = 1; this.gridYear++; } else this.gridMonth++;
       this.renderMyCalendar();
-    });
-    panel.querySelector('#btnSyncToCalendar')?.addEventListener('click', () => {
-      openCalendarSyncModal({
-        engineerName: selfEng?.full_name || selfEng?.name || 'Team Member',
-        username: selfEng?.username || 'member',
-        year: this.gridYear,
-        month: this.gridMonth,
-        dayShiftCodes: dayShiftMapInt,
-        onToast: (msg, type) => this.toast(msg, type)
-      });
     });
     panel.querySelectorAll('[data-cal-day]').forEach((btn) => {
       btn.addEventListener('click', () => {

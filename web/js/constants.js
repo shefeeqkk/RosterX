@@ -101,6 +101,15 @@ export const SHIFTS = {
   }
 };
 
+export const SHIFT_SPECS = {
+  FS: { title: 'First Shift (FS)',    startH: 7,  startM: 30, endH: 16, endM: 30, nextDay: false },
+  FG: { title: 'First General (FG)',  startH: 8,  startM: 30, endH: 17, endM: 30, nextDay: false },
+  G:  { title: 'General Shift (G)',   startH: 9,  startM: 30, endH: 18, endM: 30, nextDay: false },
+  SG: { title: 'Second General (SG)', startH: 11, startM: 0,  endH: 20, endM: 0,  nextDay: false },
+  SS: { title: 'Second Shift (SS)',   startH: 13, startM: 0,  endH: 22, endM: 0,  nextDay: false },
+  NS: { title: 'Night Shift (NS)',    startH: 21, startM: 0,  endH: 7,  endM: 30, nextDay: true }
+};
+
 /**
  * Standardized Swap Code Generator
  * Rule:

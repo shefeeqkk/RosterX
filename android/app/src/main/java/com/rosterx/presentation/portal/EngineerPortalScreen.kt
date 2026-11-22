@@ -890,7 +890,7 @@ fun EngineerPortalScreen(
                                         }
                                     }
 
-                                    if (state.loggedInEngineer != null && selectedTab != 4) {
+                                    if (state.loggedInEngineer != null) {
                                         NeumorphicCard(
                                             modifier = Modifier.clickable {
                                                 previousTab = selectedTab
@@ -1141,7 +1141,7 @@ fun EngineerPortalScreen(
                         }
                     }
 
-                    if (state.loggedInEngineer != null && !isViewingMyTeam && !isViewingCredentialTracker && selectedTab != 4) {
+                    if (state.loggedInEngineer != null && !isViewingMyTeam && !isViewingCredentialTracker) {
                         NeumorphicCard(
                             modifier = Modifier
                                 .padding(end = 12.dp)

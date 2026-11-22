@@ -1,7 +1,35 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 22:00 IST** (Target Sprint: **v2.3.18 - Build 170**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 23:00 IST** (Target Sprint: **v2.3.19 - Build 171**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.19 - Build 171 — Web Bottom Nav Seamless Viewport Pinning, Web Calendar Sync Removal & Android More Tab Top Bar Profile Chip):
+> *"Gafoorka! Boss! Sprint **`v2.3.19` (Build 171)** 100% complete aayi execute cheythu, Android safe build passed in 2m 1s, ADB installed on device, verified visually via ADB screencaps across all subviews, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Web Bottom Navigation Seamless Viewport Pinning (`mobile-shell.css`, `mobileNavShell.js`, `swipeTabController.js`)**:
+>    - **Root Cause Solved**: During horizontal touch drags, adjacent panels translated to `(containerWidth + deltaX)` pushed document width out to ~780px because `html`, `body`, and `#rxMainContainer` lacked horizontal overflow containment. The fixed dock and `#btnRosterAiFab` stretched off screen, disappearing and popping back upon release.
+>    - **Strict Viewport Containment**: Enforced `overflow-x: hidden !important; width: 100% !important; max-width: 100vw !important;` on `html` and `body`, and `overflow-x: clip !important; position: relative !important;` on `main.rx-main-shell`.
+>    - **Rigid Viewport Dock Pinning**: Bound `#rxMobileBottomNav` strictly to `width: 100vw !important; max-width: 100vw !important; left: 0 !important; right: 0 !important; overflow: hidden !important;`.
+>    - **Eliminated Dock Translation Delays**: Removed `this.bottomNavEl.style.transform = translateX(...)` so the dock container stays 100% pinned without jitter, while the active slider indicator smoothly glides across tabs and switches highlights at the 50% midpoint.
+> 2. **Removed "Sync to Calendar" from Web App (`userPortal.js`, `constants.js`)**:
+>    - Completely stripped the `#btnSyncToCalendar` markup and click handlers from `web/js/userPortal.js`.
+>    - Moved `SHIFT_SPECS` definition cleanly into `web/js/constants.js`.
+>    - Calendar sync is now strictly an Android-only native privilege, eliminating unneeded web parity overhead.
+> 3. **Android More Tab Top Bar Profile Chip & Pure Full-Screen Subviews (`EngineerPortalScreen.kt`, `AdminMainScreen.kt`)**:
+>    - Enabled the user profile chip on the top bar in Tab 4 (More), creating 100% visual parity across all 5 navigation tabs.
+>    - In `EngineerPortalScreen.kt` and `AdminMainScreen.kt`, removed `selectedTab != 4` blockers from both portrait and landscape headers.
+>    - Verified that tapping any More tab subview (Credential Tracker, Server Management, My Team, or Settings) opens purely full-screen with the profile chip suppressed, top bar customized with back navigation, and bottom dock hidden.
+> 4. **Safe Build, Device Verification & Version Parity**:
+>    - Android safe build passed in 2m 1s (`BUILD SUCCESSFUL in 2m 1s`).
+>    - Installed on device via ADB (`Performing Streamed Install. Success`).
+>    - Captured and verified 5 ADB screenshots: Launch, More Tab with profile chip, Full-screen Credential Tracker without profile chip, Full-screen My Team without profile chip, and Full-screen Settings without profile chip.
+>    - Android `versionName = "2.3.19"`, `versionCode = 171`.
+>    - Server `SERVER_VERSION = "2.3.19"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.19'`.
+>    - All Web caches bumped to `?v=2.3.19`."*
 
 ---
 
