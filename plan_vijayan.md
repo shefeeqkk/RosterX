@@ -1,6 +1,6 @@
 # 📋 Execution Plan for Vijayan (UI Specialist — Android & Web)
 
-**Status:** `READY FOR VIJAYAN VERIFICATION` (Sprint v2.3.15 - Build 167: Website Navigation Bar System Color, Floating Bottom Toast & Full-Height More Hub Swipe)
+**Status:** `COMPLETED BY VIJAYAN` (Sprint v2.3.1 - Build 153 Full Parity Suite: Zero-Cropping Logo, Glassmorphic AI, GPM Domain Unification, Edit Profile Parity, Grid Sticky Columns Fix, In-Place Filter Keyboard Protection, Jump to Today Bottom FAB & Filled Active Tab Indicator)
 
 ---
 
@@ -8,35 +8,6 @@
 > **Public GitHub Repo + Auto-Deploying Render Production Server:**
 > - **ZERO hardcoded personal names, usernames, emails, phone numbers, passwords, or secrets** anywhere in HTML, CSS, JS, Kotlin, comments, or placeholders.
 > - **Mandatory `git push origin main`** immediately after verification so Render (`https://api.rosterx.online`) deploys immediately!
-
----
-
-## 🚀 Active Sprint: Task 11 — Website Enhancements (v2.3.15 - Build 167)
-
-### 1. Fix Blue Bottom Gesture / Navigation Bar Color on Web PWA
-- **Root Cause**: `web/manifest.webmanifest` had `"theme_color": "#174EAC"`. On Android devices with PWA / WebAPK standalone display, Android applies this manifest color directly to the system gesture bar window background below the navigation dock.
-- **Fix Applied**: Updated `theme_color` in `web/manifest.webmanifest` to `#EEF2F6`, seamlessly matching the light-mode surface and eliminating the harsh blue strip.
-
-### 2. Move "Press back again to exit" Toast to Bottom
-- **Root Cause**: `.rx-toast-host` in `web/user-portal.html` was pinned to `top: calc(14px + env(safe-area-inset-top, 0px))`, placing double-back and action toasts at the top of the mobile screen.
-- **Fix Applied**:
-  - Moved `.rx-toast-host` to `bottom: calc(88px + env(safe-area-inset-bottom, 0px))` with `flex-direction: column-reverse;`.
-  - Upgraded `.rx-toast` styling with `border-radius: 9999px; font-size: 13px; text-align: center;` to achieve a native Android floating pill appearance floating cleanly above the bottom navigation dock.
-
-### 3. More Tab Full-Height Swipe Fix (Eliminate Lower-Screen Dead Zone)
-- **Root Cause**: `#panel_more` only contains two cards (~240px tall). Because `#rxMainContainer` collapsed to ~240px, the lower ~550px of the viewport belonged to `<body>`, outside `#rxMainContainer`. Any touch in that empty space missed `SwipeTabController`'s `touchstart` listener on `#rxMainContainer`. Additionally, the cards were `<button>` tags which matched `target.closest('button')` and rejected swipes.
-- **Fix Applied**:
-  - Configured `body` with `min-height: 100dvh; display: flex; flex-direction: column;`.
-  - Configured `main.rx-main-shell` with `min-height: calc(100dvh - 64px); display: flex; flex-direction: column; box-sizing: border-box; flex: 1;`.
-  - Configured `.rx-tab-panel` with `flex: 1; display: flex; flex-direction: column; min-height: 100%; width: 100%;`.
-  - Converted the two cards in `renderMoreHub()` (`btnHubCredentials` and `btnHubMyTeam`) from `<button>` to `<div role="button" tabindex="0" ...>` with keyboard accessibility (Enter/Space) and horizontal swipe pass-through.
-  - Added `<div style="flex:1;min-height:260px;" aria-hidden="true"></div>` at the bottom of the column to physically occupy the entire screen height, ensuring 100% of the blank space captures touch gestures for fluid tab swiping.
-
-### 4. Semantic Version Bump to v2.3.15 (Build 167)
-- `android/app/build.gradle.kts`: `versionName = "2.3.15"`, `versionCode = 167`
-- `server.py`: `SERVER_VERSION = "2.3.15"`
-- `web/sw.js`: `CACHE_NAME = 'rosterx-pwa-v2.3.15'`
-- `web/user-portal.html`, `web/index.html`, `web/js/userPortal.js`, `web/js/app.js`: bumped version query strings to `2.3.15`
 
 ---
 
