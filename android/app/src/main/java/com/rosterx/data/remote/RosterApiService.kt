@@ -357,6 +357,21 @@ interface RosterApiService {
 
     @POST("api/users/calendar-accounts")
     suspend fun saveCalendarAccounts(@Body body: Map<String, @JvmSuppressWildcards List<Map<String, Any?>>>): PingResponse
+
+    @GET("api/leave/my-requests")
+    suspend fun getMyLeaveRequests(): MyLeaveRequestsResponse
+
+    @GET("api/leave/eligible-partners")
+    suspend fun getEligibleLeavePartners(@retrofit2.http.Query("date") date: String): EligibleLeavePartnersResponse
+
+    @GET("api/leave/admin-queue")
+    suspend fun getAdminLeaveQueue(): AdminLeaveQueueResponse
+
+    @POST("api/leave/apply")
+    suspend fun applyLeaveRequest(@Body request: ApplyLeaveRequest): LeaveActionResponse
+
+    @POST("api/leave/admin-action")
+    suspend fun submitAdminLeaveAction(@Body request: AdminLeaveActionRequest): LeaveActionResponse
 }
 
 data class UpdateProfilePictureRequest(
@@ -671,4 +686,87 @@ data class TodayCelebrationsResponse(
     val today: String? = null,
     val celebrations: List<TodayCelebrationDto> = emptyList(),
     val count: Int = 0
+)
+
+// --- Leave & Swap Request DTOs ---
+
+data class ApplyLeaveRequest(
+    val dates: List<String>,
+    val reason: String = "",
+    @SerializedName("preferred_partner") val preferredPartner: String = ""
+)
+
+data class AdminLeaveActionRequest(
+    @SerializedName("request_id") val requestId: String,
+    val action: String, // "swap" | "leave" | "reject"
+    @SerializedName("swap_partner") val swapPartner: String = "",
+    @SerializedName("swap_code") val swapCode: String = "",
+    @SerializedName("admin_note") val adminNote: String = ""
+)
+
+data class LeaveActionResponse(
+    val success: Boolean,
+    val message: String? = null,
+    @SerializedName("request_id") val requestId: String? = null
+)
+
+data class LeaveApprovalDto(
+    @SerializedName("approved_by") val approvedBy: String = "",
+    @SerializedName("approved_by_name") val approvedByName: String = "",
+    @SerializedName("approved_at") val approvedAt: String = "",
+    @SerializedName("action_type") val actionType: String = "",
+    @SerializedName("swap_partner") val swapPartner: String = "",
+    @SerializedName("swap_shift_code") val swapShiftCode: String = "",
+    @SerializedName("admin_note") val adminNote: String = ""
+)
+
+data class LeaveRequestDto(
+    @SerializedName("request_id") val requestId: String = "",
+    @SerializedName("engineer_id") val engineerId: String = "",
+    @SerializedName("engineer_name") val engineerName: String = "",
+    val dates: List<String> = emptyList(),
+    @SerializedName("month_keys") val monthKeys: List<String> = emptyList(),
+    val reason: String = "",
+    @SerializedName("preferred_partner") val preferredPartner: String = "",
+    @SerializedName("annual_year") val annualYear: Int = 2026,
+    @SerializedName("days_count") val daysCount: Int = 0,
+    val status: String = "pending",
+    @SerializedName("created_at") val createdAt: String = "",
+    val approval: LeaveApprovalDto? = null
+)
+
+data class MyLeaveRequestsResponse(
+    val success: Boolean,
+    val requests: List<LeaveRequestDto> = emptyList(),
+    @SerializedName("active_count") val activeCount: Int = 0,
+    @SerializedName("approved_leave_days") val approvedLeaveDays: Int = 0,
+    @SerializedName("remaining_leave_balance") val remainingLeaveBalance: Int = 14,
+    @SerializedName("annual_quota") val annualQuota: Int = 14,
+    @SerializedName("annual_year") val annualYear: Int = 2026,
+    val message: String? = null
+)
+
+data class EligiblePartnerDto(
+    val username: String = "",
+    val name: String = "",
+    @SerializedName("profile_picture") val profilePicture: String? = null,
+    val shift: String = "",
+    @SerializedName("is_off") val isOff: Boolean = false
+)
+
+data class EligibleLeavePartnersResponse(
+    val success: Boolean,
+    val date: String? = null,
+    val partners: List<EligiblePartnerDto> = emptyList(),
+    val count: Int = 0,
+    val message: String? = null
+)
+
+data class AdminLeaveQueueResponse(
+    val success: Boolean,
+    @SerializedName("pending_requests") val pendingRequests: List<LeaveRequestDto> = emptyList(),
+    @SerializedName("historical_requests") val historicalRequests: List<LeaveRequestDto> = emptyList(),
+    @SerializedName("pending_count") val pendingCount: Int = 0,
+    @SerializedName("history_count") val historyCount: Int = 0,
+    val message: String? = null
 )

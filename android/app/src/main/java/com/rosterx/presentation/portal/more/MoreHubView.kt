@@ -36,10 +36,91 @@ fun MoreHubView(
     isAdmin: Boolean = false,
     onNavigateToServerManagement: (() -> Unit)? = null,
     onNavigateToMyTeam: (() -> Unit)? = null,
+    onNavigateToLeaveRequest: (() -> Unit)? = null,
+    onNavigateToLeaveApprovals: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val leaveRequestCard: (@Composable () -> Unit)? = onNavigateToLeaveRequest?.let { onClick ->
+        {
+            MoreHubFeatureCard(
+                title = "Leave & Swap Request",
+                description = "Apply for annual leave or propose duty shift swaps with off-duty colleagues.",
+                icon = Icons.Default.DateRange,
+                iconTint = Color(0xFF10B981),
+                badge = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF10B981).copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f))
+                        ) {
+                            Text(
+                                text = "${state.leaveRemainingDays} Days Balance",
+                                color = Color(0xFF059669),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+
+                        if (state.leaveActiveCount > 0) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFF59E0B).copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
+                            ) {
+                                Text(
+                                    text = "${state.leaveActiveCount} Active",
+                                    color = Color(0xFFD97706),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                onClick = onClick
+            )
+        }
+    }
+
+    val leaveApprovalsCard: (@Composable () -> Unit)? = onNavigateToLeaveApprovals?.let { onClick ->
+        {
+            val pendingCount = state.adminPendingLeaveRequests.size.coerceAtLeast(state.adminPendingLeaveCount)
+            MoreHubFeatureCard(
+                title = "Leave & Swap Approvals",
+                description = "Review team requests, validate quota limits, and 1-click approve or reject.",
+                icon = Icons.Default.FactCheck,
+                iconTint = Color(0xFFF59E0B),
+                badge = {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (pendingCount > 0) Color(0xFFF59E0B).copy(alpha = 0.15f) else Color(0xFF10B981).copy(alpha = 0.15f),
+                        border = BorderStroke(
+                            1.dp,
+                            if (pendingCount > 0) Color(0xFFF59E0B).copy(alpha = 0.35f) else Color(0xFF10B981).copy(alpha = 0.35f)
+                        )
+                    ) {
+                        Text(
+                            text = if (pendingCount > 0) "$pendingCount Pending Approvals" else "Queue Clear",
+                            color = if (pendingCount > 0) Color(0xFFD97706) else Color(0xFF059669),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                },
+                onClick = onClick
+            )
+        }
+    }
 
     val credentialCard: @Composable () -> Unit = {
         MoreHubFeatureCard(
@@ -195,18 +276,34 @@ fun MoreHubView(
             )
         }
 
-        if (isLandscape && secondaryCard != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Box(modifier = Modifier.weight(1f)) { credentialCard() }
-                Box(modifier = Modifier.weight(1f)) { secondaryCard() }
+        val allCards = listOfNotNull(
+            leaveRequestCard,
+            leaveApprovalsCard,
+            credentialCard,
+            secondaryCard
+        )
+
+        if (isLandscape && allCards.size >= 2) {
+            allCards.chunked(2).forEach { rowCards ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    rowCards.forEach { card ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            card()
+                        }
+                    }
+                    if (rowCards.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         } else {
-            credentialCard()
-            secondaryCard?.invoke()
+            allCards.forEach { card ->
+                card()
+            }
         }
 
         Spacer(modifier = Modifier.height(if (isLandscape) 52.dp else 32.dp))

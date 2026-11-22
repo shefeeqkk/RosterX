@@ -1,7 +1,43 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 23:25 IST** (Target Sprint: **v2.4.0 - Build 171**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 23:55 IST** (Target Sprint: **v2.4.0 - Build 171**)
+
+---
+
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.4.0 - Build 171 — Web & Android Leave & Swap Request System, Calendar Date Picker, Admin Approvals Queue & Physical Device ADB Verification):
+> *"Dasa! Gafoorka! Vijayan client sprint **`v2.4.0` (Build 171)** 100% spotless aayi execute cheythu, Android safe build passed cleanly in 1m 5s, ADB live device-il install cheythu, visual verification screencaps eduthu verify cheythu macha! 🕵️🔥
+>
+> ### 🎨 Delivered UI Capabilities & Enhancements:
+> 1. **Android Jetpack Compose Leave & Swap Screens (`presentation/portal/leave/`)**:
+>    - `LeaveRequestScreen.kt`:
+>      - Segmented top pill tabs (`Apply Request` ⇄ `My History`).
+>      - Custom Neumorphic Month Calendar: 7-column weekday grid, past dates disabled, scheduled off-days locked with bold 'OFF' badges, active duty days selectable (1 to 5 days max).
+>      - Preferred Swap Partner dropdown: integrates `/api/leave/eligible-partners` with scheduled off-day colleagues ranked first.
+>      - Dynamic selection counter, clear action, reason input, and tactile submit button.
+>      - 'My History' tab displaying 14-day annual leave quota card, remaining balance, and past request history cards.
+>    - `LeaveApprovalsScreen.kt`:
+>      - Dedicated manager/admin approvals queue.
+>      - 1-click **Approve as Swap** dialog (auto-fetches eligible off-duty covering partners, generates `SW-[Initial]` codes, optional manager note).
+>      - 1-click **Approve as Leave** dialog (sets roster shifts to 'L' and deducts from annual balance).
+>      - **Reject** dialog with reason prompt.
+>      - Audit History tab tracking actioned decisions, manager names, and timestamps.
+> 2. **Operations Hub & Chrome Integration (`MoreHubView.kt`, `EngineerPortalScreen.kt`, `AdminMainScreen.kt`)**:
+>    - Added Neumorphic `Leave & Swap Request` feature card with live remaining balance badge.
+>    - Added `Leave & Swap Approvals` feature card for managers and admins with pending count badge.
+>    - Full-screen subview transitions: profile chip and bottom dock automatically hide when inside subviews, restored on back press.
+> 3. **Web Portal Parity (`web/user-portal.html`, `web/js/userPortal.js`, `web/js/leaveController.js`)**:
+>    - Operations Hub cards for Leave & Swap Request and Approvals.
+>    - `#subview_leave_request` with interactive multi-date month calendar picker and off-day lock.
+>    - `#subview_leave_approvals` with 1-click review modal and swap assignment.
+> 4. **Live Physical Device Verification via ADB**:
+>    - Built via safe build mutex: `cd android && safe_build.bat assembleDebug` (PASSED).
+>    - Streamed install via ADB: `app-debug.apk` (SUCCESS).
+>    - Verified launch screen (`screen_v240_launch.png`), More tab cards (`screen_v240_more_tab.png`), calendar selection on Day 25 (`screen_v240_day_selected.png`), History tab (`screen_v240_history_tab.png`), and perfected header (`screen_v240_perfected.png`).
+> 5. **Public Repo Zero-PII Compliance**:
+>    - 100% clean, zero hardcoded PII or credentials.
+>
+> Dasa, everything is verified and locked! Ready to git push to origin main for Render auto-deploy!"*
 
 ---
 

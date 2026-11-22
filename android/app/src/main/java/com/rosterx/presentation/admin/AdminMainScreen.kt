@@ -39,6 +39,7 @@ import com.rosterx.presentation.components.*
 import com.rosterx.presentation.portal.AccountView
 import com.rosterx.presentation.portal.EngineerPortalViewModel
 import com.rosterx.presentation.portal.credentials.CredentialTrackerScreen
+import com.rosterx.presentation.portal.leave.LeaveApprovalsScreen
 import com.rosterx.presentation.portal.more.MoreHubView
 import com.rosterx.ui.neumorphic.*
 
@@ -78,11 +79,14 @@ fun AdminMainScreen(
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
     var isViewingCredentialTracker by rememberSaveable { mutableStateOf(false) }
     var isViewingServerManagement by rememberSaveable { mutableStateOf(false) }
+    var isViewingLeaveApprovals by rememberSaveable { mutableStateOf(false) }
     var previousTab by rememberSaveable { mutableIntStateOf(0) }
     var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
 
-    BackHandler(enabled = isViewingCredentialTracker || isViewingServerManagement || isViewingSettings) {
-        if (isViewingCredentialTracker) {
+    BackHandler(enabled = isViewingCredentialTracker || isViewingServerManagement || isViewingSettings || isViewingLeaveApprovals) {
+        if (isViewingLeaveApprovals) {
+            isViewingLeaveApprovals = false
+        } else if (isViewingCredentialTracker) {
             isViewingCredentialTracker = false
         } else if (isViewingServerManagement) {
             isViewingServerManagement = false
@@ -102,22 +106,26 @@ fun AdminMainScreen(
                 isViewingSettings = false
                 isViewingCredentialTracker = false
                 isViewingServerManagement = false
+                isViewingLeaveApprovals = false
                 selectedTab = 2
             }
             com.rosterx.AppDeepLinkTarget.NOTIFICATIONS -> {
                 isViewingSettings = false
                 isViewingCredentialTracker = false
                 isViewingServerManagement = false
+                isViewingLeaveApprovals = false
                 selectedTab = 3
             }
             com.rosterx.AppDeepLinkTarget.CREDENTIALS -> {
                 isViewingSettings = false
                 isViewingServerManagement = false
+                isViewingLeaveApprovals = false
                 isViewingCredentialTracker = true
             }
             com.rosterx.AppDeepLinkTarget.PROFILE -> {
                 isViewingCredentialTracker = false
                 isViewingServerManagement = false
+                isViewingLeaveApprovals = false
                 previousTab = selectedTab
                 isViewingSettings = true
             }
@@ -125,14 +133,17 @@ fun AdminMainScreen(
                 isViewingSettings = false
                 isViewingCredentialTracker = false
                 isViewingServerManagement = false
+                isViewingLeaveApprovals = false
                 selectedTab = 0
             }
         }
         onConsumeDeepLink()
     }
 
-    LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingServerManagement) {
-        val adminScreenName = if (isViewingCredentialTracker) {
+    LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingServerManagement, isViewingLeaveApprovals) {
+        val adminScreenName = if (isViewingLeaveApprovals) {
+            "Admin Leave & Swap Approvals"
+        } else if (isViewingCredentialTracker) {
             "Admin Credential Tracker"
         } else if (isViewingServerManagement) {
             "Admin Server Management"
@@ -155,7 +166,7 @@ fun AdminMainScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isFullScreenRoster = isLandscape && selectedTab == 2
-    val showAdminChrome = !isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingServerManagement
+    val showAdminChrome = !isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingServerManagement && !isViewingLeaveApprovals
     val adminNavItems = remember {
         listOf(
             NavTabItem(0, "Dashboard", Icons.Default.Dashboard),
@@ -507,7 +518,7 @@ fun AdminMainScreen(
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
-                val activeSubView = if (isViewingCredentialTracker) 1 else if (isViewingServerManagement) 2 else if (isViewingSettings) 3 else 0
+                val activeSubView = if (isViewingLeaveApprovals) 4 else if (isViewingCredentialTracker) 1 else if (isViewingServerManagement) 2 else if (isViewingSettings) 3 else 0
 
                 AnimatedContent(
                     targetState = activeSubView,
@@ -561,12 +572,23 @@ fun AdminMainScreen(
                                 onSetThemePalette = viewModel::setThemePaletteId
                             )
                         }
+                        4 -> {
+                            LeaveApprovalsScreen(
+                                state = portalState,
+                                onBack = { isViewingLeaveApprovals = false },
+                                onRefresh = { portalViewModel.loadAdminLeaveQueue() },
+                                onSubmitAction = { reqId, action, partner, swapCode, note, onSuccess, onError ->
+                                    portalViewModel.submitAdminLeaveAction(reqId, action, partner, swapCode, note, onSuccess, onError)
+                                },
+                                onFetchPartnersForDate = portalViewModel::loadEligibleLeavePartners
+                            )
+                        }
                         else -> {
                             val isRosterTab = selectedTab == 2
                             RealtimeSwipeableTabPager(
                                 pagerState = pagerState,
                                 isRosterTab = isRosterTab,
-                                isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingServerManagement,
+                                isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingServerManagement || isViewingLeaveApprovals,
                                 modifier = Modifier.fillMaxSize()
                             ) { tab ->
                                 when (tab) {
@@ -615,7 +637,11 @@ fun AdminMainScreen(
                                             state = portalState,
                                             isAdmin = true,
                                             onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
-                                            onNavigateToServerManagement = { isViewingServerManagement = true }
+                                            onNavigateToServerManagement = { isViewingServerManagement = true },
+                                            onNavigateToLeaveApprovals = {
+                                                portalViewModel.loadAdminLeaveQueue()
+                                                isViewingLeaveApprovals = true
+                                            }
                                         )
                                     }
                                 }

@@ -113,7 +113,20 @@ data class PortalState(
     val credentialTrackerLogs: List<com.rosterx.data.remote.CredentialTrackerLogDto> = emptyList(),
     val isLoadingCredentialLogs: Boolean = false,
     val todayCelebrations: List<com.rosterx.data.remote.TodayCelebrationDto> = emptyList(),
-    val dismissedCelebrationIds: Set<String> = emptySet()
+    val dismissedCelebrationIds: Set<String> = emptySet(),
+
+    val myLeaveRequests: List<com.rosterx.data.remote.LeaveRequestDto> = emptyList(),
+    val leaveApprovedDays: Int = 0,
+    val leaveRemainingDays: Int = 14,
+    val leaveAnnualQuota: Int = 14,
+    val leaveActiveCount: Int = 0,
+    val isLoadingLeave: Boolean = false,
+    val eligibleLeavePartners: List<com.rosterx.domain.model.EligibleSwapPartner> = emptyList(),
+    val isLoadingPartners: Boolean = false,
+    val adminPendingLeaveRequests: List<com.rosterx.data.remote.LeaveRequestDto> = emptyList(),
+    val adminHistoricalLeaveRequests: List<com.rosterx.data.remote.LeaveRequestDto> = emptyList(),
+    val adminPendingLeaveCount: Int = 0,
+    val isLoadingAdminLeave: Boolean = false
 )
 
 
@@ -418,6 +431,10 @@ class EngineerPortalViewModel @Inject constructor(
 
             loadCredentialTrackers(silent = true)
             loadTodayCelebrations()
+            loadLeaveRequests(silent = true)
+            if (isManagementUser) {
+                loadAdminLeaveQueue(silent = true)
+            }
 
             // Auto-sync Home Screen App Widget with latest duty assignments for ALL users
             val currentEng = _state.value.loggedInEngineer
@@ -1353,6 +1370,93 @@ class EngineerPortalViewModel @Inject constructor(
         val current = _state.value.dismissedCelebrationIds.toMutableSet()
         current.add(username)
         _state.value = _state.value.copy(dismissedCelebrationIds = current)
+    }
+
+    fun loadLeaveRequests(silent: Boolean = false) {
+        viewModelScope.launch {
+            if (!silent) _state.value = _state.value.copy(isLoadingLeave = true)
+            val res = repository.getMyLeaveRequests()
+            res.onSuccess { data ->
+                _state.value = _state.value.copy(
+                    myLeaveRequests = data.requests,
+                    leaveApprovedDays = data.approvedLeaveDays,
+                    leaveRemainingDays = data.remainingLeaveBalance,
+                    leaveAnnualQuota = data.annualQuota,
+                    leaveActiveCount = data.activeCount,
+                    isLoadingLeave = false
+                )
+            }.onFailure {
+                _state.value = _state.value.copy(isLoadingLeave = false)
+            }
+        }
+    }
+
+    fun loadEligibleLeavePartners(date: String) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoadingPartners = true)
+            val res = repository.getEligibleLeavePartners(date)
+            res.onSuccess { list ->
+                _state.value = _state.value.copy(eligibleLeavePartners = list, isLoadingPartners = false)
+            }.onFailure {
+                _state.value = _state.value.copy(isLoadingPartners = false)
+            }
+        }
+    }
+
+    fun loadAdminLeaveQueue(silent: Boolean = false) {
+        viewModelScope.launch {
+            if (!silent) _state.value = _state.value.copy(isLoadingAdminLeave = true)
+            val res = repository.getAdminLeaveQueue()
+            res.onSuccess { data ->
+                _state.value = _state.value.copy(
+                    adminPendingLeaveRequests = data.pendingRequests,
+                    adminHistoricalLeaveRequests = data.historicalRequests,
+                    adminPendingLeaveCount = data.pendingCount,
+                    isLoadingAdminLeave = false
+                )
+            }.onFailure {
+                _state.value = _state.value.copy(isLoadingAdminLeave = false)
+            }
+        }
+    }
+
+    fun applyLeaveRequest(
+        dates: List<String>,
+        reason: String,
+        preferredPartner: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.applyLeaveRequest(dates, reason, preferredPartner)
+            res.onSuccess { msg ->
+                loadLeaveRequests(silent = true)
+                onSuccess(msg)
+            }.onFailure { err ->
+                onError(err.message ?: "Failed submitting leave request")
+            }
+        }
+    }
+
+    fun submitAdminLeaveAction(
+        requestId: String,
+        action: String,
+        partner: String = "",
+        swapCode: String = "",
+        note: String = "",
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.submitAdminLeaveAction(requestId, action, partner, swapCode, note)
+            res.onSuccess {
+                loadAdminLeaveQueue(silent = true)
+                refreshAllData()
+                onSuccess()
+            }.onFailure { err ->
+                onError(err.message ?: "Failed to process leave action")
+            }
+        }
     }
 }
 

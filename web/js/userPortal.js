@@ -17,10 +17,11 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.3.19';
+import { SwipeTabController } from './swipeTabController.js?v=2.4.0';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
-import { sortEngineersByWeekOffs, SHIFT_SPECS } from './constants.js?v=2.3.19';
+import { LeaveController, LeaveApprovalsController } from './leaveController.js?v=2.4.0';
+import { sortEngineersByWeekOffs, SHIFT_SPECS } from './constants.js?v=2.4.0';
 import {
   registerPwaServiceWorker,
   mountIosInstallBanner,
@@ -315,6 +316,23 @@ class RosterXUserPortal {
       hideBackButton: true,
       onBack: () => this.closeSubView(),
       onToast: (msg, type) => this.toast(msg, type)
+    });
+
+    this.leaveController = new LeaveController({
+      container: document.getElementById('subview_leave_request'),
+      currentUser: this.user,
+      isManager: this.isManager,
+      onBack: () => this.closeSubView(),
+      onToast: (msg, type) => this.toast(msg, type),
+      onRefreshRoster: () => this.refreshAllData(true)
+    });
+
+    this.leaveApprovalsController = new LeaveApprovalsController({
+      container: document.getElementById('subview_leave_approvals'),
+      currentUser: this.user,
+      onBack: () => this.closeSubView(),
+      onToast: (msg, type) => this.toast(msg, type),
+      onRosterMutated: () => this.refreshAllData(true)
     });
 
     this.init();
@@ -735,7 +753,9 @@ class RosterXUserPortal {
     const titleMap = {
       credentials: 'Credential Tracker',
       my_team: 'My Team Directory',
-      profile: 'Profile & Settings'
+      profile: 'Profile & Settings',
+      leave_request: 'Leave & Swap Request',
+      leave_approvals: 'Leave & Swap Approvals'
     };
     document.getElementById('rxTopBarTitle').textContent = titleMap[viewName] || 'RosterX';
 
@@ -746,6 +766,8 @@ class RosterXUserPortal {
     if (viewName === 'credentials') this.credController.load();
     else if (viewName === 'my_team') this.teamController.render();
     else if (viewName === 'profile') this.renderProfileView();
+    else if (viewName === 'leave_request') this.leaveController.load();
+    else if (viewName === 'leave_approvals') this.leaveApprovalsController.load();
   }
 
   closeSubView() {
@@ -757,6 +779,8 @@ class RosterXUserPortal {
     if (this.activeSubView) {
       if (this.activeSubView === 'profile') this.renderProfileView();
       else if (this.activeSubView === 'my_team') this.teamController.render();
+      else if (this.activeSubView === 'leave_request') this.leaveController.render();
+      else if (this.activeSubView === 'leave_approvals') this.leaveApprovalsController.render();
       return;
     }
     if (this.activeTab === 'dashboard') {
@@ -1871,6 +1895,40 @@ class RosterXUserPortal {
               <span style="padding:3px 9px;border-radius:10px;background:rgba(99,102,241,0.14);color:#4F46E5;font-size:11px;font-weight:800;">${activeMembers} Active Members</span>
             </div>
           </div>
+
+          <div role="button" tabindex="0" id="btnHubLeave" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="width:44px;height:44px;border-radius:999px;background:rgba(16,185,129,0.14);color:#059669;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-calendar-plus"></i></span>
+                <div>
+                  <div style="font-size:16px;font-weight:800;">Leave &amp; Swap Request</div>
+                  <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Apply for duty leaves or swap shifts with administrative approval.</div>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+            </div>
+            <div>
+              <span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">Apply Leave &amp; Swap</span>
+            </div>
+          </div>
+
+          ${this.isManager || String(this.user?.role || '').toLowerCase() === 'admin' ? `
+            <div role="button" tabindex="0" id="btnHubLeaveApprovals" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="width:44px;height:44px;border-radius:999px;background:rgba(245,158,11,0.14);color:#D97706;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-check-square-offset"></i></span>
+                  <div>
+                    <div style="font-size:16px;font-weight:800;">Leave &amp; Swap Approvals</div>
+                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Review pending duty leave and shift swap requests from team members.</div>
+                  </div>
+                </div>
+                <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+              </div>
+              <div>
+                <span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.14);color:#D97706;font-size:11px;font-weight:800;">Approvals Queue</span>
+              </div>
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
@@ -1889,6 +1947,14 @@ class RosterXUserPortal {
     const teamBtn = panel.querySelector('#btnHubMyTeam');
     teamBtn?.addEventListener('click', () => this.openSubView('my_team'));
     teamBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => this.openSubView('my_team')));
+
+    const leaveBtn = panel.querySelector('#btnHubLeave');
+    leaveBtn?.addEventListener('click', () => this.openSubView('leave_request'));
+    leaveBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => this.openSubView('leave_request')));
+
+    const leaveAppBtn = panel.querySelector('#btnHubLeaveApprovals');
+    leaveAppBtn?.addEventListener('click', () => this.openSubView('leave_approvals'));
+    leaveAppBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => this.openSubView('leave_approvals')));
   }
 
   // =========================================================================

@@ -1,6 +1,8 @@
 package com.rosterx.presentation.portal
 
 import com.rosterx.presentation.portal.credentials.CredentialTrackerScreen
+import com.rosterx.presentation.portal.leave.LeaveRequestScreen
+import com.rosterx.presentation.portal.leave.LeaveApprovalsScreen
 import com.rosterx.presentation.portal.more.MoreHubView
 import com.rosterx.presentation.portal.more.MyTeamView
 import com.rosterx.presentation.components.RealtimeSwipeableTabPager
@@ -587,6 +589,8 @@ fun EngineerPortalScreen(
     var isViewingSettings by rememberSaveable { mutableStateOf(false) }
     var isViewingCredentialTracker by rememberSaveable { mutableStateOf(false) }
     var isViewingMyTeam by rememberSaveable { mutableStateOf(false) }
+    var isViewingLeaveRequest by rememberSaveable { mutableStateOf(false) }
+    var isViewingLeaveApprovals by rememberSaveable { mutableStateOf(false) }
     var previousTab by rememberSaveable { mutableIntStateOf(0) }
     var showUnifiedEditProfileDialog by rememberSaveable { mutableStateOf(false) }
     var showQuickNotificationsSheet by rememberSaveable { mutableStateOf(false) }
@@ -600,8 +604,12 @@ fun EngineerPortalScreen(
     var celebrationDialogPhone by rememberSaveable { mutableStateOf("") }
     var isCelebrationSelf by rememberSaveable { mutableStateOf(true) }
 
-    BackHandler(enabled = isViewingCredentialTracker || isViewingMyTeam || isViewingSettings) {
-        if (isViewingCredentialTracker) {
+    BackHandler(enabled = isViewingCredentialTracker || isViewingMyTeam || isViewingSettings || isViewingLeaveRequest || isViewingLeaveApprovals) {
+        if (isViewingLeaveRequest) {
+            isViewingLeaveRequest = false
+        } else if (isViewingLeaveApprovals) {
+            isViewingLeaveApprovals = false
+        } else if (isViewingCredentialTracker) {
             isViewingCredentialTracker = false
         } else if (isViewingMyTeam) {
             isViewingMyTeam = false
@@ -679,12 +687,16 @@ fun EngineerPortalScreen(
                 isViewingSettings = false
                 isViewingCredentialTracker = false
                 isViewingMyTeam = false
+                isViewingLeaveRequest = false
+                isViewingLeaveApprovals = false
                 selectedTab = if (isManager) 2 else 3
             }
             com.rosterx.AppDeepLinkTarget.NOTIFICATIONS -> {
                 isViewingSettings = false
                 isViewingCredentialTracker = false
                 isViewingMyTeam = false
+                isViewingLeaveRequest = false
+                isViewingLeaveApprovals = false
                 if (isManager) {
                     selectedTab = 3
                 } else {
@@ -694,11 +706,15 @@ fun EngineerPortalScreen(
             com.rosterx.AppDeepLinkTarget.CREDENTIALS -> {
                 isViewingSettings = false
                 isViewingMyTeam = false
+                isViewingLeaveRequest = false
+                isViewingLeaveApprovals = false
                 isViewingCredentialTracker = true
             }
             com.rosterx.AppDeepLinkTarget.PROFILE -> {
                 isViewingCredentialTracker = false
                 isViewingMyTeam = false
+                isViewingLeaveRequest = false
+                isViewingLeaveApprovals = false
                 previousTab = selectedTab
                 isViewingSettings = true
             }
@@ -706,6 +722,8 @@ fun EngineerPortalScreen(
                 isViewingSettings = false
                 isViewingCredentialTracker = false
                 isViewingMyTeam = false
+                isViewingLeaveRequest = false
+                isViewingLeaveApprovals = false
                 selectedTab = 0
             }
         }
@@ -713,8 +731,12 @@ fun EngineerPortalScreen(
     }
     val isFullScreenRoster = isLandscape && ((isManager && selectedTab == 2) || (!isManager && selectedTab == 3))
 
-    LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingMyTeam, isManager) {
-        val screenName = if (isViewingCredentialTracker) {
+    LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingMyTeam, isViewingLeaveRequest, isViewingLeaveApprovals, isManager) {
+        val screenName = if (isViewingLeaveRequest) {
+            "Leave & Swap Request"
+        } else if (isViewingLeaveApprovals) {
+            "Leave & Swap Approvals"
+        } else if (isViewingCredentialTracker) {
             "Credential Tracker"
         } else if (isViewingMyTeam) {
             "My Team Directory"
@@ -748,7 +770,7 @@ fun EngineerPortalScreen(
 
 
 
-    val showPortalChrome = !isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingMyTeam
+    val showPortalChrome = !isFullScreenRoster && !isViewingSettings && !isViewingCredentialTracker && !isViewingMyTeam && !isViewingLeaveRequest && !isViewingLeaveApprovals
     val portalNavItems = remember(isManager) {
         if (isManager) {
             listOf(
@@ -773,7 +795,7 @@ fun EngineerPortalScreen(
         containerColor = NeumorphicTokens.Canvas,
         topBar = {
 
-            if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam) {
+            if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam && !isViewingLeaveRequest && !isViewingLeaveApprovals) {
                 if (isLandscape) {
                     // Ultra-slim 42dp Landscape Top Bar
                     val isManagementAccountUser = state.loggedInEngineer?.isManagementAccount == true ||
@@ -896,6 +918,8 @@ fun EngineerPortalScreen(
                                                 previousTab = selectedTab
                                                 isViewingCredentialTracker = false
                                                 isViewingMyTeam = false
+                                                isViewingLeaveRequest = false
+                                                isViewingLeaveApprovals = false
                                                 isViewingSettings = true
                                             },
                                             shape = CircleShape,
@@ -1141,7 +1165,7 @@ fun EngineerPortalScreen(
                         }
                     }
 
-                    if (state.loggedInEngineer != null && !isViewingMyTeam && !isViewingCredentialTracker) {
+                    if (state.loggedInEngineer != null && !isViewingMyTeam && !isViewingCredentialTracker && !isViewingLeaveRequest && !isViewingLeaveApprovals) {
                         NeumorphicCard(
                             modifier = Modifier
                                 .padding(end = 12.dp)
@@ -1149,6 +1173,8 @@ fun EngineerPortalScreen(
                                     previousTab = selectedTab
                                     isViewingCredentialTracker = false
                                     isViewingMyTeam = false
+                                    isViewingLeaveRequest = false
+                                    isViewingLeaveApprovals = false
                                     isViewingSettings = true
                                 },
                             shape = CircleShape,
@@ -1270,7 +1296,7 @@ fun EngineerPortalScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
+                    top = if (!isFullScreenRoster && !isViewingCredentialTracker && !isViewingMyTeam && !isViewingLeaveRequest && !isViewingLeaveApprovals) paddingValues.calculateTopPadding() else WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding()
                 )
                 .background(NeumorphicTokens.Canvas)
         ) {
@@ -1345,7 +1371,12 @@ fun EngineerPortalScreen(
                     showCelebrationDialog = true
                 }
 
-                val activeSubView = if (isViewingCredentialTracker) 1 else if (isViewingMyTeam) 2 else if (isViewingSettings) 3 else 0
+                val activeSubView = if (isViewingLeaveRequest) 4
+                    else if (isViewingLeaveApprovals) 5
+                    else if (isViewingCredentialTracker) 1
+                    else if (isViewingMyTeam) 2
+                    else if (isViewingSettings) 3
+                    else 0
 
                 AnimatedContent(
                     targetState = activeSubView,
@@ -1384,12 +1415,31 @@ fun EngineerPortalScreen(
                             onSetThemePalette = viewModel::setThemePaletteId,
                             onOpenCelebrationWishes = openSelfCelebration
                         )
+                    } else if (subView == 4) {
+                        LeaveRequestScreen(
+                            state = state,
+                            onBack = { isViewingLeaveRequest = false },
+                            onSubmitLeave = { dates, reason, preferredPartner, onSuccess, onError ->
+                                viewModel.applyLeaveRequest(dates, reason, preferredPartner, onSuccess, onError)
+                            },
+                            onFetchPartners = viewModel::loadEligibleLeavePartners
+                        )
+                    } else if (subView == 5) {
+                        LeaveApprovalsScreen(
+                            state = state,
+                            onBack = { isViewingLeaveApprovals = false },
+                            onRefresh = { viewModel.loadAdminLeaveQueue() },
+                            onSubmitAction = { reqId, action, partner, swapCode, note, onSuccess, onError ->
+                                viewModel.submitAdminLeaveAction(reqId, action, partner, swapCode, note, onSuccess, onError)
+                            },
+                            onFetchPartnersForDate = viewModel::loadEligibleLeavePartners
+                        )
                     } else {
                         val isRosterTab = (isManager && selectedTab == 2) || (!isManager && selectedTab == 3)
                         RealtimeSwipeableTabPager(
                             pagerState = pagerState,
                             isRosterTab = isRosterTab,
-                            isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingMyTeam || showCelebrationDialog || showQuickNotificationsSheet,
+                            isSuspended = isViewingSettings || isViewingCredentialTracker || isViewingMyTeam || isViewingLeaveRequest || isViewingLeaveApprovals || showCelebrationDialog || showQuickNotificationsSheet,
                             modifier = Modifier.fillMaxSize()
                         ) { tab ->
                             if (isManager) {
@@ -1427,7 +1477,15 @@ fun EngineerPortalScreen(
                                         state = state,
                                         isAdmin = false,
                                         onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
-                                        onNavigateToMyTeam = { isViewingMyTeam = true }
+                                        onNavigateToMyTeam = { isViewingMyTeam = true },
+                                        onNavigateToLeaveRequest = {
+                                            viewModel.loadLeaveRequests()
+                                            isViewingLeaveRequest = true
+                                        },
+                                        onNavigateToLeaveApprovals = {
+                                            viewModel.loadAdminLeaveQueue()
+                                            isViewingLeaveApprovals = true
+                                        }
                                     )
                                     else -> DashboardView(
                                         state = state,
@@ -1466,7 +1524,11 @@ fun EngineerPortalScreen(
                                         state = state,
                                         isAdmin = false,
                                         onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
-                                        onNavigateToMyTeam = { isViewingMyTeam = true }
+                                        onNavigateToMyTeam = { isViewingMyTeam = true },
+                                        onNavigateToLeaveRequest = {
+                                            viewModel.loadLeaveRequests()
+                                            isViewingLeaveRequest = true
+                                        }
                                     )
                                     else -> DashboardView(
                                         state = state,

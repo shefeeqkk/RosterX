@@ -100,6 +100,12 @@ interface RosterRepository {
     suspend fun recordCalendarSync(month: String, count: Int, target: String): Result<Unit>
     suspend fun clearCalendarSync(month: String): Result<Unit>
     suspend fun saveCalendarAccounts(accounts: List<Map<String, Any?>>): Result<Unit>
+
+    suspend fun getMyLeaveRequests(): Result<com.rosterx.data.remote.MyLeaveRequestsResponse>
+    suspend fun getEligibleLeavePartners(date: String): Result<List<com.rosterx.domain.model.EligibleSwapPartner>>
+    suspend fun getAdminLeaveQueue(): Result<com.rosterx.data.remote.AdminLeaveQueueResponse>
+    suspend fun applyLeaveRequest(dates: List<String>, reason: String, preferredPartner: String): Result<String>
+    suspend fun submitAdminLeaveAction(requestId: String, action: String, partner: String, swapCode: String, note: String): Result<Unit>
 }
 
 

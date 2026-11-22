@@ -1240,4 +1240,94 @@ class RosterRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun getMyLeaveRequests(): Result<com.rosterx.data.remote.MyLeaveRequestsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getMyLeaveRequests()
+            if (res.success) Result.success(res) else Result.failure(Exception(res.message ?: "Failed loading leave requests"))
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getEligibleLeavePartners(date: String): Result<List<com.rosterx.domain.model.EligibleSwapPartner>> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getEligibleLeavePartners(date)
+            if (res.success) {
+                val list = res.partners.map {
+                    com.rosterx.domain.model.EligibleSwapPartner(
+                        username = it.username,
+                        name = it.name,
+                        profilePicture = it.profilePicture,
+                        shift = it.shift,
+                        isOff = it.isOff
+                    )
+                }
+                Result.success(list)
+            } else {
+                Result.failure(Exception(res.message ?: "Failed loading eligible partners"))
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getAdminLeaveQueue(): Result<com.rosterx.data.remote.AdminLeaveQueueResponse> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getAdminLeaveQueue()
+            if (res.success) Result.success(res) else Result.failure(Exception(res.message ?: "Failed loading leave queue"))
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun applyLeaveRequest(dates: List<String>, reason: String, preferredPartner: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.applyLeaveRequest(
+                com.rosterx.data.remote.ApplyLeaveRequest(
+                    dates = dates,
+                    reason = reason,
+                    preferredPartner = preferredPartner
+                )
+            )
+            if (res.success) Result.success(res.message ?: "Leave request submitted successfully")
+            else Result.failure(Exception(res.message ?: "Failed submitting leave request"))
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun submitAdminLeaveAction(
+        requestId: String,
+        action: String,
+        partner: String,
+        swapCode: String,
+        note: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.submitAdminLeaveAction(
+                com.rosterx.data.remote.AdminLeaveActionRequest(
+                    requestId = requestId,
+                    action = action,
+                    swapPartner = partner,
+                    swapCode = swapCode,
+                    adminNote = note
+                )
+            )
+            if (res.success) Result.success(Unit)
+            else Result.failure(Exception(res.message ?: "Failed to process leave action"))
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
