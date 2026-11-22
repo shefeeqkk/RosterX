@@ -43,7 +43,7 @@ import com.rosterx.presentation.components.NeumorphicElevationStyle
 import com.rosterx.ui.neumorphic.*
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AdminDashboardTab(
     state: AdminRosterState,
@@ -52,7 +52,9 @@ fun AdminDashboardTab(
     onSaveConstraints: (com.rosterx.domain.model.OperationalConstraints) -> Unit = {},
     todayCelebrations: List<com.rosterx.data.remote.TodayCelebrationDto> = emptyList(),
     dismissedCelebrationIds: Set<String> = emptySet(),
-    onDismissCelebration: (String) -> Unit = {}
+    onDismissCelebration: (String) -> Unit = {},
+    appUpdateInfo: com.rosterx.presentation.components.AppUpdateInfo? = null,
+    onDismissUpdateBanner: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -77,6 +79,17 @@ fun AdminDashboardTab(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 16.dp)
     ) {
+        // App Update Banner (if available)
+        if (appUpdateInfo != null) {
+            item(key = "admin_app_update", span = { GridItemSpan(maxLineSpan) }) {
+                com.rosterx.presentation.components.AppUpdateBannerCard(
+                    updateInfo = appUpdateInfo,
+                    onDismiss = onDismissUpdateBanner,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         // Team Celebrations Banner
         val activeCelebrations = todayCelebrations.filter { !dismissedCelebrationIds.contains(it.username) }
         if (activeCelebrations.isNotEmpty()) {
@@ -371,22 +384,23 @@ fun AdminDashboardTab(
                         color = NeumorphicTokens.TextMuted
                     )
 
-                    LazyRow(
+                    val collections = state.telemetry.atlas.collections
+                    val engCount = collections["engineers"] ?: state.engineers.size
+                    val rosterCount = collections["rosters"] ?: 4
+                    val auditCount = collections["audit_logs"] ?: 80
+                    val notifCount = collections["notifications"] ?: state.notifications.size
+                    val policyCount = collections["operational_policies"] ?: 1
+
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        val collections = state.telemetry.atlas.collections
-                        val engCount = collections["engineers"] ?: state.engineers.size
-                        val rosterCount = collections["rosters"] ?: 4
-                        val auditCount = collections["audit_logs"] ?: 80
-                        val notifCount = collections["notifications"] ?: state.notifications.size
-                        val policyCount = collections["operational_policies"] ?: 1
-
-                        item { CollectionChip("Engineers", "$engCount records", Color(0xFFE0F2FE), Color(0xFF0369A1)) }
-                        item { CollectionChip("Rosters", "$rosterCount docs", Color(0xFFBBF7D0), Color(0xFF064E3B)) }
-                        item { CollectionChip("Audit Logs", "$auditCount logs", Color(0xFFFED7AA), Color(0xFF7C2D12)) }
-                        item { CollectionChip("Notifications", "$notifCount alerts", Color(0xFFFEF08A), Color(0xFF713F12)) }
-                        item { CollectionChip("Policies", "$policyCount config", Color(0xFFF1F5F9), Color(0xFF334155)) }
+                        CollectionChip("Engineers", "$engCount records", Color(0xFFE0F2FE), Color(0xFF0369A1))
+                        CollectionChip("Rosters", "$rosterCount docs", Color(0xFFBBF7D0), Color(0xFF064E3B))
+                        CollectionChip("Audit Logs", "$auditCount logs", Color(0xFFFED7AA), Color(0xFF7C2D12))
+                        CollectionChip("Notifications", "$notifCount alerts", Color(0xFFFEF08A), Color(0xFF713F12))
+                        CollectionChip("Policies", "$policyCount config", Color(0xFFF1F5F9), Color(0xFF334155))
                     }
                 }
             }

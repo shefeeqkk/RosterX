@@ -1398,25 +1398,16 @@ fun EngineerPortalScreen(
                         ) { tab ->
                             if (isManager) {
                                 when (tab) {
-                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                        if (appUpdateInfo != null) {
-                                            AppUpdateBannerCard(
-                                                updateInfo = appUpdateInfo,
-                                                onDismiss = onDismissUpdateBanner,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                            )
-                                        }
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            DashboardView(
-                                                state = state,
-                                                onDismissNotification = viewModel::dismissNotification,
-                                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                onOpenCelebrationWishes = openSelfCelebration,
-                                                onDismissCelebration = viewModel::dismissCelebration
-                                            )
-                                        }
-                                    }
+                                    0 -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = openSelfCelebration,
+                                        onDismissCelebration = viewModel::dismissCelebration,
+                                        appUpdateInfo = appUpdateInfo,
+                                        onDismissUpdateBanner = onDismissUpdateBanner
+                                    )
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
                                     3 -> NotificationsTab(
@@ -1453,25 +1444,16 @@ fun EngineerPortalScreen(
                                 }
                             } else {
                                 when (tab) {
-                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                        if (appUpdateInfo != null) {
-                                            AppUpdateBannerCard(
-                                                updateInfo = appUpdateInfo,
-                                                onDismiss = onDismissUpdateBanner,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                            )
-                                        }
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            DashboardView(
-                                                state = state,
-                                                onDismissNotification = viewModel::dismissNotification,
-                                                onClearAllNotifications = viewModel::clearAllNotifications,
-                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                onOpenCelebrationWishes = openSelfCelebration,
-                                                onDismissCelebration = viewModel::dismissCelebration
-                                            )
-                                        }
-                                    }
+                                    0 -> DashboardView(
+                                        state = state,
+                                        onDismissNotification = viewModel::dismissNotification,
+                                        onClearAllNotifications = viewModel::clearAllNotifications,
+                                        onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                        onOpenCelebrationWishes = openSelfCelebration,
+                                        onDismissCelebration = viewModel::dismissCelebration,
+                                        appUpdateInfo = appUpdateInfo,
+                                        onDismissUpdateBanner = onDismissUpdateBanner
+                                    )
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MyCalendarView(
                                         state = state,
@@ -2471,7 +2453,9 @@ fun ManagerDashboardView(
     onClearAllNotifications: () -> Unit = {},
     onRefreshDiagnostics: () -> Unit = {},
     onOpenCelebrationWishes: () -> Unit = {},
-    onDismissCelebration: (String) -> Unit = {}
+    onDismissCelebration: (String) -> Unit = {},
+    appUpdateInfo: AppUpdateInfo? = null,
+    onDismissUpdateBanner: () -> Unit = {}
 ) {
     val engineer = state.loggedInEngineer
     val today = LocalDate.now()
@@ -2512,6 +2496,16 @@ fun ManagerDashboardView(
         ),
         verticalArrangement = Arrangement.spacedBy(if (isLandscape) 12.dp else 16.dp)
     ) {
+        if (appUpdateInfo != null) {
+            item(key = "manager_app_update_banner") {
+                AppUpdateBannerCard(
+                    updateInfo = appUpdateInfo,
+                    onDismiss = onDismissUpdateBanner,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         // 1. Sleek Compact Welcome Card (Operation Manager / Operation Hub stripped)
         item {
             val engDisplayName = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Manager").toProperCase()
@@ -2669,7 +2663,9 @@ fun DashboardView(
     onClearAllNotifications: () -> Unit = {},
     onRefreshDiagnostics: () -> Unit = {},
     onOpenCelebrationWishes: () -> Unit = {},
-    onDismissCelebration: (String) -> Unit = {}
+    onDismissCelebration: (String) -> Unit = {},
+    appUpdateInfo: AppUpdateInfo? = null,
+    onDismissUpdateBanner: () -> Unit = {}
 ) {
     if (state.loggedInEngineer?.role == EngineerRole.MANAGER) {
         ManagerDashboardView(
@@ -2678,7 +2674,9 @@ fun DashboardView(
             onClearAllNotifications = onClearAllNotifications,
             onRefreshDiagnostics = onRefreshDiagnostics,
             onOpenCelebrationWishes = onOpenCelebrationWishes,
-            onDismissCelebration = onDismissCelebration
+            onDismissCelebration = onDismissCelebration,
+            appUpdateInfo = appUpdateInfo,
+            onDismissUpdateBanner = onDismissUpdateBanner
         )
         return
     }
@@ -2970,6 +2968,16 @@ fun DashboardView(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        if (appUpdateInfo != null) {
+            item(key = "app_update_banner") {
+                AppUpdateBannerCard(
+                    updateInfo = appUpdateInfo,
+                    onDismiss = onDismissUpdateBanner,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         // Hero Welcome Banner
         item {
             val engDisplayName = (engineer?.fullName?.takeIf { it.isNotBlank() } ?: engineer?.name ?: "Engineer").toProperCase()

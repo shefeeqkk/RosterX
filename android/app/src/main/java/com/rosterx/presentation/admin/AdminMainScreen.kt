@@ -574,32 +574,23 @@ fun AdminMainScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) { tab ->
                                 when (tab) {
-                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
-                                        if (appUpdateInfo != null) {
-                                            AppUpdateBannerCard(
-                                                updateInfo = appUpdateInfo,
-                                                onDismiss = onDismissUpdateBanner,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                            )
-                                        }
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            AdminDashboardTab(
-                                                state = state,
-                                                onRefreshDiagnostics = viewModel::loadData,
-                                                onNavigateToMonthRoster = { engQuery ->
-                                                     if (!engQuery.isNullOrBlank()) {
-                                                         targetEngineerSearch = engQuery
-                                                     }
-                                                     selectedTab = 2
-                                                 },
-                                                 onSaveConstraints = viewModel::saveConstraints,
-                                                 todayCelebrations = portalState.todayCelebrations,
-                                                 dismissedCelebrationIds = portalState.dismissedCelebrationIds,
-                                                 onDismissCelebration = portalViewModel::dismissCelebration
-                                             )
-                                        }
-                                    }
-                                        1 -> ManageTeamTab(
+                                    0 -> AdminDashboardTab(
+                                        state = state,
+                                        onRefreshDiagnostics = viewModel::loadData,
+                                        onNavigateToMonthRoster = { engQuery ->
+                                             if (!engQuery.isNullOrBlank()) {
+                                                 targetEngineerSearch = engQuery
+                                             }
+                                             selectedTab = 2
+                                         },
+                                         onSaveConstraints = viewModel::saveConstraints,
+                                         todayCelebrations = portalState.todayCelebrations,
+                                         dismissedCelebrationIds = portalState.dismissedCelebrationIds,
+                                         onDismissCelebration = portalViewModel::dismissCelebration,
+                                         appUpdateInfo = appUpdateInfo,
+                                         onDismissUpdateBanner = onDismissUpdateBanner
+                                    )
+                                    1 -> ManageTeamTab(
                                             state = state,
                                             onSyncEngineers = viewModel::syncEngineers,
                                             onDeleteEngineer = viewModel::deleteEngineer,

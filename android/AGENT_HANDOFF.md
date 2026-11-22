@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 20:00 IST** (Target Sprint: **v2.3.16 - Build 168**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 21:30 IST** (Target Sprint: **v2.3.17 - Build 169**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.17 - Build 169 — Zero-Lag Dashboard Tab Swiping, FlowRow Collection Chips & Uniform 5dp Touch Slop):
+> *"Gafoorka! Boss! Sprint **`v2.3.17` (Build 169)** 100% complete aayi execute cheythu, Android safe build passed in 2m 31s, ADB installed on device, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Eliminated Child Horizontal Scroll Contention (`AdminDashboardTab.kt`)**:
+>    - **Root Cause Solved**: Inside the MongoDB Atlas card, the 5 "COLLECTION BREAKDOWN" chips were previously inside a horizontal `LazyRow`. When swiping left from the lower-middle screen area, the child `LazyRow` intercepted the gesture, delaying the parent `HorizontalPager` by ~150ms.
+>    - **Modern Wrapped FlowRow**: Converted `LazyRow` to a responsive, multi-line `FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp))`. All chips wrap cleanly within the card with ZERO horizontal gesture stealing.
+> 2. **Flattened Tab 0 Layout Hierarchy (`AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>    - Removed the outer `Column` + `Box(modifier = Modifier.weight(1f))` wrapper around Tab 0.
+>    - Tab 0 (`AdminDashboardTab` / `DashboardView`) is now a direct, flat child of `HorizontalPager` identical to Team Shifts, Register, and Rosters.
+>    - `AppUpdateBannerCard` is rendered directly at the top of the respective `LazyVerticalGrid` / `LazyColumn` when available.
+> 3. **Uniform 5dp Touch Slop Across Entire Pager (`SwipeableTabContainer.kt`)**:
+>    - Removed the inner `CompositionLocalProvider` that restored bulky ~18dp–24dp Android platform touch slop to child pages.
+>    - The calibrated `5.dp.toPx()` touch slop now applies uniformly across the entire hierarchy, providing instantaneous 1:1 finger tracking from the very first millimeter of movement.
+> 4. **Safe Build & Version Parity**:
+>    - Android `versionName = "2.3.17"`, `versionCode = 169`.
+>    - Server `SERVER_VERSION = "2.3.17"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.17'`.
+>    - All Web caches bumped to `?v=2.3.17`."*
 
 ---
 

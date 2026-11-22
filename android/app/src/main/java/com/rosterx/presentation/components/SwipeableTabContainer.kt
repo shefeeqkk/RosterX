@@ -98,9 +98,9 @@ fun RealtimeSwipeableTabPager(
     val currentViewConfig = LocalViewConfiguration.current
     val customViewConfig = remember(currentViewConfig, density) {
         object : ViewConfiguration by currentViewConfig {
-            // Calibrated 8dp touch slop eliminates starting dead-zones while filtering micro-finger diagonal drag
+            // Ultra-responsive 5dp touch slop (~1mm) for instant WhatsApp-tier 1:1 finger tracking
             override val touchSlop: Float
-                get() = with(density) { 8.dp.toPx() }
+                get() = with(density) { 5.dp.toPx() }
         }
     }
 
@@ -119,10 +119,7 @@ fun RealtimeSwipeableTabPager(
                 beyondBoundsPageCount = 1,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                // Restore standard ViewConfiguration for page child contents (e.g. vertical LazyColumns)
-                CompositionLocalProvider(LocalViewConfiguration provides currentViewConfig) {
-                    content(page)
-                }
+                content(page)
             }
         }
     }
