@@ -80,8 +80,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -612,14 +612,8 @@ fun EngineerPortalScreen(
         }
     }
 
-    val pullRefreshState = rememberPullToRefreshState()
-    if (pullRefreshState.isRefreshing) {
-        LaunchedEffect(Unit) {
-            viewModel.refreshAllData {
-                pullRefreshState.endRefresh()
-            }
-        }
-    }
+    var isManualRefreshing by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     val portalContext = LocalContext.current
     LaunchedEffect(state.loggedInEngineer) {
@@ -1042,6 +1036,56 @@ fun EngineerPortalScreen(
                         remember { mutableStateOf(0f) }
                     }
 
+                    // Circular Neumorphic Top Bar Refresh Button (Persistent across all main tabs)
+                    val refreshInfiniteTransition = rememberInfiniteTransition(label = "refresh_spin")
+                    val refreshRotation by if (isManualRefreshing) {
+                        refreshInfiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 360f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 800, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "refresh_rotation"
+                        )
+                    } else {
+                        remember { mutableStateOf(0f) }
+                    }
+
+                    NeumorphicCard(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .clickable(enabled = !isManualRefreshing) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                isManualRefreshing = true
+                                viewModel.refreshAllData {
+                                    isManualRefreshing = false
+                                }
+                            },
+                        shape = CircleShape,
+                        style = NeumorphicElevationStyle.RaisedSubtle,
+                        surfaceColor = NeumorphicTokens.Surface,
+                        contentPadding = 0.dp
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh Data",
+                                tint = NeumorphicTokens.AccentSalmon,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .graphicsLayer {
+                                        rotationZ = refreshRotation
+                                    }
+                            )
+                        }
+                    }
+
                     // 3D Notification Bell (Duty engineers only - excluded for Admin & Manager)
                     if (!isManagementAccountUser) {
                         Box(modifier = Modifier.padding(end = 6.dp)) {
@@ -1354,34 +1398,24 @@ fun EngineerPortalScreen(
                         ) { tab ->
                             if (isManager) {
                                 when (tab) {
-                                    0 -> Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .nestedScroll(pullRefreshState.nestedScrollConnection)
-                                    ) {
-                                        Column(modifier = Modifier.fillMaxSize()) {
-                                            if (appUpdateInfo != null) {
-                                                AppUpdateBannerCard(
-                                                    updateInfo = appUpdateInfo,
-                                                    onDismiss = onDismissUpdateBanner,
-                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                                )
-                                            }
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                DashboardView(
-                                                    state = state,
-                                                    onDismissNotification = viewModel::dismissNotification,
-                                                    onClearAllNotifications = viewModel::clearAllNotifications,
-                                                    onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                    onOpenCelebrationWishes = openSelfCelebration,
-                                                    onDismissCelebration = viewModel::dismissCelebration
-                                                )
-                                            }
+                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                        if (appUpdateInfo != null) {
+                                            AppUpdateBannerCard(
+                                                updateInfo = appUpdateInfo,
+                                                onDismiss = onDismissUpdateBanner,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                            )
                                         }
-                                        PullToRefreshContainer(
-                                            state = pullRefreshState,
-                                            modifier = Modifier.align(Alignment.TopCenter)
-                                        )
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            DashboardView(
+                                                state = state,
+                                                onDismissNotification = viewModel::dismissNotification,
+                                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                                onOpenCelebrationWishes = openSelfCelebration,
+                                                onDismissCelebration = viewModel::dismissCelebration
+                                            )
+                                        }
                                     }
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MonthRosterView(state, viewModel::previousMonth, viewModel::nextMonth, viewModel::updateSearchQuery)
@@ -1419,34 +1453,24 @@ fun EngineerPortalScreen(
                                 }
                             } else {
                                 when (tab) {
-                                    0 -> Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .nestedScroll(pullRefreshState.nestedScrollConnection)
-                                    ) {
-                                        Column(modifier = Modifier.fillMaxSize()) {
-                                            if (appUpdateInfo != null) {
-                                                AppUpdateBannerCard(
-                                                    updateInfo = appUpdateInfo,
-                                                    onDismiss = onDismissUpdateBanner,
-                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                                )
-                                            }
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                DashboardView(
-                                                    state = state,
-                                                    onDismissNotification = viewModel::dismissNotification,
-                                                    onClearAllNotifications = viewModel::clearAllNotifications,
-                                                    onRefreshDiagnostics = viewModel::refreshDiagnostics,
-                                                    onOpenCelebrationWishes = openSelfCelebration,
-                                                    onDismissCelebration = viewModel::dismissCelebration
-                                                )
-                                            }
+                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                        if (appUpdateInfo != null) {
+                                            AppUpdateBannerCard(
+                                                updateInfo = appUpdateInfo,
+                                                onDismiss = onDismissUpdateBanner,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                            )
                                         }
-                                        PullToRefreshContainer(
-                                            state = pullRefreshState,
-                                            modifier = Modifier.align(Alignment.TopCenter)
-                                        )
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            DashboardView(
+                                                state = state,
+                                                onDismissNotification = viewModel::dismissNotification,
+                                                onClearAllNotifications = viewModel::clearAllNotifications,
+                                                onRefreshDiagnostics = viewModel::refreshDiagnostics,
+                                                onOpenCelebrationWishes = openSelfCelebration,
+                                                onDismissCelebration = viewModel::dismissCelebration
+                                            )
+                                        }
                                     }
                                     1 -> TeamShiftsView(state, viewModel::previousDay, viewModel::nextDay, onJumpToToday = { viewModel.selectDate(LocalDate.now()) })
                                     2 -> MyCalendarView(

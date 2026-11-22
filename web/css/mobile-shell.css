@@ -1176,3 +1176,19 @@ html.dark #rxAiChatDialog {
     align-items: start;
   }
 }
+
+/* ==========================================================================
+   Mobile Viewport Gesture & Overscroll Shielding (v2.3.16)
+   ========================================================================== */
+@media (max-width: 1023px) {
+  html, body, main.rx-main-shell {
+    overscroll-behavior-y: contain !important;
+    overscroll-behavior-x: none !important;
+  }
+  .rx-tab-panel {
+    touch-action: pan-y !important;
+  }
+  .rx-roster-table-wrap {
+    touch-action: pan-x pan-y !important;
+  }
+}

@@ -1,7 +1,34 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 19:40 IST** (Target Sprint: **v2.3.15 - Build 167**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 20:00 IST** (Target Sprint: **v2.3.16 - Build 168**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.16 - Build 168 — Android Pull-to-Refresh Removal, Circular Neumorphic Top Bar Refresh Button & Gesture Shielding):
+> *"Gafoorka! Boss! Sprint **`v2.3.16` (Build 168)** 100% complete aayi execute cheythu, Android safe build passed in 1m 34s, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Completely Removed Android Pull-to-Refresh Contention (`EngineerPortalScreen.kt`, `AdminMainScreen.kt`)**:
+>    - **Root Problem Solved**: The vertical pull-to-refresh nested scroll connection was intercepting downward vertical drag deltas, causing diagonal swipes on Tab 0 (Dashboard) to trigger refresh spinners instead of smooth horizontal tab sliding.
+>    - **Permanent Removal**: Stripped `PullToRefreshContainer`, `rememberPullToRefreshState`, and `.nestedScroll(pullRefreshState.nestedScrollConnection)` from both Engineer and Admin views. Tab 0 is now 100% free of nested scroll contention!
+> 2. **Circular Neumorphic Top Bar Refresh Button (`EngineerPortalScreen.kt`, `AdminMainScreen.kt`)**:
+>    - **Clean Placement**: Positioned on the top app bar immediately to the left of the 3D Notification Bell:
+>      $$\mathbf{[ \text{🔄 Refresh} ] \quad [ \text{🔔 Bell} ] \quad [ \text{👤 Profile} ]}$$
+>      *(In Admin view: positioned directly left of the User Profile pill)*.
+>    - **Persistent Visibility**: Persistently visible across all top-level tabs (Dashboard, Team Shifts, My Calendar, Month Roster, More Hub), hidden only when navigating into fullscreen Settings.
+>    - **Tactile Click & 360° Infinite Spin Animation**: On tap, delivers a crisp haptic click (`HapticFeedbackType.LongPress`), starts a continuous 360° rotation spin, triggers `viewModel.refreshAllData`, and smoothly halts when data sync completes.
+> 3. **Calibrated Tab Touch Slop (`SwipeableTabContainer.kt`)**:
+>    - Set `touchSlop = 8.dp.toPx()`, eliminating starting dead-zones for instant 1:1 finger tracking while filtering out micro-diagonal jitter.
+> 4. **Web Mobile Gesture Shielding (`mobile-shell.css`, `swipeTabController.js`)**:
+>    - Scoped `overscroll-behavior-y: contain !important; overscroll-behavior-x: none !important;` under `@media (max-width: 1023px)` to stop mobile browser pull-to-refresh and swipe navigation from interfering.
+>    - Enforced `touch-action: pan-y !important;` on `.rx-tab-panel`.
+>    - Calibrated `8px` slop and `1.35x` directional dominance ratio in `swipeTabController.js`.
+> 5. **Safe Build & Version Parity**:
+>    - Android `versionName = "2.3.16"`, `versionCode = 168`.
+>    - Server `SERVER_VERSION = "2.3.16"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.16'`.
+>    - All Web caches bumped to `?v=2.3.16`."*
 
 ---
 

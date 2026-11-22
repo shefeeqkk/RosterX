@@ -98,9 +98,9 @@ fun RealtimeSwipeableTabPager(
     val currentViewConfig = LocalViewConfiguration.current
     val customViewConfig = remember(currentViewConfig, density) {
         object : ViewConfiguration by currentViewConfig {
-            // Ultra-low touch slop (~5dp instead of default ~18dp) eliminates starting hesitation for instant 1:1 finger tracking
+            // Calibrated 8dp touch slop eliminates starting dead-zones while filtering micro-finger diagonal drag
             override val touchSlop: Float
-                get() = with(density) { 5.dp.toPx() }
+                get() = with(density) { 8.dp.toPx() }
         }
     }
 

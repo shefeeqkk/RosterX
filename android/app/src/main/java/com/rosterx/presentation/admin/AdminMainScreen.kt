@@ -15,15 +15,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.animation.core.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -91,24 +93,8 @@ fun AdminMainScreen(
         }
     }
 
-    val pullRefreshState = rememberPullToRefreshState()
-    if (pullRefreshState.isRefreshing) {
-        LaunchedEffect(Unit) {
-            var completedTasks = 0
-            val onTaskFinished = {
-                completedTasks++
-                if (completedTasks >= 2) {
-                    pullRefreshState.endRefresh()
-                }
-            }
-            viewModel.refreshAllData {
-                onTaskFinished()
-            }
-            portalViewModel.refreshAllData {
-                onTaskFinished()
-            }
-        }
-    }
+    var isManualRefreshing by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(pendingDeepLink) {
         val target = pendingDeepLink ?: return@LaunchedEffect
@@ -359,6 +345,61 @@ fun AdminMainScreen(
                     },
                     actions = {
                         if (!isViewingSettings && !isViewingServerManagement && !isViewingCredentialTracker && selectedTab != 4) {
+                            val refreshInfiniteTransition = rememberInfiniteTransition(label = "admin_refresh_spin")
+                            val refreshRotation by if (isManualRefreshing) {
+                                refreshInfiniteTransition.animateFloat(
+                                    initialValue = 0f,
+                                    targetValue = 360f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(durationMillis = 800, easing = LinearEasing),
+                                        repeatMode = RepeatMode.Restart
+                                    ),
+                                    label = "admin_refresh_rotation"
+                                )
+                            } else {
+                                remember { mutableStateOf(0f) }
+                            }
+
+                            NeumorphicCard(
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .clickable(enabled = !isManualRefreshing) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        isManualRefreshing = true
+                                        var completedTasks = 0
+                                        val onTaskFinished = {
+                                            completedTasks++
+                                            if (completedTasks >= 2) {
+                                                isManualRefreshing = false
+                                            }
+                                        }
+                                        viewModel.refreshAllData { onTaskFinished() }
+                                        portalViewModel.refreshAllData { onTaskFinished() }
+                                    },
+                                shape = CircleShape,
+                                style = NeumorphicElevationStyle.RaisedSubtle,
+                                surfaceColor = NeumorphicTokens.Surface,
+                                contentPadding = 0.dp
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Refresh Data",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .graphicsLayer {
+                                                rotationZ = refreshRotation
+                                            }
+                                    )
+                                }
+                            }
+
                             val activeHeaderUser = state.engineers.find { 
                                 it.username.equals(currentUser?.username, ignoreCase = true) 
                             } ?: currentUser
@@ -533,40 +574,30 @@ fun AdminMainScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) { tab ->
                                 when (tab) {
-                                    0 -> Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .nestedScroll(pullRefreshState.nestedScrollConnection)
-                                    ) {
-                                        Column(modifier = Modifier.fillMaxSize()) {
-                                            if (appUpdateInfo != null) {
-                                                AppUpdateBannerCard(
-                                                    updateInfo = appUpdateInfo,
-                                                    onDismiss = onDismissUpdateBanner,
-                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                                )
-                                            }
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                AdminDashboardTab(
-                                                    state = state,
-                                                    onRefreshDiagnostics = viewModel::loadData,
-                                                    onNavigateToMonthRoster = { engQuery ->
-                                                         if (!engQuery.isNullOrBlank()) {
-                                                             targetEngineerSearch = engQuery
-                                                         }
-                                                         selectedTab = 2
-                                                     },
-                                                     onSaveConstraints = viewModel::saveConstraints,
-                                                     todayCelebrations = portalState.todayCelebrations,
-                                                     dismissedCelebrationIds = portalState.dismissedCelebrationIds,
-                                                     onDismissCelebration = portalViewModel::dismissCelebration
-                                                 )
-                                            }
+                                    0 -> Column(modifier = Modifier.fillMaxSize()) {
+                                        if (appUpdateInfo != null) {
+                                            AppUpdateBannerCard(
+                                                updateInfo = appUpdateInfo,
+                                                onDismiss = onDismissUpdateBanner,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                            )
                                         }
-                                        PullToRefreshContainer(
-                                            state = pullRefreshState,
-                                            modifier = Modifier.align(Alignment.TopCenter)
-                                        )
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            AdminDashboardTab(
+                                                state = state,
+                                                onRefreshDiagnostics = viewModel::loadData,
+                                                onNavigateToMonthRoster = { engQuery ->
+                                                     if (!engQuery.isNullOrBlank()) {
+                                                         targetEngineerSearch = engQuery
+                                                     }
+                                                     selectedTab = 2
+                                                 },
+                                                 onSaveConstraints = viewModel::saveConstraints,
+                                                 todayCelebrations = portalState.todayCelebrations,
+                                                 dismissedCelebrationIds = portalState.dismissedCelebrationIds,
+                                                 onDismissCelebration = portalViewModel::dismissCelebration
+                                             )
+                                        }
                                     }
                                         1 -> ManageTeamTab(
                                             state = state,

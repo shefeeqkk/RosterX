@@ -142,16 +142,16 @@ export class SwipeTabController {
     const deltaX = currentX - this.startX;
     const deltaY = currentY - this.startY;
 
-    // Detect gesture angle on initial movement
+    // Detect gesture angle on initial movement (8px slop with 1.35x dominance ratio)
     if (!this.isHorizSwipe) {
       const absX = Math.abs(deltaX);
       const absY = Math.abs(deltaY);
-      if (absY > absX && absY > 7) {
-        // Vertical page scroll detected -> do not intercept
+      if (absY > absX * 1.35 && absY > 8) {
+        // Strict vertical scroll dominance -> immediately release tracking to browser
         this.isTracking = false;
         return;
       }
-      if (absX > 8 && absX > absY * 1.15) {
+      if (absX > 8 && absX > absY * 1.35) {
         this.isHorizSwipe = true;
       } else {
         return;
