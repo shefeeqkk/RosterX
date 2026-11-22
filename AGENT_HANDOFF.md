@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 21:30 IST** (Target Sprint: **v2.3.17 - Build 169**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 22:00 IST** (Target Sprint: **v2.3.18 - Build 170**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.18 - Build 170 — Boundary Gesture Contention Elimination, Native Clean Clamping & Zero-Lag Tab 0 / Tab 4 Swiping):
+> *"Gafoorka! Boss! Sprint **`v2.3.18` (Build 170)** 100% complete aayi execute cheythu, Android safe build passed in 2m 12s, ADB installed on device, verified with automated UI checks, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Definitive Root Cause Discovered & Resolved (`SwipeableTabContainer.kt`)**:
+>    - **The Bug**: Swiping between middle screens (Tabs 1 ↔ 2 ↔ 3) had zero lag, but swiping inward away from Tab 0 (Dashboard) or Tab 4 (More) suffered a ~150ms dead-zone / delay.
+>    - **The Mechanism**: In `SwipeableTabContainer.kt`, `boundaryNestedScrollConnection` was uniquely conditioned on:
+>      `val isAtStart = pagerState.currentPage == 0 && available.x > 0f`
+>      `val isAtEnd = pagerState.currentPage == (pagerState.pageCount - 1) && available.x < 0f`
+>      On middle tabs, this was always false (100% dormant). On Tab 0 and Tab 4, any micro-wobble of thumb touchdown against boundary limits triggered `onPostScroll`, consuming delta, launching coroutines, and mutating `overscrollAnim.value`.
+>      The outer `Box` had `.graphicsLayer { translationX = overscrollAnim.value }`, displacing the screen and fighting `HorizontalPager`.
+>    - **The Fix**: Completely stripped `boundaryNestedScrollConnection` and outer `graphicsLayer` translation from `RealtimeSwipeableTabPager`. Enforced Clean Native Clamping so Tab 0 and Tab 4 stop cleanly at screen edges and initiate inward swiping with 100% instant, zero-lag responsiveness identical to middle tabs.
+> 2. **Eliminated Bottom Dock Boundary Skew (`FluidNeumorphicBottomNav.kt`, `AdminMainScreen.kt`, `EngineerPortalScreen.kt`)**:
+>    - Removed `boundaryOverscrollAnim` from screens and dock.
+>    - Floating bubble strictly tracks `fractionalPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction }` across all tabs with zero overscroll skew.
+> 3. **Safe Build & Version Parity**:
+>    - Android `versionName = "2.3.18"`, `versionCode = 170`.
+>    - Server `SERVER_VERSION = "2.3.18"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.18'`.
+>    - All Web caches bumped to `?v=2.3.18`."*
 
 ---
 
