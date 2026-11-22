@@ -104,7 +104,7 @@ export class SwipeTabController {
 
     const target = e.target;
     // 2. Ignore form inputs, sliders, and interactive control surfaces
-    if (target.closest('input, textarea, select, button, [contenteditable="true"], .rx-no-swipe, [data-no-swipe]')) {
+    if (target.closest('input, textarea, select, button, [contenteditable="true"], .rx-no-swipe, [data-no-swipe], #rxMobileBottomNav, .rx-mobile-bottom-nav, #rxDesktopNav, .rx-desktop-nav, header, .rx-topbar')) {
       this.ignoreCurrentGesture = true;
       return;
     }
@@ -171,7 +171,9 @@ export class SwipeTabController {
       if (!this.currentPanel) return;
     }
 
-    const containerWidth = this.container?.getBoundingClientRect().width || window.innerWidth;
+    const containerWidth = (this.container && this.container !== document.body && this.container !== document.documentElement)
+      ? this.container.getBoundingClientRect().width
+      : window.innerWidth;
 
     // Check if dragging past bounds:
     // Tab 0 dragging right (deltaX > 0) OR Last Tab dragging left (deltaX < 0)
@@ -223,8 +225,9 @@ export class SwipeTabController {
         this.adjacentEl.style.zIndex = '10';
         this.adjacentEl.style.willChange = 'transform';
 
-        if (this.container && getComputedStyle(this.container).position === 'static') {
-          this.container.style.position = 'relative';
+        const parentEl = this.adjacentEl.parentElement || (this.container !== document.body ? this.container : document.getElementById('rxMainContainer'));
+        if (parentEl && getComputedStyle(parentEl).position === 'static') {
+          parentEl.style.position = 'relative';
         }
       }
     }
@@ -276,7 +279,9 @@ export class SwipeTabController {
     }
 
     // 2. Evaluate normal tab switch threshold
-    const containerWidth = this.container?.getBoundingClientRect().width || window.innerWidth;
+    const containerWidth = (this.container && this.container !== document.body && this.container !== document.documentElement)
+      ? this.container.getBoundingClientRect().width
+      : window.innerWidth;
     const shouldSwitch = this.isHorizSwipe && (
       Math.abs(deltaX) > (containerWidth * 0.22) ||
       (velocity > 0.35 && Math.abs(deltaX) > 28)

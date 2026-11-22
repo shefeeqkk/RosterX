@@ -17,7 +17,7 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.3.14';
+import { SwipeTabController } from './swipeTabController.js?v=2.3.15';
 import { openCalendarSyncModal, SHIFT_SPECS } from './calendarSync.js?v=2.3.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
@@ -285,7 +285,7 @@ class RosterXUserPortal {
     });
 
     this.swipeController = new SwipeTabController({
-      container: document.getElementById('rxMainContainer'),
+      container: document.body,
       getTabs: () => this.tabs,
       getActiveTab: () => this.activeTab,
       onSwitchTab: (id) => this.switchTab(id),
@@ -1862,7 +1862,7 @@ class RosterXUserPortal {
         </div>
 
         <div class="rx-land-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
-          <button type="button" id="btnHubCredentials" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+          <div role="button" tabindex="0" id="btnHubCredentials" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
               <div style="display:flex;align-items:center;gap:12px;">
                 <span style="width:44px;height:44px;border-radius:999px;background:var(--nm-accent-soft);color:var(--nm-accent);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-key"></i></span>
@@ -1874,9 +1874,9 @@ class RosterXUserPortal {
               <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
             </div>
             <div>${credBadge}</div>
-          </button>
+          </div>
 
-          <button type="button" id="btnHubMyTeam" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+          <div role="button" tabindex="0" id="btnHubMyTeam" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
               <div style="display:flex;align-items:center;gap:12px;">
                 <span style="width:44px;height:44px;border-radius:999px;background:rgba(99,102,241,0.14);color:#6366F1;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-users-three"></i></span>
@@ -1890,13 +1890,25 @@ class RosterXUserPortal {
             <div>
               <span style="padding:3px 9px;border-radius:10px;background:rgba(99,102,241,0.14);color:#4F46E5;font-size:11px;font-weight:800;">${activeMembers} Active Members</span>
             </div>
-          </button>
+          </div>
         </div>
       </div>
     `;
 
-    panel.querySelector('#btnHubCredentials')?.addEventListener('click', () => this.openSubView('credentials'));
-    panel.querySelector('#btnHubMyTeam')?.addEventListener('click', () => this.openSubView('my_team'));
+    const handleKeyNav = (e, callback) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        callback();
+      }
+    };
+
+    const credBtn = panel.querySelector('#btnHubCredentials');
+    credBtn?.addEventListener('click', () => this.openSubView('credentials'));
+    credBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => this.openSubView('credentials')));
+
+    const teamBtn = panel.querySelector('#btnHubMyTeam');
+    teamBtn?.addEventListener('click', () => this.openSubView('my_team'));
+    teamBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => this.openSubView('my_team')));
   }
 
   // =========================================================================

@@ -1,6 +1,6 @@
 # 📋 Execution Plan for Vijayan (UI Specialist — Android & Web)
 
-**Status:** `COMPLETED BY VIJAYAN` (Sprint v2.3.1 - Build 153 Full Parity Suite: Zero-Cropping Logo, Glassmorphic AI, GPM Domain Unification, Edit Profile Parity, Grid Sticky Columns Fix, In-Place Filter Keyboard Protection, Jump to Today Bottom FAB & Filled Active Tab Indicator)
+**Status:** `READY FOR VIJAYAN EXECUTION` (Sprint v2.3.16 - Build 168: Removal of Android Pull-to-Refresh, Circular Neumorphic Top Bar Refresh Button with 360° Spin Animation, 8dp Touch Slop & Web Gesture Isolation)
 
 ---
 
@@ -8,6 +8,55 @@
 > **Public GitHub Repo + Auto-Deploying Render Production Server:**
 > - **ZERO hardcoded personal names, usernames, emails, phone numbers, passwords, or secrets** anywhere in HTML, CSS, JS, Kotlin, comments, or placeholders.
 > - **Mandatory `git push origin main`** immediately after verification so Render (`https://api.rosterx.online`) deploys immediately!
+
+---
+
+## 🚀 Active Sprint: Task 12 — Fluid Tab Swiping & Top Bar Refresh Overhaul (v2.3.16 - Build 168)
+
+### 1. Android Jetpack Compose Remediation
+1. **Completely Remove Pull-to-Refresh Contention**:
+   - In `EngineerPortalScreen.kt`:
+     - Remove `PullToRefreshContainer` and `rememberPullToRefreshState` imports.
+     - Remove `val pullRefreshState = rememberPullToRefreshState()` and associated `LaunchedEffect`.
+     - Remove `.nestedScroll(pullRefreshState.nestedScrollConnection)` modifier on Tab 0 (`DashboardView`).
+     - Remove `PullToRefreshContainer(state = pullRefreshState, ...)` composable overlay.
+   - In `AdminMainScreen.kt`:
+     - Remove `PullToRefreshContainer` and `rememberPullToRefreshState` imports.
+     - Remove `val pullRefreshState = rememberPullToRefreshState()` and associated `LaunchedEffect`.
+     - Remove `.nestedScroll(pullRefreshState.nestedScrollConnection)` on Tab 0 (`AdminDashboardTab`).
+     - Remove `PullToRefreshContainer(state = pullRefreshState, ...)`.
+
+2. **Circular Neumorphic Top Bar Refresh Button**:
+   - In `EngineerPortalScreen.kt` `TopAppBar` `actions`:
+     - Insert a circular Neumorphic icon button placed immediately to the left of the 3D Notification Bell:
+       `[ 🔄 Refresh ] [ 🔔 Bell ] [ 👤 Profile ]`
+     - Style with `size(38.dp)`, `CircleShape`, `NeumorphicElevationStyle.RaisedSubtle`, `surfaceColor = NeumorphicTokens.Surface`.
+     - Inside, render `Icons.Default.Refresh` with tint `NeumorphicTokens.AccentSalmon` and rotation animation driving 0° to 360° continuously when active.
+     - On click: set `isManualRefreshing = true`, invoke `viewModel.refreshAllData { isManualRefreshing = false }`.
+   - In `AdminMainScreen.kt` `TopAppBar` `actions`:
+     - Insert matching circular Neumorphic refresh button immediately to the left of the user profile card:
+       `[ 🔄 Refresh ] [ 👤 Profile ]`
+     - On click: set `isManualRefreshing = true`, invoke `viewModel.refreshAllData { ... }` and `portalViewModel.refreshAllData { ... }`.
+
+3. **Touch Slop Calibration (`SwipeableTabContainer.kt`)**:
+   - Calibrate `touchSlop = with(density) { 8.dp.toPx() }` to ensure zero lag or dead zones during edge-to-edge tab gestures while filtering out vertical drag noise.
+
+---
+
+### 2. Web Client Gesture Isolation (`web/`)
+1. **CSS Viewport Isolation (`web/css/mobile-shell.css`)**:
+   - Scope `overscroll-behavior-y: contain !important; overscroll-behavior-x: none !important;` inside `@media (max-width: 1023px)` on `html, body, main.rx-main-shell` to suppress mobile browser pull-to-refresh spinners and edge swipe navigation.
+   - Enforce `touch-action: pan-y !important;` on `.rx-tab-panel`.
+2. **Directional Dominance (`web/js/swipeTabController.js`)**:
+   - Calibrate minimum horizontal threshold to `8px` and directional dominance slope to `1.35x` (`absX > absY * 1.35`) before claiming horizontal swipe and invoking `e.preventDefault()`.
+
+---
+
+### 3. Versioning & Parity
+- `android/app/build.gradle.kts`: `versionName = "2.3.16"`, `versionCode = 168`
+- `server.py`: `SERVER_VERSION = "2.3.16"`
+- `web/sw.js`: `CACHE_NAME = 'rosterx-pwa-v2.3.16'`
+- `web/user-portal.html`, `web/index.html`: bump version query strings to `2.3.16`
 
 ---
 
