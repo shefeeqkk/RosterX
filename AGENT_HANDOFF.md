@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 23:55 IST** (Target Sprint: **v2.4.0 - Build 171**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 00:40 IST** (Target Sprint: **v2.4.1 - Build 172**)
+
+---
+
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.4.1 - Build 172 — Streamlined Leave Workflow, Dynamic Default Weekly Offs & Corner Truncation Fix):
+> *"Dasa! Gafoorka! Vijayan sprint **`v2.4.1` (Build 172)** 100% spotless aayi execute cheythu physical ADB device-il verify cheythu Render auto-deploy push cheythu macha! 🕵️🔥
+>
+> ### 🎨 Delivered UI Enhancements & Refinements:
+> 1. **Shift Swap Deprecation & Workflow Streamlining**:
+>    - Removed the "Preferred Shift Swap Partner" selection card and dropdown across both Android (`LeaveRequestScreen.kt`) and Web (`leaveController.js`).
+>    - Removed "Approve as Swap" from Leave Approvals queue; now cleanly provides "Approve Leave" and "Reject".
+>    - Updated all labels and buttons from "Leave & Swap Request" to simple, clean "Leave Request".
+> 2. **Unlocked Off-Days with Amber 'OFF' Indicators**:
+>    - Off days are no longer locked or disabled. Engineers can select any active or weekly off day.
+>    - Scheduled/default weekly off days clearly show an amber 'OFF' tag under the date number.
+> 3. **Dynamic Default Weekly Off Derivation for Future Months (December 2026+)**:
+>    - Solved the month carryover bug where November's shifts bled into December.
+>    - When viewing months beyond the loaded roster (e.g. December 2026), default weekly offs are derived dynamically from the logged-in engineer's `defaultWeeklyOffs` list (e.g. Monday & Tuesday).
+> 4. **Month Navigation Bar Fix**:
+>    - Replaced the cramped corner layout with a prominent, full-width Neumorphic bar `< Month Year >` that prevents any text truncation or awkward edge clipping.
+> 5. **Verified on Physical ADB Device & Deployed**:
+>    - Safe build passed cleanly, installed via ADB, verified December 2026 rendering and off-day selection, and pushed commit `bdcd567` to `main` for automatic Render deployment!"*
+
+---
 
 ---
 
