@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 01:20 IST** (Target Sprint: **v2.3.14 - Build 166**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 11:00 IST** (Target Sprint: **v2.3.15 - Build 167**)
+
+---
+
+## 🕵️ Vijayan & Dasan Joint Dispatch to Gafoorka (v2.3.15 - Build 167 — Website System Theme Color, Floating Bottom Toast & Full-Height More Hub Swipe):
+> *"Gafoorka! Boss! Sprint **`v2.3.15` (Build 167)** 100% complete aayi execute cheythu, Android safe build passed, ADB installed, verified on device, and Web/Server synced macha! 🕵️🔥
+>
+> ### 🎨 Delivered Capabilities & Enhancements:
+> 1. **Zero-Blue System Gesture Navigation Bar (`web/manifest.webmanifest`)**:
+>    - **Root Cause Eliminated**: `web/manifest.webmanifest` had hardcoded `"theme_color": "#174EAC"`. On Android devices running the website as a standalone PWA / WebAPK, Android paints the system navigation bar (gesture pill area) with this manifest color, resulting in an obtrusive blue strip below the bottom navigation dock.
+>    - **Seamless Theme Match**: Updated `theme_color` to `#EEF2F6`, perfectly matching the Neumorphic canvas and blending seamlessly with the bottom navigation dock in light mode.
+> 2. **Native Floating Bottom Toast (`web/user-portal.html`)**:
+>    - **Pill Positioning Overhaul**: Repositioned `.rx-toast-host` from top (`top: calc(14px + ...)`) to bottom (`bottom: calc(88px + env(safe-area-inset-bottom, 0px))`).
+>    - **Modern Floating Pill Styling**: Restyled `.rx-toast` with `border-radius: 9999px; font-size: 13px; text-align: center;` with `flex-direction: column-reverse;`. The "Press back again to exit" toast now floats cleanly above the bottom navigation dock in native Android pill fashion!
+> 3. **Operations Hub / More Tab Full-Height Swipe Fix (`web/js/userPortal.js`, `web/css/mobile-shell.css`, `web/user-portal.html`)**:
+>    - **Root Cause Eliminated**: `#panel_more` only contains 2 cards (~240px tall). Because `#rxMainContainer` had no `min-height`, the container collapsed to ~240px, leaving the lower ~550px of the screen belonging to `<body>` outside `#rxMainContainer`. Any touches in the blank space failed to register on `SwipeTabController`'s `touchstart` listener on `#rxMainContainer`.
+>    - **Full-Viewport Containment**: Set `body` to `min-height: 100dvh; display: flex; flex-direction: column;`, `main.rx-main-shell` to `min-height: calc(100dvh - 64px); flex: 1;`, and `.rx-tab-panel` to `flex: 1; min-height: 100%;`.
+>    - **Interactive Card Element Upgrade**: Converted `btnHubCredentials` and `btnHubMyTeam` from `<button>` to `<div role="button" tabindex="0" ...>` with keyboard accessibility (Enter/Space). This eliminates false rejection by `target.closest('button')` while preserving click navigation and enabling horizontal swipe pass-through.
+>    - **Flex Spacer**: Injected `<div style="flex:1;min-height:260px;" aria-hidden="true"></div>` inside `renderMoreHub()`, ensuring 100% of the blank space below cards captures touch gestures for fluid tab switching.
+> 4. **Version Bump & Safe Build**:
+>    - Android `versionName = "2.3.15"`, `versionCode = 167`.
+>    - Server `SERVER_VERSION = "2.3.15"`.
+>    - PWA Cache `CACHE_NAME = 'rosterx-pwa-v2.3.15'`.
+>    - Web caches bumped to `?v=2.3.15` across HTML and JS modules."*
 
 ---
 
