@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.3.19"
+SERVER_VERSION = "2.4.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -132,6 +132,118 @@ def record_audit_event(engineer_name, username, role, platform_name, action, det
         ATLAS_DB["audit_logs"].insert_one(doc)
     except Exception as e:
         print(f"  [AUDIT LOG ERROR] {e}")
+
+def get_engineer_leave_stats(username: str, annual_year: int) -> dict:
+    """Calculate approved leave days, remaining quota, and active pending count for an engineer."""
+    approved_leave_days = 0
+    active_count = 0
+    clean_user = str(username).strip().lower()
+
+    docs = []
+    if ATLAS_DB is not None:
+        try:
+            docs = list(ATLAS_DB.leave_requests.find({"engineer_id": clean_user}, {"_id": 0}))
+        except Exception as e:
+            print(f"  [LEAVE QUERY ERROR] {e}")
+            docs = [r for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == clean_user]
+    else:
+        docs = [r for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == clean_user]
+
+    for req in docs:
+        st = str(req.get("status") or "").lower()
+        yr = req.get("annual_year") or annual_year
+        if st == "pending":
+            active_count += 1
+        elif st == "approved_leave" and int(yr) == int(annual_year):
+            approved_leave_days += int(req.get("days_count") or len(req.get("dates", [])))
+
+    remaining = max(0, 14 - approved_leave_days)
+    return {
+        "approved_leave_days": approved_leave_days,
+        "remaining_leave_balance": remaining,
+        "active_count": active_count,
+        "annual_quota": 14
+    }
+
+def get_roster_shift_for_date(username: str, date_str: str) -> str:
+    """Retrieve an engineer's scheduled shift for a specific YYYY-MM-DD date from active monthly roster."""
+    if len(date_str) < 10:
+        return ""
+    month_key = date_str[:7]
+    try:
+        d_num = int(date_str[8:10])
+    except ValueError:
+        return ""
+
+    clean_user = str(username).strip().lower()
+    roster_doc = None
+    if ATLAS_DB is not None:
+        try:
+            roster_doc = ATLAS_DB.rosters.find_one({"_id": month_key})
+        except Exception:
+            pass
+
+    if not roster_doc:
+        return ""
+
+    eng_list = roster_doc.get("engineers") or roster_doc.get("roster") or []
+    for eng in eng_list:
+        if not isinstance(eng, dict):
+            continue
+        u = str(eng.get("username") or "").strip().lower()
+        n = str(eng.get("name") or "").strip().lower()
+        if u == clean_user or n == clean_user:
+            s_raw = eng.get("shifts")
+            if isinstance(s_raw, dict):
+                return str(s_raw.get(str(d_num), "")).strip().upper()
+            elif isinstance(s_raw, list) and len(s_raw) >= d_num:
+                return str(s_raw[d_num - 1]).strip().upper()
+    return ""
+
+def update_roster_shift_for_date(username: str, date_str: str, new_shift_code: str) -> bool:
+    """Update an engineer's scheduled shift cell in ATLAS_DB.rosters."""
+    if ATLAS_DB is None or len(date_str) < 10:
+        return False
+    month_key = date_str[:7]
+    try:
+        d_num = int(date_str[8:10])
+    except ValueError:
+        return False
+
+    clean_user = str(username).strip().lower()
+    try:
+        roster_doc = ATLAS_DB.rosters.find_one({"_id": month_key})
+        if not roster_doc:
+            return False
+
+        updated = False
+        for field in ("engineers", "roster"):
+            eng_list = roster_doc.get(field)
+            if not isinstance(eng_list, list):
+                continue
+            for eng in eng_list:
+                if not isinstance(eng, dict):
+                    continue
+                u = str(eng.get("username") or "").strip().lower()
+                n = str(eng.get("name") or "").strip().lower()
+                if u == clean_user or n == clean_user:
+                    s_raw = eng.get("shifts")
+                    if isinstance(s_raw, dict):
+                        s_raw[str(d_num)] = new_shift_code
+                        updated = True
+                    elif isinstance(s_raw, list) and len(s_raw) >= d_num:
+                        s_raw[d_num - 1] = new_shift_code
+                        updated = True
+
+        if updated:
+            ATLAS_DB.rosters.update_one(
+                {"_id": month_key},
+                {"$set": {"engineers": roster_doc.get("engineers"), "roster": roster_doc.get("roster")}}
+            )
+            return True
+    except Exception as e:
+        print(f"  [ROSTER UPDATE ERROR] Failed updating shift for {username} on {date_str}: {e}")
+    return False
 
 # Enable UTF-8 encoding on Windows consoles
 if sys.platform == "win32":
@@ -246,6 +358,7 @@ LAST_CREDENTIAL_ALERT_DATE = {}  # { tracker_id: "YYYY-MM-DD" } to prevent dupli
 SERVER_USER_CALENDAR_SYNC = {}  # In-memory fallback: {username: {month: sync_entry}}
 SERVER_USER_DISMISSED_NOTIFICATIONS = {}  # In-memory fallback: {username: set(dismissed_ids)}
 SERVER_USER_CALENDAR_ACCOUNTS = {}  # In-memory fallback: {username: [account_dicts]}
+SERVER_LEAVE_REQUESTS = []  # In-memory fallback: [leave_request_dicts]
 
 def log_server(msg: str):
     """Log to stdout and append timestamped entry to circular SERVER_LOGS buffer in Indian Standard Time (IST)."""
@@ -3033,7 +3146,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
         # Support API requests with duplicate /api or missing /api prefix
         while norm_path.startswith("/api/api/"):
             norm_path = "/api" + norm_path[8:]
-        if norm_path in ("/test-connection", "/engineers", "/admin/ai-settings", "/ai-settings", "/server-info", "/app-config", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/broadcast-templates", "/credentials", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/"):
+        if norm_path in ("/test-connection", "/engineers", "/admin/ai-settings", "/ai-settings", "/server-info", "/app-config", "/logs", "/server-logs", "/constraints", "/notifications", "/broadcast/templates", "/broadcast-templates", "/credentials", "/auth/me") or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/users/") or norm_path.startswith("/celebrations/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/leave/"):
             norm_path = "/api" + norm_path
         norm_path = self._normalize_api_aliases(norm_path)
 
@@ -3703,6 +3816,217 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": "Avatar not found"}, 404)
                 return
 
+        # 1.71 GET /api/leave/my-requests (Authenticated Engineer Request History & Balance)
+        if clean_path in ("/api/leave/my-requests", "/api/leave/my-requests/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            current_year = int(get_ist_now().strftime("%Y"))
+
+            docs = []
+            if ATLAS_DB is not None:
+                try:
+                    docs = list(ATLAS_DB.leave_requests.find({"engineer_id": caller_username}, {"_id": 0}).sort("timestamp", -1))
+                except Exception as e:
+                    print(f"  [ATLAS LEAVE FETCH ERROR] {e}")
+                    docs = [dict(r) for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == caller_username]
+            else:
+                docs = [dict(r) for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == caller_username]
+
+            stats = get_engineer_leave_stats(caller_username, current_year)
+            self.send_json_response({
+                "success": True,
+                "requests": docs,
+                "active_count": stats["active_count"],
+                "approved_leave_days": stats["approved_leave_days"],
+                "remaining_leave_balance": stats["remaining_leave_balance"],
+                "annual_quota": stats["annual_quota"],
+                "annual_year": current_year
+            })
+            return
+
+        # 1.72 GET /api/leave/eligible-partners (Candidate Swap Partners for Date)
+        if clean_path in ("/api/leave/eligible-partners", "/api/leave/eligible-partners/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            query_str = self.path.split("?")[1] if "?" in self.path else ""
+            params = urllib.parse.parse_qs(query_str) if query_str else {}
+            date_param = str(params.get("date", [""])[0]).strip()
+
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_param):
+                self.send_json_response({"success": False, "message": "Invalid date format. Expected YYYY-MM-DD."}, 400)
+                return
+
+            month_key = date_param[:7]
+            try:
+                d_num = int(date_param[8:10])
+            except ValueError:
+                self.send_json_response({"success": False, "message": "Invalid day in date."}, 400)
+                return
+
+            # Fetch monthly roster
+            roster_doc = None
+            if ATLAS_DB is not None:
+                try:
+                    roster_doc = ATLAS_DB.rosters.find_one({"_id": month_key})
+                except Exception:
+                    pass
+
+            # Fetch active engineers list
+            engineers_list = []
+            if ATLAS_DB is not None:
+                try:
+                    engineers_list = list(ATLAS_DB.engineers.find({}, {"_id": 0, "password": 0}))
+                except Exception:
+                    pass
+            if not engineers_list:
+                engineers_list = DEFAULT_SERVER_ENGINEERS
+
+            candidates = []
+            for eng in engineers_list:
+                u = str(eng.get("username", "")).strip().lower()
+                if not u or u == caller_username or is_management_account(eng):
+                    continue
+
+                display_name = to_proper_name(eng.get("name") or eng.get("full_name") or u)
+                photo = str(eng.get("profile_picture") or eng.get("profilePicture") or "").strip()
+
+                # Determine shift on date_param
+                shift_val = ""
+                if roster_doc:
+                    eng_rows = roster_doc.get("engineers") or roster_doc.get("roster") or []
+                    for r in eng_rows:
+                        if not isinstance(r, dict):
+                            continue
+                        ru = str(r.get("username") or "").strip().lower()
+                        rn = str(r.get("name") or "").strip().lower()
+                        if ru == u or rn == u:
+                            s_raw = r.get("shifts")
+                            if isinstance(s_raw, dict):
+                                shift_val = str(s_raw.get(str(d_num), "")).strip().upper()
+                            elif isinstance(s_raw, list) and len(s_raw) >= d_num:
+                                shift_val = str(s_raw[d_num - 1]).strip().upper()
+                            break
+
+                shift_val = shift_val or "UNASSIGNED"
+                is_off = (shift_val == "OFF")
+
+                candidates.append({
+                    "username": u,
+                    "name": display_name,
+                    "profile_picture": photo,
+                    "shift": shift_val,
+                    "is_off": is_off
+                })
+
+            # Sort OFF candidates first, then alphabetically by name
+            candidates.sort(key=lambda x: (not x["is_off"], x["name"].lower()))
+
+            self.send_json_response({
+                "success": True,
+                "date": date_param,
+                "month": month_key,
+                "partners": candidates,
+                "count": len(candidates)
+            })
+            return
+
+        # 1.73 GET /api/leave/admin-queue (Admin Pending & Historical Leave Requests Queue)
+        if clean_path in ("/api/leave/admin-queue", "/api/leave/admin-queue/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            requests_list = []
+            if ATLAS_DB is not None:
+                try:
+                    requests_list = list(ATLAS_DB.leave_requests.find({}, {"_id": 0}).sort("timestamp", -1))
+                except Exception as e:
+                    print(f"  [ATLAS ADMIN QUEUE ERROR] {e}")
+                    requests_list = [dict(r) for r in SERVER_LEAVE_REQUESTS]
+            else:
+                requests_list = [dict(r) for r in SERVER_LEAVE_REQUESTS]
+
+            # Cache month rosters for suggestions
+            cached_rosters = {}
+            active_engineers = []
+            if ATLAS_DB is not None:
+                try:
+                    active_engineers = list(ATLAS_DB.engineers.find({}, {"_id": 0, "password": 0}))
+                except Exception:
+                    pass
+            if not active_engineers:
+                active_engineers = DEFAULT_SERVER_ENGINEERS
+
+            pending_count = 0
+            for req in requests_list:
+                if str(req.get("status", "")).lower() == "pending":
+                    pending_count += 1
+                    # Attach candidate suggestions per requested date
+                    applicant_u = str(req.get("engineer_id", "")).lower()
+                    date_suggestions = {}
+                    for d_str in req.get("dates", []):
+                        if len(d_str) < 10:
+                            continue
+                        m_key = d_str[:7]
+                        try:
+                            d_num = int(d_str[8:10])
+                        except ValueError:
+                            continue
+
+                        if m_key not in cached_rosters:
+                            if ATLAS_DB is not None:
+                                try:
+                                    cached_rosters[m_key] = ATLAS_DB.rosters.find_one({"_id": m_key})
+                                except Exception:
+                                    cached_rosters[m_key] = None
+                            else:
+                                cached_rosters[m_key] = None
+
+                        r_doc = cached_rosters.get(m_key)
+                        off_partners = []
+                        if r_doc:
+                            for eng in active_engineers:
+                                eu = str(eng.get("username", "")).strip().lower()
+                                if not eu or eu == applicant_u or is_management_account(eng):
+                                    continue
+                                # Check shift
+                                eng_rows = r_doc.get("engineers") or r_doc.get("roster") or []
+                                for r in eng_rows:
+                                    if not isinstance(r, dict):
+                                        continue
+                                    if str(r.get("username") or "").strip().lower() == eu:
+                                        s_raw = r.get("shifts")
+                                        shift_code = ""
+                                        if isinstance(s_raw, dict):
+                                            shift_code = str(s_raw.get(str(d_num), "")).strip().upper()
+                                        elif isinstance(s_raw, list) and len(s_raw) >= d_num:
+                                            shift_code = str(s_raw[d_num - 1]).strip().upper()
+                                        if shift_code == "OFF":
+                                            off_partners.append({
+                                                "username": eu,
+                                                "name": to_proper_name(eng.get("name") or eng.get("full_name") or eu),
+                                                "shift": "OFF"
+                                            })
+                                        break
+                        off_partners.sort(key=lambda x: x["name"].lower())
+                        date_suggestions[d_str] = off_partners
+
+                    req["candidate_suggestions"] = date_suggestions
+
+            self.send_json_response({
+                "success": True,
+                "requests": requests_list,
+                "pending_count": pending_count,
+                "total_count": len(requests_list)
+            })
+            return
+
         # 2. GET /api/logs or /api/server-logs (ADMIN ONLY)
         if clean_path in ("/api/logs", "/api/logs/", "/api/server-logs", "/api/server-logs/"):
             claims = self.require_auth(["admin", "manager"])
@@ -4201,7 +4525,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/users/profile-picture",
             "/users/calendar-sync", "/users/calendar-sync/clear",
             "/users/calendar-accounts"
-        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/users/calendar-sync") or norm_path.startswith("/users/calendar-accounts"):
+        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/users/calendar-sync") or norm_path.startswith("/users/calendar-accounts") or norm_path.startswith("/leave/"):
             norm_path = "/api" + norm_path
         norm_path = self._normalize_api_aliases(norm_path)
 
@@ -5778,6 +6102,438 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
+        # 3.84 POST /api/leave/apply (Submit New Leave or Swap Request)
+        if clean_path in ("/api/leave/apply", "/api/leave/apply/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            applicant_username = str(claims.get("username", "")).strip().lower()
+            if not applicant_username:
+                self.send_json_response({"success": False, "message": "Authentication required."}, 401)
+                return
+
+            applicant_name = to_proper_name(claims.get("name") or claims.get("full_name") or applicant_username)
+
+            raw_dates = body.get("dates")
+            if not isinstance(raw_dates, list) or not raw_dates:
+                self.send_json_response({"success": False, "message": "You must select between 1 and 5 dates."}, 400)
+                return
+
+            # Clean and validate dates
+            cleaned_dates = []
+            for d in raw_dates:
+                d_str = str(d).strip()
+                if not re.match(r"^\d{4}-\d{2}-\d{2}$", d_str):
+                    self.send_json_response({"success": False, "message": f"Invalid date format for '{d_str}'. Expected YYYY-MM-DD."}, 400)
+                    return
+                cleaned_dates.append(d_str)
+
+            cleaned_dates = sorted(list(set(cleaned_dates)))
+            if len(cleaned_dates) < 1 or len(cleaned_dates) > 5:
+                self.send_json_response({"success": False, "message": "You can select between 1 and 5 dates for a request."}, 400)
+                return
+
+            today_ist = get_ist_now().strftime("%Y-%m-%d")
+            for d in cleaned_dates:
+                if d < today_ist:
+                    self.send_json_response({"success": False, "message": f"Date {d} is in the past. Only today and future dates are allowed."}, 400)
+                    return
+
+            # 1. Scheduled Off-Day Check: Applicant cannot request leave/swap on a scheduled weekly OFF
+            for d in cleaned_dates:
+                scheduled_shift = get_roster_shift_for_date(applicant_username, d)
+                if scheduled_shift == "OFF":
+                    self.send_json_response({"success": False, "message": f"Date {d} is already your scheduled Weekly Off."}, 400)
+                    return
+
+            # 2. Overlapping & Duplicate Guard
+            existing_active_requests = []
+            if ATLAS_DB is not None:
+                try:
+                    existing_active_requests = list(ATLAS_DB.leave_requests.find({
+                        "engineer_id": applicant_username,
+                        "status": {"$in": ["pending", "approved_swap", "approved_leave"]}
+                    }, {"dates": 1, "status": 1}))
+                except Exception as e:
+                    print(f"  [ATLAS LEAVE CHECK ERROR] {e}")
+                    existing_active_requests = [r for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == applicant_username and r.get("status") in ("pending", "approved_swap", "approved_leave")]
+            else:
+                existing_active_requests = [r for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == applicant_username and r.get("status") in ("pending", "approved_swap", "approved_leave")]
+
+            for req in existing_active_requests:
+                existing_dates = set(req.get("dates", []))
+                for d in cleaned_dates:
+                    if d in existing_dates:
+                        self.send_json_response({"success": False, "message": f"A request for date {d} is already pending or approved."}, 400)
+                        return
+
+            # 3. Annual 14-Day Quota Enforcement (Only approved leaves deduct from quota)
+            current_year = int(today_ist[:4])
+            stats = get_engineer_leave_stats(applicant_username, current_year)
+            if stats["approved_leave_days"] + len(cleaned_dates) > 14:
+                self.send_json_response({
+                    "success": False,
+                    "message": f"Annual leave allowance exceeded. Max 14 days per calendar year (You have used {stats['approved_leave_days']} days, requesting {len(cleaned_dates)})."
+                }, 400)
+                return
+
+            now_ts = time.time()
+            now_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_ts))
+            request_id = f"LR-{today_ist.replace('-', '')}-{int(now_ts * 1000) % 10000:04d}"
+            reason = str(body.get("reason", "")).strip()[:500]
+            preferred_partner = str(body.get("preferred_partner", "")).strip().lower()
+
+            month_keys = sorted(list(set(d[:7] for d in cleaned_dates)))
+            leave_doc = {
+                "request_id": request_id,
+                "engineer_id": applicant_username,
+                "engineer_name": applicant_name,
+                "dates": cleaned_dates,
+                "month_keys": month_keys,
+                "reason": reason,
+                "preferred_partner": preferred_partner,
+                "annual_year": current_year,
+                "days_count": len(cleaned_dates),
+                "status": "pending",
+                "created_at": now_utc,
+                "timestamp": now_ts,
+                "approval": None
+            }
+
+            # Save in database
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.leave_requests.insert_one(dict(leave_doc))
+                except Exception as e:
+                    print(f"  [ATLAS LEAVE INSERT ERROR] {e}")
+                    self.send_json_response({"success": False, "message": f"Database error: {e}"}, 500)
+                    return
+
+            # In-memory fallback
+            SERVER_LEAVE_REQUESTS.append(dict(leave_doc))
+
+            # Dispatch FCM push to Admins/Managers
+            admin_tokens = []
+            if ATLAS_DB is not None:
+                try:
+                    for a in ATLAS_DB.engineers.find({"role": {"$in": ["admin", "manager"]}}, {"fcm_tokens": 1}):
+                        toks = a.get("fcm_tokens", [])
+                        if isinstance(toks, list):
+                            admin_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
+                        elif isinstance(toks, str) and toks.strip():
+                            admin_tokens.append(toks.strip())
+                except Exception:
+                    pass
+            admin_tokens = list(set(admin_tokens))
+            if admin_tokens:
+                send_fcm_push(
+                    tokens=admin_tokens,
+                    title="New Leave/Swap Request",
+                    body=f"{applicant_name} submitted a request for {len(cleaned_dates)} date(s).",
+                    priority="high",
+                    notif_id=f"notif_lr_{request_id}",
+                    extra_data={"type": "leave_request", "request_id": request_id, "engineer_id": applicant_username}
+                )
+
+            # Insert In-App notification
+            notif_entry = {
+                "id": f"notif_lr_{request_id}",
+                "title": "New Leave/Swap Request",
+                "message": f"{applicant_name} submitted a request for {len(cleaned_dates)} date(s) ({', '.join(cleaned_dates)}).",
+                "category": "operations",
+                "author": applicant_name,
+                "author_username": applicant_username,
+                "role": "engineer",
+                "timestamp": now_ts,
+                "date_str": get_ist_now().strftime("%d %b %Y, %I:%M %p IST"),
+                "target_user": "admins",
+                "link": "#leave-requests"
+            }
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.notifications.insert_one(dict(notif_entry))
+                except Exception:
+                    pass
+            SERVER_NOTIFICATIONS.appendleft(dict(notif_entry))
+
+            record_audit_event(
+                applicant_name,
+                applicant_username,
+                claims.get("role", "engineer"),
+                "Web Portal" if "web" in str(self.headers.get("User-Agent", "")).lower() else "Android App",
+                "LEAVE_REQUEST_SUBMITTED",
+                {"request_id": request_id, "dates": cleaned_dates, "days_count": len(cleaned_dates)}
+            )
+
+            # Exclude ObjectId if present before response
+            resp_doc = dict(leave_doc)
+            resp_doc.pop("_id", None)
+            self.send_json_response({
+                "success": True,
+                "message": "Leave request submitted successfully.",
+                "request": resp_doc
+            })
+            return
+
+        # 3.85 POST /api/leave/admin-action (Approve or Reject Leave/Swap Request)
+        if clean_path in ("/api/leave/admin-action", "/api/leave/admin-action/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            admin_username = str(claims.get("username", "")).strip().lower()
+            admin_name = to_proper_name(claims.get("name") or claims.get("full_name") or admin_username)
+
+            request_id = str(body.get("request_id", "")).strip()
+            action = str(body.get("action", "")).strip().lower()
+            swap_partner = str(body.get("swap_partner", "")).strip().lower()
+            swap_code = str(body.get("swap_code", "")).strip().upper()
+            admin_note = str(body.get("admin_note", "")).strip()
+
+            if not request_id:
+                self.send_json_response({"success": False, "message": "Request ID is required."}, 400)
+                return
+
+            if action not in ("swap", "leave", "reject", "cancel"):
+                self.send_json_response({"success": False, "message": "Invalid action. Expected 'swap', 'leave', 'reject', or 'cancel'."}, 400)
+                return
+
+            req_doc = None
+            if ATLAS_DB is not None:
+                try:
+                    req_doc = ATLAS_DB.leave_requests.find_one({"request_id": request_id})
+                except Exception as e:
+                    print(f"  [ATLAS LEAVE FETCH ERROR] {e}")
+
+            if not req_doc:
+                for r in SERVER_LEAVE_REQUESTS:
+                    if r.get("request_id") == request_id:
+                        req_doc = dict(r)
+                        break
+
+            if not req_doc:
+                self.send_json_response({"success": False, "message": "Leave request not found."}, 404)
+                return
+
+            curr_status = str(req_doc.get("status", "")).lower()
+            if curr_status != "pending" and action != "cancel":
+                self.send_json_response({"success": False, "message": f"Request is already {curr_status}."}, 400)
+                return
+
+            applicant_user = str(req_doc.get("engineer_id", "")).lower()
+            dates = req_doc.get("dates", [])
+            now_ts = time.time()
+            now_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_ts))
+
+            new_status = "rejected"
+            if action == "swap":
+                new_status = "approved_swap"
+                if not swap_partner:
+                    self.send_json_response({"success": False, "message": "Swap partner username is required for swap approval."}, 400)
+                    return
+
+                # Determine swap code if not provided
+                if not swap_code:
+                    partner_doc = None
+                    if ATLAS_DB is not None:
+                        try:
+                            partner_doc = ATLAS_DB.engineers.find_one({"username": swap_partner})
+                        except Exception:
+                            pass
+                    swap_code = str(partner_doc.get("swap_code") or "").strip().upper() if partner_doc else ""
+                    if not swap_code:
+                        swap_code = f"SW{swap_partner[:2].upper()}" if len(swap_partner) >= 2 else "SWSH"
+
+                # Update monthly rosters for all requested dates
+                for d_str in dates:
+                    orig_shift = get_roster_shift_for_date(applicant_user, d_str)
+                    if not orig_shift or orig_shift == "OFF":
+                        orig_shift = "FS"  # Default duty shift if unassigned
+                    # Applicant gets swap code (e.g. SWSH)
+                    update_roster_shift_for_date(applicant_user, d_str, swap_code)
+                    # Partner gets applicant's original shift
+                    update_roster_shift_for_date(swap_partner, d_str, orig_shift)
+
+            elif action == "leave":
+                new_status = "approved_leave"
+                # Per architectural standard: approved leave writes standard 'L' code
+                for d_str in dates:
+                    update_roster_shift_for_date(applicant_user, d_str, "L")
+
+            elif action == "reject":
+                new_status = "rejected"
+
+            elif action == "cancel":
+                new_status = "cancelled"
+
+            approval_record = {
+                "approved_by": admin_username,
+                "approved_name": admin_name,
+                "approved_at": now_utc,
+                "action_type": action,
+                "swap_partner": swap_partner if action == "swap" else None,
+                "swap_shift_code": swap_code if action == "swap" else None,
+                "admin_note": admin_note
+            }
+
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.leave_requests.update_one(
+                        {"request_id": request_id},
+                        {"$set": {
+                            "status": new_status,
+                            "approval": approval_record,
+                            "updated_at": now_utc
+                        }}
+                    )
+                except Exception as e:
+                    print(f"  [ATLAS LEAVE UPDATE ERROR] {e}")
+
+            # Update in-memory fallback
+            for r in SERVER_LEAVE_REQUESTS:
+                if r.get("request_id") == request_id:
+                    r["status"] = new_status
+                    r["approval"] = approval_record
+                    r["updated_at"] = now_utc
+                    break
+
+            # Targeted FCM Push strictly to the applicant
+            applicant_tokens = []
+            if ATLAS_DB is not None:
+                try:
+                    eng_doc = ATLAS_DB.engineers.find_one({"username": applicant_user}, {"fcm_tokens": 1})
+                    if eng_doc:
+                        toks = eng_doc.get("fcm_tokens", [])
+                        if isinstance(toks, list):
+                            applicant_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
+                        elif isinstance(toks, str) and toks.strip():
+                            applicant_tokens.append(toks.strip())
+                except Exception:
+                    pass
+            applicant_tokens = list(set(applicant_tokens))
+
+            push_title = "Leave Request Approved" if "approved" in new_status else "Leave Request Update"
+            if new_status == "approved_swap":
+                push_body = f"Your request for {', '.join(dates)} has been approved as Swap with {swap_partner} ({swap_code})."
+            elif new_status == "approved_leave":
+                push_body = f"Your request for {', '.join(dates)} has been approved as Leave."
+            elif new_status == "rejected":
+                push_title = "Leave Request Rejected"
+                push_body = f"Your request for {', '.join(dates)} was not approved." + (f" Note: {admin_note}" if admin_note else "")
+            else:
+                push_body = f"Your request for {', '.join(dates)} was cancelled."
+
+            if applicant_tokens:
+                send_fcm_push(
+                    tokens=applicant_tokens,
+                    title=push_title,
+                    body=push_body,
+                    priority="high",
+                    notif_id=f"notif_action_{request_id}",
+                    extra_data={"type": "leave_request_action", "request_id": request_id, "status": new_status}
+                )
+
+            # Insert targeted In-App notification for the applicant
+            notif_entry = {
+                "id": f"notif_act_{request_id}_{int(now_ts)}",
+                "title": push_title,
+                "message": push_body,
+                "category": "operations",
+                "author": admin_name,
+                "author_username": admin_username,
+                "role": "admin",
+                "timestamp": now_ts,
+                "date_str": get_ist_now().strftime("%d %b %Y, %I:%M %p IST"),
+                "target_user": applicant_user,
+                "link": "#my-requests"
+            }
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.notifications.insert_one(dict(notif_entry))
+                except Exception:
+                    pass
+            SERVER_NOTIFICATIONS.appendleft(dict(notif_entry))
+
+            record_audit_event(
+                admin_name,
+                admin_username,
+                claims.get("role", "admin"),
+                "Web Portal" if "web" in str(self.headers.get("User-Agent", "")).lower() else "Android App",
+                f"LEAVE_REQUEST_{action.upper()}",
+                {"request_id": request_id, "applicant": applicant_user, "action": action, "status": new_status, "swap_partner": swap_partner}
+            )
+
+            req_doc["status"] = new_status
+            req_doc["approval"] = approval_record
+            req_doc.pop("_id", None)
+
+            self.send_json_response({
+                "success": True,
+                "message": f"Leave request {action} processed successfully.",
+                "request": req_doc
+            })
+            return
+
+        # 3.86 POST /api/leave/cancel (Applicant Self-Cancellation of Pending Request)
+        if clean_path in ("/api/leave/cancel", "/api/leave/cancel/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            user_role = str(claims.get("role", "")).lower()
+            request_id = str(body.get("request_id", "")).strip()
+
+            if not request_id:
+                self.send_json_response({"success": False, "message": "Request ID is required."}, 400)
+                return
+
+            req_doc = None
+            if ATLAS_DB is not None:
+                try:
+                    req_doc = ATLAS_DB.leave_requests.find_one({"request_id": request_id})
+                except Exception:
+                    pass
+            if not req_doc:
+                for r in SERVER_LEAVE_REQUESTS:
+                    if r.get("request_id") == request_id:
+                        req_doc = dict(r)
+                        break
+
+            if not req_doc:
+                self.send_json_response({"success": False, "message": "Leave request not found."}, 404)
+                return
+
+            applicant_user = str(req_doc.get("engineer_id", "")).lower()
+            if applicant_user != caller_username and user_role not in ("admin", "manager"):
+                self.send_json_response({"success": False, "message": "You can only cancel your own requests."}, 403)
+                return
+
+            if str(req_doc.get("status", "")).lower() != "pending":
+                self.send_json_response({"success": False, "message": f"Only pending requests can be cancelled. Current status is {req_doc.get('status')}."}, 400)
+                return
+
+            now_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.leave_requests.update_one(
+                        {"request_id": request_id},
+                        {"$set": {"status": "cancelled", "cancelled_at": now_utc, "cancelled_by": caller_username}}
+                    )
+                except Exception as e:
+                    print(f"  [ATLAS LEAVE CANCEL ERROR] {e}")
+
+            for r in SERVER_LEAVE_REQUESTS:
+                if r.get("request_id") == request_id:
+                    r["status"] = "cancelled"
+                    r["cancelled_at"] = now_utc
+                    r["cancelled_by"] = caller_username
+                    break
+
+            self.send_json_response({"success": True, "message": "Leave request cancelled successfully.", "request_id": request_id})
+            return
+
         # 3.9 POST /api/broadcast/templates (Create or Update Operational Broadcast Template)
         if clean_path in ("/api/broadcast/templates", "/api/broadcast/templates/"):
             claims = self.require_auth(["admin", "manager"])
@@ -6143,6 +6899,273 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "emails_dispatched": emails_sent,
                 "push_dispatched": push_dispatched,
                 "notification": notif_doc
+            })
+            return
+
+        # 1.74 POST /api/leave/apply (Authenticated Engineer Apply for Leave/Swap)
+        if clean_path in ("/api/leave/apply", "/api/leave/apply/"):
+            claims = self.require_auth()
+            if not claims:
+                return
+
+            caller_username = str(claims.get("username", "")).strip().lower()
+            caller_name = to_proper_name(claims.get("fullName") or claims.get("name") or caller_username)
+
+            dates = body.get("dates", [])
+            if not isinstance(dates, list) or len(dates) < 1 or len(dates) > 5:
+                self.send_json_response({"success": False, "message": "Please select between 1 and 5 dates."}, 400)
+                return
+
+            now_ist = get_ist_now()
+            today_str = now_ist.strftime("%Y-%m-%d")
+            current_year = int(now_ist.strftime("%Y"))
+
+            clean_dates = []
+            for d in dates:
+                d_str = str(d).strip()
+                if not re.match(r"^\d{4}-\d{2}-\d{2}$", d_str):
+                    self.send_json_response({"success": False, "message": f"Invalid date format: {d_str}."}, 400)
+                    return
+                if d_str < today_str:
+                    self.send_json_response({"success": False, "message": f"Cannot select past date: {d_str}."}, 400)
+                    return
+                clean_dates.append(d_str)
+
+            clean_dates = sorted(list(set(clean_dates)))
+            reason = str(body.get("reason", "")).strip()[:500]
+            preferred_partner = str(body.get("preferred_partner", "")).strip().lower()
+
+            # 1. Off-day validation
+            for d_str in clean_dates:
+                cur_shift = get_roster_shift_for_date(caller_username, d_str)
+                if cur_shift == "OFF" or cur_shift.startswith("SW"):
+                    self.send_json_response({
+                        "success": False,
+                        "message": f"Date {d_str} is already scheduled as Weekly Off ({cur_shift}). Leave request not required."
+                    }, 400)
+                    return
+
+            # 2. Overlapping active request guard
+            active_docs = []
+            if ATLAS_DB is not None:
+                try:
+                    active_docs = list(ATLAS_DB.leave_requests.find({
+                        "engineer_id": caller_username,
+                        "status": {"$in": ["pending", "approved_swap", "approved_leave"]}
+                    }))
+                except Exception:
+                    pass
+            if not active_docs:
+                active_docs = [r for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == caller_username and r.get("status") in ("pending", "approved_swap", "approved_leave")]
+
+            for ad in active_docs:
+                for ad_date in ad.get("dates", []):
+                    if ad_date in clean_dates:
+                        self.send_json_response({
+                            "success": False,
+                            "message": f"A request for date {ad_date} is already {ad.get('status')}."
+                        }, 400)
+                        return
+
+            # 3. Annual 14-day leave quota check
+            stats = get_engineer_leave_stats(caller_username, current_year)
+            if stats["approved_leave_days"] + len(clean_dates) > stats["annual_quota"]:
+                self.send_json_response({
+                    "success": False,
+                    "message": f"Annual quota limit exceeded! You have {stats['remaining_leave_balance']} days remaining out of 14."
+                }, 400)
+                return
+
+            # 4. Create leave request document
+            req_id = f"LR-{today_str.replace('-', '')}-{uuid.uuid4().hex[:6].upper()}"
+            month_keys = sorted(list(set(d[:7] for d in clean_dates)))
+            new_doc = {
+                "request_id": req_id,
+                "engineer_id": caller_username,
+                "engineer_name": caller_name,
+                "dates": clean_dates,
+                "month_keys": month_keys,
+                "reason": reason,
+                "preferred_partner": preferred_partner,
+                "annual_year": current_year,
+                "days_count": len(clean_dates),
+                "status": "pending",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "timestamp": time.time(),
+                "approval": None
+            }
+
+            SERVER_LEAVE_REQUESTS.append(dict(new_doc))
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.leave_requests.insert_one(new_doc)
+                except Exception as e:
+                    print(f"  [ATLAS LEAVE INSERT ERROR] {e}")
+
+            # Notify admins/managers via FCM
+            admin_tokens = []
+            if ATLAS_DB is not None:
+                try:
+                    admins = list(ATLAS_DB.engineers.find({"role": {"$in": ["admin", "manager"]}}))
+                    for a in admins:
+                        toks = a.get("fcm_tokens", [])
+                        if isinstance(toks, list):
+                            admin_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
+                        elif isinstance(toks, str) and toks.strip():
+                            admin_tokens.append(toks.strip())
+                except Exception:
+                    pass
+            admin_tokens = list(set(admin_tokens))
+            if admin_tokens:
+                d_label = ", ".join(clean_dates[:2]) + (f" +{len(clean_dates)-2}" if len(clean_dates) > 2 else "")
+                send_fcm_push(
+                    admin_tokens,
+                    "📋 New Leave/Swap Request",
+                    f"{caller_name} submitted request for {d_label}.",
+                    priority="high",
+                    notif_id=req_id,
+                    extra_data={"type": "leave_request", "request_id": req_id}
+                )
+
+            record_audit_event(
+                engineer_name=caller_name,
+                username=caller_username,
+                role=claims.get("role", "engineer"),
+                platform_name="api",
+                action="leave_request_submitted",
+                details={"request_id": req_id, "dates": clean_dates, "days_count": len(clean_dates)}
+            )
+
+            self.send_json_response({
+                "success": True,
+                "request_id": req_id,
+                "message": f"Leave request for {len(clean_dates)} day(s) submitted successfully.",
+                "request": {k: v for k, v in new_doc.items() if k != "_id"}
+            })
+            return
+
+        # 1.75 POST /api/leave/admin-action (Admin/Manager Approve as Swap, Approve as Leave, or Reject)
+        if clean_path in ("/api/leave/admin-action", "/api/leave/admin-action/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            admin_user = str(claims.get("username", "")).strip().lower()
+            admin_name = to_proper_name(claims.get("fullName") or claims.get("name") or admin_user)
+            req_id = str(body.get("request_id", "")).strip()
+            action = str(body.get("action", "")).strip().lower() # "swap", "leave", "reject"
+
+            if not req_id or action not in ("swap", "leave", "reject"):
+                self.send_json_response({"success": False, "message": "Valid request_id and action ('swap', 'leave', 'reject') required."}, 400)
+                return
+
+            swap_partner = str(body.get("swap_partner", "")).strip().lower()
+            swap_code = str(body.get("swap_code", "")).strip().upper()
+            admin_note = str(body.get("admin_note", "")).strip()[:500]
+
+            # Fetch request
+            target_req = None
+            if ATLAS_DB is not None:
+                try:
+                    target_req = ATLAS_DB.leave_requests.find_one({"request_id": req_id})
+                except Exception:
+                    pass
+            if not target_req:
+                for r in SERVER_LEAVE_REQUESTS:
+                    if r.get("request_id") == req_id:
+                        target_req = r
+                        break
+
+            if not target_req:
+                self.send_json_response({"success": False, "message": f"Leave request {req_id} not found."}, 404)
+                return
+
+            if target_req.get("status") != "pending":
+                self.send_json_response({"success": False, "message": f"Request {req_id} is already {target_req.get('status')}."}, 400)
+                return
+
+            new_status = "approved_swap" if action == "swap" else ("approved_leave" if action == "leave" else "rejected")
+            approval_obj = {
+                "approved_by": admin_user,
+                "approved_by_name": admin_name,
+                "approved_at": datetime.now(timezone.utc).isoformat(),
+                "action_type": action,
+                "swap_partner": swap_partner,
+                "swap_shift_code": swap_code,
+                "admin_note": admin_note
+            }
+
+            applicant_un = str(target_req.get("engineer_id", "")).strip().lower()
+            applicant_name = target_req.get("engineer_name", applicant_un)
+            dates = target_req.get("dates", [])
+
+            # Apply roster grid mutations on approval
+            if action == "swap":
+                if not swap_code:
+                    swap_code = f"SW{applicant_name[0].upper()}" if applicant_name else "SW"
+                for d_str in dates:
+                    orig_shift = get_roster_shift_for_date(applicant_un, d_str) or "G"
+                    update_roster_shift_for_date(applicant_un, d_str, swap_code)
+                    if swap_partner:
+                        update_roster_shift_for_date(swap_partner, d_str, orig_shift)
+            elif action == "leave":
+                for d_str in dates:
+                    update_roster_shift_for_date(applicant_un, d_str, "L")
+
+            # Update document in Atlas & memory
+            if ATLAS_DB is not None:
+                try:
+                    ATLAS_DB.leave_requests.update_one(
+                        {"request_id": req_id},
+                        {"$set": {"status": new_status, "approval": approval_obj}}
+                    )
+                except Exception as e:
+                    print(f"  [ATLAS UPDATE LEAVE STATUS ERROR] {e}")
+
+            for r in SERVER_LEAVE_REQUESTS:
+                if r.get("request_id") == req_id:
+                    r["status"] = new_status
+                    r["approval"] = approval_obj
+                    break
+
+            # Send targeted FCM notification to applicant
+            app_tokens = []
+            if ATLAS_DB is not None:
+                try:
+                    app_eng = ATLAS_DB.engineers.find_one({"username": applicant_un})
+                    if app_eng:
+                        toks = app_eng.get("fcm_tokens", [])
+                        if isinstance(toks, list):
+                            app_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
+                        elif isinstance(toks, str) and toks.strip():
+                            app_tokens.append(toks.strip())
+                except Exception:
+                    pass
+            app_tokens = list(set(app_tokens))
+            if app_tokens:
+                title_text = "✅ Leave Request Approved" if action in ("swap", "leave") else "❌ Leave Request Declined"
+                body_text = f"Your request for {', '.join(dates)} was {new_status.replace('_', ' ')}."
+                send_fcm_push(
+                    app_tokens,
+                    title_text,
+                    body_text,
+                    priority="high",
+                    notif_id=req_id,
+                    extra_data={"type": "leave_status", "request_id": req_id, "status": new_status}
+                )
+
+            record_audit_event(
+                engineer_name=admin_name,
+                username=admin_user,
+                role=claims.get("role", "admin"),
+                platform_name="api",
+                action=f"leave_request_{action}d",
+                details={"request_id": req_id, "action": action, "applicant": applicant_un, "dates": dates}
+            )
+
+            self.send_json_response({
+                "success": True,
+                "message": f"Leave request {req_id} successfully {new_status}."
             })
             return
 

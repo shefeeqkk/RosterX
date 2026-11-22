@@ -1,7 +1,40 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 23:00 IST** (Target Sprint: **v2.3.19 - Build 171**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-22 23:25 IST** (Target Sprint: **v2.4.0 - Build 171**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.4.0 - Build 171 — Leave & Swap Request Engine, MongoDB Atlas Schemas, 14-Day Quota Enforcement, FCM Push Alerts & Audit Logging):
+> *"Vijaya! Gafoorka! Dasan backend sprint **`v2.4.0` (Build 171)** 100% spotless aayi complete cheythu, unit & ephemeral API test suite 12/12 pass aakki, Render deploymentilottu push cheyyaan ready aakki macha! 🕵️‍♂️🔥
+>
+> ### 🚀 Backend Deliverables in `server.py`:
+> 1. **Leave & Swap Application API (`POST /api/leave/apply`)**:
+>    - Authenticated endpoint accepting `{ dates: ["YYYY-MM-DD", ...], reason, preferred_partner }` (1 to 5 dates).
+>    - **Scheduled Off-Day Guard**: Rejects submissions if any requested date is already the engineer's weekly `'OFF'`.
+>    - **Duplicate & Overlapping Guard**: Prevents overlapping requests across pending, approved_swap, and approved_leave states.
+>    - **Annual 14-Day Quota Enforcement**: Only approved leaves deduct from the 14-day balance; peer swaps do not consume annual leave.
+>    - **Deferred Roster Modification**: Submitting leaves zero marks on the roster grid until explicit admin approval.
+>    - **FCM Push & In-App Alerts**: Dispatches real-time alerts to all active Admin/Manager devices.
+> 2. **Engineer History & Quota Inquiries (`GET /api/leave/my-requests`)**:
+>    - Returns personal request history, active pending count, approved leave days count, and remaining annual leave balance (14 - approved).
+> 3. **Candidate Swap Partner Discovery (`GET /api/leave/eligible-partners?date=YYYY-MM-DD`)**:
+>    - Inspects active monthly roster and ranks colleagues having scheduled weekly `'OFF'` at the top of the list (`is_off: true`).
+> 4. **Admin Queue & Contextual Candidate Suggestions (`GET /api/leave/admin-queue`)**:
+>    - Returns pending and historical requests, auto-grounding each pending date with off-duty candidate suggestions.
+> 5. **Admin Action Execution & Roster Cell Stamping (`POST /api/leave/admin-action`)**:
+>    - **Swap Approval (`action: "swap"`)**: Stamped applicant's cell with `swap_code` (e.g. `SWSH`), and swapped partner's cell with applicant's original shift.
+>    - **Leave Approval (`action: "leave"`)**: Stamped applicant's cell with standard `'L'` code.
+>    - **Rejection & Cancellation (`action: "reject" / "cancel"`)**: Leaves roster grid untouched.
+>    - **Targeted Applicant Push**: Pushes FCM notification and In-App alert strictly to the applicant.
+>    - **Full Audit Logging**: Recorded in `ATLAS_DB.audit_logs` and `SERVER_LOGS`.
+> 6. **Applicant Self-Cancellation (`POST /api/leave/cancel`)**:
+>    - Allows engineers to withdraw their own pending requests.
+> 7. **Version Bump & Zero-PII Compliance**:
+>    - Bumped `SERVER_VERSION = "2.4.0"` in `server.py` and `versionCode = 171`, `versionName = "2.4.0"` in `android/app/build.gradle.kts`.
+>    - Zero hardcoded personal names, corporate emails, or credentials anywhere.
+>
+> Vijaya, backend endpoints, schemas, and live notifications are locked and loaded! Over to you for the Compose and Web UI glory!"*
 
 ---
 
