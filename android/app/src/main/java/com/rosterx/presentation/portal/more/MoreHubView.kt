@@ -46,8 +46,8 @@ fun MoreHubView(
     val leaveRequestCard: (@Composable () -> Unit)? = onNavigateToLeaveRequest?.let { onClick ->
         {
             MoreHubFeatureCard(
-                title = "Leave & Swap Request",
-                description = "Apply for annual leave or propose duty shift swaps with off-duty colleagues.",
+                title = "Leave Request",
+                description = "Apply for annual leave days with automated balance tracking.",
                 icon = Icons.Default.DateRange,
                 iconTint = Color(0xFF10B981),
                 badge = {
@@ -95,7 +95,7 @@ fun MoreHubView(
         {
             val pendingCount = state.adminPendingLeaveRequests.size.coerceAtLeast(state.adminPendingLeaveCount)
             MoreHubFeatureCard(
-                title = "Leave & Swap Approvals",
+                title = "Leave Approvals",
                 description = "Review team requests, validate quota limits, and 1-click approve or reject.",
                 icon = Icons.Default.FactCheck,
                 iconTint = Color(0xFFF59E0B),

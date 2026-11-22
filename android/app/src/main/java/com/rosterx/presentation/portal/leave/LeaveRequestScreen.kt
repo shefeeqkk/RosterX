@@ -106,13 +106,13 @@ fun LeaveRequestScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Leave & Swap Request",
+                            text = "Leave Request",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeumorphicTokens.TextMain
                         )
                         Text(
-                            text = "Operational shift management & duty leave",
+                            text = "Annual leave application & balance tracking",
                             fontSize = 11.5.sp,
                             color = NeumorphicTokens.TextMuted
                         )
@@ -233,47 +233,49 @@ fun LeaveRequestScreen(
                         contentPadding = 14.dp
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            // Month Navigator
+                            // Title & Subtitle
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Select Leave Dates",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = NeumorphicTokens.TextMain
+                                )
+                                Text(
+                                    text = "Pick 1 to 5 days (Default OFF indicated)",
+                                    fontSize = 11.5.sp,
+                                    color = NeumorphicTokens.TextMuted
+                                )
+                            }
+
+                            // Prominent Month Switcher Bar
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(NeumorphicTokens.InputSurface)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
-                                    Text(
-                                        text = "Select Duty Days",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = NeumorphicTokens.TextMain
-                                    )
-                                    Text(
-                                        text = "Pick 1 to 5 duty days (OFF locked)",
-                                        fontSize = 11.sp,
-                                        color = NeumorphicTokens.TextMuted,
-                                        maxLines = 1
-                                    )
+                                IconButton(
+                                    onClick = { currentYearMonth = currentYearMonth.minusMonths(1) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.ChevronLeft, contentDescription = "Prev Month", tint = NeumorphicTokens.TextMain, modifier = Modifier.size(22.dp))
                                 }
-
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    IconButton(
-                                        onClick = { currentYearMonth = currentYearMonth.minusMonths(1) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(Icons.Default.ChevronLeft, contentDescription = "Prev Month", tint = NeumorphicTokens.TextMain, modifier = Modifier.size(18.dp))
-                                    }
-                                    Text(
-                                        text = currentYearMonth.format(DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH)),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.5.sp,
-                                        color = NeumorphicTokens.TextMain,
-                                        maxLines = 1
-                                    )
-                                    IconButton(
-                                        onClick = { currentYearMonth = currentYearMonth.plusMonths(1) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(Icons.Default.ChevronRight, contentDescription = "Next Month", tint = NeumorphicTokens.TextMain, modifier = Modifier.size(18.dp))
-                                    }
+                                Text(
+                                    text = currentYearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 14.5.sp,
+                                    color = NeumorphicTokens.TextMain,
+                                    textAlign = TextAlign.Center
+                                )
+                                IconButton(
+                                    onClick = { currentYearMonth = currentYearMonth.plusMonths(1) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.ChevronRight, contentDescription = "Next Month", tint = NeumorphicTokens.TextMain, modifier = Modifier.size(22.dp))
                                 }
                             }
 
@@ -298,8 +300,13 @@ fun LeaveRequestScreen(
                             val rows = (totalSlots + 6) / 7
 
                             val applicantName = state.loggedInEngineer?.name ?: ""
-                            val monthKey = currentYearMonth.format(DateTimeFormatter.ofPattern("yyyy-MM"))
-                            val monthlyShifts = state.gridRoster[applicantName] ?: state.liveRoster[applicantName] ?: emptyMap()
+                            val isCurrentLoadedMonth = currentYearMonth.year == state.gridYear && currentYearMonth.monthValue == state.gridMonth
+                            val monthlyShifts = if (isCurrentLoadedMonth) {
+                                state.gridRoster[applicantName] ?: state.liveRoster[applicantName] ?: emptyMap()
+                            } else {
+                                emptyMap()
+                            }
+                            val defaultOffs = state.loggedInEngineer?.defaultWeeklyOffs ?: emptyList()
 
                             for (r in 0 until rows) {
                                 Row(
@@ -312,8 +319,14 @@ fun LeaveRequestScreen(
                                         if (dayNum in 1..daysInMonth) {
                                             val date = currentYearMonth.atDay(dayNum)
                                             val isPast = date.isBefore(LocalDate.now())
-                                            val shiftCode = monthlyShifts[dayNum.toString()] ?: ShiftCode.OFF
-                                            val isOff = shiftCode == ShiftCode.OFF || shiftCode.code.startsWith("SW") || shiftCode.code == "L"
+                                            val dayOfWeekName = date.dayOfWeek.name
+                                            val isDefaultWeeklyOff = defaultOffs.any { it.equals(dayOfWeekName, ignoreCase = true) }
+
+                                            val shiftCode = monthlyShifts[dayNum.toString()]
+                                            val isOff = when {
+                                                shiftCode != null -> shiftCode == ShiftCode.OFF || shiftCode.code.startsWith("SW")
+                                                else -> isDefaultWeeklyOff
+                                            }
                                             val isSelected = selectedDates.contains(date)
 
                                             Box(
@@ -325,11 +338,11 @@ fun LeaveRequestScreen(
                                                     .background(
                                                         when {
                                                             isSelected -> NeumorphicTokens.AccentSalmon
-                                                            isPast || isOff -> NeumorphicTokens.InputSurface.copy(alpha = 0.5f)
+                                                            isPast -> NeumorphicTokens.InputSurface.copy(alpha = 0.5f)
                                                             else -> NeumorphicTokens.InputSurface
                                                         }
                                                     )
-                                                    .clickable(enabled = !isPast && !isOff) {
+                                                    .clickable(enabled = !isPast) {
                                                         if (isSelected) {
                                                             selectedDates.remove(date)
                                                         } else {
@@ -351,7 +364,6 @@ fun LeaveRequestScreen(
                                                         color = when {
                                                             isSelected -> Color.White
                                                             isPast -> NeumorphicTokens.TextMuted.copy(alpha = 0.4f)
-                                                            isOff -> NeumorphicTokens.TextMuted.copy(alpha = 0.6f)
                                                             else -> NeumorphicTokens.TextMain
                                                         }
                                                     )
@@ -360,7 +372,7 @@ fun LeaveRequestScreen(
                                                             text = "OFF",
                                                             fontSize = 8.sp,
                                                             fontWeight = FontWeight.Black,
-                                                            color = NeumorphicTokens.TextMuted
+                                                            color = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFFD97706)
                                                         )
                                                     }
                                                 }
@@ -401,103 +413,6 @@ fun LeaveRequestScreen(
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.clickable { selectedDates.clear() }
                                     )
-                                }
-                            }
-                        }
-                    }
-
-                    // Preferred Partner Selection Card
-                    NeumorphicCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        style = NeumorphicElevationStyle.RaisedSubtle,
-                        surfaceColor = NeumorphicTokens.Surface,
-                        contentPadding = 14.dp
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Preferred Swap Partner (Optional)",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = NeumorphicTokens.TextMain
-                            )
-                            Text(
-                                text = "Colleagues with scheduled OFF days appear first as recommended.",
-                                fontSize = 11.sp,
-                                color = NeumorphicTokens.TextMuted
-                            )
-
-                            // Dropdown Box
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = NeumorphicTokens.InputSurface,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { partnerDropdownExpanded = true }
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        val selectedPartnerObj = state.eligibleLeavePartners.find { it.username == preferredPartner }
-                                        Text(
-                                            text = selectedPartnerObj?.name ?: if (preferredPartner.isNotBlank()) preferredPartner else "No preference / Any available partner",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (preferredPartner.isNotBlank()) NeumorphicTokens.TextMain else NeumorphicTokens.TextMuted
-                                        )
-                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = NeumorphicTokens.TextMuted)
-                                    }
-                                }
-
-                                DropdownMenu(
-                                    expanded = partnerDropdownExpanded,
-                                    onDismissRequest = { partnerDropdownExpanded = false },
-                                    modifier = Modifier.fillMaxWidth(0.85f)
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("No preference / Any partner", fontSize = 13.sp) },
-                                        onClick = {
-                                            preferredPartner = ""
-                                            partnerDropdownExpanded = false
-                                        }
-                                    )
-                                    HorizontalDivider()
-                                    state.eligibleLeavePartners.forEach { partner ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(partner.name, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                                                    if (partner.isOff) {
-                                                        Surface(
-                                                            shape = RoundedCornerShape(6.dp),
-                                                            color = Color(0xFF10B981).copy(alpha = 0.15f)
-                                                        ) {
-                                                            Text(
-                                                                text = "OFF",
-                                                                color = Color(0xFF059669),
-                                                                fontSize = 10.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            onClick = {
-                                                preferredPartner = partner.username
-                                                partnerDropdownExpanded = false
-                                            }
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -578,7 +493,7 @@ fun LeaveRequestScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                             Text(
-                                text = if (isSubmitting) "Submitting..." else "Submit Leave & Swap Request",
+                                text = if (isSubmitting) "Submitting..." else "Submit Leave Request",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

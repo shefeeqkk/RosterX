@@ -754,8 +754,8 @@ class RosterXUserPortal {
       credentials: 'Credential Tracker',
       my_team: 'My Team Directory',
       profile: 'Profile & Settings',
-      leave_request: 'Leave & Swap Request',
-      leave_approvals: 'Leave & Swap Approvals'
+      leave_request: 'Leave Request',
+      leave_approvals: 'Leave Approvals'
     };
     document.getElementById('rxTopBarTitle').textContent = titleMap[viewName] || 'RosterX';
 

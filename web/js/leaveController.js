@@ -117,7 +117,7 @@ export class LeaveController {
   }
 
   toggleDate(dateStr, isOff, isPast) {
-    if (isPast || isOff) return;
+    if (isPast) return;
     if (this.selectedDates.has(dateStr)) {
       this.selectedDates.delete(dateStr);
     } else {
@@ -127,12 +127,7 @@ export class LeaveController {
       }
       this.selectedDates.add(dateStr);
     }
-    // Refresh partner recommendations when first date changes
-    if (this.selectedDates.size === 1) {
-      this.fetchEligiblePartners(Array.from(this.selectedDates)[0]).then(() => this.render());
-    } else {
-      this.render();
-    }
+    this.render();
   }
 
   async submitLeaveRequest() {
@@ -216,29 +211,37 @@ export class LeaveController {
       const isPast = dStr < todayStr;
       const isSelected = this.selectedDates.has(dStr);
 
-      // Check shift from roster cache if available
+      // Check default weekly offs
+      const dateObj = new Date(this.calYear, this.calMonth - 1, d);
+      const dayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][dateObj.getDay()];
+      const defaultOffs = Array.isArray(this.user?.default_weekly_offs) ? this.user.default_weekly_offs.map((x) => String(x).toUpperCase()) : [];
+      const isDefaultOff = defaultOffs.includes(dayName);
+
+      // Check shift from roster cache if matching month
       let shiftCode = '';
-      if (rData) {
+      const curMonthKey = `${this.calYear}-${String(this.calMonth).padStart(2, '0')}`;
+      if (rData && (rData.month === curMonthKey || rData.month_key === curMonthKey)) {
         const shifts = rData.shifts || {};
         shiftCode = shifts[selfName]?.[String(d)] || shifts[selfUname]?.[String(d)] || '';
       }
-      const isOff = shiftCode === 'OFF' || shiftCode === 'L' || shiftCode.startsWith('SW');
+      const isOff = shiftCode ? (shiftCode === 'OFF' || shiftCode.startsWith('SW')) : isDefaultOff;
 
       let cellClass = 'rx-cal-day-cell';
       let badgeHtml = '';
       if (isPast) {
         cellClass += ' is-past';
-      } else if (isOff) {
-        cellClass += ' is-off';
-        badgeHtml = '<span class="rx-cal-cell-off">OFF</span>';
-      } else if (isSelected) {
+      }
+      if (isSelected) {
         cellClass += ' is-selected';
+      }
+      if (isOff) {
+        badgeHtml = '<span class="rx-cal-cell-off" style="color:#d97706;font-size:9px;font-weight:700;">OFF</span>';
       } else if (shiftCode) {
         badgeHtml = `<span class="rx-cal-cell-shift">${escapeHtml(shiftCode)}</span>`;
       }
 
       dayCells.push(`
-        <button type="button" class="${cellClass}" data-leave-date="${dStr}" data-is-off="${isOff}" data-is-past="${isPast}" ${isPast || isOff ? 'disabled' : ''} aria-label="${dStr} ${isOff ? 'Scheduled Off' : ''}">
+        <button type="button" class="${cellClass}" data-leave-date="${dStr}" data-is-off="${isOff}" data-is-past="${isPast}" ${isPast ? 'disabled' : ''} aria-label="${dStr} ${isOff ? 'Default Off' : ''}">
           <span class="rx-cal-cell-num">${d}</span>
           ${badgeHtml}
         </button>
@@ -268,8 +271,8 @@ export class LeaveController {
             <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div>
-                  <div style="font-size:16px;font-weight:900;">Select Duty Dates</div>
-                  <div style="font-size:11.5px;color:var(--nm-text-muted);">Pick 1 to 5 active duty days. Scheduled off-days are locked.</div>
+                  <div style="font-size:16px;font-weight:900;">Select Leave Dates</div>
+                  <div style="font-size:11.5px;color:var(--nm-text-muted);">Pick 1 to 5 days (Default OFF indicated)</div>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
                   <button type="button" id="btnCalPrev" class="rx-btn-surface" style="width:34px;height:34px;padding:0;min-inline-size:34px;border-radius:10px;" aria-label="Previous Month">
@@ -310,46 +313,20 @@ export class LeaveController {
               </div>
             </div>
 
-            <!-- Partner Selection Card -->
+            <!-- Leave Request Form Card -->
             <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
-              <div>
-                <label for="selectPartner" style="display:block;font-size:13.5px;font-weight:800;margin-bottom:3px;">
-                  Preferred Shift Swap Partner <span style="font-size:11px;font-weight:400;color:var(--nm-text-muted);">(Optional)</span>
-                </label>
-                <div style="font-size:11.5px;color:var(--nm-text-muted);margin-bottom:8px;">
-                  Colleagues scheduled OFF on your selected dates appear first as recommended partners.
-                </div>
-                <select id="selectPartner" class="rx-well" style="width:100%;border:0;padding:12px;font-size:13px;font-weight:600;color:var(--nm-text);box-sizing:border-box;">
-                  <option value="">No preference / Any available partner</option>
-                  <optgroup label="⭐ Scheduled Off (Recommended)">
-                    ${this.eligiblePartners.filter((p) => p.is_off).map((p) => `
-                      <option value="${escapeHtml(p.username)}" ${this.preferredPartner === p.username ? 'selected' : ''}>
-                        ${escapeHtml(p.name)} (${escapeHtml(p.shift)})
-                      </option>
-                    `).join('')}
-                  </optgroup>
-                  <optgroup label="Other Team Members">
-                    ${this.eligiblePartners.filter((p) => !p.is_off).map((p) => `
-                      <option value="${escapeHtml(p.username)}" ${this.preferredPartner === p.username ? 'selected' : ''}>
-                        ${escapeHtml(p.name)} (${escapeHtml(p.shift)})
-                      </option>
-                    `).join('')}
-                  </optgroup>
-                </select>
-              </div>
-
               <!-- Reason Notes Input -->
               <div>
                 <label for="inputLeaveReason" style="display:block;font-size:13.5px;font-weight:800;margin-bottom:3px;">
                   Reason / Operational Notes <span style="font-size:11px;font-weight:400;color:var(--nm-text-muted);">(Optional)</span>
                 </label>
-                <textarea id="inputLeaveReason" rows="2" class="rx-well" placeholder="Brief note for shift supervisor or partner..." style="width:100%;border:0;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--nm-text);box-sizing:border-box;resize:vertical;">${escapeHtml(this.reason)}</textarea>
+                <textarea id="inputLeaveReason" rows="2" class="rx-well" placeholder="Brief note for shift supervisor..." style="width:100%;border:0;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--nm-text);box-sizing:border-box;resize:vertical;">${escapeHtml(this.reason)}</textarea>
               </div>
 
               <!-- Submit Button -->
               <button type="button" id="btnSubmitLeave" class="rx-btn-primary" style="width:100%;padding:14px;font-size:14px;border-radius:16px;" ${selectedCount === 0 || this.isSubmitting ? 'disabled' : ''}>
                 <i class="ph ph-paper-plane-tilt" style="font-size:17px;"></i>
-                <span>Submit Leave &amp; Swap Request</span>
+                <span>Submit Leave Request</span>
               </button>
             </div>
           </div>
@@ -543,8 +520,8 @@ export class LeaveApprovalsController {
     this.container.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:16px;max-width:860px;margin:0 auto;padding-bottom:32px;">
         <div>
-          <h1 style="margin:0;font-size:22px;font-weight:900;">Leave &amp; Swap Approvals</h1>
-          <div style="font-size:12.5px;color:var(--nm-text-muted);margin-top:2px;">Review pending duty leave and shift swap requests from team members.</div>
+          <h1 style="margin:0;font-size:22px;font-weight:900;">Leave Approvals</h1>
+          <div style="font-size:12.5px;color:var(--nm-text-muted);margin-top:2px;">Review pending duty leave requests from team members.</div>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:12px;">
@@ -556,7 +533,7 @@ export class LeaveApprovalsController {
             <div class="rx-card" style="text-align:center;padding:32px 16px;color:var(--nm-text-muted);">
               <i class="ph ph-check-circle" style="font-size:36px;color:#10B981;margin-bottom:8px;display:block;"></i>
               <div style="font-weight:700;font-size:14px;color:var(--nm-text);">All Caught Up!</div>
-              <div style="font-size:12px;margin-top:4px;">No pending leave or swap requests in the queue.</div>
+              <div style="font-size:12px;margin-top:4px;">No pending leave requests in the queue.</div>
             </div>
           ` : this.pendingRequests.map((req) => {
             const datesList = req.dates || [];
@@ -586,19 +563,12 @@ export class LeaveApprovalsController {
                   </div>
                 ` : ''}
 
-                <div style="font-size:12px;color:var(--nm-text-muted);">
-                  Preferred Partner: <strong>${escapeHtml(req.preferred_partner || 'None specified')}</strong>
-                </div>
-
                 <!-- Actions -->
                 <div style="display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.15);flex-wrap:wrap;">
-                  <button type="button" class="rx-btn-primary" data-action="swap" data-req-id="${escapeHtml(req.request_id)}" data-partner="${escapeHtml(req.preferred_partner || '')}" style="padding:8px 14px;font-size:12.5px;border-radius:12px;">
-                    <i class="ph ph-arrows-left-right"></i> Approve as Swap
+                  <button type="button" class="rx-btn-primary" data-action="leave" data-req-id="${escapeHtml(req.request_id)}" style="padding:8px 16px;font-size:12.5px;border-radius:12px;background:#10B981;border:0;">
+                    <i class="ph ph-check-circle"></i> Approve Leave
                   </button>
-                  <button type="button" class="rx-btn-surface" data-action="leave" data-req-id="${escapeHtml(req.request_id)}" style="padding:8px 14px;font-size:12.5px;border-radius:12px;color:#2563EB;">
-                    <i class="ph ph-calendar-check"></i> Approve as Leave
-                  </button>
-                  <button type="button" class="rx-btn-surface" data-action="reject" data-req-id="${escapeHtml(req.request_id)}" style="padding:8px 14px;font-size:12.5px;border-radius:12px;color:#DC2626;">
+                  <button type="button" class="rx-btn-surface" data-action="reject" data-req-id="${escapeHtml(req.request_id)}" style="padding:8px 16px;font-size:12.5px;border-radius:12px;color:#DC2626;">
                     <i class="ph ph-x-circle"></i> Reject
                   </button>
                 </div>

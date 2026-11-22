@@ -92,7 +92,7 @@ fun LeaveApprovalsScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Leave & Swap Approvals",
+                            text = "Leave Approvals",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeumorphicTokens.TextMain
@@ -579,36 +579,13 @@ private fun PendingRequestCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. Approve as Swap
-                Button(
-                    onClick = onSwap,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier.weight(1.1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SwapHoriz,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Approve Swap",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                // 2. Approve as Leave
+                // 1. Approve as Leave
                 Button(
                     onClick = onLeave,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
                     shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier.weight(1.1f)
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
@@ -616,27 +593,27 @@ private fun PendingRequestCard(
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Approve Leave",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                 }
 
-                // 3. Reject
+                // 2. Reject
                 OutlinedButton(
                     onClick = onReject,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
                     border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFEF4444).copy(alpha = 0.5f))),
                     shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier.weight(0.8f)
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = "Reject",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFFDC2626)
                     )

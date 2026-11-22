@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.4.0"
+SERVER_VERSION = "2.4.1"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -6140,13 +6140,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     self.send_json_response({"success": False, "message": f"Date {d} is in the past. Only today and future dates are allowed."}, 400)
                     return
 
-            # 1. Scheduled Off-Day Check: Applicant cannot request leave/swap on a scheduled weekly OFF
-            for d in cleaned_dates:
-                scheduled_shift = get_roster_shift_for_date(applicant_username, d)
-                if scheduled_shift == "OFF":
-                    self.send_json_response({"success": False, "message": f"Date {d} is already your scheduled Weekly Off."}, 400)
-                    return
-
             # 2. Overlapping & Duplicate Guard
             existing_active_requests = []
             if ATLAS_DB is not None:
@@ -6934,16 +6927,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             clean_dates = sorted(list(set(clean_dates)))
             reason = str(body.get("reason", "")).strip()[:500]
             preferred_partner = str(body.get("preferred_partner", "")).strip().lower()
-
-            # 1. Off-day validation
-            for d_str in clean_dates:
-                cur_shift = get_roster_shift_for_date(caller_username, d_str)
-                if cur_shift == "OFF" or cur_shift.startswith("SW"):
-                    self.send_json_response({
-                        "success": False,
-                        "message": f"Date {d_str} is already scheduled as Weekly Off ({cur_shift}). Leave request not required."
-                    }, 400)
-                    return
 
             # 2. Overlapping active request guard
             active_docs = []
