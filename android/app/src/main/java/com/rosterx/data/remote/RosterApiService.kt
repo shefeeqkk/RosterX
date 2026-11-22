@@ -372,6 +372,15 @@ interface RosterApiService {
 
     @POST("api/leave/admin-action")
     suspend fun submitAdminLeaveAction(@Body request: AdminLeaveActionRequest): LeaveActionResponse
+
+    @POST("api/leave/cancel")
+    suspend fun cancelLeaveRequest(@Body request: CancelLeaveRequest): LeaveActionResponse
+
+    @GET("api/leave/settings")
+    suspend fun getLeaveSettings(): LeaveSettingsResponse
+
+    @POST("api/leave/settings")
+    suspend fun updateLeaveSettings(@Body request: UpdateLeaveSettingsRequest): LeaveActionResponse
 }
 
 data class UpdateProfilePictureRequest(
@@ -717,7 +726,10 @@ data class LeaveApprovalDto(
     @SerializedName("action_type") val actionType: String = "",
     @SerializedName("swap_partner") val swapPartner: String = "",
     @SerializedName("swap_shift_code") val swapShiftCode: String = "",
-    @SerializedName("admin_note") val adminNote: String = ""
+    @SerializedName("admin_note") val adminNote: String = "",
+    @SerializedName("revoked_by") val revokedBy: String? = null,
+    @SerializedName("revoked_name") val revokedName: String? = null,
+    @SerializedName("revoked_at") val revokedAt: String? = null
 )
 
 data class LeaveRequestDto(
@@ -729,10 +741,12 @@ data class LeaveRequestDto(
     val reason: String = "",
     @SerializedName("preferred_partner") val preferredPartner: String = "",
     @SerializedName("annual_year") val annualYear: Int = 2026,
-    @SerializedName("days_count") val daysCount: Int = 0,
+    val daysCount: Int = 0,
     val status: String = "pending",
     @SerializedName("created_at") val createdAt: String = "",
-    val approval: LeaveApprovalDto? = null
+    val approval: LeaveApprovalDto? = null,
+    @SerializedName("cancelled_at") val cancelledAt: String? = null,
+    @SerializedName("cancelled_by") val cancelledBy: String? = null
 )
 
 data class MyLeaveRequestsResponse(
@@ -743,6 +757,7 @@ data class MyLeaveRequestsResponse(
     @SerializedName("remaining_leave_balance") val remainingLeaveBalance: Int = 14,
     @SerializedName("annual_quota") val annualQuota: Int = 14,
     @SerializedName("annual_year") val annualYear: Int = 2026,
+    @SerializedName("capping_enabled") val cappingEnabled: Boolean = true,
     val message: String? = null
 )
 
@@ -770,4 +785,20 @@ data class AdminLeaveQueueResponse(
     @SerializedName("pending_count") val pendingCount: Int = 0,
     @SerializedName("history_count") val historyCount: Int = 0,
     val message: String? = null
+)
+
+data class CancelLeaveRequest(
+    @SerializedName("request_id") val requestId: String
+)
+
+data class LeaveSettingsResponse(
+    val success: Boolean,
+    @SerializedName("capping_enabled") val cappingEnabled: Boolean = true,
+    @SerializedName("annual_quota") val annualQuota: Int = 14,
+    val message: String? = null
+)
+
+data class UpdateLeaveSettingsRequest(
+    @SerializedName("capping_enabled") val cappingEnabled: Boolean,
+    @SerializedName("annual_quota") val annualQuota: Int
 )

@@ -106,6 +106,9 @@ interface RosterRepository {
     suspend fun getAdminLeaveQueue(): Result<com.rosterx.data.remote.AdminLeaveQueueResponse>
     suspend fun applyLeaveRequest(dates: List<String>, reason: String, preferredPartner: String): Result<String>
     suspend fun submitAdminLeaveAction(requestId: String, action: String, partner: String, swapCode: String, note: String): Result<Unit>
+    suspend fun cancelLeaveRequest(requestId: String): Result<String>
+    suspend fun getLeaveSettings(): Result<com.rosterx.data.remote.LeaveSettingsResponse>
+    suspend fun updateLeaveSettings(cappingEnabled: Boolean, annualQuota: Int): Result<String>
 }
 
 

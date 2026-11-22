@@ -31,6 +31,48 @@ import com.rosterx.presentation.components.NeumorphicElevationStyle
 import com.rosterx.presentation.portal.PortalState
 import com.rosterx.ui.neumorphic.*
 
+import java.time.LocalDate
+import java.util.Locale
+
+private fun formatDisplayDateCompact(dateStr: String): String {
+    return try {
+        val clean = dateStr.trim().take(10)
+        val dt = LocalDate.parse(clean)
+        val day = String.format(Locale.ENGLISH, "%02d", dt.dayOfMonth)
+        val month = dt.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+        "$day $month ${dt.year}"
+    } catch (_: Exception) {
+        dateStr
+    }
+}
+
+private fun formatDatesListCompact(dates: List<String>): String {
+    if (dates.isEmpty()) return ""
+    return dates.joinToString(", ") { formatDisplayDateCompact(it) }
+}
+
+private fun formatTimestampCompact(tsStr: String): String {
+    if (tsStr.isBlank()) return ""
+    return try {
+        val clean = tsStr.trim().replace("Z", "").replace("T", " ")
+        val parts = clean.split(" ")
+        val datePart = parts[0]
+        val formattedDate = formatDisplayDateCompact(datePart)
+        if (parts.size > 1 && parts[1].isNotBlank()) {
+            val timeParts = parts[1].split(":")
+            val hour = timeParts[0].toIntOrNull() ?: 0
+            val min = timeParts.getOrNull(1)?.toIntOrNull() ?: 0
+            val ampm = if (hour >= 12) "PM" else "AM"
+            val displayHour = if (hour % 12 == 0) 12 else hour % 12
+            "$formattedDate, ${String.format(Locale.ENGLISH, "%02d:%02d %s", displayHour, min, ampm)}"
+        } else {
+            formattedDate
+        }
+    } catch (_: Exception) {
+        tsStr.take(19)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeaveApprovalsScreen(
@@ -39,6 +81,7 @@ fun LeaveApprovalsScreen(
     onRefresh: () -> Unit,
     onSubmitAction: (requestId: String, action: String, partner: String, swapCode: String, note: String, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
     onFetchPartnersForDate: (String) -> Unit,
+    onSaveSettings: ((cappingEnabled: Boolean, annualQuota: Int, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var activeTab by rememberSaveable { mutableIntStateOf(0) } // 0: Pending, 1: History
@@ -48,6 +91,8 @@ fun LeaveApprovalsScreen(
     var swapRequestTarget by remember { mutableStateOf<LeaveRequestDto?>(null) }
     var leaveRequestTarget by remember { mutableStateOf<LeaveRequestDto?>(null) }
     var rejectRequestTarget by remember { mutableStateOf<LeaveRequestDto?>(null) }
+    var revokeRequestTarget by remember { mutableStateOf<LeaveRequestDto?>(null) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
     var isErrorMessage by remember { mutableStateOf(false) }
@@ -103,6 +148,28 @@ fun LeaveApprovalsScreen(
                             color = NeumorphicTokens.TextMuted
                         )
                     }
+
+                    // Settings Policy Button
+                    NeumorphicCard(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clickable(onClick = { showSettingsDialog = true }),
+                        shape = CircleShape,
+                        style = NeumorphicElevationStyle.RaisedSubtle,
+                        surfaceColor = NeumorphicTokens.Surface,
+                        contentPadding = 0.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Policy Settings",
+                                tint = NeumorphicTokens.TextMain,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Refresh Button
                     NeumorphicCard(
@@ -162,35 +229,17 @@ fun LeaveApprovalsScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(20.dp))
-                            .then(
-                                if (isSelected) {
-                                    Modifier
-                                        .neumorphicRaised(
-                                            shape = RoundedCornerShape(20.dp),
-                                            elevation = NeumorphicTokens.ElevationRaisedSubtle
-                                        )
-                                        .background(NeumorphicTokens.Surface)
-                                } else {
-                                    Modifier.background(Color.Transparent)
-                                }
-                            )
+                            .background(if (isSelected) NeumorphicTokens.AccentSalmon else Color.Transparent)
                             .clickable { activeTab = index }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = title,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) {
-                                    if (index == 0 && pendingCount > 0) Color(0xFFD97706) else NeumorphicTokens.Accent
-                                } else NeumorphicTokens.TextMuted
-                            )
-                        }
+                        Text(
+                            text = title,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color.White else NeumorphicTokens.TextMuted
+                        )
                     }
                 }
             }
@@ -259,7 +308,8 @@ fun LeaveApprovalsScreen(
                         onOpenRejectDialog = { rejectRequestTarget = it }
                     )
                     1 -> AuditHistoryTab(
-                        state = state
+                        state = state,
+                        onRevokeLeave = { revokeRequestTarget = it }
                     )
                 }
             }
@@ -345,6 +395,79 @@ fun LeaveApprovalsScreen(
                         isErrorMessage = true
                     }
                 )
+            }
+        )
+    }
+
+    // 4. Revoke Approval Dialog
+    revokeRequestTarget?.let { req ->
+        AlertDialog(
+            onDismissRequest = { revokeRequestTarget = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF4444))
+                    Text("Revoke Approved Leave?", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Text(
+                    "Revoke approved leave for ${req.engineerName.ifBlank { req.engineerId }} on ${formatDatesListCompact(req.dates)}?\n\n" +
+                    "• Scheduled shifts on roster will be restored.\n" +
+                    "• Annual leave quota balance will be refunded.\n" +
+                    "• Instant notification will be dispatched to the engineer.",
+                    fontSize = 13.sp,
+                    color = NeumorphicTokens.TextMain
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = req
+                        revokeRequestTarget = null
+                        onSubmitAction(
+                            target.requestId,
+                            "revoke",
+                            "",
+                            "",
+                            "Revoked by manager",
+                            {
+                                snackbarMessage = "Leave approval revoked. Shifts restored & engineer notified."
+                                isErrorMessage = false
+                            },
+                            { err ->
+                                snackbarMessage = err
+                                isErrorMessage = true
+                            }
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Yes, Revoke", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { revokeRequestTarget = null }) {
+                    Text("Cancel", color = NeumorphicTokens.TextMuted)
+                }
+            }
+        )
+    }
+
+    // 5. Leave Policy Settings Dialog
+    if (showSettingsDialog) {
+        LeaveSettingsDialog(
+            initialCapping = state.leaveCappingEnabled,
+            initialQuota = state.leaveAnnualQuota,
+            onDismiss = { showSettingsDialog = false },
+            onSave = { cappingEnabled, annualQuota ->
+                showSettingsDialog = false
+                onSaveSettings?.invoke(cappingEnabled, annualQuota, {
+                    snackbarMessage = "Leave policy updated: ${if (cappingEnabled) "$annualQuota days/year" else "Uncapped (Unlimited)"}"
+                    isErrorMessage = false
+                }, { err ->
+                    snackbarMessage = err
+                    isErrorMessage = true
+                })
             }
         )
     }
@@ -485,7 +608,7 @@ private fun PendingRequestCard(
                         color = NeumorphicTokens.TextMain
                     )
                     Text(
-                        text = "Submitted ${request.createdAt}",
+                        text = "Submitted ${formatTimestampCompact(request.createdAt)}",
                         fontSize = 11.sp,
                         color = NeumorphicTokens.TextMuted
                     )
@@ -522,7 +645,7 @@ private fun PendingRequestCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${request.dates.size} Day(s): ${request.dates.joinToString(", ")}",
+                    text = "${request.dates.size} Day(s): ${formatDatesListCompact(request.dates)}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = NeumorphicTokens.TextMain
@@ -625,7 +748,8 @@ private fun PendingRequestCard(
 
 @Composable
 private fun AuditHistoryTab(
-    state: PortalState
+    state: PortalState,
+    onRevokeLeave: (LeaveRequestDto) -> Unit = {}
 ) {
     if (state.adminHistoricalLeaveRequests.isEmpty()) {
         NeumorphicCard(
@@ -674,6 +798,8 @@ private fun AuditHistoryTab(
             val isSwap = req.status.contains("swap", ignoreCase = true)
             val isLeave = req.status.contains("leave", ignoreCase = true)
             val isRejected = req.status.contains("reject", ignoreCase = true)
+            val isRevoked = req.status.contains("revoke", ignoreCase = true)
+            val isApproved = (isSwap || isLeave || req.status.startsWith("approved", ignoreCase = true)) && !isRevoked
 
             NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -701,6 +827,7 @@ private fun AuditHistoryTab(
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = when {
+                                isRevoked -> Color(0xFFEF4444).copy(alpha = 0.15f)
                                 isSwap -> Color(0xFF2563EB).copy(alpha = 0.15f)
                                 isLeave -> Color(0xFF10B981).copy(alpha = 0.15f)
                                 isRejected -> Color(0xFFEF4444).copy(alpha = 0.15f)
@@ -712,6 +839,7 @@ private fun AuditHistoryTab(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = when {
+                                    isRevoked -> Color(0xFFDC2626)
                                     isSwap -> Color(0xFF2563EB)
                                     isLeave -> Color(0xFF059669)
                                     isRejected -> Color(0xFFDC2626)
@@ -723,7 +851,7 @@ private fun AuditHistoryTab(
                     }
 
                     Text(
-                        text = "${req.dates.size} Day(s): ${req.dates.joinToString(", ")}",
+                        text = "${req.dates.size} Day(s): ${formatDatesListCompact(req.dates)}",
                         fontSize = 12.sp,
                         color = NeumorphicTokens.TextMuted
                     )
@@ -745,10 +873,41 @@ private fun AuditHistoryTab(
                             )
                         }
                         Text(
-                            text = "Actioned by ${app.approvedByName.ifBlank { app.approvedBy }} at ${app.approvedAt}",
+                            text = "Actioned by ${app.approvedByName.ifBlank { app.approvedBy }} at ${formatTimestampCompact(app.approvedAt)}",
                             fontSize = 10.sp,
                             color = NeumorphicTokens.TextMuted
                         )
+                        if (!app.revokedAt.isNullOrBlank()) {
+                            val revBy = app.revokedName?.takeIf { it.isNotBlank() }
+                                ?: app.revokedBy?.takeIf { it.isNotBlank() }
+                                ?: "manager"
+                            Text(
+                                text = "Revoked by $revBy at ${formatTimestampCompact(app.revokedAt ?: "")}",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                    }
+
+                    if (isApproved) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            OutlinedButton(
+                                onClick = { onRevokeLeave(req) },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Icon(Icons.Default.Cancel, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Revoke Leave", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                            }
+                        }
                     }
                 }
             }
@@ -803,7 +962,7 @@ private fun SwapApprovalDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Assign an off-duty partner to cover ${request.engineerName}'s shift on ${request.dates.joinToString(", ")}.",
+                    text = "Assign an off-duty partner to cover ${request.engineerName}'s shift on ${formatDatesListCompact(request.dates)}.",
                     fontSize = 12.sp,
                     color = NeumorphicTokens.TextMuted,
                     lineHeight = 16.sp
@@ -965,7 +1124,7 @@ private fun LeaveApprovalConfirmDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Approve ${request.dates.size} day(s) (${request.dates.joinToString(", ")}) for ${request.engineerName} as Paid Annual Leave?\n\nThis will assign 'L' to their roster shifts and deduct ${request.dates.size} day(s) from their annual quota balance.",
+                    text = "Approve ${request.dates.size} day(s) (${formatDatesListCompact(request.dates)}) for ${request.engineerName} as Paid Annual Leave?\n\nThis will assign 'L' to their roster shifts and deduct ${request.dates.size} day(s) from their annual quota balance.",
                     fontSize = 12.sp,
                     color = NeumorphicTokens.TextMuted,
                     lineHeight = 17.sp
@@ -1028,7 +1187,7 @@ private fun RejectApprovalDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Are you sure you want to reject the leave/swap request from ${request.engineerName} for ${request.dates.joinToString(", ")}?",
+                    text = "Are you sure you want to reject the leave/swap request from ${request.engineerName} for ${formatDatesListCompact(request.dates)}?",
                     fontSize = 12.sp,
                     color = NeumorphicTokens.TextMuted,
                     lineHeight = 16.sp
@@ -1055,6 +1214,173 @@ private fun RejectApprovalDialog(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Reject Request", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = NeumorphicTokens.TextMuted)
+            }
+        },
+        containerColor = NeumorphicTokens.Surface,
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
+fun LeaveSettingsDialog(
+    initialCapping: Boolean,
+    initialQuota: Int,
+    onDismiss: () -> Unit,
+    onSave: (cappingEnabled: Boolean, annualQuota: Int) -> Unit
+) {
+    var cappingEnabled by remember { mutableStateOf(initialCapping) }
+    var quota by remember { mutableIntStateOf(if (initialQuota > 0) initialQuota else 14) }
+    var showConfirmSave by remember { mutableStateOf(false) }
+
+    if (showConfirmSave) {
+        AlertDialog(
+            onDismissRequest = { showConfirmSave = false },
+            title = {
+                Text("Confirm Policy Changes", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            },
+            text = {
+                Text(
+                    if (cappingEnabled)
+                        "Enable annual quota capping at $quota days per calendar year for all engineers?"
+                    else
+                        "Disable annual leave capping completely? Engineers will be able to apply for unlimited leave days without quota restrictions.",
+                    fontSize = 13.sp,
+                    color = NeumorphicTokens.TextMain
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConfirmSave = false
+                        onSave(cappingEnabled, quota)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon)
+                ) {
+                    Text("Yes, Save", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmSave = false }) {
+                    Text("Cancel", color = NeumorphicTokens.TextMuted)
+                }
+            }
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Settings, contentDescription = null, tint = NeumorphicTokens.Accent)
+                Text("Annual Leave Settings", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Toggle Capping
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = "Annual Quota Capping",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp,
+                            color = NeumorphicTokens.TextMain
+                        )
+                        Text(
+                            text = if (cappingEnabled) "Capped at $quota days/year" else "Disabled (Unlimited / Uncapped)",
+                            fontSize = 11.sp,
+                            color = if (cappingEnabled) NeumorphicTokens.Accent else Color(0xFF10B981)
+                        )
+                    }
+                    Switch(
+                        checked = cappingEnabled,
+                        onCheckedChange = { cappingEnabled = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = NeumorphicTokens.AccentSalmon
+                        )
+                    )
+                }
+
+                if (cappingEnabled) {
+                    HorizontalDivider(color = NeumorphicTokens.Canvas)
+                    // Quota Days Stepper
+                    Text(
+                        text = "Yearly Allowance (Days)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = NeumorphicTokens.TextMain
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { if (quota > 1) quota-- },
+                            enabled = quota > 1,
+                            shape = CircleShape,
+                            modifier = Modifier.size(38.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = NeumorphicTokens.InputSurface,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            Text(
+                                text = "$quota Days",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 16.sp,
+                                color = NeumorphicTokens.TextMain,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = { if (quota < 90) quota++ },
+                            enabled = quota < 90,
+                            shape = CircleShape,
+                            modifier = Modifier.size(38.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF10B981).copy(alpha = 0.12f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "ℹ️ When capping is disabled, quota limits are removed. All engineers can apply for leave freely without annual balance restrictions.",
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF065F46),
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { showConfirmSave = true },
+                colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon)
+            ) {
+                Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

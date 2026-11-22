@@ -38,6 +38,46 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+
+private fun formatDisplayDateCompact(dateStr: String): String {
+    return try {
+        val clean = dateStr.trim().take(10)
+        val dt = java.time.LocalDate.parse(clean)
+        val day = String.format(java.util.Locale.ENGLISH, "%02d", dt.dayOfMonth)
+        val month = dt.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+        "$day $month ${dt.year}"
+    } catch (_: Exception) {
+        dateStr
+    }
+}
+
+private fun formatDatesListCompact(dates: List<String>): String {
+    if (dates.isEmpty()) return ""
+    return dates.joinToString(", ") { formatDisplayDateCompact(it) }
+}
+
+private fun formatTimestampCompact(tsStr: String): String {
+    if (tsStr.isBlank()) return ""
+    return try {
+        val clean = tsStr.trim().replace("Z", "").replace("T", " ")
+        val parts = clean.split(" ")
+        val datePart = parts[0]
+        val formattedDate = formatDisplayDateCompact(datePart)
+        if (parts.size > 1 && parts[1].isNotBlank()) {
+            val timeParts = parts[1].split(":")
+            val hour = timeParts[0].toIntOrNull() ?: 0
+            val min = timeParts.getOrNull(1)?.toIntOrNull() ?: 0
+            val ampm = if (hour >= 12) "PM" else "AM"
+            val displayHour = if (hour % 12 == 0) 12 else hour % 12
+            "$formattedDate, ${String.format(java.util.Locale.ENGLISH, "%02d:%02d %s", displayHour, min, ampm)}"
+        } else {
+            formattedDate
+        }
+    } catch (_: Exception) {
+        tsStr.take(19)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeaveRequestScreen(
@@ -45,6 +85,7 @@ fun LeaveRequestScreen(
     onBack: () -> Unit,
     onSubmitLeave: (List<String>, String, String, (String) -> Unit, (String) -> Unit) -> Unit,
     onFetchPartners: (String) -> Unit,
+    onCancelRequest: ((requestId: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var activeTab by rememberSaveable { mutableIntStateOf(0) } // 0: Apply, 1: History
@@ -60,6 +101,8 @@ fun LeaveRequestScreen(
     var isSubmitting by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
     var isErrorMessage by remember { mutableStateOf(false) }
+    var cancelTarget by remember { mutableStateOf<com.rosterx.data.remote.LeaveRequestDto?>(null) }
+    var showSubmitConfirmation by remember { mutableStateOf(false) }
 
     // Fetch eligible partners when first date is selected
     LaunchedEffect(selectedDates.firstOrNull()) {
@@ -306,7 +349,35 @@ fun LeaveRequestScreen(
                             } else {
                                 emptyMap()
                             }
-                            val defaultOffs = state.loggedInEngineer?.defaultWeeklyOffs ?: emptyList()
+
+                            val derivedDefaultOffs = remember(state.loggedInEngineer, state.engineers, state.liveRoster, state.gridRoster, applicantName) {
+                                val direct = state.loggedInEngineer?.defaultWeeklyOffs?.filter { it.isNotBlank() } ?: emptyList()
+                                if (direct.isNotEmpty()) return@remember direct
+
+                                val fromList = state.engineers.find {
+                                    it.username.equals(state.loggedInEngineer?.username, ignoreCase = true) ||
+                                    it.name.equals(applicantName, ignoreCase = true)
+                                }?.defaultWeeklyOffs?.filter { it.isNotBlank() } ?: emptyList()
+                                if (fromList.isNotEmpty()) return@remember fromList
+
+                                val rosterToScan = state.gridRoster[applicantName] ?: state.liveRoster[applicantName] ?: emptyMap()
+                                if (rosterToScan.isNotEmpty()) {
+                                    val offDayCounts = mutableMapOf<java.time.DayOfWeek, Int>()
+                                    rosterToScan.forEach { (dayStr, shift) ->
+                                        val d = dayStr.toIntOrNull()
+                                        if (d != null && (shift == ShiftCode.OFF || shift.code.startsWith("SW"))) {
+                                            try {
+                                                val dt = LocalDate.of(state.gridYear, state.gridMonth, d)
+                                                offDayCounts[dt.dayOfWeek] = (offDayCounts[dt.dayOfWeek] ?: 0) + 1
+                                            } catch (_: Exception) {}
+                                        }
+                                    }
+                                    val recurringOffs = offDayCounts.filter { it.value >= 2 }.keys.map { it.name }
+                                    if (recurringOffs.isNotEmpty()) return@remember recurringOffs
+                                }
+
+                                listOf("SATURDAY", "SUNDAY")
+                            }
 
                             for (r in 0 until rows) {
                                 Row(
@@ -320,7 +391,7 @@ fun LeaveRequestScreen(
                                             val date = currentYearMonth.atDay(dayNum)
                                             val isPast = date.isBefore(LocalDate.now())
                                             val dayOfWeekName = date.dayOfWeek.name
-                                            val isDefaultWeeklyOff = defaultOffs.any { it.equals(dayOfWeekName, ignoreCase = true) }
+                                            val isDefaultWeeklyOff = derivedDefaultOffs.any { it.equals(dayOfWeekName, ignoreCase = true) }
 
                                             val shiftCode = monthlyShifts[dayNum.toString()]
                                             val isOff = when {
@@ -458,27 +529,7 @@ fun LeaveRequestScreen(
                                 isErrorMessage = true
                                 return@Button
                             }
-                            isSubmitting = true
-                            val formattedDates = selectedDates.sorted().map { it.format(DateTimeFormatter.ISO_LOCAL_DATE) }
-                            onSubmitLeave(
-                                formattedDates,
-                                reasonText,
-                                preferredPartner,
-                                { msg ->
-                                    isSubmitting = false
-                                    snackbarMessage = msg
-                                    isErrorMessage = false
-                                    selectedDates.clear()
-                                    reasonText = ""
-                                    preferredPartner = ""
-                                    activeTab = 1
-                                },
-                                { err ->
-                                    isSubmitting = false
-                                    snackbarMessage = err
-                                    isErrorMessage = true
-                                }
-                            )
+                            showSubmitConfirmation = true
                         },
                         enabled = selectedDates.isNotEmpty() && !isSubmitting,
                         modifier = Modifier
@@ -530,13 +581,21 @@ fun LeaveRequestScreen(
                                         color = NeumorphicTokens.AccentSalmon
                                     )
                                     Text(
-                                        text = "${state.leaveRemainingDays} of ${state.leaveAnnualQuota} Days Remaining",
+                                        text = if (state.leaveCappingEnabled) {
+                                            "${state.leaveRemainingDays} of ${state.leaveAnnualQuota} Days Remaining"
+                                        } else {
+                                            "Uncapped (Unlimited Requests)"
+                                        },
                                         fontSize = 17.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = NeumorphicTokens.TextMain
                                     )
                                     Text(
-                                        text = "${state.leaveApprovedDays} approved days in ${LocalDate.now().year}",
+                                        text = if (state.leaveCappingEnabled) {
+                                            "${state.leaveApprovedDays} approved days in ${LocalDate.now().year}"
+                                        } else {
+                                            "${state.leaveApprovedDays} approved days in ${LocalDate.now().year} • No annual quota cap"
+                                        },
                                         fontSize = 11.5.sp,
                                         color = NeumorphicTokens.TextMuted
                                     )
@@ -659,7 +718,7 @@ fun LeaveRequestScreen(
                                                 color = NeumorphicTokens.InputSurface
                                             ) {
                                                 Text(
-                                                    text = d,
+                                                    text = formatDisplayDateCompact(d),
                                                     fontSize = 11.5.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = NeumorphicTokens.TextMain,
@@ -689,10 +748,31 @@ fun LeaveRequestScreen(
                                             color = NeumorphicTokens.TextMuted
                                         )
                                         Text(
-                                            text = req.createdAt.take(10),
+                                            text = "Submitted ${formatTimestampCompact(req.createdAt)}",
                                             fontSize = 11.sp,
                                             color = NeumorphicTokens.TextMuted
                                         )
+                                    }
+
+                                    if (req.status.equals("pending", ignoreCase = true) && onCancelRequest != null) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = { cancelTarget = req },
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                                modifier = Modifier.height(30.dp)
+                                            ) {
+                                                Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Cancel Request", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -701,5 +781,107 @@ fun LeaveRequestScreen(
                 }
             }
         }
+    }
+
+    // Confirmation Dialog for Submission
+    if (showSubmitConfirmation) {
+        val sortedDates = selectedDates.sorted()
+        AlertDialog(
+            onDismissRequest = { showSubmitConfirmation = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = NeumorphicTokens.AccentSalmon)
+                    Text("Submit Leave Request?", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Text(
+                    "Submit leave request for ${sortedDates.size} day(s):\n${sortedDates.joinToString { formatDisplayDateCompact(it.format(DateTimeFormatter.ISO_LOCAL_DATE)) }}?\n\n" +
+                    (if (preferredPartner.isNotBlank()) "Preferred cover partner: $preferredPartner\n" else "") +
+                    (if (reasonText.isNotBlank()) "Reason: \"$reasonText\"" else ""),
+                    fontSize = 13.sp,
+                    color = NeumorphicTokens.TextMain
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSubmitConfirmation = false
+                        isSubmitting = true
+                        val formattedDates = sortedDates.map { it.format(DateTimeFormatter.ISO_LOCAL_DATE) }
+                        onSubmitLeave(
+                            formattedDates,
+                            reasonText,
+                            preferredPartner,
+                            { msg ->
+                                isSubmitting = false
+                                snackbarMessage = msg
+                                isErrorMessage = false
+                                selectedDates.clear()
+                                reasonText = ""
+                                preferredPartner = ""
+                                activeTab = 1
+                            },
+                            { err ->
+                                isSubmitting = false
+                                snackbarMessage = err
+                                isErrorMessage = true
+                            }
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeumorphicTokens.AccentSalmon)
+                ) {
+                    Text("Yes, Submit", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSubmitConfirmation = false }) {
+                    Text("Cancel", color = NeumorphicTokens.TextMuted)
+                }
+            }
+        )
+    }
+
+    // Confirmation Dialog for Cancellation
+    cancelTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { cancelTarget = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF4444))
+                    Text("Cancel Leave Request?", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Text(
+                    "Are you sure you want to cancel your leave request for ${formatDatesListCompact(target.dates)}? This action cannot be undone.",
+                    fontSize = 13.sp,
+                    color = NeumorphicTokens.TextMain
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val req = target
+                        cancelTarget = null
+                        onCancelRequest?.invoke(req.requestId, { msg ->
+                            snackbarMessage = msg
+                            isErrorMessage = false
+                        }, { err ->
+                            snackbarMessage = err
+                            isErrorMessage = true
+                        })
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Yes, Cancel", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { cancelTarget = null }) {
+                    Text("Keep Request", color = NeumorphicTokens.TextMuted)
+                }
+            }
+        )
     }
 }

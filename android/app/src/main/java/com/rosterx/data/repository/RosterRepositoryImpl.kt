@@ -1330,4 +1330,40 @@ class RosterRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun cancelLeaveRequest(requestId: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.cancelLeaveRequest(com.rosterx.data.remote.CancelLeaveRequest(requestId))
+            if (res.success) Result.success(res.message ?: "Leave request cancelled")
+            else Result.failure(Exception(res.message ?: "Failed to cancel leave request"))
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getLeaveSettings(): Result<com.rosterx.data.remote.LeaveSettingsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getLeaveSettings()
+            if (res.success) Result.success(res)
+            else Result.failure(Exception(res.message ?: "Failed to load leave policy settings"))
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateLeaveSettings(cappingEnabled: Boolean, annualQuota: Int): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.updateLeaveSettings(com.rosterx.data.remote.UpdateLeaveSettingsRequest(cappingEnabled, annualQuota))
+            if (res.success) Result.success(res.message ?: "Leave policy settings updated")
+            else Result.failure(Exception(res.message ?: "Failed to update leave policy settings"))
+        } catch (e: HttpException) {
+            Result.failure(Exception(parseErrorMessage(e)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

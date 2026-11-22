@@ -120,6 +120,7 @@ data class PortalState(
     val leaveRemainingDays: Int = 14,
     val leaveAnnualQuota: Int = 14,
     val leaveActiveCount: Int = 0,
+    val leaveCappingEnabled: Boolean = true,
     val isLoadingLeave: Boolean = false,
     val eligibleLeavePartners: List<com.rosterx.domain.model.EligibleSwapPartner> = emptyList(),
     val isLoadingPartners: Boolean = false,
@@ -1383,6 +1384,7 @@ class EngineerPortalViewModel @Inject constructor(
                     leaveRemainingDays = data.remainingLeaveBalance,
                     leaveAnnualQuota = data.annualQuota,
                     leaveActiveCount = data.activeCount,
+                    leaveCappingEnabled = data.cappingEnabled,
                     isLoadingLeave = false
                 )
             }.onFailure {
@@ -1462,6 +1464,58 @@ class EngineerPortalViewModel @Inject constructor(
                 onSuccess()
             }.onFailure { err ->
                 onError(err.message ?: "Failed to process leave action")
+            }
+        }
+    }
+
+    fun cancelLeaveRequest(
+        requestId: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.cancelLeaveRequest(requestId)
+            res.onSuccess { msg ->
+                loadLeaveRequests(silent = true)
+                loadAdminLeaveQueue(silent = true)
+                refreshAllData()
+                onSuccess(msg)
+            }.onFailure { err ->
+                onError(err.message ?: "Failed cancelling leave request")
+            }
+        }
+    }
+
+    fun loadLeaveSettings() {
+        viewModelScope.launch {
+            val res = repository.getLeaveSettings()
+            res.onSuccess { data ->
+                _state.value = _state.value.copy(
+                    leaveCappingEnabled = data.cappingEnabled,
+                    leaveAnnualQuota = data.annualQuota
+                )
+            }
+        }
+    }
+
+    fun updateLeaveSettings(
+        cappingEnabled: Boolean,
+        annualQuota: Int,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val res = repository.updateLeaveSettings(cappingEnabled, annualQuota)
+            res.onSuccess {
+                _state.value = _state.value.copy(
+                    leaveCappingEnabled = cappingEnabled,
+                    leaveAnnualQuota = annualQuota
+                )
+                loadLeaveRequests(silent = true)
+                loadAdminLeaveQueue(silent = true)
+                onSuccess()
+            }.onFailure { err ->
+                onError(err.message ?: "Failed updating leave policy")
             }
         }
     }

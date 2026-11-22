@@ -1422,7 +1422,10 @@ fun EngineerPortalScreen(
                             onSubmitLeave = { dates, reason, preferredPartner, onSuccess, onError ->
                                 viewModel.applyLeaveRequest(dates, reason, preferredPartner, onSuccess, onError)
                             },
-                            onFetchPartners = viewModel::loadEligibleLeavePartners
+                            onFetchPartners = viewModel::loadEligibleLeavePartners,
+                            onCancelRequest = { reqId, onSuccess, onError ->
+                                viewModel.cancelLeaveRequest(reqId, onSuccess, onError)
+                            }
                         )
                     } else if (subView == 5) {
                         LeaveApprovalsScreen(
@@ -1432,7 +1435,10 @@ fun EngineerPortalScreen(
                             onSubmitAction = { reqId, action, partner, swapCode, note, onSuccess, onError ->
                                 viewModel.submitAdminLeaveAction(reqId, action, partner, swapCode, note, onSuccess, onError)
                             },
-                            onFetchPartnersForDate = viewModel::loadEligibleLeavePartners
+                            onFetchPartnersForDate = viewModel::loadEligibleLeavePartners,
+                            onSaveSettings = { capping, quota, onSuccess, onError ->
+                                viewModel.updateLeaveSettings(capping, quota, onSuccess, onError)
+                            }
                         )
                     } else {
                         val isRosterTab = (isManager && selectedTab == 2) || (!isManager && selectedTab == 3)

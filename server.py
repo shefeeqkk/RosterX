@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.4.3"
+SERVER_VERSION = "2.5.0"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -133,6 +133,36 @@ def record_audit_event(engineer_name, username, role, platform_name, action, det
     except Exception as e:
         print(f"  [AUDIT LOG ERROR] {e}")
 
+def get_leave_system_config() -> dict:
+    """Retrieve global leave configuration (capping toggle & annual quota)."""
+    default_cfg = {
+        "capping_enabled": True,
+        "annual_quota": 14
+    }
+    if ATLAS_DB is not None:
+        try:
+            doc = ATLAS_DB.system_settings.find_one({"_id": "leave_config"})
+            if doc:
+                return {
+                    "capping_enabled": bool(doc.get("capping_enabled", True)),
+                    "annual_quota": int(doc.get("annual_quota", 14))
+                }
+        except Exception as e:
+            print(f"  [ATLAS LEAVE CONFIG ERROR] {e}")
+    return default_cfg
+
+def save_leave_system_config(capping_enabled: bool, annual_quota: int):
+    """Persist global leave policy configuration."""
+    if ATLAS_DB is not None:
+        try:
+            ATLAS_DB.system_settings.update_one(
+                {"_id": "leave_config"},
+                {"$set": {"capping_enabled": capping_enabled, "annual_quota": annual_quota}},
+                upsert=True
+            )
+        except Exception as e:
+            print(f"  [ATLAS SAVE LEAVE CONFIG ERROR] {e}")
+
 def get_engineer_leave_stats(username: str, annual_year: int) -> dict:
     """Calculate approved leave days, remaining quota, and active pending count for an engineer."""
     approved_leave_days = 0
@@ -157,12 +187,17 @@ def get_engineer_leave_stats(username: str, annual_year: int) -> dict:
         elif st == "approved_leave" and int(yr) == int(annual_year):
             approved_leave_days += int(req.get("days_count") or len(req.get("dates", [])))
 
-    remaining = max(0, 14 - approved_leave_days)
+    cfg = get_leave_system_config()
+    capping_enabled = cfg.get("capping_enabled", True)
+    annual_quota = int(cfg.get("annual_quota", 14))
+
+    remaining = max(0, annual_quota - approved_leave_days) if capping_enabled else 999
     return {
         "approved_leave_days": approved_leave_days,
         "remaining_leave_balance": remaining,
         "active_count": active_count,
-        "annual_quota": 14
+        "annual_quota": annual_quota,
+        "capping_enabled": capping_enabled
     }
 
 def get_roster_shift_for_date(username: str, date_str: str) -> str:
@@ -4033,6 +4068,19 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             })
             return
 
+        # 1.74 GET /api/leave/settings (Admin Leave Policy Settings)
+        if clean_path in ("/api/leave/settings", "/api/leave/settings/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+            cfg = get_leave_system_config()
+            self.send_json_response({
+                "success": True,
+                "capping_enabled": cfg.get("capping_enabled", True),
+                "annual_quota": cfg.get("annual_quota", 14)
+            })
+            return
+
         # 2. GET /api/logs or /api/server-logs (ADMIN ONLY)
         if clean_path in ("/api/logs", "/api/logs/", "/api/server-logs", "/api/server-logs/"):
             claims = self.require_auth(["admin", "manager"])
@@ -6167,13 +6215,16 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         self.send_json_response({"success": False, "message": f"A request for date {d} is already pending or approved."}, 400)
                         return
 
-            # 3. Annual 14-Day Quota Enforcement (Only approved leaves deduct from quota)
+            # 3. Annual Quota Enforcement (Only approved leaves deduct from quota if capping is enabled)
             current_year = int(today_ist[:4])
             stats = get_engineer_leave_stats(applicant_username, current_year)
-            if stats["approved_leave_days"] + len(cleaned_dates) > 14:
+            capping_enabled = stats.get("capping_enabled", True)
+            annual_quota = int(stats.get("annual_quota", 14))
+
+            if capping_enabled and (stats["approved_leave_days"] + len(cleaned_dates) > annual_quota):
                 self.send_json_response({
                     "success": False,
-                    "message": f"Annual leave allowance exceeded. Max 14 days per calendar year (You have used {stats['approved_leave_days']} days, requesting {len(cleaned_dates)})."
+                    "message": f"Annual leave allowance exceeded. Max {annual_quota} days per calendar year (You have used {stats['approved_leave_days']} days, requesting {len(cleaned_dates)})."
                 }, 400)
                 return
 
@@ -6294,8 +6345,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"success": False, "message": "Request ID is required."}, 400)
                 return
 
-            if action not in ("swap", "leave", "reject", "cancel"):
-                self.send_json_response({"success": False, "message": "Invalid action. Expected 'swap', 'leave', 'reject', or 'cancel'."}, 400)
+            if action not in ("swap", "leave", "reject", "cancel", "revoke"):
+                self.send_json_response({"success": False, "message": "Invalid action. Expected 'swap', 'leave', 'reject', 'cancel', or 'revoke'."}, 400)
                 return
 
             req_doc = None
@@ -6316,7 +6367,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 return
 
             curr_status = str(req_doc.get("status", "")).lower()
-            if curr_status != "pending" and action != "cancel":
+            if action == "revoke":
+                if curr_status not in ("approved_leave", "approved_swap"):
+                    self.send_json_response({"success": False, "message": f"Only approved requests can be revoked. Current status is {curr_status}."}, 400)
+                    return
+            elif curr_status != "pending" and action != "cancel":
                 self.send_json_response({"success": False, "message": f"Request is already {curr_status}."}, 400)
                 return
 
@@ -6366,6 +6421,53 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             elif action == "cancel":
                 new_status = "cancelled"
 
+            elif action == "revoke":
+                new_status = "revoked"
+                # Restore original shifts on roster
+                for d_str in dates:
+                    default_shift = "FS"
+                    if ATLAS_DB is not None:
+                        try:
+                            eng_doc = ATLAS_DB.engineers.find_one({"username": applicant_user})
+                            if eng_doc:
+                                def_offs = [str(x).upper() for x in (eng_doc.get("default_weekly_offs") or [])]
+                                try:
+                                    dt_val = datetime.strptime(d_str, "%Y-%m-%d")
+                                    day_nm = dt_val.strftime("%A").upper()
+                                    if day_nm in def_offs:
+                                        default_shift = "OFF"
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                    update_roster_shift_for_date(applicant_user, d_str, default_shift)
+
+                # Send FCM push notification to applicant
+                app_tokens = []
+                if ATLAS_DB is not None:
+                    try:
+                        app_eng = ATLAS_DB.engineers.find_one({"username": applicant_user})
+                        if app_eng:
+                            toks = app_eng.get("fcm_tokens", [])
+                            if isinstance(toks, list):
+                                app_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
+                            elif isinstance(toks, str) and toks.strip():
+                                app_tokens.append(toks.strip())
+                    except Exception:
+                        pass
+                app_tokens = list(set(app_tokens))
+                if app_tokens:
+                    title_text = "⚠️ Leave Approval Revoked"
+                    body_text = f"Your approved leave for {', '.join(dates)} was revoked by {admin_name}. Scheduled shifts and quota balance have been restored."
+                    send_fcm_push(
+                        app_tokens,
+                        title_text,
+                        body_text,
+                        priority="high",
+                        notif_id=f"rev_{request_id}",
+                        extra_data={"type": "leave_status", "request_id": request_id, "status": "revoked"}
+                    )
+
             approval_record = {
                 "approved_by": admin_username,
                 "approved_name": admin_name,
@@ -6375,6 +6477,10 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "swap_shift_code": swap_code if action == "swap" else None,
                 "admin_note": admin_note
             }
+            if action == "revoke":
+                approval_record["revoked_by"] = admin_username
+                approval_record["revoked_name"] = admin_name
+                approval_record["revoked_at"] = now_utc
 
             if ATLAS_DB is not None:
                 try:
@@ -6531,6 +6637,37 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     break
 
             self.send_json_response({"success": True, "message": "Leave request cancelled successfully.", "request_id": request_id})
+            return
+
+        # 3.87 POST /api/leave/settings (Update Global Leave Policy Settings)
+        if clean_path in ("/api/leave/settings", "/api/leave/settings/"):
+            claims = self.require_auth(["admin", "manager"])
+            if not claims:
+                return
+
+            capping_enabled = bool(body.get("capping_enabled", True))
+            try:
+                annual_quota = int(body.get("annual_quota", 14))
+                if annual_quota < 1:
+                    annual_quota = 14
+            except (ValueError, TypeError):
+                annual_quota = 14
+
+            save_leave_system_config(capping_enabled, annual_quota)
+            record_audit_event(
+                engineer_name=claims.get("name") or claims.get("username") or "Admin",
+                username=claims.get("username") or "admin",
+                role=claims.get("role") or "admin",
+                platform_name="api",
+                action="UPDATE_LEAVE_SETTINGS",
+                details={"capping_enabled": capping_enabled, "annual_quota": annual_quota}
+            )
+            self.send_json_response({
+                "success": True,
+                "message": "Leave policy settings updated successfully.",
+                "capping_enabled": capping_enabled,
+                "annual_quota": annual_quota
+            })
             return
 
         # 3.9 POST /api/broadcast/templates (Create or Update Operational Broadcast Template)
@@ -6898,263 +7035,6 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "emails_dispatched": emails_sent,
                 "push_dispatched": push_dispatched,
                 "notification": notif_doc
-            })
-            return
-
-        # 1.74 POST /api/leave/apply (Authenticated Engineer Apply for Leave/Swap)
-        if clean_path in ("/api/leave/apply", "/api/leave/apply/"):
-            claims = self.require_auth()
-            if not claims:
-                return
-
-            caller_username = str(claims.get("username", "")).strip().lower()
-            caller_name = to_proper_name(claims.get("fullName") or claims.get("name") or caller_username)
-
-            dates = body.get("dates", [])
-            if not isinstance(dates, list) or len(dates) < 1 or len(dates) > 5:
-                self.send_json_response({"success": False, "message": "Please select between 1 and 5 dates."}, 400)
-                return
-
-            now_ist = get_ist_now()
-            today_str = now_ist.strftime("%Y-%m-%d")
-            current_year = int(now_ist.strftime("%Y"))
-
-            clean_dates = []
-            for d in dates:
-                d_str = str(d).strip()
-                if not re.match(r"^\d{4}-\d{2}-\d{2}$", d_str):
-                    self.send_json_response({"success": False, "message": f"Invalid date format: {d_str}."}, 400)
-                    return
-                if d_str < today_str:
-                    self.send_json_response({"success": False, "message": f"Cannot select past date: {d_str}."}, 400)
-                    return
-                clean_dates.append(d_str)
-
-            clean_dates = sorted(list(set(clean_dates)))
-            reason = str(body.get("reason", "")).strip()[:500]
-            preferred_partner = str(body.get("preferred_partner", "")).strip().lower()
-
-            # 2. Overlapping active request guard
-            active_docs = []
-            if ATLAS_DB is not None:
-                try:
-                    active_docs = list(ATLAS_DB.leave_requests.find({
-                        "engineer_id": caller_username,
-                        "status": {"$in": ["pending", "approved_swap", "approved_leave"]}
-                    }))
-                except Exception:
-                    pass
-            if not active_docs:
-                active_docs = [r for r in SERVER_LEAVE_REQUESTS if str(r.get("engineer_id", "")).lower() == caller_username and r.get("status") in ("pending", "approved_swap", "approved_leave")]
-
-            for ad in active_docs:
-                for ad_date in ad.get("dates", []):
-                    if ad_date in clean_dates:
-                        self.send_json_response({
-                            "success": False,
-                            "message": f"A request for date {ad_date} is already {ad.get('status')}."
-                        }, 400)
-                        return
-
-            # 3. Annual 14-day leave quota check
-            stats = get_engineer_leave_stats(caller_username, current_year)
-            if stats["approved_leave_days"] + len(clean_dates) > stats["annual_quota"]:
-                self.send_json_response({
-                    "success": False,
-                    "message": f"Annual quota limit exceeded! You have {stats['remaining_leave_balance']} days remaining out of 14."
-                }, 400)
-                return
-
-            # 4. Create leave request document
-            req_id = f"LR-{today_str.replace('-', '')}-{uuid.uuid4().hex[:6].upper()}"
-            month_keys = sorted(list(set(d[:7] for d in clean_dates)))
-            new_doc = {
-                "request_id": req_id,
-                "engineer_id": caller_username,
-                "engineer_name": caller_name,
-                "dates": clean_dates,
-                "month_keys": month_keys,
-                "reason": reason,
-                "preferred_partner": preferred_partner,
-                "annual_year": current_year,
-                "days_count": len(clean_dates),
-                "status": "pending",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "timestamp": time.time(),
-                "approval": None
-            }
-
-            SERVER_LEAVE_REQUESTS.append(dict(new_doc))
-            if ATLAS_DB is not None:
-                try:
-                    ATLAS_DB.leave_requests.insert_one(new_doc)
-                except Exception as e:
-                    print(f"  [ATLAS LEAVE INSERT ERROR] {e}")
-
-            # Notify admins/managers via FCM
-            admin_tokens = []
-            if ATLAS_DB is not None:
-                try:
-                    admins = list(ATLAS_DB.engineers.find({"role": {"$in": ["admin", "manager"]}}))
-                    for a in admins:
-                        toks = a.get("fcm_tokens", [])
-                        if isinstance(toks, list):
-                            admin_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
-                        elif isinstance(toks, str) and toks.strip():
-                            admin_tokens.append(toks.strip())
-                except Exception:
-                    pass
-            admin_tokens = list(set(admin_tokens))
-            if admin_tokens:
-                d_label = ", ".join(clean_dates[:2]) + (f" +{len(clean_dates)-2}" if len(clean_dates) > 2 else "")
-                send_fcm_push(
-                    admin_tokens,
-                    "📋 New Leave/Swap Request",
-                    f"{caller_name} submitted request for {d_label}.",
-                    priority="high",
-                    notif_id=req_id,
-                    extra_data={"type": "leave_request", "request_id": req_id}
-                )
-
-            record_audit_event(
-                engineer_name=caller_name,
-                username=caller_username,
-                role=claims.get("role", "engineer"),
-                platform_name="api",
-                action="leave_request_submitted",
-                details={"request_id": req_id, "dates": clean_dates, "days_count": len(clean_dates)}
-            )
-
-            self.send_json_response({
-                "success": True,
-                "request_id": req_id,
-                "message": f"Leave request for {len(clean_dates)} day(s) submitted successfully.",
-                "request": {k: v for k, v in new_doc.items() if k != "_id"}
-            })
-            return
-
-        # 1.75 POST /api/leave/admin-action (Admin/Manager Approve as Swap, Approve as Leave, or Reject)
-        if clean_path in ("/api/leave/admin-action", "/api/leave/admin-action/"):
-            claims = self.require_auth(["admin", "manager"])
-            if not claims:
-                return
-
-            admin_user = str(claims.get("username", "")).strip().lower()
-            admin_name = to_proper_name(claims.get("fullName") or claims.get("name") or admin_user)
-            req_id = str(body.get("request_id", "")).strip()
-            action = str(body.get("action", "")).strip().lower() # "swap", "leave", "reject"
-
-            if not req_id or action not in ("swap", "leave", "reject"):
-                self.send_json_response({"success": False, "message": "Valid request_id and action ('swap', 'leave', 'reject') required."}, 400)
-                return
-
-            swap_partner = str(body.get("swap_partner", "")).strip().lower()
-            swap_code = str(body.get("swap_code", "")).strip().upper()
-            admin_note = str(body.get("admin_note", "")).strip()[:500]
-
-            # Fetch request
-            target_req = None
-            if ATLAS_DB is not None:
-                try:
-                    target_req = ATLAS_DB.leave_requests.find_one({"request_id": req_id})
-                except Exception:
-                    pass
-            if not target_req:
-                for r in SERVER_LEAVE_REQUESTS:
-                    if r.get("request_id") == req_id:
-                        target_req = r
-                        break
-
-            if not target_req:
-                self.send_json_response({"success": False, "message": f"Leave request {req_id} not found."}, 404)
-                return
-
-            if target_req.get("status") != "pending":
-                self.send_json_response({"success": False, "message": f"Request {req_id} is already {target_req.get('status')}."}, 400)
-                return
-
-            new_status = "approved_swap" if action == "swap" else ("approved_leave" if action == "leave" else "rejected")
-            approval_obj = {
-                "approved_by": admin_user,
-                "approved_by_name": admin_name,
-                "approved_at": datetime.now(timezone.utc).isoformat(),
-                "action_type": action,
-                "swap_partner": swap_partner,
-                "swap_shift_code": swap_code,
-                "admin_note": admin_note
-            }
-
-            applicant_un = str(target_req.get("engineer_id", "")).strip().lower()
-            applicant_name = target_req.get("engineer_name", applicant_un)
-            dates = target_req.get("dates", [])
-
-            # Apply roster grid mutations on approval
-            if action == "swap":
-                if not swap_code:
-                    swap_code = f"SW{applicant_name[0].upper()}" if applicant_name else "SW"
-                for d_str in dates:
-                    orig_shift = get_roster_shift_for_date(applicant_un, d_str) or "G"
-                    update_roster_shift_for_date(applicant_un, d_str, swap_code)
-                    if swap_partner:
-                        update_roster_shift_for_date(swap_partner, d_str, orig_shift)
-            elif action == "leave":
-                for d_str in dates:
-                    update_roster_shift_for_date(applicant_un, d_str, "L")
-
-            # Update document in Atlas & memory
-            if ATLAS_DB is not None:
-                try:
-                    ATLAS_DB.leave_requests.update_one(
-                        {"request_id": req_id},
-                        {"$set": {"status": new_status, "approval": approval_obj}}
-                    )
-                except Exception as e:
-                    print(f"  [ATLAS UPDATE LEAVE STATUS ERROR] {e}")
-
-            for r in SERVER_LEAVE_REQUESTS:
-                if r.get("request_id") == req_id:
-                    r["status"] = new_status
-                    r["approval"] = approval_obj
-                    break
-
-            # Send targeted FCM notification to applicant
-            app_tokens = []
-            if ATLAS_DB is not None:
-                try:
-                    app_eng = ATLAS_DB.engineers.find_one({"username": applicant_un})
-                    if app_eng:
-                        toks = app_eng.get("fcm_tokens", [])
-                        if isinstance(toks, list):
-                            app_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
-                        elif isinstance(toks, str) and toks.strip():
-                            app_tokens.append(toks.strip())
-                except Exception:
-                    pass
-            app_tokens = list(set(app_tokens))
-            if app_tokens:
-                title_text = "✅ Leave Request Approved" if action in ("swap", "leave") else "❌ Leave Request Declined"
-                body_text = f"Your request for {', '.join(dates)} was {new_status.replace('_', ' ')}."
-                send_fcm_push(
-                    app_tokens,
-                    title_text,
-                    body_text,
-                    priority="high",
-                    notif_id=req_id,
-                    extra_data={"type": "leave_status", "request_id": req_id, "status": new_status}
-                )
-
-            record_audit_event(
-                engineer_name=admin_name,
-                username=admin_user,
-                role=claims.get("role", "admin"),
-                platform_name="api",
-                action=f"leave_request_{action}d",
-                details={"request_id": req_id, "action": action, "applicant": applicant_un, "dates": dates}
-            )
-
-            self.send_json_response({
-                "success": True,
-                "message": f"Leave request {req_id} successfully {new_status}."
             })
             return
 

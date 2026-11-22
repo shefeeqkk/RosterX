@@ -21,10 +21,13 @@ data class LeaveApprovalInfo(
     val approvedBy: String = "",
     val approvedByName: String = "",
     val approvedAt: String = "",
-    val actionType: String = "", // "swap" | "leave" | "reject"
+    val actionType: String = "", // "swap" | "leave" | "reject" | "revoke"
     val swapPartner: String = "",
     val swapShiftCode: String = "",
-    val adminNote: String = ""
+    val adminNote: String = "",
+    val revokedBy: String = "",
+    val revokedByName: String = "",
+    val revokedAt: String = ""
 )
 
 data class EligibleSwapPartner(
@@ -39,5 +42,6 @@ data class LeaveStats(
     val approvedLeaveDays: Int = 0,
     val remainingLeaveBalance: Int = 14,
     val annualQuota: Int = 14,
-    val activeCount: Int = 0
+    val activeCount: Int = 0,
+    val cappingEnabled: Boolean = true
 )

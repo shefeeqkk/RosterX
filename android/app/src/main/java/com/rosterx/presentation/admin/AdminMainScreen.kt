@@ -580,7 +580,10 @@ fun AdminMainScreen(
                                 onSubmitAction = { reqId, action, partner, swapCode, note, onSuccess, onError ->
                                     portalViewModel.submitAdminLeaveAction(reqId, action, partner, swapCode, note, onSuccess, onError)
                                 },
-                                onFetchPartnersForDate = portalViewModel::loadEligibleLeavePartners
+                                onFetchPartnersForDate = portalViewModel::loadEligibleLeavePartners,
+                                onSaveSettings = { capping, quota, onSuccess, onError ->
+                                    portalViewModel.updateLeaveSettings(capping, quota, onSuccess, onError)
+                                }
                             )
                         }
                         else -> {
