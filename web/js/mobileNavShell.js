@@ -158,6 +158,7 @@ export function consumeDeepLinkHash() {
   if (raw === 'roster' || raw === 'matrix' || raw === 'month_roster') return 'roster';
   if (raw === 'notifications' || raw === 'alerts' || raw === 'broadcast') return 'notifications';
   if (raw === 'credentials' || raw === 'credential_tracker') return 'credentials';
+  if (raw === 'leave_approvals' || raw === 'approvals' || raw === 'leaves') return 'leave_approvals';
   if (raw === 'profile' || raw === 'account' || raw === 'settings') return 'profile';
   if (raw === 'dashboard' || raw === 'home') return 'dashboard';
   return null;

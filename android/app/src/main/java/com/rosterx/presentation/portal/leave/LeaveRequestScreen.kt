@@ -584,18 +584,14 @@ fun LeaveRequestScreen(
                                         text = if (state.leaveCappingEnabled) {
                                             "${state.leaveRemainingDays} of ${state.leaveAnnualQuota} Days Remaining"
                                         } else {
-                                            "Uncapped (Unlimited Requests)"
+                                            "Leave Requests"
                                         },
                                         fontSize = 17.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = NeumorphicTokens.TextMain
                                     )
                                     Text(
-                                        text = if (state.leaveCappingEnabled) {
-                                            "${state.leaveApprovedDays} approved days in ${LocalDate.now().year}"
-                                        } else {
-                                            "${state.leaveApprovedDays} approved days in ${LocalDate.now().year} • No annual quota cap"
-                                        },
+                                        text = "${state.leaveApprovedDays} approved days in ${LocalDate.now().year}",
                                         fontSize = 11.5.sp,
                                         color = NeumorphicTokens.TextMuted
                                     )
@@ -742,11 +738,13 @@ fun LeaveRequestScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         val partner = req.approval?.swapPartner ?: req.preferredPartner
-                                        Text(
-                                            text = if (partner.isNotBlank()) "Partner: $partner" else "No partner specified",
-                                            fontSize = 11.sp,
-                                            color = NeumorphicTokens.TextMuted
-                                        )
+                                        if (partner.isNotBlank()) {
+                                            Text(
+                                                text = "Partner: $partner",
+                                                fontSize = 11.sp,
+                                                color = NeumorphicTokens.TextMuted
+                                            )
+                                        }
                                         Text(
                                             text = "Submitted ${formatTimestampCompact(req.createdAt)}",
                                             fontSize = 11.sp,

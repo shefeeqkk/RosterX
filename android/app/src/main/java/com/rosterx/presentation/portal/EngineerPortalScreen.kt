@@ -1484,14 +1484,14 @@ fun EngineerPortalScreen(
                                         isAdmin = false,
                                         onNavigateToCredentialTracker = { isViewingCredentialTracker = true },
                                         onNavigateToMyTeam = { isViewingMyTeam = true },
-                                        onNavigateToLeaveRequest = {
+                                        onNavigateToLeaveRequest = if (!isManager) ({
                                             viewModel.loadLeaveRequests()
                                             isViewingLeaveRequest = true
-                                        },
-                                        onNavigateToLeaveApprovals = {
+                                        }) else null,
+                                        onNavigateToLeaveApprovals = if (isManager) ({
                                             viewModel.loadAdminLeaveQueue()
                                             isViewingLeaveApprovals = true
-                                        }
+                                        }) else null
                                     )
                                     else -> DashboardView(
                                         state = state,

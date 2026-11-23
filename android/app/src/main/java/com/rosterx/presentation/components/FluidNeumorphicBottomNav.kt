@@ -3,6 +3,7 @@ package com.rosterx.presentation.components
 import android.graphics.BlurMaskFilter
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -18,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asAndroidPath
@@ -36,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rosterx.ui.neumorphic.NeumorphicTokens
 import com.rosterx.ui.neumorphic.neumorphicRaised
+import com.rosterx.ui.theme.LocalIsDarkTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -75,6 +78,7 @@ fun FluidNeumorphicBottomNav(
     val shadowDarkColor = NeumorphicTokens.ShadowDark
     val accentColor = NeumorphicTokens.Accent
 
+    val isDark = LocalIsDarkTheme.current
     val navBarInsets = WindowInsets.navigationBars
     val bottomInsetDp = with(density) { navBarInsets.getBottom(density).toDp() }
 
@@ -87,6 +91,23 @@ fun FluidNeumorphicBottomNav(
                 containerWidthPx = coordinates.size.width.toFloat()
             }
     ) {
+        // 1. Ambient Upward Drop Shadow (Differs and separates the navigation dock from the screen content)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 68.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            if (isDark) Color(0x88000000) else Color(0x380F172A)
+                        )
+                    )
+                )
+        )
+
         // A. Static Elegant Neumorphic Dock Surface (100% GPU RenderNode shadow, zero redraw on swipe)
         Box(
             modifier = Modifier
@@ -94,14 +115,24 @@ fun FluidNeumorphicBottomNav(
                 .height(68.dp)
                 .align(Alignment.BottomCenter)
                 .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-                    spotColor = shadowDarkColor.copy(alpha = 0.28f),
-                    ambientColor = shadowDarkColor.copy(alpha = 0.12f)
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    spotColor = if (isDark) Color.Black.copy(alpha = 0.65f) else Color(0xFF0F172A).copy(alpha = 0.35f),
+                    ambientColor = if (isDark) Color.Black.copy(alpha = 0.35f) else Color(0xFF0F172A).copy(alpha = 0.18f)
                 )
                 .background(
                     color = surfaceColor,
-                    shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            if (isDark) Color.White.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.85f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                 )
         )
 

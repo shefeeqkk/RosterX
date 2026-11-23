@@ -108,7 +108,7 @@
   <!-- RosterX Neumorphic (Soft UI) Universal Design System Tokens & Adaptive Mobile/iOS PWA Shell -->
   <link rel="stylesheet" href="css/tokens.css?v=2.0.6">
   <link rel="stylesheet" href="css/neumorphic.css?v=2.0.6">
-  <link rel="stylesheet" href="css/mobile-shell.css?v=2.5.1">
+  <link rel="stylesheet" href="css/mobile-shell.css?v=2.5.3">
 
   <script src="js/tailwind-neumorphic.js"></script>
 
@@ -1250,26 +1250,138 @@
     <!-- TAB 5: MORE HUB — SERVER CREDENTIAL TRACKER, APPEARANCE & DIAGNOSTICS     -->
     <!-- ========================================================================= -->
     <section id="tabContent_diagnostics" class="tab-panel hidden space-y-4">
-      <!-- Operations Hub Sub-Switcher (Server Credential Tracker / Diagnostics & Logs / Appearance) -->
+      <!-- Operations Hub Sub-Switcher (Overview / Leave Approvals / Server Credential Tracker / Diagnostics & Logs / Appearance) -->
       <div class="flex items-center gap-2 flex-wrap">
-        <button type="button" data-admin-hub="credentials" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-sm flex items-center gap-1.5">
+        <button type="button" data-admin-hub="overview" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-sm flex items-center gap-1.5">
+          <i class="ph ph-squares-four text-base"></i> Overview
+        </button>
+        <button type="button" data-admin-hub="leave_approvals" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5">
+          <i class="ph ph-check-square-offset text-base"></i> Leave Approvals
+        </button>
+        <button type="button" data-admin-hub="credentials" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5">
           <i class="ph ph-key text-base"></i> Server Credential Tracker
         </button>
         <button type="button" data-admin-hub="diagnostics" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5">
-          <i class="ph ph-terminal-window text-base"></i> Server Diagnostics & Logs
+          <i class="ph ph-terminal-window text-base"></i> Server Management
         </button>
         <button type="button" data-admin-hub="appearance" class="admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5">
           <i class="ph ph-palette text-base"></i> Appearance & 6 Palettes
         </button>
       </div>
 
+      <!-- Sub-panel: Operations Hub Cards Overview (1:1 Android Admin Operations Hub Parity) -->
+      <div id="adminHubPanel_overview" class="space-y-4">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Operations Hub</h2>
+          <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">Server controls, infrastructure credentials &amp; team operations</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Card 1: Leave Approvals -->
+          <div role="button" tabindex="0" data-admin-hub-card="leave_approvals" class="admin-feature-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md hover:border-amber-400 dark:hover:border-amber-500 transition cursor-pointer flex flex-col justify-between gap-3.5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center text-2xl flex-shrink-0">
+                  <i class="ph ph-check-square-offset"></i>
+                </div>
+                <div>
+                  <h3 class="font-extrabold text-slate-900 dark:text-white text-base">Leave Approvals</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">Review team requests, validate quota limits, and 1-click approve or reject.</p>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right text-slate-400 text-lg"></i>
+            </div>
+            <div id="adminHubBadge_leave">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">Approvals Queue</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Server Credential Tracker -->
+          <div role="button" tabindex="0" data-admin-hub-card="credentials" class="admin-feature-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md hover:border-rose-400 dark:hover:border-rose-500 transition cursor-pointer flex flex-col justify-between gap-3.5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center text-2xl flex-shrink-0">
+                  <i class="ph ph-key"></i>
+                </div>
+                <div>
+                  <h3 class="font-extrabold text-slate-900 dark:text-white text-base">Server Credential Tracker</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">Monitor root &amp; service account password validity with automated 9:00 AM IST alerts.</p>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right text-slate-400 text-lg"></i>
+            </div>
+            <div id="adminHubBadge_credentials">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">All Healthy</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Server Diagnostics & Logs -->
+          <div role="button" tabindex="0" data-admin-hub-card="diagnostics" class="admin-feature-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer flex flex-col justify-between gap-3.5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center text-2xl flex-shrink-0">
+                  <i class="ph ph-terminal-window"></i>
+                </div>
+                <div>
+                  <h3 class="font-extrabold text-slate-900 dark:text-white text-base">Server Management</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">Configure backend server URL, inspect MongoDB Atlas diagnostics, and review live server logs.</p>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right text-slate-400 text-lg"></i>
+            </div>
+            <div id="adminHubBadge_diagnostics">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">Diagnostics &amp; Logs</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Appearance & Brand Palettes -->
+          <div role="button" tabindex="0" data-admin-hub-card="appearance" class="admin-feature-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer flex flex-col justify-between gap-3.5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-2xl flex-shrink-0">
+                  <i class="ph ph-palette"></i>
+                </div>
+                <div>
+                  <h3 class="font-extrabold text-slate-900 dark:text-white text-base">Appearance &amp; Brand Palettes</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">6 RosterX Neumorphic palettes synced with System, Light, and Dark modes.</p>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right text-slate-400 text-lg"></i>
+            </div>
+            <div id="adminHubBadge_appearance">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">Themes &amp; Colors</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-panel 0: Leave Approvals (1:1 Android & User Portal Parity) -->
+      <div id="adminHubPanel_leave_approvals" class="hidden space-y-4">
+        <div class="flex items-center justify-between pb-1">
+          <button type="button" class="btnBackToAdminHub text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1.5 cursor-pointer py-1 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <i class="ph ph-arrow-left"></i> Back to Operations Hub
+          </button>
+        </div>
+        <div id="adminLeaveApprovalsHost"></div>
+      </div>
+
       <!-- Sub-panel 1: Server Credential Tracker (1:1 Android Parity) -->
-      <div id="adminHubPanel_credentials" class="space-y-4">
+      <div id="adminHubPanel_credentials" class="hidden space-y-4">
+        <div class="flex items-center justify-between pb-1">
+          <button type="button" class="btnBackToAdminHub text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1.5 cursor-pointer py-1 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <i class="ph ph-arrow-left"></i> Back to Operations Hub
+          </button>
+        </div>
         <div id="adminCredentialTrackerHost"></div>
       </div>
 
       <!-- Sub-panel 2: Appearance & Brand Palettes (6 Android Palettes + 3-State Theme) -->
-      <div id="adminHubPanel_appearance" class="hidden">
+      <div id="adminHubPanel_appearance" class="hidden space-y-4">
+        <div class="flex items-center justify-between pb-1">
+          <button type="button" class="btnBackToAdminHub text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1.5 cursor-pointer py-1 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <i class="ph ph-arrow-left"></i> Back to Operations Hub
+          </button>
+        </div>
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 shadow-sm p-5 space-y-4">
           <div class="flex items-center gap-2.5 border-b border-slate-200 dark:border-slate-800 pb-3">
             <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg">
@@ -1285,7 +1397,13 @@
       </div>
 
       <!-- Sub-panel 3: Live Diagnostics & Host Terminal -->
-      <div id="adminHubPanel_diagnostics" class="hidden bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-4">
+      <div id="adminHubPanel_diagnostics" class="hidden space-y-4">
+        <div class="flex items-center justify-between pb-1">
+          <button type="button" class="btnBackToAdminHub text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1.5 cursor-pointer py-1 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <i class="ph ph-arrow-left"></i> Back to Operations Hub
+          </button>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-700 shadow-sm p-6 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-xl bg-slate-900 text-emerald-400 flex items-center justify-center text-lg font-mono">
@@ -1365,6 +1483,7 @@
         <!-- Live Terminal Box -->
         <div class="bg-slate-950 rounded-xl p-4 font-mono text-[11px] text-emerald-400 border border-slate-800 max-h-[460px] overflow-y-auto space-y-1 shadow-inner" id="tabTerminalLogsBox">
           <div class="text-slate-500">[INITIALIZING DIAGNOSTIC LOG STREAM...]</div>
+        </div>
         </div>
       </div>
     </section>
@@ -4076,7 +4195,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.4.0"></script>
+  <script type="module" src="js/app.js?v=2.5.3"></script>
 
 </body>
 

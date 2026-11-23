@@ -381,10 +381,10 @@ html.dark dialog.rx-modal::backdrop {
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
+    width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     z-index: 45;
     background: var(--nm-surface);
     border-top-left-radius: 24px;
@@ -415,6 +415,7 @@ html.dark dialog.rx-modal::backdrop {
     padding: 4px 2px;
     cursor: pointer;
     position: relative;
+    overflow: visible !important;
     transition: var(--nm-spring);
   }
 
@@ -426,6 +427,8 @@ html.dark dialog.rx-modal::backdrop {
     align-items: center;
     justify-content: center;
     font-size: 19px;
+    overflow: visible;
+    flex-shrink: 0;
     transition: var(--nm-spring);
   }
 
@@ -452,6 +455,8 @@ html.dark dialog.rx-modal::backdrop {
     color: #ffffff !important;
     box-shadow: 0 6px 18px var(--nm-accent-glow, rgba(23, 78, 172, 0.45)), 0 2px 6px rgba(15, 23, 42, 0.22) !important;
     font-size: 20px;
+    flex-shrink: 0;
+    z-index: 2;
   }
 
   .rx-nav-tab.is-active .rx-nav-tab-bubble i {
@@ -514,6 +519,7 @@ html.dark dialog.rx-modal::backdrop {
     width: calc(72px + env(safe-area-inset-left, 0px));
     padding: 6px 6px max(6px, env(safe-area-inset-bottom, 0px)) calc(4px + env(safe-area-inset-left, 0px));
     z-index: 44;
+    overflow: visible !important;
     background: var(--nm-surface);
     border-top-right-radius: 22px;
     border-bottom-right-radius: 22px;
@@ -537,6 +543,7 @@ html.dark dialog.rx-modal::backdrop {
     gap: 2px;
     cursor: pointer;
     padding: 2px;
+    overflow: visible !important;
   }
 
   .rx-rail-bubble {
@@ -547,6 +554,8 @@ html.dark dialog.rx-modal::backdrop {
     align-items: center;
     justify-content: center;
     font-size: 17px;
+    overflow: visible;
+    flex-shrink: 0;
     transition: var(--nm-spring);
   }
 

@@ -20,7 +20,7 @@ import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5
 import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
-import { LeaveController, LeaveApprovalsController } from './leaveController.js?v=2.4.0';
+import { LeaveController, LeaveApprovalsController } from './leaveController.js?v=2.5.3';
 import { sortEngineersByWeekOffs, SHIFT_SPECS } from './constants.js?v=2.4.0';
 import {
   registerPwaServiceWorker,
@@ -31,7 +31,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.3.1';
 
-const APP_VERSION = '2.5.1';
+const APP_VERSION = '2.5.3';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -239,6 +239,8 @@ class RosterXUserPortal {
     this.templates = [];
     this.telemetry = null;
     this.credSummary = { total: 0, expired: 0, expiringSoon: 0 };
+    this.leaveStatsSummary = { remainingDays: 14, approvedDays: 0, activeCount: 0, cappingEnabled: true };
+    this.leaveApprovalsSummary = { pendingCount: 0 };
     this.dismissedCelebrations = new Set();
 
     const now = getIstNow();
@@ -557,6 +559,33 @@ class RosterXUserPortal {
         ]);
         if (telRes.status === 'fulfilled') this.telemetry = telRes.value?.data || telRes.value;
         if (tplRes.status === 'fulfilled') this.templates = tplRes.value?.templates || tplRes.value?.data || [];
+      }
+
+      // Fetch live leave quota balance and pending approvals queue summary
+      try {
+        if (this.isManager || String(this.user?.role || '').toLowerCase() === 'admin') {
+          const qRes = await fetch('/api/leave/admin-queue', { headers: getAuthHeaders() });
+          const qData = await qRes.json();
+          if (qData.success) {
+            this.leaveApprovalsSummary = {
+              pendingCount: (qData.pending_requests || []).length
+            };
+          }
+        } else {
+          const lRes = await fetch('/api/leave/my-requests', { headers: getAuthHeaders() });
+          const lData = await lRes.json();
+          if (lData.success) {
+            const reqs = lData.requests || [];
+            this.leaveStatsSummary = {
+              remainingDays: lData.remaining_leave_balance ?? 14,
+              approvedDays: lData.approved_leave_days ?? 0,
+              cappingEnabled: lData.capping_enabled !== false,
+              activeCount: reqs.filter((r) => String(r.status || '').toUpperCase() === 'PENDING').length
+            };
+          }
+        }
+      } catch (leaveErr) {
+        console.warn('Leave summary fetch guard:', leaveErr);
       }
 
       const now = getIstNow();
@@ -1841,31 +1870,91 @@ class RosterXUserPortal {
   }
 
   // =========================================================================
-  // TAB 5: MORE — OPERATIONS HUB (Credential Tracker + My Team)
+  // TAB 5: MORE — OPERATIONS HUB (1:1 Android Parity for Engineer, Manager, Admin)
   // =========================================================================
   renderMoreHub() {
     const panel = document.getElementById('panel_more');
     if (!panel) return;
+    const isAdmin = String(this.user?.role || '').toLowerCase() === 'admin';
+    const isMgr = this.isManager || isAdmin;
+
     const activeMembers = this.engineers.filter((e) =>
       String(e.status || 'active').toLowerCase() !== 'resigned' &&
       ['manager', 'engineer', 'apprentice'].includes(String(e.role || '').toLowerCase()) &&
       String(e.username || '').toLowerCase() !== 'admin'
     ).length;
 
+    // Badges 1:1 with Android MoreHubView
     const credBadge = this.credSummary.expired > 0
       ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(220,38,38,0.14);color:#DC2626;font-size:11px;font-weight:800;">${this.credSummary.expired} Expired</span>`
       : this.credSummary.expiringSoon > 0
         ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(217,119,6,0.14);color:#D97706;font-size:11px;font-weight:800;">${this.credSummary.expiringSoon} Expiring Soon</span>`
         : `<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">${this.credSummary.total > 0 ? `${this.credSummary.total} Active Trackers` : 'All Healthy'}</span>`;
 
+    const leaveBalText = this.leaveStatsSummary.cappingEnabled
+      ? `${this.leaveStatsSummary.remainingDays} Days Balance`
+      : `${this.leaveStatsSummary.approvedDays} Approved Days`;
+    const leaveActivePill = this.leaveStatsSummary.activeCount > 0
+      ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.14);color:#D97706;font-size:11px;font-weight:800;">${this.leaveStatsSummary.activeCount} Active</span>`
+      : '';
+    const leaveBadge = `
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">${leaveBalText}</span>
+        ${leaveActivePill}
+      </div>
+    `;
+
+    const pendingCount = this.leaveApprovalsSummary.pendingCount || 0;
+    const leaveAppBadge = pendingCount > 0
+      ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.14);color:#D97706;font-size:11px;font-weight:800;">${pendingCount} Pending Approvals</span>`
+      : `<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">Queue Clear</span>`;
+
+    const subtitleText = isAdmin
+      ? 'Server controls & infrastructure credentials'
+      : isMgr
+        ? 'Team approvals, infrastructure credentials & extended utilities'
+        : 'Extended duty utilities & automated server monitors';
+
     panel.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div>
           <h1 style="margin:0;font-size:22px;font-weight:900;">Operations Hub</h1>
-          <div style="font-size:12.5px;color:var(--nm-text-muted);margin-top:2px;">Extended duty utilities &amp; automated server monitors</div>
+          <div style="font-size:12.5px;color:var(--nm-text-muted);margin-top:2px;">${subtitleText}</div>
         </div>
 
         <div class="rx-land-grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+          <!-- CARD 1: LEAVE (Leave Approvals for Manager/Admin, Leave Request for Engineer) -->
+          ${isMgr ? `
+            <div role="button" tabindex="0" id="btnHubLeaveApprovals" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="width:44px;height:44px;border-radius:999px;background:rgba(245,158,11,0.14);color:#D97706;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-check-square-offset"></i></span>
+                  <div>
+                    <div style="font-size:16px;font-weight:800;">Leave Approvals</div>
+                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Review team requests, validate quota limits, and 1-click approve or reject.</div>
+                  </div>
+                </div>
+                <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+              </div>
+              <div>${leaveAppBadge}</div>
+            </div>
+          ` : `
+            <div role="button" tabindex="0" id="btnHubLeave" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="width:44px;height:44px;border-radius:999px;background:rgba(16,185,129,0.14);color:#059669;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-calendar-plus"></i></span>
+                  <div>
+                    <div style="font-size:16px;font-weight:800;">Leave Request</div>
+                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Apply for annual leave days with automated balance tracking.</div>
+                  </div>
+                </div>
+                <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+              </div>
+              <div>${leaveBadge}</div>
+            </div>
+          `}
+
+          <!-- CARD 2: SERVER CREDENTIAL TRACKER -->
           <div role="button" tabindex="0" id="btnHubCredentials" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
               <div style="display:flex;align-items:center;gap:12px;">
@@ -1880,55 +1969,57 @@ class RosterXUserPortal {
             <div>${credBadge}</div>
           </div>
 
-          <div role="button" tabindex="0" id="btnHubMyTeam" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-              <div style="display:flex;align-items:center;gap:12px;">
-                <span style="width:44px;height:44px;border-radius:999px;background:rgba(99,102,241,0.14);color:#6366F1;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-users-three"></i></span>
-                <div>
-                  <div style="font-size:16px;font-weight:800;">My Team</div>
-                  <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Team directory, hierarchy, and direct Call &amp; WhatsApp options.</div>
-                </div>
-              </div>
-              <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
-            </div>
-            <div>
-              <span style="padding:3px 9px;border-radius:10px;background:rgba(99,102,241,0.14);color:#4F46E5;font-size:11px;font-weight:800;">${activeMembers} Active Members</span>
-            </div>
-          </div>
-
-          <div role="button" tabindex="0" id="btnHubLeave" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-              <div style="display:flex;align-items:center;gap:12px;">
-                <span style="width:44px;height:44px;border-radius:999px;background:rgba(16,185,129,0.14);color:#059669;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-calendar-plus"></i></span>
-                <div>
-                  <div style="font-size:16px;font-weight:800;">Leave &amp; Swap Request</div>
-                  <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Apply for duty leaves or swap shifts with administrative approval.</div>
-                </div>
-              </div>
-              <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
-            </div>
-            <div>
-              <span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">Apply Leave &amp; Swap</span>
-            </div>
-          </div>
-
-          ${this.isManager || String(this.user?.role || '').toLowerCase() === 'admin' ? `
-            <div role="button" tabindex="0" id="btnHubLeaveApprovals" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+          <!-- CARD 3: MY TEAM (Non-Admin) OR SERVER MANAGEMENT (Admin) -->
+          ${isAdmin ? `
+            <div role="button" tabindex="0" id="btnHubServerManagement" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <span style="width:44px;height:44px;border-radius:999px;background:rgba(245,158,11,0.14);color:#D97706;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-check-square-offset"></i></span>
+                  <span style="width:44px;height:44px;border-radius:999px;background:rgba(59,130,246,0.14);color:#2563EB;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-terminal-window"></i></span>
                   <div>
-                    <div style="font-size:16px;font-weight:800;">Leave &amp; Swap Approvals</div>
-                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Review pending duty leave and shift swap requests from team members.</div>
+                    <div style="font-size:16px;font-weight:800;">Server Management</div>
+                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Configure backend server URL, inspect MongoDB Atlas diagnostics, and review live server logs.</div>
                   </div>
                 </div>
                 <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
               </div>
               <div>
-                <span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.14);color:#D97706;font-size:11px;font-weight:800;">Approvals Queue</span>
+                <span style="padding:3px 9px;border-radius:10px;background:rgba(59,130,246,0.14);color:#2563EB;font-size:11px;font-weight:800;">Diagnostics &amp; Logs</span>
               </div>
             </div>
-          ` : ''}
+          ` : `
+            <div role="button" tabindex="0" id="btnHubMyTeam" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="width:44px;height:44px;border-radius:999px;background:rgba(99,102,241,0.14);color:#6366F1;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-users-three"></i></span>
+                  <div>
+                    <div style="font-size:16px;font-weight:800;">My Team</div>
+                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Team directory, hierarchy, and direct Call &amp; WhatsApp options.</div>
+                  </div>
+                </div>
+                <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+              </div>
+              <div>
+                <span style="padding:3px 9px;border-radius:10px;background:rgba(99,102,241,0.14);color:#4F46E5;font-size:11px;font-weight:800;">${activeMembers} Active Members</span>
+              </div>
+            </div>
+          `}
+
+          <!-- CARD 4: ACCOUNT & SETTINGS -->
+          <div role="button" tabindex="0" id="btnHubAccountSettings" class="rx-card" style="border:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:12px;color:var(--nm-text);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="width:44px;height:44px;border-radius:999px;background:rgba(100,116,139,0.14);color:var(--nm-text);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-gear-six"></i></span>
+                <div>
+                  <div style="font-size:16px;font-weight:800;">Account &amp; Settings</div>
+                  <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Manage profile, appearance themes, 6 color palettes, and default weekly offs.</div>
+                </div>
+              </div>
+              <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
+            </div>
+            <div>
+              <span style="padding:3px 9px;border-radius:10px;background:rgba(100,116,139,0.14);color:var(--nm-text);font-size:11px;font-weight:800;">Preferences &amp; Palettes</span>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -1955,6 +2046,14 @@ class RosterXUserPortal {
     const leaveAppBtn = panel.querySelector('#btnHubLeaveApprovals');
     leaveAppBtn?.addEventListener('click', () => this.openSubView('leave_approvals'));
     leaveAppBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => this.openSubView('leave_approvals')));
+
+    const serverMgmtBtn = panel.querySelector('#btnHubServerManagement');
+    serverMgmtBtn?.addEventListener('click', () => { window.location.href = 'index.html#diagnostics'; });
+    serverMgmtBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => { window.location.href = 'index.html#diagnostics'; }));
+
+    const settingsBtn = panel.querySelector('#btnHubAccountSettings');
+    settingsBtn?.addEventListener('click', () => this.openSubView('profile'));
+    settingsBtn?.addEventListener('keydown', (e) => handleKeyNav(e, () => this.openSubView('profile')));
   }
 
   // =========================================================================

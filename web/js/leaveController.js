@@ -48,6 +48,7 @@ export class LeaveController {
       approved_leave_days: 0,
       remaining_leave_balance: 14,
       annual_quota: 14,
+      capping_enabled: true,
       active_count: 0
     };
     this.eligiblePartners = [];
@@ -76,6 +77,7 @@ export class LeaveController {
           approved_leave_days: data.approved_leave_days || 0,
           remaining_leave_balance: data.remaining_leave_balance ?? 14,
           annual_quota: data.annual_quota || 14,
+          capping_enabled: Boolean(data.capping_enabled),
           active_count: data.active_count || 0
         };
       }
@@ -308,7 +310,7 @@ export class LeaveController {
                   ` : ''}
                 </div>
                 <div style="font-size:11px;color:var(--nm-text-muted);">
-                  ${this.leaveStats.remaining_leave_balance} annual days remaining
+                  ${this.leaveStats.capping_enabled ? `${this.leaveStats.remaining_leave_balance} annual days remaining` : ''}
                 </div>
               </div>
             </div>
@@ -337,9 +339,13 @@ export class LeaveController {
             <!-- Annual Leave Quota Card -->
             <div class="rx-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--nm-surface);">
               <div>
-                <div style="font-size:11px;font-weight:900;color:var(--nm-accent);letter-spacing:0.05em;">ANNUAL LEAVE ALLOWANCE</div>
-                <div style="font-size:18px;font-weight:900;margin-top:2px;">${this.leaveStats.remaining_leave_balance} of ${this.leaveStats.annual_quota} Days Remaining</div>
-                <div style="font-size:11.5px;color:var(--nm-text-muted);margin-top:2px;">${this.leaveStats.approved_leave_days} days approved in ${this.calYear}</div>
+                <div style="font-size:11px;font-weight:900;color:var(--nm-accent);letter-spacing:0.05em;">ANNUAL LEAVE</div>
+                <div style="font-size:18px;font-weight:900;margin-top:2px;">
+                  ${this.leaveStats.capping_enabled ? `${this.leaveStats.remaining_leave_balance} of ${this.leaveStats.annual_quota} Days Remaining` : 'Leave Requests'}
+                </div>
+                <div style="font-size:11.5px;color:var(--nm-text-muted);margin-top:2px;">
+                  ${this.leaveStats.approved_leave_days} days approved in ${this.calYear}
+                </div>
               </div>
               <div style="width:52px;height:52px;border-radius:999px;background:var(--nm-accent-soft);color:var(--nm-accent);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
                 <i class="ph ph-calendar-check"></i>
@@ -354,7 +360,7 @@ export class LeaveController {
                 <div class="rx-card" style="text-align:center;padding:32px 16px;color:var(--nm-text-muted);">
                   <i class="ph ph-calendar-blank" style="font-size:36px;margin-bottom:8px;display:block;"></i>
                   <div style="font-weight:700;font-size:14px;">No leave requests yet</div>
-                  <div style="font-size:12px;margin-top:4px;">When you apply for duty leave or shift swaps, your submissions will appear here.</div>
+                  <div style="font-size:12px;margin-top:4px;">When you apply for duty leave, your submissions will appear here.</div>
                 </div>
               ` : this.myRequests.map((req) => {
                 const st = String(req.status || 'pending').toLowerCase();
@@ -362,11 +368,15 @@ export class LeaveController {
                 if (st === 'pending') {
                   statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.15);color:#D97706;font-size:11px;font-weight:800;">Pending Review</span>';
                 } else if (st === 'approved_swap') {
-                  statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.15);color:#059669;font-size:11px;font-weight:800;">Approved as Swap</span>';
+                  statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.15);color:#059669;font-size:11px;font-weight:800;">Approved</span>';
                 } else if (st === 'approved_leave') {
-                  statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(59,130,246,0.15);color:#2563EB;font-size:11px;font-weight:800;">Approved as Leave</span>';
+                  statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(59,130,246,0.15);color:#2563EB;font-size:11px;font-weight:800;">Approved</span>';
                 } else if (st === 'rejected') {
                   statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(220,38,38,0.15);color:#DC2626;font-size:11px;font-weight:800;">Declined</span>';
+                } else if (st === 'revoked') {
+                  statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(148,163,184,0.2);color:var(--nm-text-muted);font-size:11px;font-weight:800;">Revoked</span>';
+                } else if (st === 'cancelled') {
+                  statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(148,163,184,0.2);color:var(--nm-text-muted);font-size:11px;font-weight:800;">Cancelled</span>';
                 }
 
                 const datesList = req.dates || [];
@@ -394,10 +404,17 @@ export class LeaveController {
                       </div>
                     ` : ''}
 
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--nm-text-muted);padding-top:4px;border-top:1px solid rgba(148,163,184,0.1);">
-                      <div>${partner ? `Partner: <strong>${escapeHtml(partner)}</strong>` : 'No partner specified'}</div>
-                      <div>${escapeHtml(String(req.created_at || '').slice(0, 10))}</div>
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:11px;color:var(--nm-text-muted);padding-top:4px;border-top:1px solid rgba(148,163,184,0.1);">
+                      <div>Submitted ${escapeHtml(String(req.created_at || '').slice(0, 10))}</div>
                     </div>
+
+                    ${st === 'pending' ? `
+                      <div style="display:flex;justify-content:flex-end;padding-top:4px;">
+                        <button type="button" class="btn-cancel-leave" data-req-id="${escapeHtml(req.request_id)}" style="background:none;border:1px solid #DC2626;color:#DC2626;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">
+                          Cancel Request
+                        </button>
+                      </div>
+                    ` : ''}
                   </div>
                 `;
               }).join('')}
@@ -451,6 +468,29 @@ export class LeaveController {
     this.container.querySelector('#btnSubmitLeave')?.addEventListener('click', () => {
       this.submitLeaveRequest();
     });
+
+    this.container.querySelectorAll('.btn-cancel-leave').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const reqId = btn.getAttribute('data-req-id');
+        if (!confirm(`Are you sure you want to cancel leave request ${reqId}?`)) return;
+        try {
+          const resp = await fetch('/api/leave/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ request_id: reqId })
+          });
+          const data = await resp.json();
+          if (data.success) {
+            this.onToast('Leave request cancelled successfully', 'success');
+            await this.load();
+          } else {
+            this.onToast(data.message || 'Failed cancelling request', 'error');
+          }
+        } catch (e) {
+          this.onToast('Network error cancelling request', 'error');
+        }
+      });
+    });
   }
 }
 
@@ -465,21 +505,36 @@ export class LeaveApprovalsController {
     this.onBack = onBack || (() => {});
     this.onRosterMutated = onRosterMutated || (() => {});
 
+    this.activeTab = 'pending'; // 'pending' | 'audit'
     this.pendingRequests = [];
     this.historicalRequests = [];
+    this.policySettings = { capping_enabled: true, annual_quota: 14 };
+    this.showSettingsModal = false;
     this.isLoading = false;
   }
 
   async load() {
     this.isLoading = true;
     try {
-      const resp = await fetch('/api/leave/admin-queue', { headers: getAuthHeaders() });
-      const data = await resp.json();
-      if (data.success) {
-        this.pendingRequests = data.pending_requests || [];
-        this.historicalRequests = data.historical_requests || [];
+      const [queueResp, settingsResp] = await Promise.all([
+        fetch('/api/leave/admin-queue', { headers: getAuthHeaders() }),
+        fetch('/api/leave/settings', { headers: getAuthHeaders() })
+      ]);
+      const queueData = await queueResp.json();
+      const settingsData = await settingsResp.json();
+
+      if (queueData.success) {
+        this.pendingRequests = queueData.pending_requests || [];
+        this.historicalRequests = queueData.historical_requests || [];
       } else {
-        this.onToast(data.message || 'Failed loading approvals queue', 'error');
+        this.onToast(queueData.message || 'Failed loading approvals queue', 'error');
+      }
+
+      if (settingsData.success) {
+        this.policySettings = {
+          capping_enabled: settingsData.capping_enabled ?? true,
+          annual_quota: settingsData.annual_quota || 14
+        };
       }
     } catch (e) {
       this.onToast('Network error loading approvals queue', 'error');
@@ -489,21 +544,20 @@ export class LeaveApprovalsController {
     }
   }
 
-  async takeAction(requestId, action, partner = '', swapCode = '') {
+  async takeAction(requestId, action) {
     try {
       const resp = await fetch('/api/leave/admin-action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           request_id: requestId,
-          action,
-          swap_partner: partner,
-          swap_code: swapCode
+          action
         })
       });
       const data = await resp.json();
       if (data.success) {
-        this.onToast(`Request ${requestId} ${action}d successfully.`, 'success');
+        const actionLabel = action === 'leave' ? 'approved' : action === 'reject' ? 'rejected' : action === 'revoke' ? 'revoked' : action;
+        this.onToast(`Request ${requestId} ${actionLabel} successfully.`, 'success');
         this.onRosterMutated();
         await this.load();
       } else {
@@ -514,77 +568,293 @@ export class LeaveApprovalsController {
     }
   }
 
+  async savePolicySettings(cappingEnabled, annualQuota) {
+    try {
+      const resp = await fetch('/api/leave/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({
+          capping_enabled: cappingEnabled,
+          annual_quota: annualQuota
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        this.policySettings.capping_enabled = data.capping_enabled;
+        this.policySettings.annual_quota = data.annual_quota;
+        this.showSettingsModal = false;
+        this.onToast('Leave policy settings updated successfully.', 'success');
+        this.render();
+      } else {
+        this.onToast(data.message || 'Failed updating settings', 'error');
+      }
+    } catch (e) {
+      this.onToast('Network error updating settings', 'error');
+    }
+  }
+
   render() {
     if (!this.container) return;
 
     this.container.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:16px;max-width:860px;margin:0 auto;padding-bottom:32px;">
-        <div>
-          <h1 style="margin:0;font-size:22px;font-weight:900;">Leave Approvals</h1>
-          <div style="font-size:12.5px;color:var(--nm-text-muted);margin-top:2px;">Review pending duty leave requests from team members.</div>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div style="font-size:13px;font-weight:800;color:var(--nm-text-muted);">
-            Pending Requests (${this.pendingRequests.length})
+        <!-- Header with Settings Button -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div>
+            <h1 style="margin:0;font-size:22px;font-weight:900;">Leave Approvals</h1>
+            <div style="font-size:12.5px;color:var(--nm-text-muted);margin-top:2px;">Review pending duty leave requests &amp; policy controls</div>
           </div>
-
-          ${this.pendingRequests.length === 0 ? `
-            <div class="rx-card" style="text-align:center;padding:32px 16px;color:var(--nm-text-muted);">
-              <i class="ph ph-check-circle" style="font-size:36px;color:#10B981;margin-bottom:8px;display:block;"></i>
-              <div style="font-weight:700;font-size:14px;color:var(--nm-text);">All Caught Up!</div>
-              <div style="font-size:12px;margin-top:4px;">No pending leave requests in the queue.</div>
-            </div>
-          ` : this.pendingRequests.map((req) => {
-            const datesList = req.dates || [];
-            const applicant = req.engineer_name || req.engineer_id;
-            return `
-              <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                  <div>
-                    <div style="font-size:16px;font-weight:900;">${escapeHtml(applicant)}</div>
-                    <div style="font-size:11px;color:var(--nm-text-muted);">ID: ${escapeHtml(req.request_id)} &bull; ${escapeHtml(req.engineer_id)}</div>
-                  </div>
-                  <span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.15);color:#D97706;font-size:11px;font-weight:800;">Pending</span>
-                </div>
-
-                <!-- Dates -->
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                  ${datesList.map((d) => `
-                    <span style="padding:3px 9px;border-radius:8px;background:var(--nm-input-surface);color:var(--nm-accent);font-size:12px;font-weight:800;">
-                      ${escapeHtml(d)}
-                    </span>
-                  `).join('')}
-                </div>
-
-                ${req.reason ? `
-                  <div style="font-size:12.5px;color:var(--nm-text);font-style:italic;background:var(--nm-input-surface);padding:8px 12px;border-radius:10px;">
-                    &ldquo;${escapeHtml(req.reason)}&rdquo;
-                  </div>
-                ` : ''}
-
-                <!-- Actions -->
-                <div style="display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.15);flex-wrap:wrap;">
-                  <button type="button" class="rx-btn-primary" data-action="leave" data-req-id="${escapeHtml(req.request_id)}" style="padding:8px 16px;font-size:12.5px;border-radius:12px;background:#10B981;border:0;">
-                    <i class="ph ph-check-circle"></i> Approve Leave
-                  </button>
-                  <button type="button" class="rx-btn-surface" data-action="reject" data-req-id="${escapeHtml(req.request_id)}" style="padding:8px 16px;font-size:12.5px;border-radius:12px;color:#DC2626;">
-                    <i class="ph ph-x-circle"></i> Reject
-                  </button>
-                </div>
-              </div>
-            `;
-          }).join('')}
+          <button type="button" id="btnLeaveSettings" class="rx-btn-surface" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;">
+            <i class="ph ph-gear" style="font-size:16px;"></i>
+            <span>Leave Policy</span>
+          </button>
         </div>
+
+        <!-- Segmented Tab Switcher (Pending Queue ⇄ Audit History) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;background:var(--nm-input-surface);padding:4px;border-radius:16px;gap:4px;">
+          <button type="button" id="tabBtnPending" style="padding:10px;border-radius:12px;border:0;font-size:13px;font-weight:800;cursor:pointer;transition:all 0.2s ease;${this.activeTab === 'pending' ? 'background:var(--nm-surface);color:var(--nm-accent);box-shadow:var(--nm-shadow-raised-subtle);' : 'background:transparent;color:var(--nm-text-muted);'}">
+            Pending Queue (${this.pendingRequests.length})
+          </button>
+          <button type="button" id="tabBtnAudit" style="padding:10px;border-radius:12px;border:0;font-size:13px;font-weight:800;cursor:pointer;transition:all 0.2s ease;${this.activeTab === 'audit' ? 'background:var(--nm-surface);color:var(--nm-accent);box-shadow:var(--nm-shadow-raised-subtle);' : 'background:transparent;color:var(--nm-text-muted);'}">
+            Audit History (${this.historicalRequests.length})
+          </button>
+        </div>
+
+        ${this.activeTab === 'pending' ? `
+          <!-- PENDING QUEUE -->
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            ${this.pendingRequests.length === 0 ? `
+              <div class="rx-card" style="text-align:center;padding:36px 16px;color:var(--nm-text-muted);">
+                <i class="ph ph-check-circle" style="font-size:40px;color:#10B981;margin-bottom:8px;display:block;"></i>
+                <div style="font-weight:800;font-size:15px;color:var(--nm-text);">All Caught Up!</div>
+                <div style="font-size:12px;margin-top:4px;">No pending leave requests in the queue.</div>
+              </div>
+            ` : this.pendingRequests.map((req) => {
+              const datesList = req.dates || [];
+              const applicant = req.engineer_name || req.engineer_id;
+              return `
+                <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div>
+                      <div style="font-size:16px;font-weight:900;">${escapeHtml(applicant)}</div>
+                      <div style="font-size:11px;color:var(--nm-text-muted);margin-top:1px;">ID: ${escapeHtml(req.request_id)} &bull; @${escapeHtml(req.engineer_id)}</div>
+                    </div>
+                    <span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.15);color:#D97706;font-size:11px;font-weight:800;">Pending</span>
+                  </div>
+
+                  <!-- Dates Badges -->
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    ${datesList.map((d) => `
+                      <span style="padding:3px 9px;border-radius:8px;background:var(--nm-input-surface);color:var(--nm-accent);font-size:12px;font-weight:800;">
+                        ${escapeHtml(d)}
+                      </span>
+                    `).join('')}
+                  </div>
+
+                  ${req.reason ? `
+                    <div style="font-size:12.5px;color:var(--nm-text);font-style:italic;background:var(--nm-input-surface);padding:8px 12px;border-radius:10px;">
+                      &ldquo;${escapeHtml(req.reason)}&rdquo;
+                    </div>
+                  ` : ''}
+
+                  <!-- Actions with Confirmation -->
+                  <div style="display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.15);flex-wrap:wrap;">
+                    <button type="button" class="rx-btn-primary btn-action-approve" data-req-id="${escapeHtml(req.request_id)}" data-applicant="${escapeHtml(applicant)}" style="padding:8px 18px;font-size:12.5px;border-radius:12px;background:#10B981;border:0;cursor:pointer;">
+                      <i class="ph ph-check-circle"></i> Approve Leave
+                    </button>
+                    <button type="button" class="rx-btn-surface btn-action-reject" data-req-id="${escapeHtml(req.request_id)}" data-applicant="${escapeHtml(applicant)}" style="padding:8px 18px;font-size:12.5px;border-radius:12px;color:#DC2626;cursor:pointer;">
+                      <i class="ph ph-x-circle"></i> Reject
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : `
+          <!-- AUDIT HISTORY -->
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            ${this.historicalRequests.length === 0 ? `
+              <div class="rx-card" style="text-align:center;padding:36px 16px;color:var(--nm-text-muted);">
+                <i class="ph ph-clock-counter-clockwise" style="font-size:40px;margin-bottom:8px;display:block;"></i>
+                <div style="font-weight:800;font-size:15px;color:var(--nm-text);">No Historical Decisions</div>
+                <div style="font-size:12px;margin-top:4px;">Actioned leave requests and audit logs will appear here.</div>
+              </div>
+            ` : this.historicalRequests.map((req) => {
+              const datesList = req.dates || [];
+              const applicant = req.engineer_name || req.engineer_id;
+              const st = String(req.status || '').toLowerCase();
+              let statusBadge = '';
+              const isApproved = st === 'approved_leave' || st === 'approved' || st === 'approved_swap';
+              if (isApproved) {
+                statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.15);color:#059669;font-size:11px;font-weight:800;">Approved</span>';
+              } else if (st === 'rejected') {
+                statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(220,38,38,0.15);color:#DC2626;font-size:11px;font-weight:800;">Declined</span>';
+              } else if (st === 'revoked') {
+                statusBadge = '<span style="padding:3px 9px;border-radius:10px;background:rgba(148,163,184,0.2);color:var(--nm-text-muted);font-size:11px;font-weight:800;">Revoked</span>';
+              } else {
+                statusBadge = `<span style="padding:3px 9px;border-radius:10px;background:rgba(148,163,184,0.2);color:var(--nm-text-muted);font-size:11px;font-weight:800;">${escapeHtml(st)}</span>`;
+              }
+
+              const decisionInfo = req.decision ? `Actioned by ${escapeHtml(req.decision.approved_by || req.decision.rejected_by || 'Admin')}` : '';
+
+              return `
+                <div class="rx-card-subtle" style="display:flex;flex-direction:column;gap:10px;padding:16px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div>
+                      <div style="font-size:15px;font-weight:800;">${escapeHtml(applicant)}</div>
+                      <div style="font-size:11px;color:var(--nm-text-muted);">ID: ${escapeHtml(req.request_id)}</div>
+                    </div>
+                    ${statusBadge}
+                  </div>
+
+                  <!-- Dates Badges -->
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    ${datesList.map((d) => `
+                      <span style="padding:2px 8px;border-radius:6px;background:var(--nm-input-surface);color:var(--nm-text);font-size:11.5px;font-weight:700;">
+                        ${escapeHtml(d)}
+                      </span>
+                    `).join('')}
+                  </div>
+
+                  ${req.reason ? `
+                    <div style="font-size:12px;color:var(--nm-text-muted);font-style:italic;">
+                      &ldquo;${escapeHtml(req.reason)}&rdquo;
+                    </div>
+                  ` : ''}
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--nm-text-muted);padding-top:4px;border-top:1px solid rgba(148,163,184,0.1);">
+                    <div>${decisionInfo}</div>
+                    <div>${escapeHtml(String(req.decision?.timestamp || req.created_at || '').slice(0, 10))}</div>
+                  </div>
+
+                  ${isApproved ? `
+                    <div style="display:flex;justify-content:flex-end;padding-top:4px;">
+                      <button type="button" class="btn-action-revoke rx-btn-surface" data-req-id="${escapeHtml(req.request_id)}" data-applicant="${escapeHtml(applicant)}" style="padding:6px 14px;font-size:11.5px;font-weight:700;color:#DC2626;border-radius:10px;cursor:pointer;">
+                        <i class="ph ph-arrow-counter-clockwise"></i> Revoke Leave
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+
+        <!-- Settings Modal -->
+        ${this.showSettingsModal ? `
+          <div id="leaveSettingsModalBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;">
+            <div class="rx-card" style="width:100%;max-width:440px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--nm-shadow-floating);">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;font-size:17px;font-weight:900;">Annual Leave Policy</h3>
+                <button type="button" id="btnCloseLeaveSettings" style="background:none;border:0;color:var(--nm-text-muted);font-size:20px;cursor:pointer;">&times;</button>
+              </div>
+
+              <div style="font-size:12.5px;color:var(--nm-text-muted);line-height:1.4;">
+                Configure whether annual leave capping is strictly enforced or open for unrestricted requests.
+              </div>
+
+              <!-- Capping Toggle -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:var(--nm-input-surface);border-radius:14px;">
+                <div>
+                  <div style="font-size:13px;font-weight:800;">Enforce Annual Leave Capping</div>
+                  <div style="font-size:11px;color:var(--nm-text-muted);">If disabled, no quota cap applies to engineers.</div>
+                </div>
+                <input type="checkbox" id="chkCappingEnabled" ${this.policySettings.capping_enabled ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--nm-accent);cursor:pointer;" />
+              </div>
+
+              <!-- Quota Days Field -->
+              <div id="grpQuotaDays" style="${this.policySettings.capping_enabled ? '' : 'opacity:0.5;pointer-events:none;'}">
+                <label for="inputAnnualQuota" style="display:block;font-size:12.5px;font-weight:800;margin-bottom:4px;">
+                  Annual Allowance (Days per Year)
+                </label>
+                <input type="number" id="inputAnnualQuota" min="1" max="365" value="${this.policySettings.annual_quota || 14}" class="rx-well" style="width:100%;padding:10px 12px;border:0;font-size:13px;font-family:inherit;color:var(--nm-text);box-sizing:border-box;border-radius:10px;" />
+              </div>
+
+              <!-- Modal Actions -->
+              <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:6px;">
+                <button type="button" id="btnCancelLeaveSettings" class="rx-btn-surface" style="padding:8px 16px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;">
+                  Cancel
+                </button>
+                <button type="button" id="btnSaveLeaveSettings" class="rx-btn-primary" style="padding:8px 18px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;">
+                  Save Policy
+                </button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
 
-    this.container.querySelectorAll('[data-action]').forEach((btn) => {
+    // Event Bindings
+    this.container.querySelector('#tabBtnPending')?.addEventListener('click', () => {
+      this.activeTab = 'pending';
+      this.render();
+    });
+    this.container.querySelector('#tabBtnAudit')?.addEventListener('click', () => {
+      this.activeTab = 'audit';
+      this.render();
+    });
+
+    this.container.querySelector('#btnLeaveSettings')?.addEventListener('click', () => {
+      this.showSettingsModal = true;
+      this.render();
+    });
+
+    this.container.querySelector('#btnCloseLeaveSettings')?.addEventListener('click', () => {
+      this.showSettingsModal = false;
+      this.render();
+    });
+    this.container.querySelector('#btnCancelLeaveSettings')?.addEventListener('click', () => {
+      this.showSettingsModal = false;
+      this.render();
+    });
+
+    this.container.querySelector('#chkCappingEnabled')?.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      const grp = this.container.querySelector('#grpQuotaDays');
+      if (grp) {
+        grp.style.opacity = isChecked ? '1' : '0.5';
+        grp.style.pointerEvents = isChecked ? 'auto' : 'none';
+      }
+    });
+
+    this.container.querySelector('#btnSaveLeaveSettings')?.addEventListener('click', () => {
+      const chk = this.container.querySelector('#chkCappingEnabled');
+      const inputQuota = this.container.querySelector('#inputAnnualQuota');
+      const capping = chk ? chk.checked : true;
+      const quota = inputQuota ? parseInt(inputQuota.value, 10) || 14 : 14;
+
+      if (!confirm('Are you sure you want to update the global leave policy settings?')) return;
+      this.savePolicySettings(capping, quota);
+    });
+
+    // Approve Leave
+    this.container.querySelectorAll('.btn-action-approve').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const action = btn.getAttribute('data-action');
         const reqId = btn.getAttribute('data-req-id');
-        const partner = btn.getAttribute('data-partner') || '';
-        this.takeAction(reqId, action, partner);
+        const applicant = btn.getAttribute('data-applicant') || 'this engineer';
+        if (!confirm(`Are you sure you want to approve leave for ${applicant} (Request ${reqId})?`)) return;
+        this.takeAction(reqId, 'leave');
+      });
+    });
+
+    // Reject Leave
+    this.container.querySelectorAll('.btn-action-reject').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const reqId = btn.getAttribute('data-req-id');
+        const applicant = btn.getAttribute('data-applicant') || 'this engineer';
+        if (!confirm(`Are you sure you want to reject leave request ${reqId} for ${applicant}?`)) return;
+        this.takeAction(reqId, 'reject');
+      });
+    });
+
+    // Revoke Leave
+    this.container.querySelectorAll('.btn-action-revoke').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const reqId = btn.getAttribute('data-req-id');
+        const applicant = btn.getAttribute('data-applicant') || 'this engineer';
+        if (!confirm(`Are you sure you want to revoke approved leave for ${applicant} (Request ${reqId})?\n\nThis will restore the shift in the active roster and refund the engineer's annual leave balance.`)) return;
+        this.takeAction(reqId, 'revoke');
       });
     });
   }

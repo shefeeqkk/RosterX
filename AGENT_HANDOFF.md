@@ -1,7 +1,46 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 19:45 IST** (Target Sprint: **v2.5.1 - Build 176**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 20:45 IST** (Target Sprint: **v2.5.3 - Build 178**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.3 - Build 178 — Operations Hub & More Menu 1:1 Parity Across Web & Android):
+> *"Vijaya! Gafoorka! Android app-um mobile web/admin web interface-um thammilulla More menu (Operations Hub) options compare cheythu 100% spotless 1:1 parity aakki macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Resolved & Added:
+> 1. **Fixed Fatal Syntax Error in Admin Web (`web/js/app.js`)**:
+>    - Found and resolved a syntax error caused by stray closing braces in `switchAdminHub`, which caused `app.js` to crash on load and prevented the More tab / Leave Approvals from rendering in Admin Web.
+>    - Verified with Node.js module parser for flawless execution.
+> 2. **Operations Hub Feature Cards for Admin Web (`web/index.html` & `web/js/app.js`)**:
+>    - Built a full Operations Hub card overview matching Android's `AdminMainScreen` `MoreHubView` 1:1:
+>      - **Card 1: Leave Approvals** (Amber card with dynamic pending count badge or `Queue Clear`)
+>      - **Card 2: Server Credential Tracker** (Salmon card with live Expired, Expiring Soon, Active Healthy badges)
+>      - **Card 3: Server Management** (Blue card for live Host Uptime, MongoDB Atlas latency, hardware metrics & terminal logs)
+>      - **Card 4: Appearance & Brand Palettes** (Indigo card with current active palette & theme badge)
+>    - Clicking any card opens that subview with a "Back to Operations Hub" button and direct sub-switcher buttons.
+> 3. **Mobile User Portal Operations Hub 1:1 Parity (`web/js/userPortal.js`)**:
+>    - Aligned card order with Android:
+>      - **For Engineer**: 1. Leave Request (with live remaining balance badge + active requests badge) → 2. Server Credential Tracker → 3. My Team → 4. Account & Settings.
+>      - **For Manager**: 1. Leave Approvals (with live pending count badge or `Queue Clear`) → 2. Server Credential Tracker → 3. My Team → 4. Account & Settings.
+>      - **For Admin**: 1. Leave Approvals → 2. Server Credential Tracker → 3. Server Management (Diagnostics & Logs) → 4. Account & Settings.
+>    - Added live fetch of leave stats & approvals queue count in `refreshAllData()` to power live badges.
+>    - Cleaned up any residual partner text in request history.
+> 4. **Version Bump**:
+>    - Synced version across `server.py` (`2.5.3`), `android/app/build.gradle.kts` (`versionCode = 178`, `versionName = "2.5.3"`), and web client query strings (`?v=2.5.3`)."*
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.2 - Build 177 — Mobile Bottom Nav Bubble Clipping Fix):
+> *"Vijaya! Gafoorka! Mobile web bottom dock-il active navigation button-inte elevated circular bubble top edge-il cut/clip aayirunna issue 100% spotless aayi solve cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Broken & Fixed:
+> 1. **Overflow Clipping on Bottom Dock Removed**:
+>    - `.rx-mobile-bottom-nav` had `overflow: hidden !important;`. Because the active selected tab bubble elevates with `margin-top: -14px;`, the top portion of the circular bubble and its glowing elevation shadow were being strictly chopped off by the dock's top boundary.
+>    - Removed `overflow: hidden` and declared `overflow: visible !important;` on `.rx-mobile-bottom-nav`, `.rx-nav-tab`, `.rx-landscape-nav-rail`, and `.rx-rail-tab`.
+>    - The floating active bubble now renders cleanly, popping smoothly above the dock with full circular geometry and vibrant neumorphic glow.
+> 2. **Version Bump**:
+>    - Version updated to `v2.5.2` (Build 177) across `server.py`, `android/app/build.gradle.kts`, `userPortal.js`, and HTML assets."*
 
 ---
 

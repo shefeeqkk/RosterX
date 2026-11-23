@@ -74,6 +74,7 @@ import { registerPwaServiceWorker, mountIosInstallBanner } from './pwaHelper.js?
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
 import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
+import { LeaveApprovalsController } from './leaveController.js?v=2.5.3';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -670,7 +671,7 @@ class RosterXApp {
     });
 
     // 4. Adaptive Mobile Portrait Bottom Dock + Mobile Landscape Left Rail (5 Android Admin Tabs)
-    this.activeAdminHub = 'credentials';
+    this.activeAdminHub = 'overview';
     this.mobileNavShell = new MobileNavShell({
       tabs: [
         { id: 'dashboard', label: 'Dashboard', icon: 'ph-gauge' },
@@ -699,7 +700,17 @@ class RosterXApp {
     });
     this.swipeController.mount();
 
-    // 5. Server Credential Tracker & 6-Palette Appearance inside Admin More Hub
+    // 5. Leave Approvals, Server Credential Tracker & 6-Palette Appearance inside Admin More Hub
+    const leaveHost = document.getElementById('adminLeaveApprovalsHost');
+    if (leaveHost) {
+      this.leaveApprovalsController = new LeaveApprovalsController({
+        container: leaveHost,
+        currentUser: activeAuthUser || { role: 'admin', name: 'Admin' },
+        onToast: (msg, type) => this.showToast(msg, type),
+        onRosterMutated: () => this.renderRoster()
+      });
+    }
+
     const credHost = document.getElementById('adminCredentialTrackerHost');
     if (credHost) {
       this.credentialTracker = new CredentialTrackerController({
@@ -720,6 +731,9 @@ class RosterXApp {
     } else if (deepLink === 'credentials') {
       this.switchTab('diagnostics');
       this.switchAdminHub('credentials');
+    } else if (deepLink === 'leave_approvals') {
+      this.switchTab('diagnostics');
+      this.switchAdminHub('leave_approvals');
     } else if (deepLink === 'profile') {
       document.getElementById('adminUserPill')?.click();
     }
@@ -739,26 +753,92 @@ class RosterXApp {
         if (sub) this.switchAdminHub(sub);
       });
     });
+
+    document.querySelectorAll('[data-admin-hub-card]').forEach((card) => {
+      card.addEventListener('click', () => {
+        const sub = card.dataset.adminHubCard;
+        if (sub) this.switchAdminHub(sub);
+      });
+    });
+
+    document.querySelectorAll('.btnBackToAdminHub').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.switchAdminHub('overview');
+      });
+    });
   }
 
-  switchAdminHub(sub) {
-    this.activeAdminHub = sub;
-    ['credentials', 'diagnostics', 'appearance'].forEach((id) => {
+  async switchAdminHub(sub) {
+    this.activeAdminHub = sub || 'overview';
+    const subTarget = this.activeAdminHub;
+    ['overview', 'leave_approvals', 'credentials', 'diagnostics', 'appearance'].forEach((id) => {
       const panel = document.getElementById(`adminHubPanel_${id}`);
-      if (panel) panel.classList.toggle('hidden', id !== sub);
+      if (panel) panel.classList.toggle('hidden', id !== subTarget);
     });
     document.querySelectorAll('.admin-hub-btn').forEach((btn) => {
-      const active = btn.dataset.adminHub === sub;
+      const active = btn.dataset.adminHub === subTarget;
       btn.className = active
         ? 'admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-sm flex items-center gap-1.5'
         : 'admin-hub-btn px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1.5';
     });
-    if (sub === 'credentials') {
+
+    if (subTarget === 'overview') {
+      this.refreshAdminHubOverviewBadges();
+    } else if (subTarget === 'leave_approvals') {
+      this.leaveApprovalsController?.load();
+    } else if (subTarget === 'credentials') {
       this.credentialTracker?.load();
-    } else if (sub === 'diagnostics') {
+    } else if (subTarget === 'diagnostics') {
       this.loadDiagnosticsTerminal();
-    } else if (sub === 'appearance') {
+    } else if (subTarget === 'appearance') {
       this.mountAdminAppearancePicker();
+    }
+  }
+
+  async refreshAdminHubOverviewBadges() {
+    // 1. Leave approvals queue count badge
+    try {
+      const res = await fetch('/api/leave/admin-queue', { headers: getAuthHeaders() });
+      const data = await res.json();
+      const badgeEl = document.getElementById('adminHubBadge_leave');
+      if (badgeEl && data.success) {
+        const pendingCount = (data.pending_requests || []).length;
+        badgeEl.innerHTML = pendingCount > 0
+          ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">${pendingCount} Pending Approvals</span>`
+          : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">Queue Clear</span>`;
+      }
+    } catch (_) {}
+
+    // 2. Server credentials badge
+    try {
+      const res = await fetch('/api/credentials', { headers: getAuthHeaders() });
+      const data = await res.json();
+      const badgeEl = document.getElementById('adminHubBadge_credentials');
+      if (badgeEl && data.success) {
+        const items = data.data || [];
+        const expired = items.filter(t => String(t.status || '').toUpperCase() === 'EXPIRED').length;
+        const expiring = items.filter(t => ['EXPIRING_SOON', 'EXPIRES_TODAY'].includes(String(t.status || '').toUpperCase())).length;
+        if (expired > 0) {
+          badgeEl.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">${expired} Expired</span>`;
+        } else if (expiring > 0) {
+          badgeEl.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">${expiring} Expiring Soon</span>`;
+        } else {
+          badgeEl.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">${items.length > 0 ? `${items.length} Active Trackers` : 'All Healthy'}</span>`;
+        }
+      }
+    } catch (_) {}
+
+    // 3. Diagnostics badge
+    const diagBadge = document.getElementById('adminHubBadge_diagnostics');
+    if (diagBadge) {
+      diagBadge.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">Diagnostics &amp; Logs</span>`;
+    }
+
+    // 4. Appearance badge
+    const appBadge = document.getElementById('adminHubBadge_appearance');
+    if (appBadge) {
+      const p = themeController.getActivePalette();
+      appBadge.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">${escapeHtml(p?.name || 'Themes & Palettes')}</span>`;
     }
   }
 
@@ -856,7 +936,7 @@ class RosterXApp {
     } else if (tabId === 'team') {
       this.renderTeamTab();
     } else if (tabId === 'diagnostics') {
-      this.switchAdminHub(this.activeAdminHub || 'credentials');
+      this.switchAdminHub(this.activeAdminHub || 'overview');
     } else if (tabId === 'broadcast') {
       broadcastController.renderRecipientChips();
       broadcastController.populatePreviewEngineers();
