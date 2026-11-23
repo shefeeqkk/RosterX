@@ -2370,9 +2370,9 @@ fun resolveAppUpdateInfo(
     installedVersion: String
 ): AppUpdateInfo? {
     if (serverInfo == null) return null
-    val remoteVersion = serverInfo.latestAndroidVersion?.takeIf { it.isNotBlank() }
-        ?: serverInfo.version?.takeIf { it.isNotBlank() }
-        ?: return null
+    // Update checks are strictly bound to GitHub release versions (latestAndroidVersion).
+    // Never fall back to serverInfo.version (which represents the backend API version).
+    val remoteVersion = serverInfo.latestAndroidVersion?.takeIf { it.isNotBlank() } ?: return null
 
     if (compareSemanticVersions(remoteVersion, installedVersion) <= 0) {
         return null

@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 21:40 IST** (Target Sprint: **v2.5.4 - Build 179**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 21:55 IST** (Target Sprint: **v2.5.5 - Build 180**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.5 - Build 180 — Update Banner Decoupled from Server Version & Bound to GitHub Releases):
+> *"Vijaya! Gafoorka! App-il update banner server version vechu suggest cheyyunna reethi maati, GitHub-il publish cheytha actual release version-umaayi bind cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Broken & Fixed:
+> 1. **Root Cause**:
+>    - In `server.py`, `get_app_update_metadata()` was falling back to `SERVER_VERSION` whenever `LATEST_ANDROID_VERSION` environment variable was not set.
+>    - In Android `ProfileComponents.kt:resolveAppUpdateInfo()`, if `latestAndroidVersion` was blank, it was also falling back to `serverInfo.version`.
+>    - As a result, whenever the server was updated/redeployed to a new version (e.g. `2.5.4`), the Android app compared its local version against the server version and triggered an update banner pointing to GitHub Releases, even though that release didn't exist yet on GitHub!
+> 2. **GitHub Releases Integration with Intelligent In-Memory Caching (`server.py`)**:
+>    - Added `fetch_latest_github_release(max_age_seconds=600)` which dynamically queries `https://api.github.com/repos/shefeeqkk/RosterX/releases/latest`.
+>    - Extracts the actual released tag name (e.g., `v1.34.0` -> `1.34.0`) and the direct `.apk` browser download URL asset if present.
+>    - Implemented a 10-minute cache with automatic fallback to prevent hitting GitHub API rate limits.
+>    - In `get_app_update_metadata()`, update version checks now strictly use the GitHub release version, never the internal backend `SERVER_VERSION`.
+> 3. **Android App Client Hardening (`ProfileComponents.kt`)**:
+>    - In `resolveAppUpdateInfo()`, eliminated the fallback to `serverInfo.version`.
+>    - Update checks now strictly require a valid `latestAndroidVersion` from GitHub releases. If the installed version is equal to or greater than the GitHub release, no banner is shown.
+> 4. **Version Bump & Build Verification**:
+>    - Bumped to `v2.5.5` (Build 180) across `server.py` and `android/app/build.gradle.kts`.
+>    - Built successfully with `safe_build.bat assembleDebug` in 1m 49s."*
 
 ---
 

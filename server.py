@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.4"
+SERVER_VERSION = "2.5.5"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -333,10 +333,71 @@ def get_android_app_link_fingerprints() -> list:
     return result
 
 
+CACHED_GITHUB_RELEASE = {
+    "version": "1.34.0",
+    "tag_name": "v1.34.0",
+    "apk_download_url": "https://github.com/shefeeqkk/RosterX/releases/latest",
+    "last_fetched": 0.0
+}
+
+def fetch_latest_github_release(max_age_seconds: int = 600) -> dict:
+    """
+    Fetch the latest officially released Android version from GitHub Releases API with in-memory caching.
+    Prevents API rate limiting and decouples client update prompts from internal backend server versions.
+    """
+    global CACHED_GITHUB_RELEASE
+    now = time.time()
+    if now - CACHED_GITHUB_RELEASE["last_fetched"] < max_age_seconds and CACHED_GITHUB_RELEASE["version"]:
+        return CACHED_GITHUB_RELEASE
+
+    repo = os.environ.get("GITHUB_REPO", "shefeeqkk/RosterX").strip()
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "RosterX-Update-Service",
+                "Accept": "application/vnd.github.v3+json"
+            }
+        )
+        gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
+        if gh_token:
+            req.add_header("Authorization", f"Bearer {gh_token}")
+
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                tag = str(data.get("tag_name") or "").strip()
+                clean_ver = tag.lstrip("vV").split("-")[0].strip()
+
+                apk_url = f"https://github.com/{repo}/releases/latest"
+                for asset in data.get("assets", []):
+                    name = str(asset.get("name") or "").lower()
+                    if name.endswith(".apk"):
+                        apk_url = asset.get("browser_download_url") or apk_url
+                        break
+
+                if clean_ver:
+                    CACHED_GITHUB_RELEASE = {
+                        "version": clean_ver,
+                        "tag_name": tag,
+                        "apk_download_url": apk_url,
+                        "last_fetched": now
+                    }
+                    return CACHED_GITHUB_RELEASE
+    except Exception as e:
+        log_server(f"[GITHUB RELEASE FETCH] Non-fatal release query notice: {e}")
+
+    # On error, retain existing cache and back off
+    CACHED_GITHUB_RELEASE["last_fetched"] = now
+    return CACHED_GITHUB_RELEASE
+
+
 def get_app_update_metadata() -> dict:
     """
     Return Android in-app update discovery metadata for GET /api/server-info.
-    Reads overrides from environment variables / .env with clean defaults.
+    Reads overrides from environment variables / .env, or dynamically queries GitHub Releases.
+    Never falls back to internal backend server version.
     """
     env_map = {}
     try:
@@ -348,10 +409,15 @@ def get_app_update_metadata() -> dict:
         val = (os.environ.get(key) or env_map.get(key) or "").strip().strip("'\"")
         return val if val else default
 
+    explicit_latest = (os.environ.get("LATEST_ANDROID_VERSION") or env_map.get("LATEST_ANDROID_VERSION") or "").strip().strip("'\"")
+    gh_release = fetch_latest_github_release()
+    latest_version = explicit_latest or gh_release.get("version") or "1.34.0"
+    download_url = _get_val("APK_DOWNLOAD_URL", gh_release.get("apk_download_url") or "https://github.com/shefeeqkk/RosterX/releases/latest")
+
     return {
-        "latest_android_version": _get_val("LATEST_ANDROID_VERSION", SERVER_VERSION),
+        "latest_android_version": latest_version,
         "min_supported_version": _get_val("MIN_SUPPORTED_VERSION", "1.34.0"),
-        "apk_download_url": _get_val("APK_DOWNLOAD_URL", "https://github.com/shefeeqkk/RosterX/releases/latest"),
+        "apk_download_url": download_url,
     }
 
 
