@@ -72,7 +72,7 @@ import { themeController } from './themeController.js?v=2.0.5';
 import { broadcastController } from './broadcastController.js?v=2.0.5';
 import { registerPwaServiceWorker, mountIosInstallBanner } from './pwaHelper.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.4.0';
+import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;

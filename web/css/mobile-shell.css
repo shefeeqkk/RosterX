@@ -18,7 +18,10 @@ html {
   -webkit-text-size-adjust: 100%;
   scroll-padding-top: calc(4.25rem + env(safe-area-inset-top, 0px));
   scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
-  overflow-x: hidden !important;
+  overflow-x: clip !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   width: 100% !important;
   max-width: 100vw !important;
 }
@@ -27,7 +30,10 @@ body {
   background-color: var(--nm-canvas);
   color: var(--nm-text);
   -webkit-tap-highlight-color: transparent;
-  overflow-x: hidden !important;
+  overflow-x: clip !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   width: 100% !important;
   max-width: 100vw !important;
 }
@@ -1258,18 +1264,21 @@ html.dark #rxAiChatDialog {
 }
 
 /* ==========================================================================
-   Mobile Viewport Gesture & Overscroll Shielding (v2.3.16)
+   Mobile Viewport Gesture & Overscroll Shielding (v2.5.1)
    ========================================================================== */
 @media (max-width: 1023px) {
   html, body, main.rx-main-shell {
-    overscroll-behavior-y: contain !important;
+    overscroll-behavior-y: auto !important;
     overscroll-behavior-x: none !important;
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
-  .rx-tab-panel {
+  .rx-tab-panel, .tab-panel, .rx-subview {
     touch-action: pan-y !important;
   }
-  .rx-roster-table-wrap {
+  .rx-roster-table-wrap, .rx-month-grid, .rx-roster-scroll-table {
     touch-action: pan-x pan-y !important;
   }
 }

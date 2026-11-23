@@ -17,7 +17,7 @@ import { authService } from './authService.js?v=2.0.5';
 import { AtlasService } from './atlasService.js?v=2.0.5';
 import { themeController } from './themeController.js?v=2.0.5';
 import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5';
-import { SwipeTabController } from './swipeTabController.js?v=2.4.0';
+import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { MyTeamViewController } from './myTeamView.js?v=2.0.5';
 import { LeaveController, LeaveApprovalsController } from './leaveController.js?v=2.4.0';
@@ -31,7 +31,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.3.1';
 
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.5.1';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -285,7 +285,7 @@ class RosterXUserPortal {
     });
 
     this.swipeController = new SwipeTabController({
-      container: document.body,
+      container: document.getElementById('rxMainContainer') || document.body,
       getTabs: () => this.tabs,
       getActiveTab: () => this.activeTab,
       onSwitchTab: (id) => this.switchTab(id),

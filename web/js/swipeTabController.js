@@ -103,8 +103,8 @@ export class SwipeTabController {
     }
 
     const target = e.target;
-    // 2. Ignore form inputs, sliders, and interactive control surfaces
-    if (target.closest('input, textarea, select, button, [contenteditable="true"], .rx-no-swipe, [data-no-swipe], #rxMobileBottomNav, .rx-mobile-bottom-nav, #rxDesktopNav, .rx-desktop-nav, header, .rx-topbar')) {
+    // 2. Ignore form inputs, sliders, interactive control surfaces, and scrollable containers
+    if (target.closest('input, textarea, select, button, [contenteditable="true"], .rx-no-swipe, [data-no-swipe], #rxMobileBottomNav, .rx-mobile-bottom-nav, #rxDesktopNav, .rx-desktop-nav, header, .rx-topbar, .overflow-y-auto, .overflow-y-scroll, .rx-modal-scroll, [data-scrollable="true"], dialog, .rx-modal-backdrop')) {
       this.ignoreCurrentGesture = true;
       return;
     }
@@ -142,23 +142,34 @@ export class SwipeTabController {
     const deltaX = currentX - this.startX;
     const deltaY = currentY - this.startY;
 
-    // Detect gesture angle on initial movement (8px slop with 1.35x dominance ratio)
+    // Detect gesture angle on initial movement
     if (!this.isHorizSwipe) {
       const absX = Math.abs(deltaX);
       const absY = Math.abs(deltaY);
-      if (absY > absX * 1.35 && absY > 8) {
-        // Strict vertical scroll dominance -> immediately release tracking to browser
+
+      // If user starts scrolling vertically even slightly, immediately abort gesture tracking
+      // and yield 100% control to the browser's native vertical scrolling!
+      if (absY >= absX && absY > 4) {
         this.isTracking = false;
+        this.ignoreCurrentGesture = true;
+        this.resetAllStyles();
         return;
       }
-      if (absX > 8 && absX > absY * 1.35) {
+
+      // To engage horizontal tab swiping, movement must be clearly horizontal,
+      // travel at least 15px, and have at least 1.8x horizontal-to-vertical dominance.
+      if (absX > 15 && absX > absY * 1.8) {
         this.isHorizSwipe = true;
       } else {
+        // Still below gesture threshold or undecided angle; yield to native scrolling
         return;
       }
     }
 
-    if (e.cancelable) e.preventDefault();
+    // Only prevent default if we have confirmed a horizontal tab swipe gesture
+    if (this.isHorizSwipe && e.cancelable) {
+      e.preventDefault();
+    }
 
     // Determine current tab index
     const tabs = this.getTabs() || [];

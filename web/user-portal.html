@@ -42,16 +42,26 @@
   <!-- RosterX Design System -->
   <link rel="stylesheet" href="css/tokens.css?v=2.0.6" />
   <link rel="stylesheet" href="css/neumorphic.css?v=2.0.6" />
-  <link rel="stylesheet" href="css/mobile-shell.css?v=2.3.14" />
+  <link rel="stylesheet" href="css/mobile-shell.css?v=2.5.1" />
 
   <style>
     * { box-sizing: border-box; }
+    html {
+      overflow-x: clip;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
     body {
       margin: 0;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--nm-canvas);
       color: var(--nm-text);
       min-height: 100dvh;
+      overflow-x: clip;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
     .rx-topbar {
       position: sticky;

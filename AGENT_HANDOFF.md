@@ -1,7 +1,27 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 00:40 IST** (Target Sprint: **v2.4.1 - Build 172**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 19:45 IST** (Target Sprint: **v2.5.1 - Build 176**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.1 - Build 176 — Mobile Web Vertical Scrolling Unlocked & Gesture Shielding):
+> *"Vijaya! Gafoorka! Mobile web portal-il vertical scrolling freeze aayirunna bug 100% spotless aayi solve cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Broken & Fixed:
+> 1. **SwipeTabController Vertical Dominance Yielding**:
+>    - Previous dominance ratio `absY > absX * 1.35` had a dead zone on diagonal thumb scrolls. As soon as the user wavered horizontally even slightly, `this.isHorizSwipe` triggered and called `e.preventDefault()`, permanently locking mobile vertical scrolling.
+>    - Now, if vertical movement is detected (`absY >= absX && absY > 4`), gesture tracking immediately aborts (`this.isTracking = false; this.ignoreCurrentGesture = true;`), cleanly yielding 100% uninhibited control to the mobile browser's native vertical scrolling engine.
+>    - Horizontal tab swiping now requires strict, unmistakable dominance (`absX > 15 && absX > absY * 1.8`).
+>    - `onTouchStart` explicitly ignores touches originating inside `.overflow-y-auto, .overflow-y-scroll, .rx-modal-scroll, [data-scrollable="true"], dialog, .rx-modal-backdrop`.
+> 2. **Mobile Viewport CSS Shielding (`mobile-shell.css` & `styles.css`)**:
+>    - Replaced `overflow-x: hidden !important;` on `html` and `body` with `overflow-x: clip !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; touch-action: pan-y;`. In CSS specs, `overflow-x: hidden` forced `overflow-y` to compute to `auto` creating competing root scroll containers that trapped mobile inertial momentum.
+>    - Removed `overscroll-behavior-y: contain !important;` from `html, body, main.rx-main-shell` (which broke scroll chaining and rubber-banding on iOS/Android WebViews), restoring `overscroll-behavior-y: auto !important;`.
+>    - Added `touch-action: pan-y !important;` across `html, body, main.rx-main-shell, .rx-tab-panel, .tab-panel, .rx-subview`.
+> 3. **User Portal Container Isolation (`userPortal.js`)**:
+>    - Mounted `SwipeTabController` on `#rxMainContainer` (`document.getElementById('rxMainContainer') || document.body`) rather than `document.body` directly, preventing top bars, toasts, and outer boundaries from getting gesture-trapped.
+> 4. **Version Bump**:
+>    - Version updated to `v2.5.1` (Build 176) across `server.py`, `android/app/build.gradle.kts`, `userPortal.js`, `app.js`, and HTML assets."*
 
 ---
 
