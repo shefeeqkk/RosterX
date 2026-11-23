@@ -720,13 +720,13 @@ data class LeaveActionResponse(
 )
 
 data class LeaveApprovalDto(
-    @SerializedName("approved_by") val approvedBy: String = "",
-    @SerializedName("approved_by_name") val approvedByName: String = "",
-    @SerializedName("approved_at") val approvedAt: String = "",
-    @SerializedName("action_type") val actionType: String = "",
-    @SerializedName("swap_partner") val swapPartner: String = "",
-    @SerializedName("swap_shift_code") val swapShiftCode: String = "",
-    @SerializedName("admin_note") val adminNote: String = "",
+    @SerializedName("approved_by") val approvedBy: String? = null,
+    @SerializedName("approved_by_name", alternate = ["approved_name"]) val approvedByName: String? = null,
+    @SerializedName("approved_at") val approvedAt: String? = null,
+    @SerializedName("action_type") val actionType: String? = null,
+    @SerializedName("swap_partner") val swapPartner: String? = null,
+    @SerializedName("swap_shift_code") val swapShiftCode: String? = null,
+    @SerializedName("admin_note") val adminNote: String? = null,
     @SerializedName("revoked_by") val revokedBy: String? = null,
     @SerializedName("revoked_name") val revokedName: String? = null,
     @SerializedName("revoked_at") val revokedAt: String? = null
@@ -754,8 +754,8 @@ data class MyLeaveRequestsResponse(
     val requests: List<LeaveRequestDto> = emptyList(),
     @SerializedName("active_count") val activeCount: Int = 0,
     @SerializedName("approved_leave_days") val approvedLeaveDays: Int = 0,
-    @SerializedName("remaining_leave_balance") val remainingLeaveBalance: Int = 14,
-    @SerializedName("annual_quota") val annualQuota: Int = 14,
+    @SerializedName("remaining_leave_balance") val remainingLeaveBalance: Int? = null,
+    @SerializedName("annual_quota") val annualQuota: Int? = null,
     @SerializedName("annual_year") val annualYear: Int = 2026,
     @SerializedName("capping_enabled") val cappingEnabled: Boolean = true,
     val message: String? = null

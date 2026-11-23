@@ -857,23 +857,30 @@ private fun AuditHistoryTab(
                     )
 
                     req.approval?.let { app ->
-                        if (app.swapPartner.isNotBlank()) {
+                        val swapPartner = app.swapPartner.orEmpty()
+                        val swapShiftCode = app.swapShiftCode.orEmpty()
+                        val adminNote = app.adminNote.orEmpty()
+                        val approvedBy = app.approvedBy.orEmpty()
+                        val approvedByName = app.approvedByName.orEmpty().ifBlank { approvedBy }
+                        val approvedAt = app.approvedAt.orEmpty()
+
+                        if (swapPartner.isNotBlank()) {
                             Text(
-                                text = "Swapped with: ${app.swapPartner} (${app.swapShiftCode})",
+                                text = "Swapped with: $swapPartner ($swapShiftCode)",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF2563EB)
                             )
                         }
-                        if (app.adminNote.isNotBlank()) {
+                        if (adminNote.isNotBlank()) {
                             Text(
-                                text = "Admin Note: ${app.adminNote}",
+                                text = "Admin Note: $adminNote",
                                 fontSize = 11.sp,
                                 color = NeumorphicTokens.TextMuted
                             )
                         }
                         Text(
-                            text = "Actioned by ${app.approvedByName.ifBlank { app.approvedBy }} at ${formatTimestampCompact(app.approvedAt)}",
+                            text = "Actioned by $approvedByName at ${formatTimestampCompact(approvedAt)}",
                             fontSize = 10.sp,
                             color = NeumorphicTokens.TextMuted
                         )
@@ -882,7 +889,7 @@ private fun AuditHistoryTab(
                                 ?: app.revokedBy?.takeIf { it.isNotBlank() }
                                 ?: "manager"
                             Text(
-                                text = "Revoked by $revBy at ${formatTimestampCompact(app.revokedAt ?: "")}",
+                                text = "Revoked by $revBy at ${formatTimestampCompact(app.revokedAt.orEmpty())}",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFFDC2626)

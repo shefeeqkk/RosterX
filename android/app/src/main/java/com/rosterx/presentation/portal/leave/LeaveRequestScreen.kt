@@ -575,13 +575,13 @@ fun LeaveRequestScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "ANNUAL LEAVE QUOTA",
+                                        text = if (state.leaveCappingEnabled) "ANNUAL LEAVE QUOTA" else "LEAVE REQUESTS",
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Black,
                                         color = NeumorphicTokens.AccentSalmon
                                     )
                                     Text(
-                                        text = if (state.leaveCappingEnabled) {
+                                        text = if (state.leaveCappingEnabled && state.leaveRemainingDays != null && state.leaveAnnualQuota != null) {
                                             "${state.leaveRemainingDays} of ${state.leaveAnnualQuota} Days Remaining"
                                         } else {
                                             "Leave Requests"
@@ -590,11 +590,19 @@ fun LeaveRequestScreen(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = NeumorphicTokens.TextMain
                                     )
-                                    Text(
-                                        text = "${state.leaveApprovedDays} approved days in ${LocalDate.now().year}",
-                                        fontSize = 11.5.sp,
-                                        color = NeumorphicTokens.TextMuted
-                                    )
+                                    if (state.leaveCappingEnabled) {
+                                        Text(
+                                            text = "${state.leaveApprovedDays} approved days in ${LocalDate.now().year}",
+                                            fontSize = 11.5.sp,
+                                            color = NeumorphicTokens.TextMuted
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Submit and track your annual leave requests",
+                                            fontSize = 11.5.sp,
+                                            color = NeumorphicTokens.TextMuted
+                                        )
+                                    }
                                 }
 
                                 Surface(
@@ -737,7 +745,7 @@ fun LeaveRequestScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        val partner = req.approval?.swapPartner ?: req.preferredPartner
+                                        val partner = req.approval?.swapPartner?.takeIf { it.isNotBlank() } ?: req.preferredPartner
                                         if (partner.isNotBlank()) {
                                             Text(
                                                 text = "Partner: $partner",
@@ -749,6 +757,15 @@ fun LeaveRequestScreen(
                                             text = "Submitted ${formatTimestampCompact(req.createdAt)}",
                                             fontSize = 11.sp,
                                             color = NeumorphicTokens.TextMuted
+                                        )
+                                    }
+
+                                    req.approval?.adminNote?.takeIf { it.isNotBlank() }?.let { note ->
+                                        Text(
+                                            text = "Admin Note: $note",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (req.status.contains("reject", ignoreCase = true)) Color(0xFFEF4444) else NeumorphicTokens.TextMuted
                                         )
                                     }
 

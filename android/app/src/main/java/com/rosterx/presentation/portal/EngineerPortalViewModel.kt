@@ -117,7 +117,7 @@ data class PortalState(
 
     val myLeaveRequests: List<com.rosterx.data.remote.LeaveRequestDto> = emptyList(),
     val leaveApprovedDays: Int = 0,
-    val leaveRemainingDays: Int = 14,
+    val leaveRemainingDays: Int? = 14,
     val leaveAnnualQuota: Int = 14,
     val leaveActiveCount: Int = 0,
     val leaveCappingEnabled: Boolean = true,
@@ -1382,7 +1382,7 @@ class EngineerPortalViewModel @Inject constructor(
                     myLeaveRequests = data.requests ?: emptyList(),
                     leaveApprovedDays = data.approvedLeaveDays,
                     leaveRemainingDays = data.remainingLeaveBalance,
-                    leaveAnnualQuota = data.annualQuota,
+                    leaveAnnualQuota = data.annualQuota ?: _state.value.leaveAnnualQuota,
                     leaveActiveCount = data.activeCount,
                     leaveCappingEnabled = data.cappingEnabled,
                     isLoadingLeave = false

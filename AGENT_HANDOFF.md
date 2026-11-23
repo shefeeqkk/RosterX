@@ -1,7 +1,33 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 20:45 IST** (Target Sprint: **v2.5.3 - Build 178**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 21:40 IST** (Target Sprint: **v2.5.4 - Build 179**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.4 - Build 179 — Leave Rejection Crash Fix, Detailed FCM Push/In-App Notifications, & Zero-Count Uncapped Policy):
+> *"Vijaya! Gafoorka! Admin portal-il ninnu leave request reject cheyyumbol Android app crash aakunna bug-inte root cause kandupidichu 100% spotless aayi solve aakki, koode detailed FCM push/in-app notifications-um uncapped leave policy rendering-um implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Broken & Fixed:
+> 1. **Leave Rejection Android Crash Root Cause & Fix**:
+>    - **Root Cause**: In `server.py` `/api/leave/admin-action`, on rejection `approval_record` was saving `"swap_partner": None`, `"admin_note": None`, and `"approved_name": admin_name`. When serialized to JSON, Gson deserialized `null` into non-nullable Kotlin properties in `LeaveApprovalDto`. In `LeaveApprovalsScreen.kt:860`, calling `app.swapPartner.isNotBlank()` immediately threw `NullPointerException: Parameter specified as non-null is null: method kotlin.text.StringsKt__StringsKt.isBlank, parameter <this>`.
+>    - **Defensive Fix**: 
+>      - In `RosterApiService.kt`: Made all fields in `LeaveApprovalDto` nullable `String?` with alternate annotation `@SerializedName("approved_by_name", alternate = ["approved_name"])`.
+>      - In `LeaveApprovalsScreen.kt` & `LeaveRequestScreen.kt`: Guarded all accesses with null-safe operators (`val swapPartner = app.swapPartner.orEmpty()`, `val adminNote = app.adminNote.orEmpty()`, `val approvedByName = app.approvedByName.orEmpty().ifBlank { approvedBy }`).
+>      - In `server.py`: Ensured `approval_record` emits empty strings `""` instead of `None`, and includes both `approved_name` and `approved_by_name`.
+> 2. **Detailed FCM Push & In-App Notifications for Leave Actions**:
+>    - Added specific day count and full formatted dates to FCM push alerts and in-app notifications:
+>      - e.g., `Your leave request for 2 days (2026-11-25, 2026-11-26) was rejected. Comment: Staff shortage.`
+>      - e.g., `Your leave request for 2 days (2026-11-25, 2026-11-26) has been approved. Note: Approved.`
+>    - In Web Admin Portal (`web/js/leaveController.js`): On clicking Reject, the admin is prompted for an optional review comment/reason (`prompt()`), which is submitted as `admin_note` and displayed directly in the engineer's submission history and in notifications.
+> 3. **Elimination of Balance Numbers when Leave Capping is Disabled**:
+>    - In `server.py`: Removed hardcoded `999` placeholder when `capping_enabled` is false (returns `null` / `None`).
+>    - In Android `LeaveRequestScreen.kt`: Shows "LEAVE REQUESTS - Submit and track your annual leave requests" without any quota or count numbers when uncapped.
+>    - In Android `MoreHubView.kt`: Hides the days balance pill completely when capping is disabled.
+>    - In Web `userPortal.js` & `leaveController.js`: Completely eliminates quota numbers and balance pill when `capping_enabled` is false.
+> 4. **Version Bump & Build Verification**:
+>    - Bumped to `v2.5.4` (Build 179) across `server.py` and `android/app/build.gradle.kts`.
+>    - Built with `safe_build.bat assembleDebug` and verified via ADB install and logcat (0 crashes)."*
 
 ---
 

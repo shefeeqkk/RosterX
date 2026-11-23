@@ -1891,18 +1891,18 @@ class RosterXUserPortal {
         ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(217,119,6,0.14);color:#D97706;font-size:11px;font-weight:800;">${this.credSummary.expiringSoon} Expiring Soon</span>`
         : `<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">${this.credSummary.total > 0 ? `${this.credSummary.total} Active Trackers` : 'All Healthy'}</span>`;
 
-    const leaveBalText = this.leaveStatsSummary.cappingEnabled
-      ? `${this.leaveStatsSummary.remainingDays} Days Balance`
-      : `${this.leaveStatsSummary.approvedDays} Approved Days`;
+    const leaveBalPill = (this.leaveStatsSummary.cappingEnabled && this.leaveStatsSummary.remainingDays != null)
+      ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">${this.leaveStatsSummary.remainingDays} Days Balance</span>`
+      : '';
     const leaveActivePill = this.leaveStatsSummary.activeCount > 0
       ? `<span style="padding:3px 9px;border-radius:10px;background:rgba(245,158,11,0.14);color:#D97706;font-size:11px;font-weight:800;">${this.leaveStatsSummary.activeCount} Active</span>`
       : '';
-    const leaveBadge = `
+    const leaveBadge = (leaveBalPill || leaveActivePill) ? `
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="padding:3px 9px;border-radius:10px;background:rgba(16,185,129,0.14);color:#059669;font-size:11px;font-weight:800;">${leaveBalText}</span>
+        ${leaveBalPill}
         ${leaveActivePill}
       </div>
-    `;
+    ` : '';
 
     const pendingCount = this.leaveApprovalsSummary.pendingCount || 0;
     const leaveAppBadge = pendingCount > 0

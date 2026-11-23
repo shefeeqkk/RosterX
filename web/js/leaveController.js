@@ -310,7 +310,7 @@ export class LeaveController {
                   ` : ''}
                 </div>
                 <div style="font-size:11px;color:var(--nm-text-muted);">
-                  ${this.leaveStats.capping_enabled ? `${this.leaveStats.remaining_leave_balance} annual days remaining` : ''}
+                  ${this.leaveStats.capping_enabled && this.leaveStats.remaining_leave_balance != null ? `${this.leaveStats.remaining_leave_balance} annual days remaining` : ''}
                 </div>
               </div>
             </div>
@@ -341,11 +341,17 @@ export class LeaveController {
               <div>
                 <div style="font-size:11px;font-weight:900;color:var(--nm-accent);letter-spacing:0.05em;">ANNUAL LEAVE</div>
                 <div style="font-size:18px;font-weight:900;margin-top:2px;">
-                  ${this.leaveStats.capping_enabled ? `${this.leaveStats.remaining_leave_balance} of ${this.leaveStats.annual_quota} Days Remaining` : 'Leave Requests'}
+                  ${this.leaveStats.capping_enabled && this.leaveStats.remaining_leave_balance != null && this.leaveStats.annual_quota != null ? `${this.leaveStats.remaining_leave_balance} of ${this.leaveStats.annual_quota} Days Remaining` : 'Leave Requests'}
                 </div>
-                <div style="font-size:11.5px;color:var(--nm-text-muted);margin-top:2px;">
-                  ${this.leaveStats.approved_leave_days} days approved in ${this.calYear}
-                </div>
+                ${this.leaveStats.capping_enabled ? `
+                  <div style="font-size:11.5px;color:var(--nm-text-muted);margin-top:2px;">
+                    ${this.leaveStats.approved_leave_days} days approved in ${this.calYear}
+                  </div>
+                ` : `
+                  <div style="font-size:11.5px;color:var(--nm-text-muted);margin-top:2px;">
+                    Submit and track your annual leave requests
+                  </div>
+                `}
               </div>
               <div style="width:52px;height:52px;border-radius:999px;background:var(--nm-accent-soft);color:var(--nm-accent);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
                 <i class="ph ph-calendar-check"></i>
@@ -401,6 +407,12 @@ export class LeaveController {
                     ${req.reason ? `
                       <div style="font-size:12px;color:var(--nm-text-muted);font-style:italic;">
                         &ldquo;${escapeHtml(req.reason)}&rdquo;
+                      </div>
+                    ` : ''}
+
+                    ${req.approval?.admin_note ? `
+                      <div style="font-size:11.5px;color:${st === 'rejected' ? '#DC2626' : 'var(--nm-accent)'};font-weight:700;">
+                        Admin Note: ${escapeHtml(req.approval.admin_note)}
                       </div>
                     ` : ''}
 
@@ -544,14 +556,15 @@ export class LeaveApprovalsController {
     }
   }
 
-  async takeAction(requestId, action) {
+  async takeAction(requestId, action, adminNote = '') {
     try {
       const resp = await fetch('/api/leave/admin-action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           request_id: requestId,
-          action
+          action,
+          admin_note: adminNote
         })
       });
       const data = await resp.json();
@@ -695,7 +708,10 @@ export class LeaveApprovalsController {
                 statusBadge = `<span style="padding:3px 9px;border-radius:10px;background:rgba(148,163,184,0.2);color:var(--nm-text-muted);font-size:11px;font-weight:800;">${escapeHtml(st)}</span>`;
               }
 
-              const decisionInfo = req.decision ? `Actioned by ${escapeHtml(req.decision.approved_by || req.decision.rejected_by || 'Admin')}` : '';
+              const app = req.approval || req.decision || {};
+              const actionedBy = app.approved_name || app.approved_by_name || app.approved_by || app.rejected_by || 'Admin';
+              const actionedAt = app.approved_at || app.timestamp || req.created_at || '';
+              const decisionInfo = `Actioned by ${escapeHtml(actionedBy)}`;
 
               return `
                 <div class="rx-card-subtle" style="display:flex;flex-direction:column;gap:10px;padding:16px;">
@@ -722,9 +738,15 @@ export class LeaveApprovalsController {
                     </div>
                   ` : ''}
 
+                  ${app.admin_note ? `
+                    <div style="font-size:11.5px;color:${st === 'rejected' ? '#DC2626' : 'var(--nm-accent)'};font-weight:700;">
+                      Admin Note: ${escapeHtml(app.admin_note)}
+                    </div>
+                  ` : ''}
+
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--nm-text-muted);padding-top:4px;border-top:1px solid rgba(148,163,184,0.1);">
                     <div>${decisionInfo}</div>
-                    <div>${escapeHtml(String(req.decision?.timestamp || req.created_at || '').slice(0, 10))}</div>
+                    <div>${escapeHtml(String(actionedAt).slice(0, 10))}</div>
                   </div>
 
                   ${isApproved ? `
@@ -843,8 +865,9 @@ export class LeaveApprovalsController {
       btn.addEventListener('click', () => {
         const reqId = btn.getAttribute('data-req-id');
         const applicant = btn.getAttribute('data-applicant') || 'this engineer';
-        if (!confirm(`Are you sure you want to reject leave request ${reqId} for ${applicant}?`)) return;
-        this.takeAction(reqId, 'reject');
+        const note = prompt(`Reject leave request ${reqId} for ${applicant}?\n\nEnter reason / review comment (optional):`, '');
+        if (note === null) return;
+        this.takeAction(reqId, 'reject', note.trim());
       });
     });
 

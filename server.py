@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.3"
+SERVER_VERSION = "2.5.4"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -191,12 +191,12 @@ def get_engineer_leave_stats(username: str, annual_year: int) -> dict:
     capping_enabled = cfg.get("capping_enabled", True)
     annual_quota = int(cfg.get("annual_quota", 14))
 
-    remaining = max(0, annual_quota - approved_leave_days) if capping_enabled else 999
+    remaining = max(0, annual_quota - approved_leave_days) if capping_enabled else None
     return {
         "approved_leave_days": approved_leave_days,
         "remaining_leave_balance": remaining,
         "active_count": active_count,
-        "annual_quota": annual_quota,
+        "annual_quota": annual_quota if capping_enabled else None,
         "capping_enabled": capping_enabled
     }
 
@@ -6443,40 +6443,15 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             pass
                     update_roster_shift_for_date(applicant_user, d_str, default_shift)
 
-                # Send FCM push notification to applicant
-                app_tokens = []
-                if ATLAS_DB is not None:
-                    try:
-                        app_eng = ATLAS_DB.engineers.find_one({"username": applicant_user})
-                        if app_eng:
-                            toks = app_eng.get("fcm_tokens", [])
-                            if isinstance(toks, list):
-                                app_tokens.extend([str(t).strip() for t in toks if t and str(t).strip()])
-                            elif isinstance(toks, str) and toks.strip():
-                                app_tokens.append(toks.strip())
-                    except Exception:
-                        pass
-                app_tokens = list(set(app_tokens))
-                if app_tokens:
-                    title_text = "⚠️ Leave Approval Revoked"
-                    body_text = f"Your approved leave for {', '.join(dates)} was revoked by {admin_name}. Scheduled shifts and quota balance have been restored."
-                    send_fcm_push(
-                        app_tokens,
-                        title_text,
-                        body_text,
-                        priority="high",
-                        notif_id=f"rev_{request_id}",
-                        extra_data={"type": "leave_status", "request_id": request_id, "status": "revoked"}
-                    )
-
             approval_record = {
                 "approved_by": admin_username,
                 "approved_name": admin_name,
+                "approved_by_name": admin_name,
                 "approved_at": now_utc,
                 "action_type": action,
-                "swap_partner": swap_partner if action == "swap" else None,
-                "swap_shift_code": swap_code if action == "swap" else None,
-                "admin_note": admin_note
+                "swap_partner": swap_partner if action == "swap" else "",
+                "swap_shift_code": swap_code if action == "swap" else "",
+                "admin_note": admin_note or ""
             }
             if action == "revoke":
                 approval_record["revoked_by"] = admin_username
@@ -6519,16 +6494,26 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     pass
             applicant_tokens = list(set(applicant_tokens))
 
+            days_count = len(dates)
+            formatted_dates = ", ".join(dates) if dates else "requested dates"
+            days_label = f"{days_count} day{'s' if days_count != 1 else ''} ({formatted_dates})"
+
             push_title = "Leave Request Approved" if "approved" in new_status else "Leave Request Update"
             if new_status == "approved_swap":
-                push_body = f"Your request for {', '.join(dates)} has been approved as Swap with {swap_partner} ({swap_code})."
+                push_title = "Leave Approved (Swap)"
+                push_body = f"Your leave request for {days_label} has been approved as Swap with {swap_partner} ({swap_code})." + (f" Note: {admin_note}" if admin_note else "")
             elif new_status == "approved_leave":
-                push_body = f"Your request for {', '.join(dates)} has been approved as Leave."
+                push_title = "Leave Request Approved"
+                push_body = f"Your leave request for {days_label} has been approved." + (f" Note: {admin_note}" if admin_note else "")
             elif new_status == "rejected":
                 push_title = "Leave Request Rejected"
-                push_body = f"Your request for {', '.join(dates)} was not approved." + (f" Note: {admin_note}" if admin_note else "")
+                push_body = f"Your leave request for {days_label} was rejected." + (f" Comment: {admin_note}" if admin_note else "")
+            elif new_status == "revoked":
+                push_title = "⚠️ Leave Approval Revoked"
+                push_body = f"Your approved leave for {days_label} was revoked by {admin_name}. Scheduled shifts and quota balance have been restored." + (f" Note: {admin_note}" if admin_note else "")
             else:
-                push_body = f"Your request for {', '.join(dates)} was cancelled."
+                push_title = "Leave Request Update"
+                push_body = f"Your leave request for {days_label} was {new_status}." + (f" Note: {admin_note}" if admin_note else "")
 
             if applicant_tokens:
                 send_fcm_push(
@@ -6537,7 +6522,14 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     body=push_body,
                     priority="high",
                     notif_id=f"notif_action_{request_id}",
-                    extra_data={"type": "leave_request_action", "request_id": request_id, "status": new_status}
+                    extra_data={
+                        "type": "leave_request_action",
+                        "request_id": request_id,
+                        "status": new_status,
+                        "dates": ", ".join(dates),
+                        "days_count": str(days_count),
+                        "admin_note": admin_note or ""
+                    }
                 )
 
             # Insert targeted In-App notification for the applicant

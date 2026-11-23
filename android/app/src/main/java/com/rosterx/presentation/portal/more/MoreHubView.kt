@@ -55,18 +55,20 @@ fun MoreHubView(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF10B981).copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f))
-                        ) {
-                            Text(
-                                text = "${state.leaveRemainingDays} Days Balance",
-                                color = Color(0xFF059669),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
+                        if (state.leaveCappingEnabled && state.leaveRemainingDays != null) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF10B981).copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f))
+                            ) {
+                                Text(
+                                    text = "${state.leaveRemainingDays} Days Balance",
+                                    color = Color(0xFF059669),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
                         }
 
                         if (state.leaveActiveCount > 0) {
