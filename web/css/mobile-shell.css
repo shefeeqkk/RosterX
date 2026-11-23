@@ -365,8 +365,40 @@ html.dark dialog.rx-modal::backdrop {
 }
 
 @media (max-width: 767.98px) {
-  .rx-desktop-only-nav {
+  .rx-desktop-only-nav,
+  .admin-hub-btn {
     display: none !important;
+  }
+
+  /* Admin Operations Hub & Feature Cards — 1:1 Android Neumorphic Parity */
+  .admin-feature-card {
+    background: var(--nm-surface) !important;
+    border-radius: 20px !important;
+    border: 1px solid var(--nm-border) !important;
+    box-shadow: var(--nm-shadow-raised) !important;
+    transition: transform 0.16s ease, box-shadow 0.16s ease !important;
+  }
+  .admin-feature-card:active {
+    transform: scale(0.98) !important;
+    box-shadow: var(--nm-shadow-inset-subtle) !important;
+  }
+  .btnBackToAdminHub {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: var(--nm-surface) !important;
+    border: 1px solid var(--nm-border) !important;
+    box-shadow: var(--nm-shadow-raised-subtle) !important;
+    border-radius: 12px !important;
+    color: var(--nm-text) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    padding: 7px 13px !important;
+    cursor: pointer !important;
+    transition: var(--nm-transition) !important;
+  }
+  .btnBackToAdminHub:active {
+    box-shadow: var(--nm-shadow-inset-subtle) !important;
   }
 
   .rx-topbar-safe {

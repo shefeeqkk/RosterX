@@ -1,7 +1,24 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 21:55 IST** (Target Sprint: **v2.5.5 - Build 180**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 22:25 IST** (Target Sprint: **v2.5.6 - Build 181**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.6 - Build 181 — Admin Web Mobile Neumorphic Alignment & 1:1 Android Parity):
+> *"Vijaya! Gafoorka! Admin web-inte mobile layout nammude Android app-inte athe shape-ilum Neumorphic style-ilum spotless aayi set cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Refined & Aligned:
+> 1. **Removal of Redundant Desktop Clutter on Mobile (< 768px)**:
+>    - **Top Active Rules & Policies Bar**: Added `hidden md:flex` so this screen-hogging desktop strip is hidden on mobile screens, giving users full vertical space.
+>    - **Operations Hub Switcher Chips**: Added `hidden md:flex` and `.admin-hub-btn { display: none !important; }` in `web/css/mobile-shell.css` to hide the 5 desktop horizontal chips (`Overview`, `Leave Approvals`, `Credential Tracker`, `Server Management`, `Appearance`). Mobile navigation now strictly follows the 1:1 Android model: tapping a feature card opens the subview with a clean back button.
+> 2. **Neumorphic Design System Alignment (`web/css/mobile-shell.css`)**:
+>    - Added Neumorphic card tokens for `.admin-feature-card`: 20px border radius, `var(--nm-surface)` background, `1px solid var(--nm-border)`, and dual soft drop shadows `var(--nm-shadow-raised)`.
+>    - Added responsive micro-interaction: On tap/active, feature cards give tactile feedback with `transform: scale(0.98)` and `var(--nm-shadow-inset-subtle)`.
+>    - Styled `.btnBackToAdminHub` as a sleek Neumorphic pill button (`var(--nm-surface)`, `var(--nm-shadow-raised-subtle)`, 12px radius, active inset) matching Android Compose's back navigation.
+> 3. **Version Bump & Build Verification**:
+>    - Bumped to `v2.5.6` (Build 181) across `server.py`, `android/app/build.gradle.kts`, and `web/index.html`.
+>    - Safe Gradle build `.\safe_build.bat assembleDebug` completed cleanly with `BUILD SUCCESSFUL in 2m 17s`."*
 
 ---
 
