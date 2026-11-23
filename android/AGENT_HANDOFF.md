@@ -11,7 +11,7 @@
 > ### 🛠️ What Was Fixed & Delivered:
 > 1. **Roster Matrix Role & Resignation Exclusion**:
 >    - **Admin & Manager Exclusion**: Filtered out `role == 'admin'`, `role == 'manager'`, `username == 'admin'`, and `Administrator` from the Roster Matrix across backend (`server.py:_include_row`) and frontend (`app.js:filterGridEngineersForPeriod`).
->    - **Resigned Engineers Rule**: Excluded resigned engineers (e.g. `Raj Kumar S`) starting from the month AFTER their resignation (`resignation_date`), while keeping them visible in earlier historical months when they were on active duty.
+>    - **Resigned Engineers Rule**: Excluded resigned engineers starting from the month AFTER their resignation (`resignation_date`), while keeping them visible in earlier historical months when they were on active duty.
 > 2. **Rule Constraints Saving & Startup Persistence**:
 >    - Root cause: `/api/constraints` was being called without JWT Authorization headers, causing silent 401 Unauthorized rejections.
 >    - Added `getConstraints()` and `saveConstraints()` to `AtlasService` using authenticated headers.
