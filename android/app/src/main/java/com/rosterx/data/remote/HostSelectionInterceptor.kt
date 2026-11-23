@@ -21,6 +21,12 @@ class HostSelectionInterceptor @Inject constructor(
 
         val reqBuilder = request.newBuilder()
 
+        // Attach device info header
+        reqBuilder.header(
+            "X-Device-Info",
+            "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL} (Android ${android.os.Build.VERSION.RELEASE})"
+        )
+
         // 1. Attach authorization token if user is authenticated
         val token = sessionManager.getAuthToken()
         if (!token.isNullOrBlank()) {

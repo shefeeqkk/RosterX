@@ -1666,7 +1666,7 @@ Rules:
     }
 
     return {
-      text: `### 🤖 RosterX Operations Assistant\n\nI can coordinate and analyze your NOC shift rosters live from MongoDB Atlas! Try asking:\n- *"Who all are in shift now?"*\n- *"When is my next night shift?"*\n- *"Prepare a roster for 24th with minimum Day shift count as 3"*\n- *"Audit fatigue violations"*`
+      text: `### 🤖 RosterX Operations Assistant\n\nI can coordinate and analyze your NOC shift rosters live from the database! Try asking:\n- *"Who all are in shift now?"*\n- *"When is my next night shift?"*\n- *"Prepare a roster for 24th with minimum Day shift count as 3"*\n- *"Audit fatigue violations"*`
     };
   }
 

@@ -445,9 +445,9 @@
 
     <div class="flex items-center gap-2">
 
-      <!-- 🤖 AI Assistant -->
+      <!-- 🤖 AI Assistant (Desktop Only — Hidden on Mobile to maximize screen real estate) -->
 
-      <button id="btnOpenAiModal" class="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-indigo-600 via-indigo-700 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 dark:hover:from-slate-800 dark:hover:to-indigo-900 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-cyan-500/20 cursor-pointer group border border-indigo-400/30 dark:border-slate-700">
+      <button id="btnOpenAiModal" class="hidden md:flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-indigo-600 via-indigo-700 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 dark:hover:from-slate-800 dark:hover:to-indigo-900 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-cyan-500/20 cursor-pointer group border border-indigo-400/30 dark:border-slate-700">
 
         <div class="w-5 h-5 sm:w-6 sm:h-6 shrink-0 flex items-center justify-center">
 
@@ -485,11 +485,6 @@
           <i class="ph ph-caret-down text-slate-400 text-xs ml-0.5"></i>
 
         </div>
-
-        <a href="user-portal.html" title="Switch to NOC Portal" class="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center gap-1 text-xs font-semibold">
-          <i class="ph ph-layout text-base text-cyan-600 dark:text-cyan-400"></i>
-          <span class="hidden sm:inline">NOC Portal</span>
-        </a>
 
         <button id="btnAdminLogout" title="Sign Out" class="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
 
@@ -552,7 +547,7 @@
       </button>
       <span id="syncBadgeIndicator" class="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 whitespace-nowrap cursor-pointer">
         <span class="w-1.5 h-1.5 rounded-full bg-slate-500 inline-block"></span>
-        <span id="syncBadgeText">Atlas M0</span>
+        <span id="syncBadgeText">Database</span>
       </span>
     </div>
   </section>
@@ -714,11 +709,11 @@
           <div class="flex items-center gap-2">
             <i class="ph ph-scroll text-blue-600 dark:text-blue-400 text-lg"></i>
             <h3 class="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">Real-Time Operational Audit Stream</h3>
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Live Atlas Collection 'audit_logs'</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Live Database Audit Stream</span>
           </div>
           <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono" id="auditStreamTimestamp">Last checked: Just now</span>
         </div>
-        <div id="dashboardAuditStreamContainer" class="space-y-2">
+        <div id="dashboardAuditStreamContainer" class="space-y-2 max-h-[460px] overflow-y-auto pr-1">
           <div class="p-4 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-center text-slate-400 text-xs font-medium">
             <i class="ph ph-clock-counter-clockwise text-xl sm:text-2xl mb-1 text-slate-300 dark:text-slate-600 block"></i>
             No recent audit events recorded for this operational cycle
@@ -871,39 +866,13 @@
 
 
           <!-- Quick Presets -->
-
           <div class="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs text-xs font-semibold">
-
             <button type="button" id="btnPresetAllShifts" class="px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-2xs" title="Show all shifts without filtering">
-
               All
-
             </button>
-
             <button type="button" id="btnPresetSwOffNs" class="px-2.5 py-1 rounded-md text-xs font-extrabold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Focus view: Only Swaps (SW*), Weekly Offs (OFF), and Night Shifts (NS)">
-
-              🎯 SW* + OFF + NS
-
+              🎯 Focus: SW* + OFF + NS
             </button>
-
-            <button type="button" id="btnPresetNsOnly" class="px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Show only Night Shifts (NS)">
-
-              🌙 NS
-
-            </button>
-
-            <button type="button" id="btnPresetOffOnly" class="px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Show only Weekly Offs (OFF)">
-
-              🏖️ OFF
-
-            </button>
-
-            <button type="button" id="btnPresetSwOnly" class="px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Show only Swapped Shifts (SW*)">
-
-              🔄 SW*
-
-            </button>
-
           </div>
 
 
@@ -1439,7 +1408,7 @@
           <!-- Card 2: MongoDB Atlas Ping -->
           <div class="bg-slate-50/80 rounded-xl p-3.5 border border-slate-200/90 shadow-2xs space-y-1.5">
             <div class="flex items-center justify-between text-slate-500">
-              <span class="text-[10px] font-bold uppercase tracking-wider">Atlas Cluster0</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider">Database Cluster</span>
               <i class="ph ph-database text-emerald-600 text-base"></i>
             </div>
             <div class="flex items-baseline gap-2">
@@ -2633,7 +2602,7 @@ Operations Desk</textarea>
 
         <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
 
-          <i class="ph ph-database text-emerald-600 text-xl"></i> MongoDB Atlas M0 Integration
+          <i class="ph ph-database text-emerald-600 text-xl"></i> Backend Database Integration
 
         </h3>
 
@@ -3500,7 +3469,7 @@ Operations Desk</textarea>
 
           <h3 class="font-black text-slate-900 text-base">Publish Live Roster</h3>
 
-          <p class="text-xs text-slate-500">Confirm publishing to MongoDB Atlas</p>
+          <p class="text-xs text-slate-500">Confirm publishing to Database</p>
 
         </div>
 
@@ -3530,7 +3499,7 @@ Operations Desk</textarea>
 
           <i class="ph ph-shield-check text-amber-700 font-bold mr-1"></i>
 
-          <strong>Automatic Recovery:</strong> An automatic snapshot will be saved in MongoDB Atlas & disk before overwriting. If published wrongly, you can restore previous versions at any time using <strong>Recovery</strong>.
+          <strong>Automatic Recovery:</strong> An automatic snapshot will be saved in the database & disk before overwriting. If published wrongly, you can restore previous versions at any time using <strong>Recovery</strong>.
 
         </div>
 
@@ -3598,7 +3567,7 @@ Operations Desk</textarea>
 
           <i class="ph ph-spinner animate-spin text-2xl text-amber-600 mb-2 inline-block"></i>
 
-          <p>Fetching recovery snapshots from MongoDB Atlas...</p>
+          <p>Fetching recovery snapshots from Database...</p>
 
         </div>
 
@@ -3719,7 +3688,7 @@ Operations Desk</textarea>
           </div>
           <div>
             <h3 class="font-bold text-base">Save Operational Template</h3>
-            <p class="text-xs text-slate-500">Persists custom announcement template in Atlas Database</p>
+            <p class="text-xs text-slate-500">Persists custom announcement template in Database</p>
           </div>
         </div>
         <button id="btnCloseSaveTemplateModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg p-1.5 cursor-pointer">✕</button>
@@ -4195,7 +4164,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.6"></script>
+  <script type="module" src="js/app.js?v=2.5.7"></script>
 
 </body>
 

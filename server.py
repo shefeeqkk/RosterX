@@ -10,7 +10,7 @@ Provides:
   - Server-side Gemini AI proxy eliminating client-side API key exposure
   - Restricted CORS & HTTP security headers
   - Automatic Local & Network (LAN) IP resolution
-  - Cloudflare Quick Tunnel integration
+  - Render Cloud production & local LAN serving
   - Interactive terminal dashboard with live Atlas M0 status
 """
 
@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.6"
+SERVER_VERSION = "2.5.7"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -113,19 +113,75 @@ def format_uptime(seconds):
     parts.append(f"{secs}s")
     return " ".join(parts)
 
-def record_audit_event(engineer_name, username, role, platform_name, action, details=None):
-    """Safely append an operational audit record into MongoDB Atlas collection 'audit_logs'."""
+def parse_device_info(headers) -> str:
+    """Parse HTTP headers into a concise, human-readable device/platform string."""
+    if not headers:
+        return "Unknown Device"
+    custom_device = headers.get("X-Device-Info") or headers.get("X-Device-Model") or headers.get("X-Client-Device")
+    if custom_device:
+        return str(custom_device).strip()
+
+    ua = str(headers.get("User-Agent") or "").strip()
+    if not ua:
+        return "Unknown Device"
+
+    if "Android" in ua:
+        match = re.search(r"Android\s+([0-9.]+)(?:;\s*([^;)]+))?", ua)
+        if match:
+            version = match.group(1)
+            model = match.group(2).strip() if match.group(2) else ""
+            return f"{model} (Android {version})" if model else f"Android {version}"
+        return "Android Device"
+
+    if "iPhone" in ua:
+        return "Apple iPhone"
+    if "iPad" in ua:
+        return "Apple iPad"
+
+    os_name = "Unknown OS"
+    if "Windows NT 10.0" in ua:
+        os_name = "Windows 10/11"
+    elif "Windows NT 6.3" in ua:
+        os_name = "Windows 8.1"
+    elif "Windows NT 6.1" in ua:
+        os_name = "Windows 7"
+    elif "Macintosh" in ua or "Mac OS X" in ua:
+        os_name = "macOS"
+    elif "Linux" in ua:
+        os_name = "Linux"
+    elif "CrOS" in ua:
+        os_name = "Chrome OS"
+
+    browser = "Browser"
+    if "Edg/" in ua:
+        browser = "Edge"
+    elif "Brave" in ua:
+        browser = "Brave"
+    elif "Chrome/" in ua:
+        browser = "Chrome"
+    elif "Firefox/" in ua:
+        browser = "Firefox"
+    elif "Safari/" in ua and "Chrome/" not in ua:
+        browser = "Safari"
+
+    return f"{browser} • {os_name}"
+
+def record_audit_event(engineer_name, username, role, platform_name, action, details=None, device=None):
+    """Safely append an operational audit record into database collection 'audit_logs'."""
     if ATLAS_DB is None:
         return
     try:
         now_ts = time.time()
+        det = details or {}
+        device_str = device or (det.get("device") if isinstance(det, dict) else None)
         doc = {
             "engineer_name": engineer_name,
             "username": username,
             "role": role,
             "platform": platform_name,
+            "device": device_str,
             "action": action,
-            "details": details or {},
+            "details": det,
             "timestamp": now_ts,
             "datetime": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(now_ts))
         }
@@ -767,34 +823,84 @@ def find_user_by_identifier(identifier: str):
 
 def is_management_account(user_dict: dict) -> bool:
     """
-    Determine if an account is solely a management or system administrator account.
-    Honors explicit DB-driven `include_in_roster` flag when configured; otherwise
-    falls back to generic role/system account rules.
+    Determine if an account is a management or system administrator account.
+    Admin and Manager accounts NEVER appear on the Roster Matrix.
     """
     if not isinstance(user_dict, dict):
         return False
-    inc_flag = user_dict.get("include_in_roster")
-    if inc_flag is None:
-        inc_flag = user_dict.get("includeInRoster")
-    if isinstance(inc_flag, bool):
-        return not inc_flag
 
+    # 1. Any account with role 'admin' or 'manager' is strictly a management account
+    role = str(user_dict.get("role", "")).strip().lower()
+    if role in ("admin", "manager"):
+        return True
+
+    # 2. Known administrative usernames and names
     uname = str(user_dict.get("username", "") or user_dict.get("id", "") or user_dict.get("engineerId", "")).strip().lower()
     n = str(user_dict.get("name", "")).strip().lower()
     fn = str(user_dict.get("full_name", "")).strip().lower()
-    role = str(user_dict.get("role", "")).strip().lower()
-    if role == "manager":
+    if uname in ("admin", "manager", "sysadmin", "system_admin", "administrator") or \
+       n in ("admin", "administrator", "manager", "system admin", "system administrator") or \
+       "system admin" in n or "system administrator" in n or \
+       "system admin" in fn or "system administrator" in fn:
         return True
-    if role != "admin":
+
+    # 3. Explicit exclusion from roster
+    inc_flag = user_dict.get("include_in_roster")
+    if inc_flag is None:
+        inc_flag = user_dict.get("includeInRoster")
+    if inc_flag is False:
+        return True
+
+    return False
+
+def is_eligible_roster_row(e: dict, month_id: str, eng_meta_by_key: dict = None) -> bool:
+    """
+    Strict filter for roster matrix display and persistence.
+    1. Admin and Manager accounts NEVER appear on the Roster Matrix.
+    2. Honor explicit include_in_roster=False.
+    3. Resigned engineers: Exclude starting from the month AFTER resignation.
+    """
+    if not isinstance(e, dict):
         return False
-    # Accounts dedicated strictly to administrative/system tasks
-    return (
-        uname in ("admin", "manager", "sysadmin", "system_admin", "administrator") or
-        n in ("admin", "system administrator", "system admin") or
-        "system admin" in n or "system administrator" in n or
-        "system admin" in fn or "system administrator" in fn or
-        (role == "admin" and ("admin" in uname or "admin" in n or "system" in n))
-    )
+
+    meta = None
+    if eng_meta_by_key:
+        for field in ("username", "engineer_id", "engineerId", "id", "name", "full_name"):
+            val = str(e.get(field) or "").strip().lower()
+            if val and val in eng_meta_by_key:
+                meta = eng_meta_by_key[val]
+                break
+
+    # 1. Admin and Manager accounts strictly excluded
+    role = str((meta.get("role") if meta else e.get("role")) or "").strip().lower()
+    uname = str((meta.get("username") if meta else e.get("username")) or "").strip().lower()
+    name = str((meta.get("name") if meta else e.get("name")) or "").strip().lower()
+    if role in ("admin", "manager") or uname in ("admin", "manager", "administrator", "sysadmin") or \
+       name in ("admin", "administrator", "manager") or "administrator" in name or "system admin" in name or \
+       is_management_account(meta or e) or is_management_account(e):
+        return False
+
+    # 2. Honor explicit include_in_roster=False
+    inc = (meta.get("include_in_roster") if meta and meta.get("include_in_roster") is not None else e.get("include_in_roster"))
+    if inc is False:
+        return False
+
+    # 3. Resigned engineers: Exclude starting from the month AFTER resignation
+    status = str((meta.get("status") if meta else e.get("status")) or "").strip().lower()
+    is_resigned = status == "resigned" or (meta and meta.get("resigned") is True) or e.get("resigned") is True
+    if is_resigned:
+        res_date = (meta.get("resignation_date") or meta.get("resigned_date") or meta.get("resigned_month") if meta else None) or \
+                   e.get("resignation_date") or e.get("resigned_date") or e.get("resigned_month")
+        if res_date:
+            res_month = str(res_date).strip()[:7]
+            if month_id > res_month:
+                return False
+        else:
+            today_ist_month = get_ist_now().strftime("%Y-%m")
+            if month_id > today_ist_month:
+                return False
+
+    return True
 
 def is_login_rate_limited(ip: str, identifier: str) -> bool:
     """Rate limit: Max 5 failed attempts per 5 minutes per IP/identifier."""
@@ -925,17 +1031,27 @@ def init_atlas_connection(env):
             if del_res.deleted_count > 0:
                 print(f"  [ATLAS PURGE] Removed {del_res.deleted_count} mock engineers from Atlas DB.")
 
-            # Purge any management accounts from saved rosters in Atlas DB
+            # Purge any management or ineligible accounts from saved rosters in Atlas DB
             try:
+                eng_meta_by_key = {}
+                try:
+                    for eng_doc in ATLAS_DB.engineers.find({}, {"password": 0}):
+                        for field in ("username", "name", "full_name", "id", "engineer_id"):
+                            val = str(eng_doc.get(field) or "").strip().lower()
+                            if val:
+                                eng_meta_by_key[val] = eng_doc
+                except Exception:
+                    pass
+
                 for r_doc in list(ATLAS_DB.rosters.find()):
-                    r_id = r_doc.get("_id")
+                    r_id = str(r_doc.get("_id") or "")
                     r_engs = r_doc.get("engineers", [])
                     r_ros = r_doc.get("roster", [])
-                    clean_engs = [e for e in r_engs if not is_management_account(e)]
-                    clean_ros = [e for e in r_ros if not is_management_account(e)]
+                    clean_engs = [e for e in r_engs if is_eligible_roster_row(e, r_id, eng_meta_by_key)]
+                    clean_ros = [e for e in r_ros if is_eligible_roster_row(e, r_id, eng_meta_by_key)]
                     if len(clean_engs) != len(r_engs) or len(clean_ros) != len(r_ros):
                         ATLAS_DB.rosters.update_one({"_id": r_id}, {"$set": {"engineers": clean_engs, "roster": clean_ros}})
-                        print(f"  [ATLAS ROSTER SANITIZE] Purged management accounts from roster '{r_id}'.")
+                        print(f"  [ATLAS ROSTER SANITIZE] Purged ineligible accounts from roster '{r_id}'.")
             except Exception as r_err:
                 print(f"  [ATLAS ROSTER SANITIZE NOTE] {r_err}")
 
@@ -3506,7 +3622,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
                     # Latest chronological audit records (no mock data!)
                     if "audit_logs" in ATLAS_DB.list_collection_names():
-                        cursor = ATLAS_DB["audit_logs"].find({}, {"_id": 0}).sort("timestamp", -1).limit(15)
+                        cursor = ATLAS_DB["audit_logs"].find({}, {"_id": 0}).sort("timestamp", -1).limit(50)
                         audit_records = list(cursor)
                 except Exception as e:
                     print(f"  [TELEMETRY USERS ERROR] {e}")
@@ -3995,6 +4111,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 if not u or u == caller_username or is_management_account(eng):
                     continue
 
+                status = str(eng.get("status", "")).strip().lower()
+                if status == "resigned" or eng.get("resigned") is True:
+                    res_date = eng.get("resignation_date") or eng.get("resigned_date") or eng.get("resigned_month")
+                    if res_date:
+                        if month_key > str(res_date).strip()[:7]:
+                            continue
+                    else:
+                        today_m = get_ist_now().strftime("%Y-%m")
+                        if month_key > today_m:
+                            continue
+
                 display_name = to_proper_name(eng.get("name") or eng.get("full_name") or u)
                 photo = str(eng.get("profile_picture") or eng.get("profilePicture") or "").strip()
 
@@ -4097,6 +4224,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                                 eu = str(eng.get("username", "")).strip().lower()
                                 if not eu or eu == applicant_u or is_management_account(eng):
                                     continue
+
+                                status = str(eng.get("status", "")).strip().lower()
+                                if status == "resigned" or eng.get("resigned") is True:
+                                    res_date = eng.get("resignation_date") or eng.get("resigned_date") or eng.get("resigned_month")
+                                    if res_date:
+                                        if m_key > str(res_date).strip()[:7]:
+                                            continue
+                                    else:
+                                        today_m = get_ist_now().strftime("%Y-%m")
+                                        if m_key > today_m:
+                                            continue
                                 # Check shift
                                 eng_rows = r_doc.get("engineers") or r_doc.get("roster") or []
                                 for r in eng_rows:
@@ -4186,36 +4324,24 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             try:
                 doc = ATLAS_DB.rosters.find_one({"_id": month_id})
                 if doc:
-                    # Honor explicit include_in_roster=True from the live engineers collection
-                    explicit_roster_keys = set()
+                    # Load all engineer metadata for accurate role, status, resignation, and include_in_roster checks
+                    eng_meta_by_key = {}
                     try:
-                        for eng_doc in ATLAS_DB.engineers.find({"include_in_roster": True}, {"username": 1, "name": 1, "full_name": 1}):
-                            for field in ("username", "name", "full_name"):
+                        for eng_doc in ATLAS_DB.engineers.find({}, {"password": 0}):
+                            for field in ("username", "name", "full_name", "id", "engineer_id"):
                                 val = str(eng_doc.get(field) or "").strip().lower()
                                 if val:
-                                    explicit_roster_keys.add(val)
+                                    eng_meta_by_key[val] = eng_doc
                     except Exception:
                         pass
 
-                    # Exclude pure management/system accounts while honoring explicit include_in_roster=True
-                    def _include_row(e):
-                        if not isinstance(e, dict):
-                            return False
-                        if e.get("include_in_roster") is True or e.get("includeInRoster") is True:
-                            return True
-                        for field in ("username", "engineer_id", "engineerId", "id", "name", "full_name"):
-                            val = str(e.get(field) or "").strip().lower()
-                            if val and val in explicit_roster_keys:
-                                return True
-                        return not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")
-
                     if "engineers" in doc and isinstance(doc["engineers"], list):
-                        doc["engineers"] = [e for e in doc["engineers"] if _include_row(e)]
+                        doc["engineers"] = [e for e in doc["engineers"] if is_eligible_roster_row(e, month_id, eng_meta_by_key)]
                         for e in doc["engineers"]:
                             if isinstance(e, dict) and e.get("name"):
                                 e["name"] = to_proper_name(e["name"])
                     if "roster" in doc and isinstance(doc["roster"], list):
-                        doc["roster"] = [e for e in doc["roster"] if _include_row(e)]
+                        doc["roster"] = [e for e in doc["roster"] if is_eligible_roster_row(e, month_id, eng_meta_by_key)]
                         for e in doc["roster"]:
                             if isinstance(e, dict) and e.get("name"):
                                 e["name"] = to_proper_name(e["name"])
@@ -4722,7 +4848,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         }
                         token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                         platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
-                        record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In")
+                        device_client = parse_device_info(self.headers)
+                        record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In", details={"device": device_client}, device=device_client)
                         if ATLAS_DB is not None:
                             try:
                                 ATLAS_DB["engineers"].update_one(
@@ -4766,7 +4893,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     }
                     token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
                     platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
-                    record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In")
+                    device_client = parse_device_info(self.headers)
+                    record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In", details={"device": device_client}, device=device_client)
                     if ATLAS_DB is not None:
                         try:
                             ATLAS_DB["engineers"].update_one(
@@ -4822,6 +4950,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "profile_picture": admin_doc.get("profile_picture")
                 }
                 token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
+                platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                device_client = parse_device_info(self.headers)
+                record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In", details={"device": device_client}, device=device_client)
                 self.send_json_response({
                     "success": True,
                     "user": user_payload,
@@ -5323,11 +5454,21 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     except Exception as b_err:
                         print(f"  [BACKUP WARNING] {b_err}")
 
-                # Ensure admin and manager are never scheduled on shift desk
+                # Ensure admin, manager, and future resigned accounts are never scheduled
+                eng_meta_by_key = {}
+                try:
+                    for eng_doc in ATLAS_DB.engineers.find({}, {"password": 0}):
+                        for field in ("username", "name", "full_name", "id", "engineer_id"):
+                            val = str(eng_doc.get(field) or "").strip().lower()
+                            if val:
+                                eng_meta_by_key[val] = eng_doc
+                except Exception:
+                    pass
+
                 if "engineers" in body and isinstance(body["engineers"], list):
-                    body["engineers"] = [e for e in body["engineers"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
+                    body["engineers"] = [e for e in body["engineers"] if is_eligible_roster_row(e, doc_id, eng_meta_by_key)]
                 if "roster" in body and isinstance(body["roster"], list):
-                    body["roster"] = [e for e in body["roster"] if not is_management_account(e) and str(e.get("role", "")).lower() not in ("admin", "manager")]
+                    body["roster"] = [e for e in body["roster"] if is_eligible_roster_row(e, doc_id, eng_meta_by_key)]
                 body["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 body["published_by"] = claims.get("name") or "Admin"
                 ATLAS_DB.rosters.update_one({"_id": doc_id}, {"$set": body}, upsert=True)
@@ -5411,7 +5552,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     )
                     self.send_json_response({
                         "success": True,
-                        "message": "Operational policy constraints updated and synced to Atlas M0!",
+                        "message": "Operational policy constraints updated and synced to Database!",
                         "constraints": to_save
                     })
                 else:

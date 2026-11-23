@@ -10,7 +10,7 @@
  * 6. Admin & Manager Leave Approvals Queue
  */
 
-import { escapeHtml, getAuthHeaders } from './pwaHelper.js';
+import { escapeHtml, getAuthHeaders, getApiBase } from './pwaHelper.js';
 
 function getIstNow() {
   const d = new Date();
@@ -67,11 +67,12 @@ export class LeaveController {
 
   async fetchMyRequests() {
     try {
-      const resp = await fetch('/api/leave/my-requests', {
+      const resp = await fetch(`${getApiBase()}/leave/my-requests`, {
         headers: getAuthHeaders()
       });
-      const data = await resp.json();
-      if (data.success) {
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (data && data.success) {
         this.myRequests = data.requests || [];
         this.leaveStats = {
           approved_leave_days: data.approved_leave_days || 0,
@@ -90,11 +91,12 @@ export class LeaveController {
     this.isLoadingPartners = true;
     try {
       const dateParam = targetDate || Array.from(this.selectedDates)[0] || formatDateIso(getIstNow());
-      const resp = await fetch(`/api/leave/eligible-partners?date=${encodeURIComponent(dateParam)}`, {
+      const resp = await fetch(`${getApiBase()}/leave/eligible-partners?date=${encodeURIComponent(dateParam)}`, {
         headers: getAuthHeaders()
       });
-      const data = await resp.json();
-      if (data.success) {
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (data && data.success) {
         this.eligiblePartners = data.partners || [];
       }
     } catch (e) {
@@ -108,9 +110,10 @@ export class LeaveController {
     const key = `${year}-${String(month).padStart(2, '0')}`;
     if (this.rosterCache[key]) return this.rosterCache[key];
     try {
-      const resp = await fetch(`/api/roster/${key}`, { headers: getAuthHeaders() });
-      const data = await resp.json();
-      if (data.success) {
+      const resp = await fetch(`${getApiBase()}/roster/${key}`, { headers: getAuthHeaders() });
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (data && data.success) {
         this.rosterCache[key] = data;
         return data;
       }
@@ -153,7 +156,7 @@ export class LeaveController {
         preferred_partner: this.preferredPartner
       };
 
-      const resp = await fetch('/api/leave/apply', {
+      const resp = await fetch(`${getApiBase()}/leave/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,9 +164,14 @@ export class LeaveController {
         },
         body: JSON.stringify(payload)
       });
-      const data = await resp.json();
+      let data = {};
+      try {
+        data = await resp.json();
+      } catch (parseErr) {
+        data = { success: false, message: `Server returned HTTP ${resp.status}` };
+      }
 
-      if (data.success) {
+      if (data && data.success) {
         this.onToast('Leave request submitted successfully!', 'success');
         this.selectedDates.clear();
         this.reason = '';
@@ -171,10 +179,11 @@ export class LeaveController {
         this.activeTab = 'history';
         await this.load();
       } else {
-        this.onToast(data.message || 'Failed to submit leave request', 'error');
+        this.onToast((data && data.message) || 'Failed to submit leave request', 'error');
       }
     } catch (e) {
-      this.onToast('Network error submitting leave request', 'error');
+      console.error('Leave submission error:', e);
+      this.onToast(e.message || 'Network error submitting leave request', 'error');
     } finally {
       this.isSubmitting = false;
       this.render();
@@ -253,14 +262,14 @@ export class LeaveController {
     const selectedCount = this.selectedDates.size;
 
     this.container.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:16px;max-width:860px;margin:0 auto;padding-bottom:32px;">
+      <div style="display:flex;flex-direction:column;gap:16px;max-width:560px;margin:0 auto;padding-bottom:32px;">
         
         <!-- Segmented Tab Header (Apply Request ⇄ My History) -->
         <div style="display:flex;align-items:center;background:var(--nm-input-surface);padding:4px;border-radius:16px;box-shadow:var(--nm-shadow-inset-subtle);">
-          <button type="button" id="tabBtnApply" class="rx-btn-surface" style="flex:1;border-radius:12px;padding:9px;font-size:13px;font-weight:800;border:0;${this.activeTab === 'apply' ? 'background:var(--nm-accent-gradient);color:#fff;box-shadow:0 4px 12px var(--nm-accent-glow);' : 'background:transparent;color:var(--nm-text-muted);'}">
+          <button type="button" id="tabBtnApply" style="flex:1;border-radius:12px;padding:9px;font-size:13px;font-weight:800;border:0;cursor:pointer;transition:var(--nm-transition);${this.activeTab === 'apply' ? 'background:var(--nm-accent-gradient);color:#fff;box-shadow:0 4px 12px var(--nm-accent-glow);' : 'background:transparent;color:var(--nm-text-muted);box-shadow:none;'}">
             <i class="ph ph-calendar-plus" style="margin-right:6px;"></i> Apply Request
           </button>
-          <button type="button" id="tabBtnHistory" class="rx-btn-surface" style="flex:1;border-radius:12px;padding:9px;font-size:13px;font-weight:800;border:0;${this.activeTab === 'history' ? 'background:var(--nm-accent-gradient);color:#fff;box-shadow:0 4px 12px var(--nm-accent-glow);' : 'background:transparent;color:var(--nm-text-muted);'}">
+          <button type="button" id="tabBtnHistory" style="flex:1;border-radius:12px;padding:9px;font-size:13px;font-weight:800;border:0;cursor:pointer;transition:var(--nm-transition);${this.activeTab === 'history' ? 'background:var(--nm-accent-gradient);color:#fff;box-shadow:0 4px 12px var(--nm-accent-glow);' : 'background:transparent;color:var(--nm-text-muted);box-shadow:none;'}">
             <i class="ph ph-clock-counter-clockwise" style="margin-right:6px;"></i> My History ${this.myRequests.length > 0 ? `(${this.myRequests.length})` : ''}
           </button>
         </div>
@@ -529,26 +538,28 @@ export class LeaveApprovalsController {
     this.isLoading = true;
     try {
       const [queueResp, settingsResp] = await Promise.all([
-        fetch('/api/leave/admin-queue', { headers: getAuthHeaders() }),
-        fetch('/api/leave/settings', { headers: getAuthHeaders() })
+        fetch(`${getApiBase()}/leave/admin-queue`, { headers: getAuthHeaders() }),
+        fetch(`${getApiBase()}/leave/settings`, { headers: getAuthHeaders() })
       ]);
-      const queueData = await queueResp.json();
-      const settingsData = await settingsResp.json();
+      let queueData = {}, settingsData = {};
+      try { queueData = await queueResp.json(); } catch (_) {}
+      try { settingsData = await settingsResp.json(); } catch (_) {}
 
-      if (queueData.success) {
+      if (queueData && queueData.success) {
         this.pendingRequests = queueData.pending_requests || [];
         this.historicalRequests = queueData.historical_requests || [];
       } else {
-        this.onToast(queueData.message || 'Failed loading approvals queue', 'error');
+        this.onToast((queueData && queueData.message) || 'Failed loading approvals queue', 'error');
       }
 
-      if (settingsData.success) {
+      if (settingsData && settingsData.success) {
         this.policySettings = {
           capping_enabled: settingsData.capping_enabled ?? true,
           annual_quota: settingsData.annual_quota || 14
         };
       }
     } catch (e) {
+      console.warn('Queue loading error:', e);
       this.onToast('Network error loading approvals queue', 'error');
     } finally {
       this.isLoading = false;
@@ -558,7 +569,7 @@ export class LeaveApprovalsController {
 
   async takeAction(requestId, action, adminNote = '') {
     try {
-      const resp = await fetch('/api/leave/admin-action', {
+      const resp = await fetch(`${getApiBase()}/leave/admin-action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -567,14 +578,15 @@ export class LeaveApprovalsController {
           admin_note: adminNote
         })
       });
-      const data = await resp.json();
-      if (data.success) {
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (data && data.success) {
         const actionLabel = action === 'leave' ? 'approved' : action === 'reject' ? 'rejected' : action === 'revoke' ? 'revoked' : action;
         this.onToast(`Request ${requestId} ${actionLabel} successfully.`, 'success');
         this.onRosterMutated();
         await this.load();
       } else {
-        this.onToast(data.message || 'Action failed', 'error');
+        this.onToast((data && data.message) || 'Action failed', 'error');
       }
     } catch (e) {
       this.onToast('Network error taking action', 'error');
@@ -583,7 +595,7 @@ export class LeaveApprovalsController {
 
   async savePolicySettings(cappingEnabled, annualQuota) {
     try {
-      const resp = await fetch('/api/leave/settings', {
+      const resp = await fetch(`${getApiBase()}/leave/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -591,8 +603,9 @@ export class LeaveApprovalsController {
           annual_quota: annualQuota
         })
       });
-      const data = await resp.json();
-      if (data.success) {
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (data && data.success) {
         this.policySettings.capping_enabled = data.capping_enabled;
         this.policySettings.annual_quota = data.annual_quota;
         this.showSettingsModal = false;

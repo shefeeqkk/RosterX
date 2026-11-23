@@ -141,26 +141,30 @@ fun AdminMainScreen(
     }
 
     LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingServerManagement, isViewingLeaveApprovals) {
-        val adminScreenName = if (isViewingLeaveApprovals) {
-            "Admin Leave & Swap Approvals"
+        val (adminScreenName, pageTitle) = if (isViewingLeaveApprovals) {
+            "AdminLeaveApprovals" to "Leave & Swap Approvals"
         } else if (isViewingCredentialTracker) {
-            "Admin Credential Tracker"
+            "AdminCredentialTracker" to "Server Credential Tracker"
         } else if (isViewingServerManagement) {
-            "Admin Server Management"
+            "AdminServerManagement" to "Server Management & Diagnostics"
         } else if (isViewingSettings) {
-            "Admin Profile & Settings"
+            "AdminSettings" to "Admin Profile & Settings"
         } else {
             when (selectedTab) {
-                0 -> "Admin Dashboard"
-                1 -> "Admin Manage Team"
-                2 -> "Admin Month Rosters"
-                3 -> "Admin Notifications"
-                4 -> "Admin Operations Hub"
-                else -> "Admin Dashboard"
+                0 -> "AdminDashboard" to "Operations Dashboard"
+                1 -> "AdminManageTeam" to "Register & Team Management"
+                2 -> "AdminMonthRosters" to "Roster Matrix & Coverage"
+                3 -> "AdminNotifications" to "Broadcast Console"
+                4 -> "AdminOperationsHub" to "Operations Hub"
+                else -> "AdminDashboard" to "Operations Dashboard"
             }
         }
-        viewModel.analyticsManager.logScreenView(adminScreenName)
-        viewModel.analyticsManager.logEvent("admin_tab_switched", mapOf("tab_name" to adminScreenName))
+        viewModel.analyticsManager.logScreenView(
+            screenName = adminScreenName,
+            screenClass = "AdminMainScreen",
+            pageTitle = pageTitle
+        )
+        viewModel.analyticsManager.logEvent("admin_tab_switched", mapOf("tab_name" to adminScreenName, "page_title" to pageTitle))
     }
 
     val configuration = LocalConfiguration.current

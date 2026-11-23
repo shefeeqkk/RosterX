@@ -593,7 +593,7 @@ class RosterXUserPortal {
       await this.ensureRosterLoaded(this.gridYear, this.gridMonth);
 
       this.renderActiveView();
-      if (showFeedback) this.toast('Synced latest shifts & status from Atlas', 'success');
+      if (showFeedback) this.toast('Synced latest shifts & status from database', 'success');
     } catch (err) {
       this.toast(`Sync warning: ${err.message}`, 'error');
     }
@@ -692,20 +692,40 @@ class RosterXUserPortal {
   }
 
   getRosterEngineers(rosterDoc) {
-    const SYSTEM_ADMIN_USERNAMES = new Set(['admin', 'sysadmin', 'administrator']);
+    const SYSTEM_ADMIN_USERNAMES = new Set(['admin', 'sysadmin', 'administrator', 'system_admin']);
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const targetMonthKey = (rosterDoc && rosterDoc._id) ? String(rosterDoc._id).trim() : `${this.gridYear}-${String(this.gridMonth).padStart(2, '0')}`;
+
     const raw = this.engineers.filter((e) => {
+      if (!e) return false;
       const role = String(e.role || 'engineer').trim().toLowerCase();
       const uname = String(e.username || '').trim().toLowerCase();
+      const name = String(e.name || '').trim().toLowerCase();
       const status = String(e.status || 'active').trim().toLowerCase();
-      const hasRosterShifts = Object.keys(this.getRosterMapForEngineer(rosterDoc, e)).length > 0;
 
-      if (e.include_in_roster === true) {
-        return status !== 'resigned' || hasRosterShifts;
+      // 1. Strict Exclusion: Admin and Manager accounts NEVER appear on the Roster Matrix
+      if (role === 'admin' || role === 'manager' || SYSTEM_ADMIN_USERNAMES.has(uname) ||
+          uname === 'admin' || uname === 'manager' || name === 'administrator' || name === 'admin' || name === 'manager' ||
+          name.includes('administrator') || name.includes('system admin')) {
+        return false;
       }
-      if (e.include_in_roster === false || role === 'manager') return false;
-      if (SYSTEM_ADMIN_USERNAMES.has(uname)) return false;
-      if (role === 'admin' && !hasRosterShifts) return false;
-      if (status === 'resigned') return hasRosterShifts;
+
+      // 2. Explicit inclusion flag check
+      if (e.include_in_roster === false) return false;
+
+      // 3. Resigned engineers: Exclude starting from the month AFTER resignation
+      const isResigned = status === 'resigned' || e.resigned === true;
+      if (isResigned) {
+        const resDate = e.resignation_date || e.resigned_date || e.resigned_month;
+        if (resDate) {
+          const resMonthKey = String(resDate).substring(0, 7);
+          if (targetMonthKey > resMonthKey) return false;
+        } else {
+          if (targetMonthKey > currentMonthKey) return false;
+        }
+      }
+
       return true;
     });
     return sortEngineersByWeekOffs(raw, (e) => e.default_weekly_offs);
@@ -736,6 +756,16 @@ class RosterXUserPortal {
     document.getElementById('btnSubViewBack')?.classList.add('rx-hidden');
     document.getElementById('rxBrandLogo')?.classList.remove('rx-hidden');
     document.getElementById('rxTopBarTitle').textContent = this.isManager ? 'RosterX Manager' : 'RosterX';
+    const tabTitleMap = {
+      dashboard: 'Operations Dashboard',
+      team_shifts: 'Team Shifts',
+      my_calendar: 'My Shift Calendar',
+      month_roster: 'Month Shift Grid',
+      broadcast: 'Broadcast Console',
+      more_hub: 'Operations Hub'
+    };
+    const activeTabTitle = tabTitleMap[tabId] || 'Operations & Shift Portal';
+    document.title = `RosterX — ${activeTabTitle}`;
     document.getElementById('rxTopBarActions')?.classList.remove('rx-hidden');
     document.getElementById('rxDesktopNav')?.classList.remove('rx-hidden');
 
@@ -780,13 +810,15 @@ class RosterXUserPortal {
     document.getElementById('rxDesktopNav')?.classList.add('rx-hidden');
 
     const titleMap = {
-      credentials: 'Credential Tracker',
+      credentials: 'Server Credential Tracker',
       my_team: 'My Team Directory',
       profile: 'Profile & Settings',
       leave_request: 'Leave Request',
       leave_approvals: 'Leave Approvals'
     };
-    document.getElementById('rxTopBarTitle').textContent = titleMap[viewName] || 'RosterX';
+    const activeSubTitle = titleMap[viewName] || 'Operations Hub';
+    document.getElementById('rxTopBarTitle').textContent = activeSubTitle;
+    document.title = `RosterX — ${activeSubTitle}`;
 
     document.querySelectorAll('.rx-tab-panel').forEach((p) => p.classList.add('rx-hidden'));
     document.querySelectorAll('.rx-subview').forEach((s) => s.classList.add('rx-hidden'));
@@ -1977,7 +2009,7 @@ class RosterXUserPortal {
                   <span style="width:44px;height:44px;border-radius:999px;background:rgba(59,130,246,0.14);color:#2563EB;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"><i class="ph ph-terminal-window"></i></span>
                   <div>
                     <div style="font-size:16px;font-weight:800;">Server Management</div>
-                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Configure backend server URL, inspect MongoDB Atlas diagnostics, and review live server logs.</div>
+                    <div style="font-size:12px;color:var(--nm-text-muted);margin-top:2px;line-height:1.4;">Configure backend server URL, inspect database diagnostics, and review live server logs.</div>
                   </div>
                 </div>
                 <i class="ph ph-arrow-right" style="color:var(--nm-text-muted);font-size:18px;"></i>
@@ -2784,7 +2816,7 @@ class RosterXUserPortal {
                 <h2 style="margin:0;font-size:16px;font-weight:900;">RosterX Assistant</h2>
                 <div style="font-size:11px;color:var(--nm-text-muted);display:flex;align-items:center;gap:6px;margin-top:2px;">
                   <span class="rx-pulsing-dot"></span>
-                  <span>Grounded Gemini • Live Atlas NOC</span>
+                  <span>Grounded Gemini • Live Database</span>
                 </div>
               </div>
             </div>

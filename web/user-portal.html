@@ -191,6 +191,8 @@
       align-items: center;
       gap: 8px;
       overflow-x: auto;
+      padding: 6px 8px;
+      margin: -6px -8px;
     }
     .rx-desktop-tab-btn {
       display: inline-flex;
@@ -325,7 +327,7 @@
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
         <span id="rxPortalConnectionPill" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;background:var(--nm-input-surface);font-size:11.5px;font-weight:700;color:var(--nm-text-muted);">
           <span style="width:8px;height:8px;border-radius:999px;background:#10B981;"></span>
-          <span>Atlas Live</span>
+          <span>Database Live</span>
         </span>
         <button type="button" id="btnRefreshPortal" class="rx-btn-surface" style="padding:6px 11px;font-size:12px;">
           <i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Refresh
@@ -369,6 +371,6 @@
   <dialog id="rxEditProfileDialog" class="rx-modal" closedby="any" aria-labelledby="rxEditProfileTitle"></dialog>
   <dialog id="rxConfirmRemovePhotoDialog" class="rx-modal" closedby="any" aria-labelledby="rxRemovePhotoTitle"></dialog>
 
-  <script type="module" src="js/userPortal.js?v=2.5.3"></script>
+  <script type="module" src="js/userPortal.js?v=2.5.7"></script>
 </body>
 </html>

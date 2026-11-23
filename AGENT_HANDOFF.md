@@ -1,7 +1,37 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 22:25 IST** (Target Sprint: **v2.5.6 - Build 181**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 23:45 IST** (Target Sprint: **v2.5.7 - Build 182**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.7 - Build 182 — Roster Matrix Role & Resignation Exclusion, Rule Persistence, Desktop UI Polish & Database Terminology Standard):
+> *"Vijaya! Gafoorka! Nammal plan cheytha ellam spotting aayi solve aakki, v2.5.7 Build 182 safe aayi build cheythu ADB install-um complete aakki macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed & Delivered:
+> 1. **Roster Matrix Role & Resignation Exclusion**:
+>    - **Admin & Manager Exclusion**: Filtered out `role == 'admin'`, `role == 'manager'`, `username == 'admin'`, and `Administrator` from the Roster Matrix across backend (`server.py:_include_row`) and frontend (`app.js:filterGridEngineersForPeriod`).
+>    - **Resigned Engineers Rule**: Excluded resigned engineers (e.g. `Raj Kumar S`) starting from the month AFTER their resignation (`resignation_date`), while keeping them visible in earlier historical months when they were on active duty.
+> 2. **Rule Constraints Saving & Startup Persistence**:
+>    - Root cause: `/api/constraints` was being called without JWT Authorization headers, causing silent 401 Unauthorized rejections.
+>    - Added `getConstraints()` and `saveConstraints()` to `AtlasService` using authenticated headers.
+>    - Added automatic `syncConstraintsFromDatabase()` on app boot to ensure saved policies are always restored.
+> 3. **Shift Filter Cleanup**:
+>    - Removed duplicate `SW*`, `OFF`, and `NS` preset buttons from the filter bar, keeping only `All` and `🎯 Focus: SW* + OFF + NS`, completely removing the confusing duplicate buttons beside the interactive chips.
+> 4. **Desktop Leave Request & Tabs Polish**:
+>    - Removed `class="rx-btn-surface"` from the segmented `Apply Request` and `My History` tab buttons, eliminating the dark shadow seam between them.
+>    - Constrained Leave Request container to a clean, well-proportioned desktop max-width (560px) with balanced cell aspect-ratios.
+>    - Resolved tab clipping and shadow cutoffs in the desktop navigation bar (`padding: 6px 8px; margin: -6px -8px;`).
+> 5. **Login Navigation & Tab Order**:
+>    - Positioned "Forgot Password?" below the password input field and enforced sequential `tabindex` (Username [1] -> Password [2] -> Remember Me [3] -> Forgot Password [4] -> Sign In [5]).
+> 6. **Audit Stream Expansion & Client Device Tracking**:
+>    - Expanded backend audit log query limit to 50 and client rendering to 30 events with a scrollable container.
+>    - Added `parse_device_info()` to capture browser/OS on web and device model (`X-Device-Info`) from Android via `HostSelectionInterceptor`.
+> 7. **Database Terminology Standard**:
+>    - Replaced user-facing "Atlas" and "Atlas M0" labels with "Database" across all indicators, modals, and toasts.
+> 8. **Android & Server Version Sync**:
+>    - Bumped to `v2.5.7` (Build 182) in `server.py` and `android/app/build.gradle.kts`.
+>    - `safe_build.bat assembleDebug` passed in 3m 12s, successfully installed via ADB, and launched on the connected device."*
 
 ---
 

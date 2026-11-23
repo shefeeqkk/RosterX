@@ -27,7 +27,11 @@ export class AtlasService {
   }
 
   getAuthHeaders(extra = {}) {
-    const token = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) : null;
+    let token = null;
+    try {
+      token = (typeof localStorage !== 'undefined' && (localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || localStorage.getItem('rosterx_token'))) ||
+              (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || sessionStorage.getItem('rosterx_token')));
+    } catch (_) {}
     const headers = { 'Accept': 'application/json', ...extra };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -331,7 +335,7 @@ export class AtlasService {
       const data = await res.json();
       if (res.ok && data.success) {
         this.notifyStatusChange('synced');
-        return { success: true, message: data.message || 'Synced to Atlas M0' };
+        return { success: true, message: data.message || 'Synced to Database' };
       } else {
         this.notifyStatusChange('unsaved');
         return { success: false, message: data.message || `Atlas returned HTTP ${res.status}` };
@@ -350,6 +354,46 @@ export class AtlasService {
       localStorage.setItem(STORAGE_KEYS.ROSTERS, JSON.stringify(rostersMap));
     } catch (e) {
       console.warn('Error saving local roster:', e);
+    }
+  }
+
+  /**
+   * Retrieve active operational constraints from backend (/api/constraints)
+   */
+  async getConstraints() {
+    const base = this.getApiBase();
+    try {
+      const res = await this.fetchWithTimeout(`${base}/constraints`, {
+        headers: this.getAuthHeaders()
+      }, 5000);
+      if (res.ok) {
+        const data = await res.json();
+        return data.constraints || null;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch constraints from backend:', e);
+    }
+    return null;
+  }
+
+  /**
+   * Persist operational constraints to backend (/api/constraints)
+   */
+  async saveConstraints(constraints) {
+    const base = this.getApiBase();
+    try {
+      const res = await this.fetchWithTimeout(`${base}/constraints`, {
+        method: 'POST',
+        headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ constraints })
+      }, 8000);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return { success: true, message: data.message || 'Operational policy constraints updated and synced to Database!' };
+      }
+      return { success: false, message: data.message || `Server returned HTTP ${res.status}` };
+    } catch (err) {
+      return { success: false, message: `Network error saving constraints: ${err.message}` };
     }
   }
 

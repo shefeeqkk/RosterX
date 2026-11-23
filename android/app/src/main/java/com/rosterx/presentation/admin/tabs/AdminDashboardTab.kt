@@ -869,6 +869,103 @@ fun AdminDashboardTab(
                         }
                     }
 
+                    // Views by Page Title & Screen Name (GA4 Parity Graph & Breakdown Table)
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 2.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("📊", fontSize = 15.sp)
+                                        Text(
+                                            text = "VIEWS BY PAGE TITLE & SCREEN NAME",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF475569),
+                                            letterSpacing = 0.5.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "${analytics.screenViewsCount} Total Views",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0284C7)
+                                    )
+                                }
+
+                                HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                                if (analytics.screenViewCounts.isEmpty()) {
+                                    Text(
+                                        text = "No screen view metrics recorded yet in this session.",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF94A3B8),
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                } else {
+                                    val maxViews = analytics.screenViewCounts.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+                                    analytics.screenViewCounts.entries
+                                        .sortedByDescending { it.value }
+                                        .forEach { (name, count) ->
+                                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = name,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color(0xFF0F172A),
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Text(
+                                                        text = "$count views",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF0284C7)
+                                                    )
+                                                }
+                                                // Horizontal Progress / Bar Graph
+                                                val progress = (count.toFloat() / maxViews.toFloat()).coerceIn(0f, 1f)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(8.dp)
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .background(Color(0xFFE2E8F0))
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth(fraction = progress)
+                                                            .fillMaxHeight()
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(
+                                                                Brush.horizontalGradient(
+                                                                    listOf(Color(0xFF0284C7), Color(0xFF38BDF8))
+                                                                )
+                                                            )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                }
+                            }
+                        }
+                    }
+
                     // External Web Console Launcher Button
                     item {
                         Button(

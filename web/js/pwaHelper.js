@@ -139,10 +139,30 @@ export function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+export function getApiBase() {
+  try {
+    const stored = localStorage.getItem('rosterx_config');
+    if (stored) {
+      const cfg = JSON.parse(stored);
+      if (cfg && cfg.endpointUrl && typeof cfg.endpointUrl === 'string') {
+        const url = cfg.endpointUrl.trim().replace(/\/+$/, '');
+        if (url) return url;
+      }
+    }
+  } catch (_) {}
+  if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+    return `${window.location.origin}/api`;
+  }
+  return 'https://api.rosterx.online/api';
+}
+
 export function getAuthHeaders(extra = {}) {
   let token = null;
   try {
-    token = localStorage.getItem('rosterx_auth_token');
+    token = localStorage.getItem('rosterx_auth_token') ||
+            localStorage.getItem('rosterx_token') ||
+            sessionStorage.getItem('rosterx_auth_token') ||
+            sessionStorage.getItem('rosterx_token');
   } catch (_) {}
   const headers = { 'Content-Type': 'application/json', ...extra };
   if (token) headers['Authorization'] = `Bearer ${token}`;

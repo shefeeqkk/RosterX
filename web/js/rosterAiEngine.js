@@ -120,8 +120,20 @@ export class RosterAiEngine {
     const periodEnd = new Date(year, month - 1, totalDays);
 
     return engineers.filter(eng => {
+      if (!eng) return false;
+
+      // 0. Leadership / Admin accounts NEVER appear on the Roster Matrix
+      const role = String(eng.role || '').trim().toLowerCase();
+      const u = String(eng.username || '').trim().toLowerCase();
+      const n = String(eng.name || '').trim().toLowerCase();
+      if (role === 'admin' || role === 'manager' || u === 'admin' || u === 'manager' || u === 'administrator' || u === 'sysadmin' ||
+          n === 'administrator' || n === 'admin' || n === 'manager' || n.includes('administrator') || n.includes('system admin')) {
+        return false;
+      }
+      if (eng.include_in_roster === false) return false;
+
       // 1. Resigned prior to period starts? Exclude
-      if (eng.status === 'Resigned') {
+      if (eng.status === 'Resigned' || eng.resigned === true) {
         if (!eng.resignation_date) return false;
         const resDate = new Date(eng.resignation_date);
         if (resDate < periodStart) return false;

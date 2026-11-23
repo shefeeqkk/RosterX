@@ -261,14 +261,18 @@ class MainActivity : FragmentActivity() {
 
                 ) {
 
-                    val targetScreen = when {
-                        currentUser == null -> "login"
-                        currentUser?.role == EngineerRole.ADMIN -> "admin"
-                        else -> "engineer"
+                    val (targetScreen, targetTitle) = when {
+                        currentUser == null -> "LoginScreen" to "Sign In"
+                        currentUser?.role == EngineerRole.ADMIN -> "AdminMainScreen" to "Admin Operations Console"
+                        else -> "EngineerPortalScreen" to "NOC Engineer Portal"
                     }
 
                     LaunchedEffect(targetScreen, currentUser) {
-                        analyticsManager.logScreenView(targetScreen)
+                        analyticsManager.logScreenView(
+                            screenName = targetScreen,
+                            screenClass = "MainActivity",
+                            pageTitle = targetTitle
+                        )
                         currentUser?.let { user ->
                             analyticsManager.setUserId(user.username)
                             analyticsManager.setUserRole(user.role.name)

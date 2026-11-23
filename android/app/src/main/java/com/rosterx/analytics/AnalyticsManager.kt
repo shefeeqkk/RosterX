@@ -33,6 +33,7 @@ data class FirebaseAnalyticsSummary(
     val loginsCount: Int = 0,
     val broadcastsCount: Int = 0,
     val lastEventName: String = "Session Initialized",
+    val screenViewCounts: Map<String, Int> = emptyMap(),
     val recentEvents: List<AnalyticsEventRecord> = emptyList()
 )
 
@@ -48,6 +49,7 @@ class AnalyticsManager @Inject constructor(
     private var activeUserId: String = "admin"
     private var activeUserRole: String = "ADMIN"
     private val eventHistory = mutableListOf<AnalyticsEventRecord>()
+    private val screenCounts = mutableMapOf<String, Int>()
     private var screenViews = 0
     private var logins = 0
     private var broadcasts = 0
@@ -84,6 +86,7 @@ class AnalyticsManager @Inject constructor(
                 loginsCount = logins,
                 broadcastsCount = broadcasts,
                 lastEventName = name,
+                screenViewCounts = synchronized(screenCounts) { screenCounts.toMap() },
                 recentEvents = eventHistory.toList()
             )
         }
@@ -111,16 +114,37 @@ class AnalyticsManager @Inject constructor(
         }
     }
 
-    fun logScreenView(screenName: String, screenClass: String = "ComposeScreen") {
+    fun logScreenView(
+        screenName: String,
+        screenClass: String = "ComposeScreen",
+        pageTitle: String = screenName
+    ) {
         try {
+            val count = synchronized(screenCounts) {
+                val current = screenCounts.getOrDefault(pageTitle, 0) + 1
+                screenCounts[pageTitle] = current
+                current
+            }
             val bundle = Bundle().apply {
                 putString(FirebaseAnalytics.Param.SCREEN_NAME, screenName)
                 putString(FirebaseAnalytics.Param.SCREEN_CLASS, screenClass)
+                putString("screen_name", screenName)
+                putString("page_title", pageTitle)
+                putString("screen_title", pageTitle)
+                putInt("page_view_count", count)
             }
             firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, bundle)
             screenViews++
-            recordLocalEvent(FirebaseAnalytics.Event.SCREEN_VIEW, mapOf("screen_name" to screenName, "class" to screenClass))
-            Log.d(TAG, "Analytics: ScreenView -> $screenName")
+            recordLocalEvent(
+                FirebaseAnalytics.Event.SCREEN_VIEW,
+                mapOf(
+                    "screen_name" to screenName,
+                    "page_title" to pageTitle,
+                    "class" to screenClass,
+                    "views" to count.toString()
+                )
+            )
+            Log.d(TAG, "Analytics: ScreenView -> $screenName ($pageTitle, count=$count)")
         } catch (e: Exception) {
             Log.w(TAG, "Analytics logScreenView error: ${e.message}")
         }

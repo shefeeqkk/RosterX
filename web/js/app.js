@@ -249,9 +249,59 @@ class RosterXApp {
 
 
   sortGridRosterByWeekOffs(grid) {
-
     return sortEngineersByWeekOffs(grid, (e) => this.getEngineerWeekOffs(e));
+  }
 
+  isLeadershipAccount(eng) {
+    if (!eng) return false;
+    const def = (this.state && this.state.engineersList ? this.state.engineersList.find(x => x.name === eng.name || x.id === eng.id || x.username === eng.username) : null) || {};
+    const role = String(def.role || eng.role || '').trim().toLowerCase();
+    const u = String(def.username || eng.username || '').trim().toLowerCase();
+    const n = String(def.name || eng.name || '').trim().toLowerCase();
+    return role === 'admin' || role === 'manager' || u === 'admin' || u === 'manager' || u === 'administrator' || u === 'sysadmin' ||
+           n === 'administrator' || n === 'admin' || n === 'manager' || n.includes('administrator') || n.includes('system admin');
+  }
+
+  isEngineerResignedForPeriod(eng, year = this.state.currentYear, month = this.state.currentMonth) {
+    if (!eng) return false;
+    const def = (this.state && this.state.engineersList ? this.state.engineersList.find(x => x.name === eng.name || x.id === eng.id || x.username === eng.username) : null) || {};
+    const status = String(def.status || eng.status || '').trim().toLowerCase();
+    const isResigned = status === 'resigned' || def.resigned === true || eng.resigned === true;
+    if (!isResigned) return false;
+
+    const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const resDate = def.resignation_date || def.resigned_date || def.resigned_month || eng.resignation_date || eng.resigned_date || eng.resigned_month;
+    if (resDate) {
+      const resMonthKey = String(resDate).substring(0, 7);
+      return monthKey > resMonthKey;
+    }
+    return monthKey > currentMonthKey;
+  }
+
+  filterGridEngineersForPeriod(engineers, year, month) {
+    if (!Array.isArray(engineers)) return [];
+    return engineers.filter(eng => {
+      if (!eng) return false;
+      const def = this.state.engineersList.find(x => x.name === eng.name || x.id === eng.id || x.username === eng.username) || {};
+
+      // 1. Strict Exclusion: Admin and Manager accounts NEVER appear on the Roster Matrix
+      if (this.isLeadershipAccount(def) || this.isLeadershipAccount(eng)) {
+        return false;
+      }
+
+      // 2. Honor explicit include_in_roster === false
+      const inc = def.include_in_roster !== undefined ? def.include_in_roster : eng.include_in_roster;
+      if (inc === false) return false;
+
+      // 3. Resigned engineers: Exclude starting from the month AFTER resignation
+      if (this.isEngineerResignedForPeriod(def, year, month) || this.isEngineerResignedForPeriod(eng, year, month)) {
+        return false;
+      }
+
+      return true;
+    });
   }
 
 
@@ -903,6 +953,16 @@ class RosterXApp {
   switchTab(tabId) {
     this.activeTab = tabId;
 
+    const tabTitleMap = {
+      dashboard: 'Operations Dashboard',
+      team: 'Register & Team Management',
+      matrix: 'Roster Matrix & Coverage',
+      broadcast: 'Broadcast Console',
+      diagnostics: 'More Hub & Diagnostics'
+    };
+    const activeTitle = tabTitleMap[tabId] || 'Admin Operations Console';
+    document.title = `RosterX — ${activeTitle}`;
+
     // Toggle panels
     document.querySelectorAll('.tab-panel').forEach(p => {
       if (p.id === `tabContent_${tabId}`) {
@@ -1219,19 +1279,22 @@ class RosterXApp {
     }
 
     container.innerHTML = '';
-    records.slice(0, 10).forEach(rec => {
+    records.slice(0, 30).forEach(rec => {
       const isAndroid = rec.platform === 'Android App';
+      const deviceStr = rec.device || (rec.details && rec.details.device) || '';
+      const deviceBadge = deviceStr ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-200/80 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-mono font-medium">${escapeHtml(deviceStr)}</span>` : '';
       const row = document.createElement('div');
       row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs transition';
       row.innerHTML = `
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2 flex-wrap">
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isAndroid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}">
             ${rec.platform || 'Web Portal'}
           </span>
+          ${deviceBadge}
           <span class="font-bold text-slate-900">${rec.engineer_name || rec.username || 'System'}</span>
           <span class="text-slate-500">• ${rec.action || 'Activity Event'}</span>
         </div>
-        <span class="text-slate-400 font-mono text-[11px]">${rec.datetime || ''}</span>
+        <span class="text-slate-400 font-mono text-[11px] shrink-0">${rec.datetime || ''}</span>
       `;
       container.appendChild(row);
     });
@@ -2553,7 +2616,7 @@ class RosterXApp {
 
         badge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-pointer shadow-xs';
 
-        text.textContent = 'Synced to Atlas M0';
+        text.textContent = 'Synced to Database';
 
         dot.className = 'w-2 h-2 rounded-full bg-emerald-600 inline-block shadow-sm';
 
@@ -2705,96 +2768,35 @@ class RosterXApp {
 
 
 
-        let filteredRemote = remoteEngineers;
-
-        if (isComingMonth) {
-
-          filteredRemote = filteredRemote.filter(eng => {
-
-            const meta = this.state.engineersList.find(x => x.name === eng.name || x.id === eng.id);
-
-            return meta ? meta.status !== 'Resigned' : eng.status !== 'Resigned';
-
-          });
-
-        }
-
-
-
+        let filteredRemote = this.filterGridEngineersForPeriod(remoteEngineers, year, month);
         this.state.gridRoster = this.sortGridRosterByWeekOffs(filteredRemote);
-
         this.saveCurrentGridRoster();
-
         this.atlasService.notifyStatusChange('synced');
-
         return;
-
       }
-
     } catch (err) {
-
       console.warn(`[Atlas] Remote fetch for ${monthKey} failed, falling back to local storage:`, err);
-
     }
-
-
 
     // 2. Fallback to LocalStorage (ONLY IF genuinely imported, generated, or edited by user)
-
     const isImportedOrGenerated = this.isMonthImportedOrGenerated(monthKey);
-
     if (typeof localStorage !== 'undefined' && isImportedOrGenerated) {
-
       const stored = localStorage.getItem(cacheKey);
-
       if (stored) {
-
         try { loaded = JSON.parse(stored); } catch (e) { console.error('Cache parse error', e); }
-
       }
-
     }
 
-
-
-    const isComingMonth = (year > 2026 || (year === 2026 && month > 10));
-
-
-
     // Verify loaded actually contains valid shift assignments (not all empty strings)
-
     const hasValidShifts = loaded && Array.isArray(loaded) && loaded.length >= 5 &&
-
       loaded.some(eng => Array.isArray(eng.shifts) && eng.shifts.some(s => s && String(s).trim() !== ''));
 
-
-
     if (hasValidShifts) {
-
-      if (isComingMonth) {
-
-        // Exclude resigned engineers in coming months
-
-        this.state.gridRoster = loaded.filter(eng => {
-
-          const meta = this.state.engineersList.find(e => e.name === eng.name || e.id === eng.id);
-
-          return meta ? meta.status !== 'Resigned' : eng.status !== 'Resigned';
-
-        });
-
-      } else {
-
-        this.state.gridRoster = loaded;
-
-      }
-
-      this.state.gridRoster = this.sortGridRosterByWeekOffs(this.state.gridRoster);
-
+      this.state.gridRoster = this.sortGridRosterByWeekOffs(
+        this.filterGridEngineersForPeriod(loaded, year, month)
+      );
       this.atlasService.notifyStatusChange('draft');
-
       return;
-
     }
 
 
@@ -2845,7 +2847,8 @@ class RosterXApp {
 
             });
 
-            this.state.gridRoster = this.sortGridRosterByWeekOffs(remoteEngineers);
+            const filteredDirect = this.filterGridEngineersForPeriod(remoteEngineers, year, month);
+            this.state.gridRoster = this.sortGridRosterByWeekOffs(filteredDirect);
 
             this.saveCurrentGridRoster();
 
@@ -3042,17 +3045,8 @@ class RosterXApp {
     // 1. Update Preset Buttons styling
 
     const presets = [
-
       { id: 'btnPresetAllShifts', active: !isFiltered },
-
-      { id: 'btnPresetSwOffNs', active: visible.has('SW') && visible.has('OFF') && visible.has('NS') && !visible.has('FS') && !visible.has('FG') && !visible.has('G') && !visible.has('SG') && !visible.has('SS') && !visible.has('L') },
-
-      { id: 'btnPresetNsOnly', active: visible.has('NS') && !visible.has('SW') && !visible.has('OFF') && !visible.has('FS') && !visible.has('FG') && !visible.has('G') && !visible.has('SG') && !visible.has('SS') && !visible.has('L') },
-
-      { id: 'btnPresetOffOnly', active: visible.has('OFF') && !visible.has('SW') && !visible.has('NS') && !visible.has('FS') && !visible.has('FG') && !visible.has('G') && !visible.has('SG') && !visible.has('SS') && !visible.has('L') },
-
-      { id: 'btnPresetSwOnly', active: visible.has('SW') && !visible.has('OFF') && !visible.has('NS') && !visible.has('FS') && !visible.has('FG') && !visible.has('G') && !visible.has('SG') && !visible.has('SS') && !visible.has('L') }
-
+      { id: 'btnPresetSwOffNs', active: visible.has('SW') && visible.has('OFF') && visible.has('NS') && !visible.has('FS') && !visible.has('FG') && !visible.has('G') && !visible.has('SG') && !visible.has('SS') && !visible.has('L') }
     ];
 
 
@@ -3292,8 +3286,12 @@ class RosterXApp {
 
 
 
-    // Maintain Weekoffs Day Order
-
+    // Filter out Admin, Manager, and Resigned accounts for the active period
+    this.state.gridRoster = this.filterGridEngineersForPeriod(
+      this.state.gridRoster,
+      this.state.currentYear,
+      this.state.currentMonth
+    );
     this.state.gridRoster = this.sortGridRosterByWeekOffs(this.state.gridRoster);
 
 
@@ -4537,11 +4535,11 @@ class RosterXApp {
         engData.original_username = oldUsername;
       }
 
-      const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));
+      const isResignedForCurrentView = this.isEngineerResignedForPeriod(engData, this.state.currentYear, this.state.currentMonth);
 
       if (existingIdx >= 0) {
         this.state.engineersList[existingIdx] = engData;
-        if (isComingMonth && status === 'Resigned') {
+        if (isResignedForCurrentView || isLeadership) {
           this.state.gridRoster = this.state.gridRoster.filter(e => (e.name && e.name.trim().toUpperCase() !== name) && e.id !== id);
         } else {
           const gridIdx = this.state.gridRoster.findIndex(e => (editingUser && (e.name === editingUser.name || e.username === editingUser.username)) || (e.name && e.name.trim().toUpperCase() === name) || e.id === id);
@@ -4551,33 +4549,19 @@ class RosterXApp {
             this.state.gridRoster[gridIdx].role = role;
             this.state.gridRoster[gridIdx].default_weekly_offs = resolvedOffs;
           } else if (status === 'Active' && !isLeadership) {
-
             this.state.gridRoster.push({
-
               id,
-
               name,
-
               shifts: new Array(this.state.totalDays || 30).fill('OFF'),
-
               status: 'Active',
-
               role,
-
               default_weekly_offs: resolvedOffs
-
             });
-
           }
-
         }
-
       } else {
-
         this.state.engineersList.push(engData);
-
-        if (!(isComingMonth && status === 'Resigned') && !isLeadership) {
-
+        if (!isResignedForCurrentView && !isLeadership) {
           const newShifts = new Array(this.state.totalDays || 30).fill('OFF');
 
           this.state.gridRoster.push({
@@ -4741,16 +4725,12 @@ class RosterXApp {
 
 
 
-    const isComingMonth = (this.state.currentYear > 2026 || (this.state.currentYear === 2026 && this.state.currentMonth > 10));
+    const isResignedForCurrentView = this.isEngineerResignedForPeriod(eng, this.state.currentYear, this.state.currentMonth);
 
-    if (isComingMonth && eng.status === 'Resigned') {
-
+    if (isResignedForCurrentView || this.isLeadershipAccount(eng)) {
       this.state.gridRoster = this.state.gridRoster.filter(e => e.name !== eng.name && (!eng.id || e.id !== eng.id));
-
-    } else if (isComingMonth && eng.status === 'Active') {
-
+    } else if (eng.status === 'Active' && !this.isLeadershipAccount(eng)) {
       const gridIdx = this.state.gridRoster.findIndex(e => e.name === eng.name || (eng.id && e.id === eng.id));
-
       if (gridIdx < 0) {
 
         this.state.gridRoster.push({
@@ -4835,60 +4815,32 @@ class RosterXApp {
 
 
 
-  saveOperationalConstraints() {
-
+  async saveOperationalConstraints() {
     this.state.constraints.nightHeadcount = parseInt(this.dom.cfgNightHeadcount.value, 10) || 1;
-
     this.state.constraints.fsMin = parseInt(this.dom.cfgFsMin.value, 10) || 1;
-
     this.state.constraints.ssMin = parseInt(this.dom.cfgSsMin.value, 10) || 1;
-
     this.state.constraints.daytimeOverlapMin = parseInt(this.dom.cfgDaytimeOverlap.value, 10) || 3;
-
     this.state.constraints.postNightRestDays = parseInt(this.dom.cfgPostNightRest.value, 10) || 2;
-
     this.state.constraints.maxConsecutiveDays = parseInt(this.dom.cfgMaxConsecutive.value, 10) || 6;
-
     this.state.constraints.customDirectives = this.dom.cfgCustomDirectives.value.trim();
 
-
-
     this.saveConstraints();
-
     this.updateActiveRulesBanner();
-
     this.renderDailyCoverage();
-
     this.runRuleAudit();
-
     this.dom.constraintsModal.classList.add('hidden');
 
-    this.showToast('Operational policies saved & applied to live validator!');
-
-
-
-    // Asynchronously sync operational constraints to MongoDB Atlas backend
-
     try {
-
-      const base = this.atlasService.getApiBase();
-
-      fetch(`${base}/constraints`, {
-
-        method: 'POST',
-
-        headers: { 'Content-Type': 'application/json' },
-
-        body: JSON.stringify(this.state.constraints)
-
-      }).catch(err => console.warn('Atlas constraints sync background notice:', err));
-
+      const res = await this.atlasService.saveConstraints(this.state.constraints);
+      if (res && res.success) {
+        this.showToast('Operational policies saved & synced to Database!');
+      } else {
+        this.showToast((res && res.message) || 'Saved locally, backend sync warning', 'error');
+      }
     } catch (e) {
-
       console.warn('Failed to dispatch constraints sync:', e);
-
+      this.showToast('Policies saved locally (offline)', 'warning');
     }
-
   }
 
 
@@ -5855,21 +5807,19 @@ class RosterXApp {
 
 
   renderImportEngineerTags() {
-
     if (!this.dom.importEngineerTagsContainer) return;
 
+    const targetPeriod = this.getImportSelectedPeriod();
+    const [yStr, mStr] = (targetPeriod || '').split('-');
+    const tYear = parseInt(yStr, 10) || this.state.currentYear;
+    const tMonth = (parseInt(mStr, 10) || (this.state.currentMonth + 1)) - 1;
+
     const activeEngineers = this.sortEngineersByWeekOffs(
-
-      this.state.engineersList.filter(e => e.status !== 'Resigned')
-
+      this.state.engineersList.filter(e => !this.isLeadershipAccount(e) && !this.isEngineerResignedForPeriod(e, tYear, tMonth) && e.include_in_roster !== false)
     );
 
-
-
     if (this.dom.importActiveEngCount) {
-
       this.dom.importActiveEngCount.textContent = activeEngineers.length;
-
     }
 
 
@@ -6346,9 +6296,8 @@ class RosterXApp {
 
 
 
-      // Exclude Resigned engineers
-
-      const activeOnly = this.state.engineersList.filter(e => e.status !== 'Resigned');
+      // Exclude Admin, Manager, and Resigned engineers for target period
+      const activeOnly = this.state.engineersList.filter(e => !this.isLeadershipAccount(e) && !this.isEngineerResignedForPeriod(e, targetYear, targetMonth - 1) && e.include_in_roster !== false);
 
 
 
@@ -6438,14 +6387,12 @@ class RosterXApp {
 
 
 
-      // Filter out any Resigned engineers from the imported draft
-
+      // Filter out Admin, Manager, and Resigned engineers from the imported draft
       const filteredEngineers = parsed.engineers.filter(importedEng => {
-
-        const meta = this.state.engineersList.find(e => e.name.toUpperCase() === importedEng.name.toUpperCase());
-
-        return meta ? meta.status !== 'Resigned' : true;
-
+        const meta = this.state.engineersList.find(e => e.name.toUpperCase() === importedEng.name.toUpperCase() || (e.username && e.username.toLowerCase() === (importedEng.username || '').toLowerCase()));
+        if (this.isLeadershipAccount(meta || importedEng)) return false;
+        if (this.isEngineerResignedForPeriod(meta || importedEng, targetYear, targetMonth - 1)) return false;
+        return true;
       });
 
 
@@ -6756,7 +6703,7 @@ class RosterXApp {
 
     }
 
-    this.showToast(res.message || 'Synced to Atlas M0');
+    this.showToast(res.message || 'Synced to Database');
 
   }
 
@@ -7033,35 +6980,17 @@ class RosterXApp {
   // --- Operational Policies Atlas Sync ---
 
   async syncConstraintsFromAtlas() {
-
     try {
-
-      const base = this.atlasService.getApiBase();
-
-      const res = await fetch(`${base}/constraints`);
-
-      if (res.ok) {
-
-        const data = await res.json();
-
-        if (data.success && data.constraints) {
-
-          this.state.constraints = { ...this.state.constraints, ...data.constraints };
-
-          this.saveConstraints();
-
-          this.updateActiveRulesBanner();
-
-        }
-
+      const remote = await this.atlasService.getConstraints();
+      if (remote && typeof remote === 'object') {
+        this.state.constraints = { ...this.state.constraints, ...remote };
+        this.saveConstraints();
+        this.updateActiveRulesBanner();
+        if (typeof this.renderDailyCoverage === 'function') this.renderDailyCoverage();
       }
-
     } catch (e) {
-
-      console.warn('Failed to sync constraints from Atlas:', e);
-
+      console.warn('Failed to sync constraints from Database:', e);
     }
-
   }
 
 

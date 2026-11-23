@@ -732,38 +732,43 @@ fun EngineerPortalScreen(
     val isFullScreenRoster = isLandscape && ((isManager && selectedTab == 2) || (!isManager && selectedTab == 3))
 
     LaunchedEffect(selectedTab, isViewingSettings, isViewingCredentialTracker, isViewingMyTeam, isViewingLeaveRequest, isViewingLeaveApprovals, isManager) {
-        val screenName = if (isViewingLeaveRequest) {
-            "Leave & Swap Request"
+        val (screenName, pageTitle) = if (isViewingLeaveRequest) {
+            "LeaveRequest" to "Leave Request"
         } else if (isViewingLeaveApprovals) {
-            "Leave & Swap Approvals"
+            "LeaveApprovals" to "Leave Approvals"
         } else if (isViewingCredentialTracker) {
-            "Credential Tracker"
+            "CredentialTracker" to "Server Credential Tracker"
         } else if (isViewingMyTeam) {
-            "My Team Directory"
+            "MyTeam" to "My Team Directory"
         } else if (isViewingSettings) {
-            "Profile & Settings"
+            "Settings" to "Profile & Settings"
         } else if (isManager) {
             when (selectedTab) {
-                0 -> "Manager Dashboard"
-                1 -> "Team Shifts"
-                2 -> "Month Roster"
-                3 -> "Broadcast Console"
-                4 -> "Operations Hub"
-                else -> "Manager Dashboard"
+                0 -> "ManagerDashboard" to "Operations Dashboard"
+                1 -> "TeamShifts" to "Team Shifts"
+                2 -> "MonthRoster" to "Month Roster"
+                3 -> "Broadcast" to "Broadcast Console"
+                4 -> "OperationsHub" to "Operations Hub"
+                else -> "ManagerDashboard" to "Operations Dashboard"
             }
         } else {
             when (selectedTab) {
-                0 -> "Dashboard"
-                1 -> "Team Shifts"
-                2 -> "My Calendar"
-                3 -> "Month Roster"
-                4 -> "Operations Hub"
-                else -> "Dashboard"
+                0 -> "EngineerDashboard" to "Operations Dashboard"
+                1 -> "TeamShifts" to "Team Shifts"
+                2 -> "MyCalendar" to "My Calendar"
+                3 -> "MonthRoster" to "Month Roster"
+                4 -> "OperationsHub" to "Operations Hub"
+                else -> "EngineerDashboard" to "Operations Dashboard"
             }
         }
-        viewModel.analyticsManager.logScreenView(screenName)
+        viewModel.analyticsManager.logScreenView(
+            screenName = screenName,
+            screenClass = "EngineerPortalScreen",
+            pageTitle = pageTitle
+        )
         viewModel.analyticsManager.logEvent("tab_switched", mapOf(
             "tab_name" to screenName,
+            "page_title" to pageTitle,
             "role" to (state.loggedInEngineer?.role?.name ?: "UNKNOWN")
         ))
     }
@@ -5872,10 +5877,12 @@ fun AccountView(
                             username = engineer?.username ?: "",
                             onEditClick = onOpenEditProfile
                         )
-                        com.rosterx.presentation.components.TenureAndBirthdayRow(
-                            joinDate = engineer?.joinDate,
-                            birthday = engineer?.birthday
-                        )
+                        if (engineer?.role != com.rosterx.domain.model.EngineerRole.ADMIN && !engineer?.username.equals("admin", ignoreCase = true)) {
+                            com.rosterx.presentation.components.TenureAndBirthdayRow(
+                                joinDate = engineer?.joinDate,
+                                birthday = engineer?.birthday
+                            )
+                        }
                     }
                     Column(
                         modifier = Modifier.weight(1f),
@@ -5906,8 +5913,8 @@ fun AccountView(
             )
         }
 
-        // Special Celebration Banner (Birthday / Work Anniversary)
-        if (isBirthdayToday || isAnniversaryToday) {
+        // Special Celebration Banner (Birthday / Work Anniversary — Excluded for Administrator)
+        if ((isBirthdayToday || isAnniversaryToday) && engineer?.role != com.rosterx.domain.model.EngineerRole.ADMIN && !engineer?.username.equals("admin", ignoreCase = true)) {
             item {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
@@ -5957,12 +5964,14 @@ fun AccountView(
             }
         }
 
-        // Dynamic Tenure & Birthday in Days Row
-        item {
-            com.rosterx.presentation.components.TenureAndBirthdayRow(
-                joinDate = engineer?.joinDate,
-                birthday = engineer?.birthday
-            )
+        // Dynamic Tenure & Birthday in Days Row (Hidden for Administrator)
+        if (engineer?.role != com.rosterx.domain.model.EngineerRole.ADMIN && !engineer?.username.equals("admin", ignoreCase = true)) {
+            item {
+                com.rosterx.presentation.components.TenureAndBirthdayRow(
+                    joinDate = engineer?.joinDate,
+                    birthday = engineer?.birthday
+                )
+            }
         }
 
         // Weekly Offs Pill Card (Mon - Sun) — Only relevant for shift personnel (Engineers & Apprentices)
@@ -6241,7 +6250,7 @@ fun AccountView(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text("Cloud Infrastructure", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("Cloudflare Edge + Render Cloud", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("Render Cloud", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -6352,7 +6361,7 @@ fun AccountView(
 
                     ProfileDetailRow("Database Engine", "MongoDB Atlas Cluster0")
 
-                    ProfileDetailRow("Public Edge Gateway", "Render Cloud & Cloudflare")
+                    ProfileDetailRow("Public Edge Gateway", "Render Cloud (api.rosterx.online)")
 
                 }
 

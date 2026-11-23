@@ -366,7 +366,8 @@ html.dark dialog.rx-modal::backdrop {
 
 @media (max-width: 767.98px) {
   .rx-desktop-only-nav,
-  .admin-hub-btn {
+  .admin-hub-btn,
+  #btnOpenAiModal {
     display: none !important;
   }
 
@@ -860,8 +861,9 @@ html.dark .rx-roster-table .rx-sticky-coverage {
    Leave & Swap Multi-Date Calendar Picker
    ========================================================================== */
 .rx-cal-day-cell {
-  aspect-ratio: 1;
-  min-height: 44px;
+  aspect-ratio: 1.15;
+  min-height: 40px;
+  max-height: 54px;
   border: 0;
   border-radius: 12px;
   background: var(--nm-surface);
