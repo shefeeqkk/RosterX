@@ -108,6 +108,8 @@ class RosterXApp {
     this.aiAssistant = new RosterAiAssistant(this);
     this.shiftGenerator = new ShiftGeneratorController(this);
     this.activeTab = 'dashboard';
+    this.diagnosticsLogsCollapsed = false;
+    this.diagnosticsLogInterval = null;
 
 
 
@@ -876,14 +878,21 @@ class RosterXApp {
     });
 
     if (subTarget === 'overview') {
+      this.stopDiagnosticsLivePolling();
       this.refreshAdminHubOverviewBadges();
     } else if (subTarget === 'leave_approvals') {
+      this.stopDiagnosticsLivePolling();
       this.leaveApprovalsController?.load();
     } else if (subTarget === 'credentials') {
+      this.stopDiagnosticsLivePolling();
       this.credentialTracker?.load();
     } else if (subTarget === 'diagnostics') {
-      this.loadDiagnosticsTerminal();
+      this.refreshDiagnosticsPanel();
+      if (!this.diagnosticsLogsCollapsed) {
+        this.startDiagnosticsLivePolling();
+      }
     } else if (subTarget === 'appearance') {
+      this.stopDiagnosticsLivePolling();
       this.mountAdminAppearancePicker();
     }
   }
@@ -991,6 +1000,15 @@ class RosterXApp {
       this.loadDiagnosticsTerminal();
       this.showToast('Server log buffer cleared.');
     });
+
+    document.getElementById('btnToggleTerminalLogs')?.addEventListener('click', () => {
+      this.toggleDiagnosticsTerminal();
+    });
+
+    document.getElementById('btnDiagRefreshAll')?.addEventListener('click', async () => {
+      await this.refreshDiagnosticsPanel();
+      this.showToast('Diagnostics & storage metrics updated.');
+    });
   }
 
   switchTab(tabId) {
@@ -1030,6 +1048,11 @@ class RosterXApp {
       this.mobileNavShell.setActive(tabId);
     }
 
+    // Stop diagnostics live polling if leaving diagnostics tab
+    if (tabId !== 'diagnostics') {
+      this.stopDiagnosticsLivePolling();
+    }
+
     // Contextual refresh based on tab
     if (tabId === 'dashboard') {
       this.refreshDashboardTelemetry();
@@ -1040,6 +1063,12 @@ class RosterXApp {
       this.renderTeamTab();
     } else if (tabId === 'diagnostics') {
       this.switchAdminHub(this.activeAdminHub || 'overview');
+      if (this.activeAdminHub === 'diagnostics') {
+        this.refreshDiagnosticsPanel();
+        if (!this.diagnosticsLogsCollapsed) {
+          this.startDiagnosticsLivePolling();
+        }
+      }
     } else if (tabId === 'broadcast') {
       broadcastController.renderRecipientChips();
       broadcastController.populatePreviewEngineers();
@@ -1090,6 +1119,8 @@ class RosterXApp {
           const isRend = serverTel.environment?.is_render ? 'Render Cloud' : 'Host LAN';
           netEl.textContent = `Port ${serverTel.network.port} • ${isRend}`;
         }
+
+        this.renderDiagnosticsBuildAndDbStats(serverTel);
       }
 
       if (userTel) {
@@ -1379,6 +1410,242 @@ class RosterXApp {
       }
     } catch (e) {
       box.innerHTML = `<div class="text-red-400">[ERROR FETCHING SERVER LOGS: ${e.message}]</div>`;
+    }
+  }
+
+  async refreshDiagnosticsPanel() {
+    try {
+      const [serverTel, userTel] = await Promise.all([
+        this.atlasService.getServerTelemetry(),
+        this.atlasService.getUserTelemetry()
+      ]);
+      if (serverTel) {
+        const uptimeEl = document.getElementById('telemetryUptime');
+        if (uptimeEl) uptimeEl.textContent = serverTel.uptime_formatted || `${serverTel.uptime_seconds}s`;
+
+        const envEl = document.getElementById('telemetryEnv');
+        if (envEl && serverTel.environment) {
+          envEl.textContent = `Python ${serverTel.environment.python_version} • ${serverTel.environment.os_platform}`;
+        }
+
+        const pingEl = document.getElementById('telemetryPing');
+        if (pingEl && serverTel.atlas) {
+          pingEl.textContent = `${serverTel.atlas.ping_ms} ms`;
+        }
+
+        const atlasStatusEl = document.getElementById('telemetryAtlasStatus');
+        if (atlasStatusEl && serverTel.atlas) {
+          atlasStatusEl.textContent = serverTel.atlas.status.includes('CONNECTED') ? 'ONLINE' : 'OFFLINE';
+        }
+
+        const collEl = document.getElementById('telemetryCollections');
+        if (collEl && serverTel.atlas && serverTel.atlas.collections) {
+          const c = serverTel.atlas.collections;
+          collEl.textContent = `Eng: ${c.engineers || 0} • Rosters: ${c.rosters || 0}`;
+        }
+
+        const memEl = document.getElementById('telemetryMemory');
+        if (memEl) {
+          memEl.textContent = serverTel.memory_rss_mb ? `${serverTel.memory_rss_mb} MB` : 'Dynamic RSS';
+        }
+
+        const netEl = document.getElementById('telemetryNetwork');
+        if (netEl && serverTel.network) {
+          const isRend = serverTel.environment?.is_render ? 'Render Cloud' : 'Host LAN';
+          netEl.textContent = `Port ${serverTel.network.port} • ${isRend}`;
+        }
+
+        this.renderDiagnosticsBuildAndDbStats(serverTel);
+      }
+
+      if (userTel) {
+        const totalUsersEl = document.getElementById('telemetryTotalUsers');
+        if (totalUsersEl) totalUsersEl.textContent = `${userTel.total_engineers} Engineers`;
+
+        const platEl = document.getElementById('telemetryPlatforms');
+        if (platEl && userTel.platform_breakdown) {
+          platEl.textContent = `Web: ${userTel.platform_breakdown['Web Portal'] || 0} • App: ${userTel.platform_breakdown['Android App'] || 0}`;
+        }
+
+        const act24El = document.getElementById('telemetryActive24h');
+        if (act24El && userTel.active_windows) {
+          act24El.textContent = `${userTel.active_windows.last_24h || 0} Active (24h)`;
+        }
+
+        const winEl = document.getElementById('telemetryActiveWindows');
+        if (winEl && userTel.active_windows) {
+          winEl.textContent = `1h: ${userTel.active_windows.last_1h || 0} • 7d: ${userTel.active_windows.last_7d || 0}`;
+        }
+      }
+
+      if (!this.diagnosticsLogsCollapsed) {
+        await this.loadDiagnosticsTerminal();
+      }
+    } catch (e) {
+      console.warn('Failed to refresh diagnostics panel:', e);
+    }
+  }
+
+  renderDiagnosticsBuildAndDbStats(serverTel) {
+    if (!serverTel) return;
+
+    // 1. Build & Architecture Specs
+    const build = serverTel.build || {};
+    const versionStr = build.server_version || serverTel.version || '2.5.27';
+    const buildCode = build.build_code || 202;
+    const gitBranch = build.git_branch || 'main';
+    const gitCommit = build.git_commit || 'HEAD';
+    const deployEnv = build.deployed_environment || (serverTel.environment?.is_render ? 'Render Cloud Production' : 'Local Host');
+    const apiUrl = build.production_api || 'https://api.rosterx.online';
+    const runtime = build.python_runtime || `Python ${serverTel.environment?.python_version || '3.11.9'} • ${serverTel.environment?.os_platform || 'Linux'}`;
+
+    const sVerEl = document.getElementById('diagServerVersion');
+    if (sVerEl) sVerEl.textContent = `v${versionStr}`;
+
+    const sCodeEl = document.getElementById('diagServerBuildCode');
+    if (sCodeEl) sCodeEl.textContent = `Build Code: ${buildCode}`;
+
+    const aBuildEl = document.getElementById('diagAndroidBuild');
+    if (aBuildEl) aBuildEl.textContent = `v${versionStr} (Build ${buildCode})`;
+
+    const envBadgeEl = document.getElementById('diagDeployEnvBadge');
+    if (envBadgeEl) envBadgeEl.textContent = deployEnv;
+
+    const gBranchEl = document.getElementById('diagGitBranch');
+    if (gBranchEl) gBranchEl.textContent = `branch: ${gitBranch}`;
+
+    const gCommitEl = document.getElementById('diagGitCommit');
+    if (gCommitEl) gCommitEl.textContent = `Commit: ${gitCommit}`;
+
+    const aUrlEl = document.getElementById('diagApiUrl');
+    if (aUrlEl) {
+      aUrlEl.textContent = apiUrl;
+      aUrlEl.href = apiUrl;
+    }
+
+    const rPlatformEl = document.getElementById('diagRuntimePlatform');
+    if (rPlatformEl) rPlatformEl.textContent = runtime;
+
+    // 2. Database Storage Summary Pills
+    const storage = serverTel.atlas?.storage || {};
+    const totSzEl = document.getElementById('diagDbTotalSize');
+    if (totSzEl) totSzEl.textContent = storage.total_size_formatted || '-- MB';
+
+    const datSzEl = document.getElementById('diagDbDataSize');
+    if (datSzEl) datSzEl.textContent = storage.data_size_formatted || '-- KB';
+
+    const idxSzEl = document.getElementById('diagDbIndexSize');
+    if (idxSzEl) idxSzEl.textContent = storage.index_size_formatted || '-- KB';
+
+    // 3. Database Collections Table Breakdown
+    const tbody = document.getElementById('diagCollectionsTableBody');
+    if (tbody) {
+      const tables = serverTel.atlas?.tables || [];
+      if (tables.length > 0) {
+        const getCollectionIcon = (name) => {
+          if (name.includes('engineer')) return '<i class="ph ph-users text-indigo-500 mr-1.5 text-sm"></i>';
+          if (name.includes('roster')) return '<i class="ph ph-calendar text-emerald-500 mr-1.5 text-sm"></i>';
+          if (name.includes('notification')) return '<i class="ph ph-bell text-amber-500 mr-1.5 text-sm"></i>';
+          if (name.includes('audit')) return '<i class="ph ph-shield-check text-blue-500 mr-1.5 text-sm"></i>';
+          if (name.includes('broadcast')) return '<i class="ph ph-megaphone text-purple-500 mr-1.5 text-sm"></i>';
+          if (name.includes('leave')) return '<i class="ph ph-calendar-x text-rose-500 mr-1.5 text-sm"></i>';
+          if (name.includes('credential')) return '<i class="ph ph-key text-teal-500 mr-1.5 text-sm"></i>';
+          if (name.includes('policy') || name.includes('rule')) return '<i class="ph ph-scales text-cyan-500 mr-1.5 text-sm"></i>';
+          return '<i class="ph ph-database text-slate-400 mr-1.5 text-sm"></i>';
+        };
+
+        tbody.innerHTML = tables.map(t => `
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+            <td class="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200 flex items-center">
+              ${getCollectionIcon(t.name)}
+              <span class="font-bold">${t.name}</span>
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px] border border-slate-200 dark:border-slate-700">
+                ${Number(t.count || 0).toLocaleString()} docs
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">
+              ${t.data_size_formatted || '0 B'}
+            </td>
+            <td class="py-2.5 px-3 text-right text-purple-600 dark:text-purple-400 font-bold">
+              ${t.index_size_formatted || '0 B'}
+            </td>
+            <td class="py-2.5 px-3 text-right text-emerald-600 dark:text-emerald-400 font-black">
+              ${t.total_size_formatted || '0 B'}
+            </td>
+            <td class="py-2.5 px-3 text-right text-slate-500 dark:text-slate-400 text-[10px]">
+              ${t.avg_doc_size_formatted || '0 B'}
+            </td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-4 text-center text-slate-500 font-sans text-xs">
+              No collection storage telemetry available from cluster.
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
+
+  toggleDiagnosticsTerminal() {
+    this.diagnosticsLogsCollapsed = !this.diagnosticsLogsCollapsed;
+    this.updateDiagnosticsTerminalCollapsibleState();
+  }
+
+  updateDiagnosticsTerminalCollapsibleState() {
+    const wrapper = document.getElementById('tabTerminalLogsWrapper');
+    const chevron = document.getElementById('diagTerminalChevron');
+    const toggleBtnText = document.getElementById('btnToggleTerminalLogsText');
+    const badge = document.getElementById('diagStreamStatusBadge');
+    const dot = document.getElementById('diagStreamPulseDot');
+
+    if (this.diagnosticsLogsCollapsed) {
+      if (wrapper) wrapper.classList.add('hidden');
+      if (chevron) chevron.className = 'ph ph-caret-down text-xs transition-transform duration-200';
+      if (toggleBtnText) toggleBtnText.textContent = 'Expand Stream';
+      if (badge) {
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700';
+        badge.textContent = 'STREAM PAUSED';
+      }
+      if (dot) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
+      }
+      this.stopDiagnosticsLivePolling();
+    } else {
+      if (wrapper) wrapper.classList.remove('hidden');
+      if (chevron) chevron.className = 'ph ph-caret-up text-xs transition-transform duration-200';
+      if (toggleBtnText) toggleBtnText.textContent = 'Collapse Stream';
+      if (badge) {
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+        badge.textContent = '● LIVE STREAMING';
+      }
+      if (dot) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+      }
+      this.loadDiagnosticsTerminal();
+      this.startDiagnosticsLivePolling();
+    }
+  }
+
+  startDiagnosticsLivePolling() {
+    if (this.diagnosticsLogInterval) return;
+    this.diagnosticsLogInterval = setInterval(() => {
+      if (this.activeTab === 'diagnostics' && this.activeAdminHub === 'diagnostics' && !this.diagnosticsLogsCollapsed) {
+        this.loadDiagnosticsTerminal();
+      } else {
+        this.stopDiagnosticsLivePolling();
+      }
+    }, 4000);
+  }
+
+  stopDiagnosticsLivePolling() {
+    if (this.diagnosticsLogInterval) {
+      clearInterval(this.diagnosticsLogInterval);
+      this.diagnosticsLogInterval = null;
     }
   }
 
@@ -3917,12 +4184,13 @@ class RosterXApp {
 
       const offTd = document.createElement('td');
       if (isAdmin) {
-        const isDeviated = expectedMonthlyOffs > 0 && totalOff !== expectedMonthlyOffs;
-        const starMark = isDeviated ? '<span class="text-rose-600 dark:text-rose-400 font-black ml-0.5 text-xs inline-block leading-none" title="Total rest days deviate from monthly expected baseline (${totalOff} vs ${expectedMonthlyOffs})">*</span>' : '';
+        const actualWeeklyAndSwapOffs = totalWeeklyOff + totalSwaps;
+        const isDeviated = expectedMonthlyOffs > 0 && actualWeeklyAndSwapOffs !== expectedMonthlyOffs;
+        const starMark = isDeviated ? `<span class="text-rose-600 dark:text-rose-400 font-black ml-0.5 text-xs inline-block leading-none" title="Swap + Weekly Off count deviates from monthly expected baseline (${actualWeeklyAndSwapOffs} vs ${expectedMonthlyOffs})">*</span>` : '';
         const expLabel = expectedMonthlyOffs > 0 ? `<span class="text-[8px] opacity-75">/${expectedMonthlyOffs}</span>` : '';
         offTd.className = 'off-stats-col-admin font-black text-sm bg-amber-50/50 dark:bg-amber-950/30 text-amber-950 dark:text-amber-200 border-l border-b border-slate-300 dark:border-slate-700 text-center px-1';
         offTd.innerHTML = `
-          <div class="flex flex-col items-center justify-center py-0.5 leading-none select-none cursor-pointer" onclick="window.app?.openMonthlyOffsAuditModal?.()" title="Total Offs: ${totalOff}${isDeviated ? ' (Deviates from ' + expectedMonthlyOffs + ' baseline)' : ''} (Weekly Offs: ${totalWeeklyOff} of ${expectedMonthlyOffs} expected, Approved Leaves: ${totalLeaves}, Swap Offs: ${totalSwaps}) - Click to inspect calendar breakdown">
+          <div class="flex flex-col items-center justify-center py-0.5 leading-none select-none cursor-pointer" onclick="window.app?.openMonthlyOffsAuditModal?.()" title="Total Rest Days: ${totalOff}${isDeviated ? ' (Weekly Offs + Swaps: ' + actualWeeklyAndSwapOffs + ' deviates from ' + expectedMonthlyOffs + ' baseline)' : ''} (Weekly Offs: ${totalWeeklyOff}, Swap Offs: ${totalSwaps}, Approved Leaves: ${totalLeaves} | Expected Monthly Offs: ${expectedMonthlyOffs}) - Click to inspect calendar breakdown">
             <span class="text-sm font-black text-amber-950 dark:text-amber-200 flex items-center justify-center">${totalOff}${starMark}</span>
             <div class="flex items-center gap-0.5 text-[9px] font-extrabold tracking-tight mt-0.5 text-slate-500">
               <span class="px-1 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-300" title="Weekly Offs: ${totalWeeklyOff} (Expected: ${expectedMonthlyOffs} based on calendar)">${totalWeeklyOff}${expLabel} OFF</span>

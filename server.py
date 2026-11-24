@@ -52,7 +52,8 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.26"
+SERVER_VERSION = "2.5.27"
+SERVER_BUILD_CODE = 202
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -4123,6 +4124,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "success": True,
                 "status": "online",
                 "version": SERVER_VERSION,
+                "build_code": SERVER_BUILD_CODE,
                 "latest_android_version": update_meta["latest_android_version"],
                 "min_supported_version": update_meta["min_supported_version"],
                 "apk_download_url": update_meta["apk_download_url"],
@@ -4220,20 +4222,15 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception:
                     latency_ms = 0
 
-            collection_counts = {}
-            if ATLAS_DB is not None:
-                try:
-                    collection_counts["engineers"] = ATLAS_DB["engineers"].count_documents({})
-                    collection_counts["rosters"] = ATLAS_DB["rosters"].count_documents({})
-                    if "audit_logs" in ATLAS_DB.list_collection_names():
-                        collection_counts["audit_logs"] = ATLAS_DB["audit_logs"].count_documents({})
-                    if "operational_policies" in ATLAS_DB.list_collection_names():
-                        collection_counts["operational_policies"] = ATLAS_DB["operational_policies"].count_documents({})
-                    if "notifications" in ATLAS_DB.list_collection_names():
-                        collection_counts["notifications"] = ATLAS_DB["notifications"].count_documents({})
-                except Exception as e:
-                    print(f"  [TELEMETRY SERVER COUNTS ERROR] {e}")
+            def format_bytes(b):
+                if b >= 1024 * 1024:
+                    return f"{b / (1024 * 1024):.2f} MB"
+                elif b >= 1024:
+                    return f"{b / 1024:.1f} KB"
+                return f"{b} B"
 
+            collection_counts = {}
+            collections_stats = []
             db_storage_stats = {
                 "storage_size_bytes": 0,
                 "data_size_bytes": 0,
@@ -4244,8 +4241,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "index_size_formatted": "0 KB",
                 "total_size_formatted": "0 KB",
                 "objects_count": 0,
-                "collections_count": len(collection_counts)
+                "collections_count": 0
             }
+
             if ATLAS_DB is not None:
                 try:
                     stats = ATLAS_DB.command("dbStats")
@@ -4254,14 +4252,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     index_bytes = int(stats.get("indexSize", 0))
                     total_bytes = storage_bytes + index_bytes
                     objects_cnt = int(stats.get("objects", 0))
-                    collections_cnt = int(stats.get("collections", len(collection_counts)))
-
-                    def format_bytes(b):
-                        if b >= 1024 * 1024:
-                            return f"{b / (1024 * 1024):.2f} MB"
-                        elif b >= 1024:
-                            return f"{b / 1024:.1f} KB"
-                        return f"{b} B"
+                    collections_cnt = int(stats.get("collections", 0))
 
                     db_storage_stats = {
                         "storage_size_bytes": storage_bytes,
@@ -4278,7 +4269,65 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     print(f"  [TELEMETRY DBSTATS ERROR] {e}")
 
+                try:
+                    c_names = sorted(ATLAS_DB.list_collection_names())
+                    for cname in c_names:
+                        if cname.startswith("system."):
+                            continue
+                        try:
+                            cstats = ATLAS_DB.command("collStats", cname)
+                            c_count = int(cstats.get("count", 0))
+                            c_data = int(cstats.get("size", 0))
+                            c_storage = int(cstats.get("storageSize", 0))
+                            c_index = int(cstats.get("totalIndexSize", 0))
+                            c_avg = int(cstats.get("avgObjSize", 0))
+                            collections_stats.append({
+                                "name": cname,
+                                "count": c_count,
+                                "data_size_bytes": c_data,
+                                "data_size_formatted": format_bytes(c_data),
+                                "storage_size_bytes": c_storage,
+                                "storage_size_formatted": format_bytes(c_storage),
+                                "index_size_bytes": c_index,
+                                "index_size_formatted": format_bytes(c_index),
+                                "total_size_bytes": c_storage + c_index,
+                                "total_size_formatted": format_bytes(c_storage + c_index),
+                                "avg_doc_size_formatted": format_bytes(c_avg) if c_avg else "0 B"
+                            })
+                            collection_counts[cname] = c_count
+                        except Exception as e_c:
+                            cnt = 0
+                            try:
+                                cnt = ATLAS_DB[cname].count_documents({})
+                            except Exception:
+                                pass
+                            collections_stats.append({
+                                "name": cname,
+                                "count": cnt,
+                                "data_size_bytes": 0,
+                                "data_size_formatted": "0 B",
+                                "storage_size_bytes": 0,
+                                "storage_size_formatted": "0 B",
+                                "index_size_bytes": 0,
+                                "index_size_formatted": "0 B",
+                                "total_size_bytes": 0,
+                                "total_size_formatted": "0 B",
+                                "avg_doc_size_formatted": "0 B"
+                            })
+                            collection_counts[cname] = cnt
+                    db_storage_stats["collections_count"] = len(collections_stats)
+                except Exception as e:
+                    print(f"  [TELEMETRY COLLSTATS ERROR] {e}")
+
             mem_mb = get_memory_rss_mb()
+
+            git_commit = (os.environ.get("RENDER_GIT_COMMIT", "") or "").strip()
+            if not git_commit:
+                try:
+                    import subprocess
+                    git_commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
+                except Exception:
+                    git_commit = "main"
 
             self.send_json_response({
                 "success": True,
@@ -4290,13 +4339,26 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "os_platform": f"{platform.system()} {platform.release()}",
                         "is_render": bool(os.environ.get("RENDER"))
                     },
+                    "build": {
+                        "server_version": SERVER_VERSION,
+                        "build_code": SERVER_BUILD_CODE,
+                        "version_name": SERVER_VERSION,
+                        "deployed_environment": "Render Cloud Production" if os.environ.get("RENDER") else "Local Development Host",
+                        "git_commit": git_commit[:7] if git_commit else "HEAD",
+                        "git_branch": os.environ.get("RENDER_GIT_BRANCH", "main"),
+                        "render_instance_id": os.environ.get("RENDER_INSTANCE_ID", "local"),
+                        "python_runtime": f"{platform.python_implementation()} {sys.version.split()[0]} ({platform.system()} {platform.release()})",
+                        "production_api": "https://api.rosterx.online",
+                        "render_backend_url": "https://rosterx-vc30.onrender.com"
+                    },
                     "atlas": {
                         "status": ATLAS_STATUS,
                         "cluster": ATLAS_CLUSTER,
                         "database": ATLAS_DB_NAME,
                         "ping_ms": latency_ms,
                         "collections": collection_counts,
-                        "storage": db_storage_stats
+                        "storage": db_storage_stats,
+                        "tables": collections_stats
                     },
                     "render": {
                         "service_name": "rosterx-backend",

@@ -1,7 +1,41 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 21:46 IST** (Target Sprint: **v2.5.26 - Build 201**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 22:20 IST** (Target Sprint: **v2.5.27 - Build 202**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.27 - Build 202 — Shift Picker Fix, Off+Swap Star Marking, Collapsible Live Diagnostics & Table Storage):
+> *"Vijaya! Gafoorka! User paranja ellam issues-um features-um njaan pin-point precision-il implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.27 (Build 202):
+> 1. **Correct Weekly Off Star Marking Logic (`web/js/app.js`)**:
+>    - The user specifically clarified: *"I need to give star if Swap count + Off count is not equal to total weekly offs for that engineer for that month default weekly off."*
+>    - Updated calculation: `const actualWeeklyAndSwapOffs = totalWeeklyOff + totalSwaps;`
+>    - `const isDeviated = expectedMonthlyOffs > 0 && actualWeeklyAndSwapOffs !== expectedMonthlyOffs;`
+>    - If an engineer has 5 Weekly Offs + 3 Swap Offs = 8, and their calendar default weekly off baseline is 8, no red star is applied even if they also took 2 approved leaves (total rest 10 days).
+> 2. **Fixed Shift Picker Modal Layout (`web/index.html`)**:
+>    - Removed rogue duplicate `</button></div>` closing tags at line 2368 in `web/index.html` that caused the modal dialog container to close prematurely and exploded the shift buttons and swap container into a wide horizontal row across the matrix.
+> 3. **Database Collection & Table Storage Breakdown (`server.py`, `web/index.html`, `web/js/app.js`)**:
+>    - Enhanced `GET /api/telemetry/server` to query MongoDB `collStats` across all collections (`engineers`, `rosters`, `notifications`, `audit_logs`, `broadcast_templates`, `credentials`, etc.).
+>    - Calculates and formats: Document Count, Data Payload (KB/MB), Index Size (KB/MB), Total Storage Size, and Average Document Size.
+>    - Rendered in a sleek table under More Hub & Diagnostics with summary pills for Total DB Storage, Data Payload, and Index Overhead.
+> 4. **Deployed Build & Runtime Architecture Card (`web/index.html`, `web/js/app.js`)**:
+>    - Added a dedicated specifications grid to Diagnostics displaying:
+>      - Server Backend Version: `v2.5.27`
+>      - Android APK Release: `v2.5.27 (Build 202)`
+>      - Git Branch & Commit: `main @ [commit_hash]`
+>      - Production API Endpoint: `https://api.rosterx.online` (SSL Active)
+>      - Runtime Environment: Python 3.11.9 (Linux 64-bit / Render Container)
+> 5. **Collapsible Live Diagnostics Terminal (`web/index.html`, `web/js/app.js`)**:
+>    - Wrapped `#tabTerminalLogsBox` with an accordion header featuring:
+>      - Live indicator: `● LIVE STREAMING` with pulsing emerald dot when expanded, `STREAM PAUSED` when collapsed.
+>      - Toggle button: "Collapse Stream" / "Expand Stream" with animated caret.
+>      - Stream polling: When opened, polls live logs every 4 seconds to keep it live; when collapsed or when navigating away, polling pauses automatically.
+> 6. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.27"`, `SERVER_BUILD_CODE = 202` in `server.py`.
+>    - Bumped `versionCode = 202`, `versionName = "2.5.27"` in `android/app/build.gradle.kts`.
+>    - Executing safe build and pushing to `main` for instant Render auto-deploy.*
 
 ---
 
