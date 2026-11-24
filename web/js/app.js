@@ -75,7 +75,7 @@ import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5
 import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { LeaveApprovalsController } from './leaveController.js?v=2.5.3';
-import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.17';
+import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.18';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -133,6 +133,8 @@ class RosterXApp {
       // Current Grid Rows: [{ id, name, shifts: [...], status, role }]
 
       gridRoster: [],
+      undoStack: [],
+      redoStack: [],
 
 
 
@@ -2005,6 +2007,60 @@ class RosterXApp {
 
 
     // Top Action Buttons
+    document.getElementById('btnToolbarUndo')?.addEventListener('click', () => this.undoRosterEdit());
+    document.getElementById('btnToolbarRedo')?.addEventListener('click', () => this.redoRosterEdit());
+
+    // Recommended Keyboard Shortcuts (Ctrl+Z Undo, Ctrl+Y / Ctrl+Shift+Z Redo, Ctrl+S Publish, Escape Close)
+    window.addEventListener('keydown', (e) => {
+      const activeEl = document.activeElement;
+      const tag = (activeEl?.tagName || '').toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || activeEl?.isContentEditable;
+
+      // Escape: Close active pickers / modals
+      if (e.key === 'Escape') {
+        if (this.dom.shiftPickerModal && !this.dom.shiftPickerModal.classList.contains('hidden')) {
+          this.closePicker();
+          return;
+        }
+        if (this.shiftGenerator && typeof this.shiftGenerator.closeModal === 'function') {
+          const sgModal = document.getElementById('shiftGeneratorModal');
+          if (sgModal && !sgModal.classList.contains('hidden')) {
+            this.shiftGenerator.closeModal();
+            return;
+          }
+        }
+        if (this.dom.constraintsModal && !this.dom.constraintsModal.classList.contains('hidden')) {
+          this.dom.constraintsModal.classList.add('hidden');
+          return;
+        }
+      }
+
+      // Ctrl+Z / Cmd+Z: Undo Roster Edit
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+        if (isInput) return;
+        e.preventDefault();
+        this.undoRosterEdit();
+        return;
+      }
+
+      // Ctrl+Y or Ctrl+Shift+Z / Cmd+Shift+Z: Redo Roster Edit
+      if (((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) ||
+          ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+        if (isInput) return;
+        e.preventDefault();
+        this.redoRosterEdit();
+        return;
+      }
+
+      // Ctrl+S / Cmd+S: Quick Publish / Save Roster
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        if (typeof this.publishRosterToAtlas === 'function') {
+          this.publishRosterToAtlas();
+        }
+        return;
+      }
+    });
 
     if (this.dom.btnOpenConstraintsModal) {
       this.dom.btnOpenConstraintsModal.addEventListener('click', () => this.openConstraintsModal());
@@ -3967,19 +4023,100 @@ class RosterXApp {
 
 
 
+  recordHistorySnapshot(label = 'Roster Edit') {
+    if (!Array.isArray(this.state.gridRoster)) return;
+    const snapshot = {
+      gridRoster: JSON.parse(JSON.stringify(this.state.gridRoster)),
+      lockedCells: JSON.parse(JSON.stringify(this.state.lockedCells || {})),
+      year: this.state.currentYear,
+      month: this.state.currentMonth,
+      label
+    };
+    if (!Array.isArray(this.state.undoStack)) this.state.undoStack = [];
+    this.state.undoStack.push(snapshot);
+    if (this.state.undoStack.length > 50) {
+      this.state.undoStack.shift();
+    }
+    this.state.redoStack = [];
+  }
+
+  undoRosterEdit() {
+    if (!Array.isArray(this.state.undoStack) || this.state.undoStack.length === 0) {
+      this.showToast('Nothing to undo (Ctrl+Z)', 'info');
+      return;
+    }
+    const currentSnapshot = {
+      gridRoster: JSON.parse(JSON.stringify(this.state.gridRoster)),
+      lockedCells: JSON.parse(JSON.stringify(this.state.lockedCells || {})),
+      year: this.state.currentYear,
+      month: this.state.currentMonth,
+      label: 'Current State'
+    };
+    if (!Array.isArray(this.state.redoStack)) this.state.redoStack = [];
+    this.state.redoStack.push(currentSnapshot);
+
+    const prev = this.state.undoStack.pop();
+    this.state.gridRoster = prev.gridRoster;
+    this.state.lockedCells = prev.lockedCells;
+    if (prev.year !== this.state.currentYear || prev.month !== this.state.currentMonth) {
+      this.state.currentYear = prev.year;
+      this.state.currentMonth = prev.month;
+      if (this.dom.monthSelect) {
+        this.dom.monthSelect.value = `${prev.year}-${String(prev.month).padStart(2, '0')}`;
+      }
+      this.renderHeaders();
+    }
+    this.saveCurrentGridRoster();
+    this.saveLockedCells();
+    this.renderRoster();
+    if (typeof this.renderDailyCoverage === 'function') this.renderDailyCoverage();
+    if (typeof this.runRuleAudit === 'function') this.runRuleAudit();
+    this.atlasService.notifyStatusChange('unsaved');
+    this.showToast(`Undone: ${prev.label || 'Roster Edit'} (Ctrl+Z)`);
+  }
+
+  redoRosterEdit() {
+    if (!Array.isArray(this.state.redoStack) || this.state.redoStack.length === 0) {
+      this.showToast('Nothing to redo (Ctrl+Y)', 'info');
+      return;
+    }
+    const currentSnapshot = {
+      gridRoster: JSON.parse(JSON.stringify(this.state.gridRoster)),
+      lockedCells: JSON.parse(JSON.stringify(this.state.lockedCells || {})),
+      year: this.state.currentYear,
+      month: this.state.currentMonth,
+      label: 'Current State'
+    };
+    this.state.undoStack.push(currentSnapshot);
+
+    const next = this.state.redoStack.pop();
+    this.state.gridRoster = next.gridRoster;
+    this.state.lockedCells = next.lockedCells;
+    if (next.year !== this.state.currentYear || next.month !== this.state.currentMonth) {
+      this.state.currentYear = next.year;
+      this.state.currentMonth = next.month;
+      if (this.dom.monthSelect) {
+        this.dom.monthSelect.value = `${next.year}-${String(next.month).padStart(2, '0')}`;
+      }
+      this.renderHeaders();
+    }
+    this.saveCurrentGridRoster();
+    this.saveLockedCells();
+    this.renderRoster();
+    if (typeof this.renderDailyCoverage === 'function') this.renderDailyCoverage();
+    if (typeof this.runRuleAudit === 'function') this.runRuleAudit();
+    this.atlasService.notifyStatusChange('unsaved');
+    this.showToast(`Redone: ${next.label || 'Roster Edit'} (Ctrl+Y)`);
+  }
+
   applyShiftToActiveCell(shiftCode) {
-
     if (!this.state.activeCell) return;
-
     const { engIndex, dayIndex } = this.state.activeCell;
-
     const engName = this.state.gridRoster[engIndex].name;
-
     const dayNum = dayIndex + 1;
-
     const normalizedCode = (shiftCode || '').trim().toUpperCase();
 
-
+    this.recordHistorySnapshot(`Update ${engName} Day ${dayNum} to [${normalizedCode || 'Blank'}]`);
 
     this.state.gridRoster[engIndex].shifts[dayIndex] = normalizedCode;
 

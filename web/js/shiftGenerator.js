@@ -13,7 +13,7 @@
  * 5. Admin Web only: Previews generated schedule with 1-click apply to active grid.
  */
 
-import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.17';
+import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.18';
 
 export class ShiftGeneratorController {
   constructor(app) {
@@ -173,7 +173,7 @@ export class ShiftGeneratorController {
 
       const currentRule = this.engineerRules[uname] || { mode: 'flexible' };
       const isFlex = currentRule.mode === 'flexible' || !currentRule.mode;
-      const isFixed5 = currentRule.mode === 'fixed_5';
+      const isFixed5 = currentRule.mode === 'continuous_5' || currentRule.mode === 'fixed_5';
       const isExcluded = currentRule.mode === 'excluded';
       const maxBlock = currentRule.max_consecutive_nights || 5;
 
@@ -201,8 +201,8 @@ export class ShiftGeneratorController {
               <button type="button" class="sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition ${isFlex ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}" data-uname="${uname}" data-mode="flexible">
                 Flexible
               </button>
-              <button type="button" class="sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition ${isFixed5 ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}" data-uname="${uname}" data-mode="fixed_5" title="Guaranteed 5-night block allocation">
-                ⭐ Fixed 5
+              <button type="button" class="sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition ${isFixed5 ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}" data-uname="${uname}" data-mode="continuous_5" title="Guaranteed 5 continuous nights allocation">
+                ⭐ Continuous 5
               </button>
               <button type="button" class="sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition ${isExcluded ? 'bg-red-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}" data-uname="${uname}" data-mode="excluded" title="Zero night shifts assigned">
                 🚫 Excluded
@@ -220,7 +220,7 @@ export class ShiftGeneratorController {
               </select>
             </div>
 
-            <!-- Optional preferred start day for fixed_5 -->
+            <!-- Optional preferred start day for continuous_5 -->
             <div class="sg-start-day-wrap ${isFixed5 ? 'flex' : 'hidden'} items-center gap-1" id="sgStartWrap_${uname}">
               <span class="text-[10px] text-slate-500 font-bold">Start:</span>
               <input type="number" min="1" max="31" placeholder="Auto" value="${currentRule.preferred_start_day || ''}" class="sg-start-input w-12 px-1.5 py-1 text-[11px] font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-center" data-uname="${uname}" title="Preferred starting day (1-31, optional)" />
@@ -256,7 +256,7 @@ export class ShiftGeneratorController {
         const uname = inp.dataset.uname;
         const val = parseInt(inp.value, 10);
         if (!this.engineerRules[uname]) {
-          this.engineerRules[uname] = { mode: 'fixed_5' };
+          this.engineerRules[uname] = { mode: 'continuous_5' };
         }
         this.engineerRules[uname].preferred_start_day = (!isNaN(val) && val >= 1 && val <= 31) ? val : null;
       });
@@ -268,7 +268,7 @@ export class ShiftGeneratorController {
       this.engineerRules[uname] = {};
     }
     this.engineerRules[uname].mode = mode;
-    if (mode === 'fixed_5') {
+    if (mode === 'continuous_5' || mode === 'fixed_5') {
       this.engineerRules[uname].fixed_nights = 5;
     }
 
@@ -276,10 +276,12 @@ export class ShiftGeneratorController {
     if (row) {
       row.querySelectorAll('.sg-mode-btn').forEach(b => {
         const bMode = b.dataset.mode;
-        if (bMode === mode) {
+        const isSelected = (bMode === mode) ||
+          ((mode === 'continuous_5' || mode === 'fixed_5') && (bMode === 'continuous_5' || bMode === 'fixed_5'));
+        if (isSelected) {
           if (bMode === 'flexible') {
             b.className = 'sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition bg-indigo-600 text-white shadow-xs';
-          } else if (bMode === 'fixed_5') {
+          } else if (bMode === 'continuous_5' || bMode === 'fixed_5') {
             b.className = 'sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition bg-amber-500 text-slate-950 shadow-xs';
           } else if (bMode === 'excluded') {
             b.className = 'sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition bg-red-600 text-white shadow-xs';
@@ -302,7 +304,7 @@ export class ShiftGeneratorController {
 
       const startWrap = row.querySelector(`#sgStartWrap_${uname}`);
       if (startWrap) {
-        if (mode === 'fixed_5') {
+        if (mode === 'continuous_5' || mode === 'fixed_5') {
           startWrap.classList.remove('hidden');
           startWrap.classList.add('flex');
         } else {
@@ -510,6 +512,11 @@ export class ShiftGeneratorController {
       if (typeof this.app.renderHeaders === 'function') {
         this.app.renderHeaders();
       }
+    }
+
+    // Snapshot for Undo / Redo (Ctrl+Z)
+    if (typeof this.app.recordHistorySnapshot === 'function') {
+      this.app.recordHistorySnapshot(this.currentGeneratedResult.baseline_only ? 'Pre-Fill Baseline' : 'Shift Generator');
     }
 
     // Merge or set generated shifts into app.state.gridRoster

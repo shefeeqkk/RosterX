@@ -1,7 +1,34 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 17:20 IST** (Target Sprint: **v2.5.17 - Build 192**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 17:45 IST** (Target Sprint: **v2.5.18 - Build 193**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.18 - Build 193 — Keyboard Shortcuts Ctrl+Z Undo / Ctrl+Y Redo, Continuous 5 Mode, & 5-Night Capping):
+> *"Vijaya! Gafoorka! User chodicha ella feedback points-um njaan rocket speed-il implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.18 (Build 193):
+> 1. **Roster Edit Keyboard Shortcuts (Ctrl+Z Undo, Ctrl+Y / Ctrl+Shift+Z Redo, Ctrl+S Save)**:
+>    - Implemented a 50-step circular history stack (`undoStack`, `redoStack`) in `web/js/app.js`.
+>    - Every cell edit via picker, swap, clear grid, or Shift Generator automatically records a history snapshot.
+>    - Global keyboard shortcuts:
+>      - `Ctrl+Z` / `Cmd+Z`: Instantly undoes the last roster modification, restoring shifts, locks, and period view with a clean notification.
+>      - `Ctrl+Y` / `Ctrl+Shift+Z`: Redoes previously undone edits.
+>      - `Ctrl+S`: Triggers quick save & publish to Atlas.
+>      - `Escape`: Closes shift picker modal, generator modal, or constraints dialog.
+>    - Toolbar buttons: Added dedicated **Undo (`Ctrl+Z`)** and **Redo (`Ctrl+Y`)** buttons directly to the Month Roster toolbar next to Shift Generator.
+> 2. **Renamed 'Fixed 5' to 'Continuous 5'**:
+>    - Per user directive: Changed mode pill from `⭐ Fixed 5` to `⭐ Continuous 5` across `web/index.html` and `web/js/shiftGenerator.js`, with full backward-compatibility for backend solver rules.
+> 3. **Strict 5-Night Monthly Capping**:
+>    - Enforced hard monthly night shift cap (`effective_cap`) in `solve_night_shifts_engine`.
+>    - The solver dynamically calculates remaining nights per flexible engineer and prevents any engineer from exceeding 5 night shifts in a month whenever team size supports it (7–9 active engineers).
+>    - Prioritizes zero-shift engineers to guarantee perfectly fair distribution without starvation or over-allocation.
+> 4. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.18"` in `server.py`.
+>    - Bumped `versionCode = 193`, `versionName = "2.5.18"` in `android/app/build.gradle.kts`.
+>    - Cache-busters updated to `?v=2.5.18` across `web/index.html`, `web/js/app.js`, and `web/js/shiftGenerator.js`.
+>    - All test suites passing with 100% success rate!"*
 
 ---
 

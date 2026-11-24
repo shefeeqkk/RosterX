@@ -761,6 +761,14 @@
           <button id="btnToolbarShiftGenerator" class="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-300 dark:border-indigo-800 transition shadow-xs cursor-pointer" title="Open Combined Shift Roster Generator (Pre-fill Baseline & 24/7 Night Coverage)">
             <i class="ph ph-sparkle text-base text-indigo-600 dark:text-indigo-400"></i> Shift Generator
           </button>
+          <button id="btnToolbarUndo" class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs cursor-pointer" title="Undo Roster Edit (Ctrl+Z)">
+            <i class="ph ph-arrow-u-up-left text-sm text-indigo-600 dark:text-indigo-400"></i>
+            <span class="hidden sm:inline">Undo</span>
+          </button>
+          <button id="btnToolbarRedo" class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs cursor-pointer" title="Redo Roster Edit (Ctrl+Y / Ctrl+Shift+Z)">
+            <i class="ph ph-arrow-u-up-right text-sm text-indigo-600 dark:text-indigo-400"></i>
+            <span class="hidden sm:inline">Redo</span>
+          </button>
         </div>
 
         <!-- Right: Actions (Import, Export, Recovery, Save & Publish) -->
@@ -4332,7 +4340,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.17"></script>
+  <script type="module" src="js/app.js?v=2.5.18"></script>
 
 </body>
 

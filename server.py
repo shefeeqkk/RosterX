@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.17"
+SERVER_VERSION = "2.5.18"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1118,7 +1118,7 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
         mode = str(rule.get("mode") or "").lower()
         if mode == "excluded" or rule.get("is_excluded") is True:
             excluded_unames.add(uname)
-        elif mode in ("fixed_5", "fixed") or rule.get("fixed_nights") is not None:
+        elif mode in ("fixed_5", "fixed", "continuous_5", "continuous") or rule.get("fixed_nights") is not None:
             target = int(rule.get("fixed_nights") or 5)
             pref_start = rule.get("preferred_start_day")
             try:
@@ -1248,6 +1248,15 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
         moves = []
         for cand in flexible_unames:
             cand_max = max_block_by_uname.get(cand, 5)
+            # Monthly night shift capping: default 5
+            cand_rule = rules_by_uname.get(cand, {})
+            cand_monthly_cap = int(cand_rule.get("max_monthly_nights") or cand_rule.get("monthly_cap") or 5)
+            needed_per_flex = (unassigned_count + flex_count - 1) // max(1, flex_count)
+            effective_cap = max(cand_monthly_cap, needed_per_flex)
+
+            if ns_counts[cand] >= effective_cap:
+                continue
+
             streak = get_max_free_streak(cand, day_idx, max_len=cand_max)
             if streak <= 0:
                 continue
@@ -1259,7 +1268,7 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
                 cur_consec += 1
                 back_d -= 1
 
-            allowed_additional = cand_max - cur_consec
+            allowed_additional = min(cand_max - cur_consec, effective_cap - ns_counts[cand])
             if allowed_additional <= 0:
                 continue
 
@@ -1283,14 +1292,14 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
             is_prev = 1 if cand == prev_eng else 0
             rest_violation = 1 if (day_idx - last_night_day[cand]) < (post_night_rest_days + 1) and cand != prev_eng else 0
             zero_shifts_bonus = 0 if ns_counts[cand] == 0 else 1
-            exceeds_target = 1 if (ns_counts[cand] + b_len > ideal_target + 3) else 0
+            exceeds_target = 1 if (ns_counts[cand] + b_len > ideal_target) else 0
             size_penalty = cand_max - b_len
             return (
                 rest_violation,
                 zero_shifts_bonus,
+                ns_counts[cand],
                 exceeds_target,
                 is_prev,
-                ns_counts[cand],
                 size_penalty
             )
 
