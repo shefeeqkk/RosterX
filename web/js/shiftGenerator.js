@@ -13,7 +13,7 @@
  * 5. Admin Web only: Previews generated schedule with 1-click apply to active grid.
  */
 
-import { monthLabel, daysInMonth } from './utils.js?v=2.3.2';
+import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.12';
 
 export class ShiftGeneratorController {
   constructor(app) {

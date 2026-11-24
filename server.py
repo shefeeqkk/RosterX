@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.12"
+SERVER_VERSION = "2.5.13"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():

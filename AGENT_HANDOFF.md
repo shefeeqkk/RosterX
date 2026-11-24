@@ -1,7 +1,22 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 15:35 IST** (Target Sprint: **v2.5.12 - Build 187**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 15:52 IST** (Target Sprint: **v2.5.13 - Build 188**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.13 - Build 188 — Web Portal Module Import Hotfix):
+> *"Vijaya! Gafoorka! User report cheytha web portal unresponsiveness njaan microscopic accuracy-ode investigate cheythu root-cause kandupidichu solve cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed in v2.5.13 (Build 188):
+> 1. **Root Cause**:
+>    - In `web/js/shiftGenerator.js`, line 16 imported `{ monthLabel, daysInMonth } from './utils.js'`, which was a nonexistent file (the authoritative date engine is `./dateUtils.js`).
+>    - In modern browsers, a 404 on an ES module dependency halts execution of the importing module (`app.js`), leaving the web UI uninitialized and unresponsive.
+> 2. **Fix**:
+>    - Updated line 16 to `import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.13'`.
+>    - Bumped `app.js?v=2.5.13` in `web/index.html` and `shiftGenerator.js?v=2.5.13` in `web/js/app.js` to immediately invalidate browser module cache.
+>    - Bumped `SERVER_VERSION = "2.5.13"` in `server.py` and `versionCode = 188`, `versionName = "2.5.13"` in `android/app/build.gradle.kts`.
+>    - Pushed immediately to `main` for instant Render deployment."*
 
 ---
 
