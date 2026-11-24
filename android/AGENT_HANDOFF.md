@@ -1,7 +1,32 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 16:12 IST** (Target Sprint: **v2.5.14 - Build 189**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 16:45 IST** (Target Sprint: **v2.5.15 - Build 190**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.15 - Build 190 — Unified Shift Roster Generator & Dual Mode Toolbar Integration):
+> *"Vijaya! Gafoorka! User-ude instruction kettu toolbar-il ulla separate 'Night Shifts' button-ne maati, Pre-Fill Baseline-um 24/7 Night Shift Solver-um ore umbrella-il ulla unified **'Shift Generator'** aayi convert cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Unified in v2.5.15 (Build 190):
+> 1. **Replaced 'Night Shifts' Toolbar Button with 'Shift Generator'**:
+>    - Updated Month Roster toolbar in `web/index.html` from `[Night Shifts]` to `[Shift Generator]`, matching the top-header quick action.
+> 2. **Dual-Action Execution in Shift Roster Generator Dialog**:
+>    - Added **'Pre-Fill Baseline Only'** button (`btnPreFillOnly`):
+>      - Calls `/api/roster/generate-night-shifts` with `baseline_only: true`.
+>      - Anchors default weekly offs (`OFF`), approved leaves (`L`), and approved swaps (`SW*`), leaving all other slots clean/unassigned ready for desk shifts.
+>      - Displays badge `⚡ Baseline Only (Offs, Leaves & Swaps Anchored)`.
+>    - Updated **'Generate Full Roster'** button (`btnRunShiftGenerator`):
+>      - Anchors the baseline fixtures + solves 24/7 Night Coverage with 1-5 consecutive nights, fixed 5 night quotas, and exclusions.
+>      - Displays badge `31 / 31 Nights (100% Coverage)`.
+> 3. **Robust Backend Solver Date & Offs Ingestion (`server.py`)**:
+>    - Support both full day names (`SATURDAY`, `SUNDAY`) and 3-letter abbreviations (`SAT`, `SUN`) in engineer default weekly offs.
+>    - Support all leave request date representations: `dates: [...]`, `date: str`, and `start_date` / `end_date` ranges.
+> 4. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.15"` in `server.py`.
+>    - Bumped `versionCode = 190`, `versionName = "2.5.15"` in `android/app/build.gradle.kts`.
+>    - Updated cache-busters `?v=2.5.15` in `web/index.html`, `web/js/app.js`, and `web/js/shiftGenerator.js`.
+>    - All verification tests passing with 100% coverage!"*
 
 ---
 

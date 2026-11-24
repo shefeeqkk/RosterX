@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.14"
+SERVER_VERSION = "2.5.15"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -931,7 +931,7 @@ def is_eligible_roster_row(e: dict, month_id: str, eng_meta_by_key: dict = None)
 
     return True
 
-def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leaves_data: list = None, engineer_rules: dict = None) -> dict:
+def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leaves_data: list = None, engineer_rules: dict = None, baseline_only: bool = False) -> dict:
     """
     Deterministic constraint solver for night shift (NS) allocation.
     Focuses EXCLUSIVELY on:
@@ -992,13 +992,21 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
         rule = engineer_rules.get(uname) or engineer_rules.get(eng.get("username")) or {}
         rules_by_uname[uname] = rule
 
-        # Default weekly offs
+        # Default weekly offs (supports full names like "SATURDAY" or 3-letter abbreviations like "SAT")
         raw_offs = eng.get("default_weekly_offs") or []
-        def_offs = [str(x).upper().strip() for x in raw_offs]
+        def_offs = set()
+        for x in raw_offs:
+            s = str(x).upper().strip()
+            if s:
+                def_offs.add(s)
+                if len(s) >= 3:
+                    def_offs.add(s[:3])
+
         for day in range(1, total_days + 1):
             dt = datetime(year, month, day)
             day_name = day_names[dt.weekday()]
-            if day_name in def_offs:
+            day_abbr = day_name[:3]
+            if day_name in def_offs or day_abbr in def_offs:
                 grid[uname][day - 1] = "OFF"
 
     # 3. Apply approved leaves and swaps onto baseline
@@ -1021,6 +1029,21 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
             continue
 
         dates = req.get("dates") or []
+        if isinstance(dates, str):
+            dates = [dates]
+        elif not dates and req.get("date"):
+            dates = [str(req.get("date"))]
+        elif not dates and req.get("start_date") and req.get("end_date"):
+            try:
+                s_dt = datetime.strptime(str(req.get("start_date"))[:10], "%Y-%m-%d")
+                e_dt = datetime.strptime(str(req.get("end_date"))[:10], "%Y-%m-%d")
+                cur = s_dt
+                dates = []
+                while cur <= e_dt:
+                    dates.append(cur.strftime("%Y-%m-%d"))
+                    cur += timedelta(days=1)
+            except Exception:
+                dates = []
         req_status = str(req.get("status") or "").lower()
         swap_code = req.get("swap_shift_code") or req.get("swap_code") or "SWAP"
 
@@ -1036,6 +1059,44 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
                             grid[target_u][day_num - 1] = "L"
             except Exception:
                 continue
+
+    if baseline_only:
+        # Pre-fill baseline only (OFF, L, Swaps) without night shift allocation
+        roster_rows = []
+        stats = {
+            "total_days": total_days,
+            "nights_scheduled": 0,
+            "coverage_percentage": 0.0,
+            "engineers_count": len(grid),
+            "baseline_only": True,
+            "per_engineer_stats": {}
+        }
+        for uname, shifts in grid.items():
+            eng_meta = eng_by_uname[uname]
+            stats["per_engineer_stats"][uname] = {
+                "name": eng_meta.get("name") or eng_meta.get("full_name") or uname,
+                "ns_count": 0,
+                "off_count": shifts.count("OFF"),
+                "leave_count": shifts.count("L"),
+                "rule": rules_by_uname.get(uname, {})
+            }
+            roster_rows.append({
+                "id": eng_meta.get("id") or uname,
+                "username": uname,
+                "name": eng_meta.get("name") or eng_meta.get("full_name") or uname,
+                "role": eng_meta.get("role") or "engineer",
+                "default_weekly_offs": eng_meta.get("default_weekly_offs") or [],
+                "shifts": shifts
+            })
+        return {
+            "success": True,
+            "month": month_id,
+            "total_days": total_days,
+            "baseline_only": True,
+            "stats": stats,
+            "roster": roster_rows,
+            "assigned_daily_nights": []
+        }
 
     # 4. Classify engineers by rules
     excluded_unames = set()
@@ -6028,8 +6089,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
             engineer_rules = body.get("engineer_rules") or body.get("constraints") or {}
             apply_to_grid = bool(body.get("apply_to_grid", False))
+            baseline_only = bool(body.get("baseline_only", False))
 
-            result = solve_night_shifts_engine(year_val, month_val, engineers_list, leaves_list, engineer_rules)
+            result = solve_night_shifts_engine(year_val, month_val, engineers_list, leaves_list, engineer_rules, baseline_only=baseline_only)
             if not result.get("success"):
                 self.send_json_response(result, 422)
                 return

@@ -758,8 +758,8 @@
           <button id="btnOpenConstraintsModal" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs cursor-pointer">
             <i class="ph ph-sliders text-base text-purple-600 dark:text-purple-400"></i> Constraints
           </button>
-          <button id="btnToolbarShiftGenerator" class="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-300 dark:border-indigo-800 transition shadow-xs cursor-pointer" title="Open Shift Roster Generator for Night Shifts & Baseline">
-            <i class="ph ph-moon-stars text-base text-indigo-600 dark:text-indigo-400"></i> Night Shifts
+          <button id="btnToolbarShiftGenerator" class="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-300 dark:border-indigo-800 transition shadow-xs cursor-pointer" title="Open Combined Shift Roster Generator (Pre-fill Baseline & 24/7 Night Coverage)">
+            <i class="ph ph-sparkle text-base text-indigo-600 dark:text-indigo-400"></i> Shift Generator
           </button>
         </div>
 
@@ -2750,14 +2750,18 @@ Operations Desk</textarea>
       </div>
 
       <!-- Footer Actions -->
-      <div class="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-white/10 shrink-0 gap-3">
+      <div class="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-white/10 shrink-0 gap-3 flex-wrap">
         <button id="btnCancelShiftGenerator" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
           Cancel
         </button>
-        <div class="flex items-center gap-2">
-          <button id="btnRunShiftGenerator" class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md hover:shadow-indigo-500/25 cursor-pointer">
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btnPreFillOnly" class="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs transition shadow-sm cursor-pointer" title="Pre-fill Weekly Offs and Approved Leaves into the grid without night shifts">
+            <i class="ph ph-calendar-check text-sm font-bold"></i>
+            <span>Pre-Fill Baseline Only</span>
+          </button>
+          <button id="btnRunShiftGenerator" class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md hover:shadow-indigo-500/25 cursor-pointer" title="Generate combined Baseline (OFF, L, Swaps) + 24/7 Night Shifts">
             <i class="ph ph-sparkle text-amber-300 text-sm"></i>
-            <span>Generate Draft</span>
+            <span>Generate Full Roster</span>
           </button>
           <button id="btnApplyShiftGenerator" class="hidden flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md hover:shadow-emerald-500/25 cursor-pointer">
             <i class="ph ph-check-circle text-sm"></i>
@@ -4328,7 +4332,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.14"></script>
+  <script type="module" src="js/app.js?v=2.5.15"></script>
 
 </body>
 

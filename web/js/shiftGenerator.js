@@ -13,7 +13,7 @@
  * 5. Admin Web only: Previews generated schedule with 1-click apply to active grid.
  */
 
-import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.14';
+import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.15';
 
 export class ShiftGeneratorController {
   constructor(app) {
@@ -37,6 +37,7 @@ export class ShiftGeneratorController {
       btnTriggerToolbar: document.getElementById('btnToolbarShiftGenerator'),
       monthSelect: document.getElementById('sgMonthSelect'),
       engineersListContainer: document.getElementById('sgEngineersListContainer'),
+      btnPreFillOnly: document.getElementById('btnPreFillOnly'),
       btnRun: document.getElementById('btnRunShiftGenerator'),
       btnApply: document.getElementById('btnApplyShiftGenerator'),
       previewSection: document.getElementById('sgPreviewSection'),
@@ -61,8 +62,11 @@ export class ShiftGeneratorController {
     if (this.dom.monthSelect) {
       this.dom.monthSelect.addEventListener('change', () => this.onMonthChange());
     }
+    if (this.dom.btnPreFillOnly) {
+      this.dom.btnPreFillOnly.addEventListener('click', () => this.generateDraft(true));
+    }
     if (this.dom.btnRun) {
-      this.dom.btnRun.addEventListener('click', () => this.generateDraft());
+      this.dom.btnRun.addEventListener('click', () => this.generateDraft(false));
     }
     if (this.dom.btnApply) {
       this.dom.btnApply.addEventListener('click', () => this.applyToActiveGrid());
@@ -274,7 +278,7 @@ export class ShiftGeneratorController {
     }
   }
 
-  async generateDraft() {
+  async generateDraft(baselineOnly = false) {
     const selectedMonth = this.dom.monthSelect ? this.dom.monthSelect.value : null;
     if (!selectedMonth) {
       if (typeof this.app.showToast === 'function') {
@@ -283,7 +287,10 @@ export class ShiftGeneratorController {
       return;
     }
 
-    if (this.dom.btnRun) {
+    if (baselineOnly && this.dom.btnPreFillOnly) {
+      this.dom.btnPreFillOnly.disabled = true;
+      this.dom.btnPreFillOnly.innerHTML = `<i class="ph ph-spinner animate-spin"></i> Pre-filling...`;
+    } else if (this.dom.btnRun) {
       this.dom.btnRun.disabled = true;
       this.dom.btnRun.innerHTML = `<i class="ph ph-spinner animate-spin"></i> Solving 24/7 Coverage...`;
     }
@@ -311,7 +318,8 @@ export class ShiftGeneratorController {
         headers,
         body: JSON.stringify({
           month: selectedMonth,
-          engineer_rules: this.engineerRules
+          engineer_rules: this.engineerRules,
+          baseline_only: Boolean(baselineOnly)
         })
       });
 
@@ -324,18 +332,26 @@ export class ShiftGeneratorController {
       this.renderPreview(result);
 
       if (typeof this.app.showToast === 'function') {
-        this.app.showToast(`Draft generated! 100% night coverage solved for ${selectedMonth}.`);
+        if (baselineOnly) {
+          this.app.showToast(`Baseline ready! Offs, Leaves & Swaps anchored for ${selectedMonth}.`);
+        } else {
+          this.app.showToast(`Full draft generated! 100% night coverage solved for ${selectedMonth}.`);
+        }
       }
     } catch (err) {
       console.error('[ShiftGenerator] Error:', err);
       if (typeof this.app.showToast === 'function') {
         this.app.showToast(`Generation failed: ${err.message}`, 'error');
       }
-      alert(`Night Shift Solver Error: ${err.message}\n\nPlease verify that enough non-excluded engineers are free on each day.`);
+      alert(`Shift Generator Error: ${err.message}\n\nPlease verify that enough non-excluded engineers are free on each day.`);
     } finally {
+      if (this.dom.btnPreFillOnly) {
+        this.dom.btnPreFillOnly.disabled = false;
+        this.dom.btnPreFillOnly.innerHTML = `<i class="ph ph-calendar-check text-sm font-bold"></i> <span>Pre-Fill Baseline Only</span>`;
+      }
       if (this.dom.btnRun) {
         this.dom.btnRun.disabled = false;
-        this.dom.btnRun.innerHTML = `<i class="ph ph-sparkle text-amber-300 text-sm"></i> <span>Generate Draft</span>`;
+        this.dom.btnRun.innerHTML = `<i class="ph ph-sparkle text-amber-300 text-sm"></i> <span>Generate Full Roster</span>`;
       }
     }
   }
@@ -347,17 +363,30 @@ export class ShiftGeneratorController {
       this.dom.btnApply.classList.remove('hidden');
     }
 
+    const isBaseline = Boolean(result.baseline_only);
+    const stats = result.stats || {};
+
     // Render Stats
     if (this.dom.statsBadges) {
-      const stats = result.stats || {};
-      this.dom.statsBadges.innerHTML = `
-        <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
-          ${stats.nights_scheduled || 0} / ${stats.total_days || 0} Nights (100% Coverage)
-        </span>
-        <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-800">
-          ${stats.engineers_count || 0} Team Members
-        </span>
-      `;
+      if (isBaseline) {
+        this.dom.statsBadges.innerHTML = `
+          <span class="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+            <i class="ph ph-calendar-check"></i> Baseline Only (Offs, Leaves & Swaps Anchored)
+          </span>
+          <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-800">
+            ${stats.engineers_count || 0} Team Members
+          </span>
+        `;
+      } else {
+        this.dom.statsBadges.innerHTML = `
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+            <i class="ph ph-check-circle"></i> ${stats.nights_scheduled || 0} / ${stats.total_days || 0} Nights (100% Coverage)
+          </span>
+          <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-800">
+            ${stats.engineers_count || 0} Team Members
+          </span>
+        `;
+      }
     }
 
     // Render Matrix Table Preview
@@ -472,7 +501,8 @@ export class ShiftGeneratorController {
     }
 
     if (typeof this.app.showToast === 'function') {
-      this.app.showToast(`Applied Night Roster to ${targetMonth}! Review and click 'Save & Publish' to persist.`);
+      const modeText = this.currentGeneratedResult.baseline_only ? 'Baseline (Offs, Leaves & Swaps)' : 'Full Shift Roster (Offs, Leaves & Nights)';
+      this.app.showToast(`Applied ${modeText} to ${targetMonth}! Review and click 'Save & Publish' to persist.`);
     }
 
     this.closeModal();
