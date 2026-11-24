@@ -3879,9 +3879,9 @@ class RosterXApp {
       if (isAdmin) {
         const engMeta = (this.state.engineersList || []).find(e => e.name === eng.name || e.id === eng.id) || eng;
         const isAppr = String(engMeta.role || eng.role || '').toLowerCase() === 'apprentice';
-        const engOffs = (Array.isArray(eng.default_weekly_offs) && eng.default_weekly_offs.length > 0)
-          ? eng.default_weekly_offs
-          : this.getEngineerWeekOffs(eng);
+        const engOffs = (Array.isArray(engMeta.default_weekly_offs) && engMeta.default_weekly_offs.length > 0)
+          ? engMeta.default_weekly_offs
+          : this.getEngineerWeekOffs(engMeta);
         const dayNamesMap = { 'SUN': 0, 'MON': 1, 'TUE': 2, 'WED': 3, 'THU': 4, 'FRI': 5, 'SAT': 6 };
 
         if (isAppr) {
