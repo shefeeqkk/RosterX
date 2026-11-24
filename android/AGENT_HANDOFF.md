@@ -1,7 +1,35 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 20:05 IST** (Target Sprint: **v2.5.23 - Build 198**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 21:30 IST** (Target Sprint: **v2.5.25 - Build 200**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.25 - Build 200 — Batch Apply Bugfix, Android Parity Broadcast Console, Red Star Deviation & Dark Mode Polish):
+> *"Vijaya! Gafoorka! User paranja complaints ellaam njaan bullet-proof aayi theerthu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.25 (Build 200):
+> 1. **Batch Shift Quick-Apply Bugfix (`recordHistorySnapshot`)**:
+>    - Root cause: `applyBatchShift` was calling non-existent `this.pushRosterUndoSnapshot(label)` instead of `this.recordHistorySnapshot(label)`.
+>    - Fixed snapshot call and added robust engineer lookup (`engName` fallback to `engIndex`), making click application from `#batchShiftActionBar` 100% instant and reliable.
+> 2. **Broadcast Console Parity with Android**:
+>    - **Zero Pre-fill Rule**: Subject and message inputs now initialize completely blank (no hardcoded templates), matching Android rules. Users can either type freely or load saved templates via dropdown.
+>    - **Standardized `@name` Token**: Replaced `{name}` quick token button and syntax with `@name`.
+>    - **Dynamic Mention Suggestions**: Typing `@` now prioritizes `@name` (Personalized Recipient Name) followed by `@all` (Everyone) and individual `@username` teammates.
+>    - Dynamic mention resolution replaces `@name` with recipient's actual Full Name during preview, email dispatch, FCM push, and in-app feeds.
+> 3. **Red Star Mark (`*`) for Off Discrepancies**:
+>    - In the Admin `OFF` stats column on the right, if an engineer's combined total rest days (`totalOff`) deviate (greater or less) from their expected monthly calendar baseline (`expectedMonthlyOffs`), a distinct red star mark (`*`) is displayed next to the total count (e.g. `10*`), flagging swap or leave variations at a glance.
+> 4. **Redundant Month Dropdown Removed**:
+>    - Removed the redundant `Period: [December 2026 v]` dropdown from the top operations toolbar.
+>    - The Month Navigator `< DECEMBER 2026 >` with side arrows in the matrix header is now the single, clean controller for switching months.
+> 5. **Complete Dark Mode Styling Overhaul**:
+>    - Shift Selector Popover (`#shiftPickerModal`): Added full `dark:bg-slate-900`, `dark:border-slate-800`, `dark:text-slate-100` and dark-themed swap containers.
+>    - Shift Roster Generator (`#shiftGeneratorModal`) & Settings Modals: Removed hardcoded inline white background styles, replacing with Tailwind glass classes `bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl`.
+>    - Shift Filter Toolbar & Month Navigator: Added dark mode borders, backgrounds, and active pill styles.
+> 6. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.25"` in `server.py`.
+>    - Bumped `versionCode = 200`, `versionName = "2.5.25"` in `android/app/build.gradle.kts`.
+>    - Updated cache busters to `?v=2.5.25` across `web/index.html` and `web/js/app.js`.*
 
 ---
 

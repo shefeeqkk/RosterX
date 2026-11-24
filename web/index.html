@@ -174,6 +174,16 @@
       position: relative;
     }
 
+    .coverage-cell-box {
+      width: 48px;
+      min-width: 48px;
+      max-width: 48px;
+      height: 46px;
+      font-size: 13px;
+      user-select: none;
+      position: relative;
+    }
+
     .off-stats-col-admin {
       width: 112px;
       min-width: 112px;
@@ -749,9 +759,9 @@
 
       <!-- Roster Matrix Operations Toolbar (Consolidated from Top Bar) -->
       <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-800 p-2.5 sm:p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
-        <!-- Left: Month selection & Constraints -->
+        <!-- Left: Month selection (Managed via Header Month Navigator) & Constraints -->
         <div class="flex items-center gap-2 flex-wrap">
-          <div class="flex items-center gap-1.5">
+          <div class="hidden items-center gap-1.5">
             <span class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">Period:</span>
             <select id="monthSelect" class="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs text-slate-800 dark:text-slate-200 shadow-xs focus:ring-2 focus:ring-emerald-500">
               <option value="">Loading...</option>
@@ -817,25 +827,16 @@
 
 
           <!-- Month Navigator with Left & Right Arrows -->
-
-          <div class="flex items-center bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden">
-
-            <button id="btnPrevMonth" type="button" title="Previous Month" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition border-r border-slate-200 cursor-pointer">
-
+          <div class="flex items-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xs overflow-hidden">
+            <button id="btnPrevMonth" type="button" title="Previous Month" class="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition border-r border-slate-200 dark:border-slate-700 cursor-pointer">
               <i class="ph ph-caret-left font-bold text-sm"></i>
-
             </button>
-
-            <span id="activeMonthDisplay" class="px-3 py-1 font-black text-slate-800 text-xs tracking-wide uppercase select-none min-w-[130px] text-center bg-amber-50/50">
+            <span id="activeMonthDisplay" class="px-3 py-1 font-black text-slate-800 dark:text-slate-200 text-xs tracking-wide uppercase select-none min-w-[130px] text-center bg-amber-50/50 dark:bg-amber-950/40">
               Loading...
             </span>
-
-            <button id="btnNextMonth" type="button" title="Next Month" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition border-l border-slate-200 cursor-pointer">
-
+            <button id="btnNextMonth" type="button" title="Next Month" class="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition border-l border-slate-200 dark:border-slate-700 cursor-pointer">
               <i class="ph ph-caret-right font-bold text-sm"></i>
-
             </button>
-
           </div>
 
 
@@ -859,38 +860,25 @@
 
 
       <!-- Shift Visibility & Selective View Filter Toolbar -->
-
-      <div id="shiftFilterToolbar" class="px-4 py-2 bg-gradient-to-r from-slate-100 via-indigo-50/20 to-slate-100 border-b border-slate-300 flex items-center justify-between text-xs flex-wrap gap-2.5">
-
-        
-
+      <div id="shiftFilterToolbar" class="px-4 py-2 bg-slate-100 dark:bg-slate-900/90 border-b border-slate-300 dark:border-slate-800 flex items-center justify-between text-xs flex-wrap gap-2.5">
         <!-- Left: Presets and Shift Toggle Chips -->
-
         <div class="flex items-center gap-2.5 flex-wrap">
-
-          <div class="flex items-center gap-1.5 font-black text-slate-700 tracking-wide select-none">
-
-            <i class="ph-fill ph-funnel text-indigo-600 text-sm"></i>
-
+          <div class="flex items-center gap-1.5 font-black text-slate-700 dark:text-slate-300 tracking-wide select-none">
+            <i class="ph-fill ph-funnel text-indigo-600 dark:text-indigo-400 text-sm"></i>
             <span class="uppercase text-[11px] font-bold">Shift Filter:</span>
-
           </div>
 
-
-
           <!-- Quick Presets -->
-          <div class="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs text-xs font-semibold">
+          <div class="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 shadow-2xs text-xs font-semibold">
             <button type="button" id="btnPresetAllShifts" class="px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer bg-indigo-600 text-white shadow-2xs" title="Show all shifts without filtering">
               All
             </button>
-            <button type="button" id="btnPresetSwOffNs" class="px-2.5 py-1 rounded-md text-xs font-extrabold transition cursor-pointer text-slate-700 hover:text-indigo-700 hover:bg-slate-100" title="Focus view: Only Swaps (SW*), Weekly Offs (OFF), and Night Shifts (NS)">
+            <button type="button" id="btnPresetSwOffNs" class="px-2.5 py-1 rounded-md text-xs font-extrabold transition cursor-pointer text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-slate-100 dark:hover:bg-slate-700" title="Focus view: Only Swaps (SW*), Weekly Offs (OFF), and Night Shifts (NS)">
               🎯 Focus: SW* + OFF + NS
             </button>
           </div>
 
-
-
-          <div class="h-4 w-px bg-slate-300 mx-0.5 hidden sm:block"></div>
+          <div class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-0.5 hidden sm:block"></div>
 
 
 
@@ -1581,9 +1569,9 @@
             <!-- Subject / Title Input with Live '@' Mention Support -->
             <div class="relative">
               <label for="broadcastTitleInput" class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 block">
-                Announcement Subject / Title <span class="text-[10px] font-normal text-slate-400">(supports @mentions &amp; {name})</span>
+                Announcement Subject / Title <span class="text-[10px] font-normal text-slate-400">(supports @mentions &amp; @name)</span>
               </label>
-              <input id="broadcastTitleInput" type="text" value="Shift Operations Announcement" class="w-full px-3.5 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <input id="broadcastTitleInput" type="text" value="" placeholder="Announcement Subject / Title (supports @mentions &amp; @name)" class="w-full px-3.5 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
               <div id="broadcastTitleMentionDropdown" class="hidden absolute z-50 left-0 top-full mt-1 w-64 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl shadow-xl p-1 space-y-1"></div>
             </div>
 
@@ -1592,8 +1580,8 @@
               <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
                 <i class="ph ph-magic-wand text-purple-500"></i> Quick Tokens:
               </span>
-              <button id="btnInsertTokenName" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-                {name}
+              <button id="btnInsertTokenName" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Insert Personalized Recipient Name (@name)">
+                @name
               </button>
               <button id="btnInsertMentionAll" type="button" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-800 transition cursor-pointer">
                 @all
@@ -1606,12 +1594,7 @@
 
             <!-- Message Textarea with Relative Container for Mention Autocomplete -->
             <div class="relative">
-              <textarea id="broadcastMessageInput" rows="6" class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y" placeholder="Type your broadcast announcement here... Use {name} for personal greeting or @username to mention a teammate.">Dear {name},
-
-Please review your updated shift assignments for the upcoming operational cycle. Contact the operations desk for any schedule questions.
-
-Best regards,
-Operations Desk</textarea>
+              <textarea id="broadcastMessageInput" rows="6" class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y" placeholder="Type your broadcast announcement here... Type @ to insert @name or mention team members."></textarea>
 
               <!-- Live '@' Mention Autocomplete Popup Dropdown -->
               <div id="broadcastMentionDropdown" class="hidden absolute z-50 left-2 top-12 w-64 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl shadow-xl p-1 space-y-1">
@@ -2365,31 +2348,22 @@ Operations Desk</textarea>
   <!-- ========================================================================= -->
 
   <div id="shiftPickerModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs p-0 sm:p-4">
-
-    <div class="bg-white rounded-t-3xl sm:rounded-2xl border border-slate-300 shadow-2xl p-5 w-full sm:w-96 max-h-[88vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0">
-
+    <div class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl border border-slate-300 dark:border-slate-800 shadow-2xl p-5 w-full sm:w-96 max-h-[88vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0">
       <!-- Mobile grab handle bar -->
-      <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-3 sm:hidden"></div>
+      <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-3 sm:hidden"></div>
 
-      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
-
+      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
-
-          <div class="text-xs text-slate-500 font-bold uppercase tracking-wider" id="pickerSubHeader">Selected Date • TEAM MEMBER</div>
-
-          <div class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-
+          <div class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider" id="pickerSubHeader">Selected Date • TEAM MEMBER</div>
+          <div class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
             <span>Select Shift Code</span>
-
-            <span id="pickerLockIndicator" class="hidden text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono">🔒 Locked</span>
-
+            <span id="pickerLockIndicator" class="hidden text-xs bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded font-mono border border-amber-300 dark:border-amber-700">🔒 Locked</span>
           </div>
-
         </div>
-
-        <button id="btnClosePicker" class="text-slate-400 hover:text-slate-600 p-1 rounded-md text-lg">
-
+        <button id="btnClosePicker" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-md text-lg transition">
           <i class="ph ph-x"></i>
+        </button>
+      </div>
 
         </button>
 
@@ -2454,51 +2428,28 @@ Operations Desk</textarea>
 
 
       <!-- Clear / Blank Shift Button -->
-
       <div class="mb-3">
-
-        <button data-code="" class="btn-picker w-full py-1.5 px-3 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 transition flex items-center justify-center gap-1.5">
-
-          <i class="ph ph-eraser text-sm text-slate-500"></i> Clear Shift (Make Blank)
-
+        <button data-code="" class="btn-picker w-full py-1.5 px-3 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-300 dark:border-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer">
+          <i class="ph ph-eraser text-sm text-slate-500 dark:text-slate-400"></i> Clear Shift (Make Blank)
         </button>
-
       </div>
-
-
 
       <!-- Swap Shift Section (Treated as OFF) -->
-
-      <div class="border-t border-slate-200 pt-2.5">
-
-        <div class="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-
-          <span class="flex items-center gap-1"><i class="ph ph-arrows-clockwise text-amber-600"></i> Swap with Peer (OFF):</span>
-
+      <div class="border-t border-slate-200 dark:border-slate-800 pt-2.5">
+        <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+          <span class="flex items-center gap-1"><i class="ph ph-arrows-clockwise text-amber-600 dark:text-amber-400"></i> Swap with Peer (OFF):</span>
           <span class="text-[10px] text-slate-400 font-normal">Peer covers shift</span>
-
         </div>
-
-        <div id="pickerSwapButtonsContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 bg-slate-50 rounded-lg border border-slate-200">
-
+        <div id="pickerSwapButtonsContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
           <!-- Dynamically populated peer swap buttons (SWM, SWDY, SWSH, etc.) -->
-
         </div>
-
       </div>
 
-
-
-      <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between">
-
-        <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
-
-          <input type="checkbox" id="pickerLockCheckbox" class="rounded text-purple-600">
-
+      <div class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+          <input type="checkbox" id="pickerLockCheckbox" class="rounded text-purple-600 focus:ring-purple-500">
           <span>Lock Cell (🔒 Immutable)</span>
-
         </label>
-
       </div>
 
     </div>
@@ -2506,7 +2457,7 @@ Operations Desk</textarea>
   </div>
 
   <!-- Floating Batch Shift Quick-Apply Bar (Multi-day Click & Drag) -->
-  <div id="batchShiftActionBar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] bg-slate-900/95 dark:bg-slate-800/95 text-white backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
+  <div id="batchShiftActionBar" class="hidden fixed bottom-28 left-1/2 -translate-x-1/2 z-[90] bg-slate-900/95 dark:bg-slate-800/95 text-white backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
     <div class="flex items-center gap-2 border-r border-slate-700 pr-3">
       <div class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse"></div>
       <div class="flex flex-col">
@@ -2533,7 +2484,7 @@ Operations Desk</textarea>
   <!-- Settings Modals (Gemini & Atlas) -->
 
   <div id="geminiSettingsModal" class="hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-md transition-opacity">
-    <div class="rx-glass-modal relative w-full max-w-lg rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100" style="background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%);">
+    <div class="rx-glass-modal relative w-full max-w-lg rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100">
       <div class="flex items-center justify-between pb-3.5 border-b border-slate-200/60 dark:border-white/10">
         <div class="flex items-center gap-2.5">
           <div class="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg shadow-sm">
@@ -2709,7 +2660,7 @@ Operations Desk</textarea>
   <!-- MODAL: 🌙 Shift Roster Generator (Night Shift & Baseline Solver)           -->
   <!-- ========================================================================= -->
   <div id="shiftGeneratorModal" class="hidden fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-md transition-opacity">
-    <div class="rx-glass-modal relative w-full max-w-4xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 max-h-[92vh]" style="background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%);">
+    <div class="rx-glass-modal relative w-full max-w-4xl rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 max-h-[92vh]">
       <!-- Header -->
       <div class="flex items-center justify-between pb-3.5 border-b border-slate-200/60 dark:border-white/10 shrink-0">
         <div class="flex items-center gap-3">
@@ -2816,7 +2767,7 @@ Operations Desk</textarea>
   <!-- MODAL: 📅 Monthly Default Weekly Offs Inspector                          -->
   <!-- ========================================================================= -->
   <div id="monthlyOffsAuditModal" class="hidden fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-md transition-opacity">
-    <div class="rx-glass-modal relative w-full max-w-3xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 max-h-[90vh]" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%);">
+    <div class="rx-glass-modal relative w-full max-w-3xl rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 max-h-[90vh]">
       <!-- Header -->
       <div class="flex items-center justify-between pb-3.5 border-b border-slate-200/60 dark:border-white/10 shrink-0">
         <div class="flex items-center gap-3">
@@ -4426,7 +4377,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.23"></script>
+  <script type="module" src="js/app.js?v=2.5.25"></script>
 
 </body>
 

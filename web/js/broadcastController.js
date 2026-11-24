@@ -180,8 +180,8 @@ export class BroadcastController {
       setTimeout(() => this.closeMentionDropdown(), 200);
     });
 
-    // 5. Quick Token Buttons (Retain {name}, @all, and @mention; removed {username} & + Urgent Action)
-    this.dom.btnInsertTokenName?.addEventListener('click', () => this.insertToken('{name}'));
+    // 5. Quick Token Buttons (Standard @name, @all, and @mention)
+    this.dom.btnInsertTokenName?.addEventListener('click', () => this.insertToken('@name '));
     this.dom.btnInsertMentionAll?.addEventListener('click', () => this.insertToken('@all '));
     this.dom.btnInsertMentionPrompt?.addEventListener('click', () => {
       this.insertToken('@');
@@ -420,8 +420,13 @@ export class BroadcastController {
     const engineers = this.getActiveEngineers();
     let matches = [];
 
+    // Include personalized @name token (parity with Android)
+    if (!query || 'name'.includes(query)) {
+      matches.push({ isTag: true, tag: 'name', name: 'Personalized Name (Recipient Full Name)' });
+    }
+
     // Include team broadcast tags
-    if ('all'.includes(query) || 'everyone'.includes(query)) {
+    if (!query || 'all'.includes(query) || 'everyone'.includes(query)) {
       matches.push({ isTag: true, tag: 'all', name: 'Everyone (All Active Engineers)' });
     }
 
@@ -660,8 +665,8 @@ export class BroadcastController {
   }
 
   updatePreview() {
-    const rawTitle = this.dom.titleInput?.value.trim() || 'Shift Operations Announcement';
-    const rawMessage = this.dom.messageInput?.value || '';
+    const rawTitle = (this.dom.titleInput?.value || '').trim();
+    const rawMessage = (this.dom.messageInput?.value || '').trim();
     const priority = this.getSelectedPriority();
     const engineers = this.getActiveEngineers();
     const previewEng = engineers.find(e => this.getEngineerKey(e) === this.previewEngineerId) || engineers[0];
@@ -681,11 +686,15 @@ export class BroadcastController {
     }
 
     if (this.dom.previewTitle) {
-      this.dom.previewTitle.innerHTML = this.resolveMessageContent(rawTitle, previewEng);
+      this.dom.previewTitle.innerHTML = rawTitle
+        ? this.resolveMessageContent(rawTitle, previewEng)
+        : '<span class="text-slate-400 italic font-normal text-xs">(No Announcement Title)</span>';
     }
 
     if (this.dom.previewBody) {
-      this.dom.previewBody.innerHTML = this.resolveMessageContent(rawMessage, previewEng);
+      this.dom.previewBody.innerHTML = rawMessage
+        ? this.resolveMessageContent(rawMessage, previewEng)
+        : '<p class="text-slate-400 italic text-xs">(Type a message or load a template to preview personalized content)</p>';
     }
 
     this.updatePreviewChannels();

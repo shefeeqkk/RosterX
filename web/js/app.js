@@ -2149,6 +2149,17 @@ class RosterXApp {
     // Global mouseup to release drag selection
     window.addEventListener('mouseup', () => this.handleGridMouseUp());
 
+    // Click outside to deselect
+    document.addEventListener('mousedown', (e) => {
+      if (this._selectedCellsMap && this._selectedCellsMap.size > 0) {
+        const isCell = e.target.closest('.cell-box');
+        const isBar = e.target.closest('#batchShiftActionBar');
+        if (!isCell && !isBar) {
+          this.clearCellSelection();
+        }
+      }
+    });
+
     if (this.dom.btnOpenConstraintsModal) {
       this.dom.btnOpenConstraintsModal.addEventListener('click', () => this.openConstraintsModal());
     }
@@ -3906,11 +3917,13 @@ class RosterXApp {
 
       const offTd = document.createElement('td');
       if (isAdmin) {
+        const isDeviated = expectedMonthlyOffs > 0 && totalOff !== expectedMonthlyOffs;
+        const starMark = isDeviated ? '<span class="text-rose-600 dark:text-rose-400 font-black ml-0.5 text-xs inline-block leading-none" title="Total rest days deviate from monthly expected baseline (${totalOff} vs ${expectedMonthlyOffs})">*</span>' : '';
         const expLabel = expectedMonthlyOffs > 0 ? `<span class="text-[8px] opacity-75">/${expectedMonthlyOffs}</span>` : '';
         offTd.className = 'off-stats-col-admin font-black text-sm bg-amber-50/50 dark:bg-amber-950/30 text-amber-950 dark:text-amber-200 border-l border-b border-slate-300 dark:border-slate-700 text-center px-1';
         offTd.innerHTML = `
-          <div class="flex flex-col items-center justify-center py-0.5 leading-none select-none cursor-pointer" onclick="window.app?.openMonthlyOffsAuditModal?.()" title="Total Offs: ${totalOff} (Weekly Offs: ${totalWeeklyOff} of ${expectedMonthlyOffs} expected, Approved Leaves: ${totalLeaves}, Swap Offs: ${totalSwaps}) - Click to inspect calendar breakdown">
-            <span class="text-sm font-black text-amber-950 dark:text-amber-200">${totalOff}</span>
+          <div class="flex flex-col items-center justify-center py-0.5 leading-none select-none cursor-pointer" onclick="window.app?.openMonthlyOffsAuditModal?.()" title="Total Offs: ${totalOff}${isDeviated ? ' (Deviates from ' + expectedMonthlyOffs + ' baseline)' : ''} (Weekly Offs: ${totalWeeklyOff} of ${expectedMonthlyOffs} expected, Approved Leaves: ${totalLeaves}, Swap Offs: ${totalSwaps}) - Click to inspect calendar breakdown">
+            <span class="text-sm font-black text-amber-950 dark:text-amber-200 flex items-center justify-center">${totalOff}${starMark}</span>
             <div class="flex items-center gap-0.5 text-[9px] font-extrabold tracking-tight mt-0.5 text-slate-500">
               <span class="px-1 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-300" title="Weekly Offs: ${totalWeeklyOff} (Expected: ${expectedMonthlyOffs} based on calendar)">${totalWeeklyOff}${expLabel} OFF</span>
               <span class="px-1 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300" title="Approved Leaves: ${totalLeaves}">${totalLeaves} L</span>
@@ -4048,11 +4061,11 @@ class RosterXApp {
       if (dayContainer) {
         const dayCell = document.createElement('div');
         if (!hasAnyShifts) {
-          dayCell.className = 'cell-box flex items-center justify-center border-r border-slate-300 text-slate-400 font-bold';
+          dayCell.className = 'coverage-cell-box flex items-center justify-center border-r border-slate-300 text-slate-400 font-bold';
           dayCell.textContent = '—';
         } else if (isAdmin) {
           const isUnderstaffed = dayCount < minDayStaff;
-          dayCell.className = `cell-box flex flex-col items-center justify-center border-r border-slate-300 leading-none py-0.5 select-none ${
+          dayCell.className = `coverage-cell-box flex flex-col items-center justify-center border-r border-slate-300 leading-none py-0.5 select-none ${
             isUnderstaffed ? 'bg-amber-100 text-amber-900' : 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300'
           }`;
           dayCell.title = `Day Coverage: ${dayCount} (First Shift [FS]: ${fsCount}, Second Shift [SS]: ${ssCount}, General/Other: ${otherDayCount}) - Target ≥${minDayStaff}`;
@@ -4064,7 +4077,7 @@ class RosterXApp {
             </div>
           `;
         } else {
-          dayCell.className = `cell-box flex items-center justify-center border-r border-slate-300 font-black text-sm ${
+          dayCell.className = `coverage-cell-box flex items-center justify-center border-r border-slate-300 font-black text-sm ${
             dayCount < minDayStaff ? 'bg-amber-100 text-amber-900 font-black' : 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300'
           }`;
           dayCell.textContent = dayCount;
@@ -4364,10 +4377,10 @@ class RosterXApp {
     const count = this._selectedCellsMap.size;
     const label = shiftCode ? `Batch Set ${shiftCode} (${count} cells)` : `Batch Clear (${count} cells)`;
 
-    this.pushRosterUndoSnapshot(label);
+    this.recordHistorySnapshot(label);
 
-    this._selectedCellsMap.forEach(({ engIndex, dayIndex }) => {
-      const eng = this.state.gridRoster[engIndex];
+    this._selectedCellsMap.forEach(({ engIndex, dayIndex, engName }) => {
+      const eng = (engName && this.state.gridRoster.find(e => e.name === engName)) || this.state.gridRoster[engIndex];
       if (eng && Array.isArray(eng.shifts)) {
         const isLocked = Boolean(this.state.lockedCells && this.state.lockedCells[`${eng.name}_${dayIndex}`]);
         if (!isLocked) {
