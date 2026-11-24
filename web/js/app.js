@@ -78,6 +78,16 @@ import { LeaveApprovalsController } from './leaveController.js?v=2.5.3';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 const STORAGE_KEYS = {
   ENGINEERS_LIST: 'rosterx_engineers_list',
   CONSTRAINTS: 'rosterx_constraints',
@@ -1268,36 +1278,50 @@ class RosterXApp {
     const container = document.getElementById('dashboardAuditStreamContainer');
     if (!container) return;
 
-    if (!Array.isArray(records) || records.length === 0) {
+    try {
+      if (!Array.isArray(records) || records.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
+            <i class="ph ph-clock-counter-clockwise text-2xl mb-1 text-slate-300 block"></i>
+            No recent audit events recorded for this operational cycle
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      records.slice(0, 30).forEach(rec => {
+        try {
+          const isAndroid = rec.platform === 'Android App';
+          const deviceStr = rec.device || (rec.details && rec.details.device) || '';
+          const deviceBadge = deviceStr ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-200/80 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-mono font-medium">${escapeHtml(deviceStr)}</span>` : '';
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs transition';
+          row.innerHTML = `
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isAndroid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}">
+                ${escapeHtml(rec.platform || 'Web Portal')}
+              </span>
+              ${deviceBadge}
+              <span class="font-bold text-slate-900">${escapeHtml(rec.engineer_name || rec.username || 'System')}</span>
+              <span class="text-slate-500">• ${escapeHtml(rec.action || 'Activity Event')}</span>
+            </div>
+            <span class="text-slate-400 font-mono text-[11px] shrink-0">${escapeHtml(rec.datetime || '')}</span>
+          `;
+          container.appendChild(row);
+        } catch (itemErr) {
+          console.warn('Error rendering audit record:', itemErr, rec);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to render audit stream:', err);
       container.innerHTML = `
         <div class="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-400 text-xs font-medium">
-          <i class="ph ph-clock-counter-clockwise text-2xl mb-1 text-slate-300 block"></i>
-          No recent audit events recorded for this operational cycle
+          <i class="ph ph-warning text-2xl mb-1 text-amber-400 block"></i>
+          Audit stream temporarily unavailable
         </div>
       `;
-      return;
     }
-
-    container.innerHTML = '';
-    records.slice(0, 30).forEach(rec => {
-      const isAndroid = rec.platform === 'Android App';
-      const deviceStr = rec.device || (rec.details && rec.details.device) || '';
-      const deviceBadge = deviceStr ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-200/80 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-mono font-medium">${escapeHtml(deviceStr)}</span>` : '';
-      const row = document.createElement('div');
-      row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs transition';
-      row.innerHTML = `
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isAndroid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}">
-            ${rec.platform || 'Web Portal'}
-          </span>
-          ${deviceBadge}
-          <span class="font-bold text-slate-900">${rec.engineer_name || rec.username || 'System'}</span>
-          <span class="text-slate-500">• ${rec.action || 'Activity Event'}</span>
-        </div>
-        <span class="text-slate-400 font-mono text-[11px] shrink-0">${rec.datetime || ''}</span>
-      `;
-      container.appendChild(row);
-    });
   }
 
   async loadDiagnosticsTerminal() {

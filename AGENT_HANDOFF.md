@@ -1,7 +1,28 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 10:20 IST** (Target Sprint: **v2.5.8 - Build 183**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 12:10 IST** (Target Sprint: **v2.5.9 - Build 184**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.9 - Build 184 — AI Pre-fill Database Weekly Offs & Leave Guard, Operational Audit Stream Crash Fix, and Floating AI Bubble Removal):
+> *"Vijaya! Gafoorka! User feedback spot-on aayi address cheythu, v2.5.9 Build 184 safe aayi assembleDebug cheythu connected phone-il ADB push cheythu compile aakki macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed & Delivered in v2.5.9 (Build 184):
+> 1. **AI Roster Assistant Pre-Fill Method & Database Weekly Off Mapping**:
+>    - Root cause: `this.app.saveGridRosterToCache` was called which didn't exist, throwing `TypeError: this.app.saveGridRosterToCache is not a function`. Aligned to `this.app.saveCurrentGridRoster()`.
+>    - Root cause 2: Grid roster rows lacked `default_weekly_offs` property, causing fallback to generic Sat/Sun for everyone.
+>    - Fix: Directly fetches fresh engineers metadata from MongoDB Atlas database (`dbEngineers.find(...)`) and maps each active engineer's true database weekly offs (e.g. Shefeeq: Mon/Tue, Atul: Wed/Thu, Dyani: Tue/Wed, Hemanth: Fri/Sat, Silambarasan: Thu/Fri, etc.) and approved leave dates into the month grid.
+>    - Leaves all working days clean/unassigned so day and night shifts can be assigned cleanly.
+> 2. **Real-Time Operational Audit Stream Rendering Fix**:
+>    - Root cause: `renderAuditStream` in `web/js/app.js` called `escapeHtml(deviceStr)`, but `escapeHtml` was previously missing at global module level. This threw an uncaught `ReferenceError: escapeHtml is not defined` immediately after clearing `container.innerHTML = ''`, leaving the entire audit stream container blank white!
+>    - Fix: Added module-level `escapeHtml(str)` utility and wrapped `renderAuditStream` in try-catch with defensive escaping on all record properties.
+> 3. **AI Assistant Popup Bubble Removal**:
+>    - Completely removed the persistent floating speech bubble (`#aiBotSpeechBubble`: 'Hi! I'm your AI Assistant 👋 Ask me to prepare shifts or NOC rules!') as instructed by the user, while keeping the interactive 3D cutout bot button.
+> 4. **Version Bump & ADB Deployment**:
+>    - Bumped `versionCode = 184`, `versionName = "2.5.9"` in `android/app/build.gradle.kts`.
+>    - Updated `SERVER_VERSION = "2.5.9"` in `server.py`.
+>    - Pushed APK via ADB to connected wireless device `100.71.241.36:39209`."*
 
 ---
 

@@ -380,21 +380,6 @@ export class RosterAiAssistant {
 
       <!-- Floating Cutout Cute Bot Launcher (Pure Cutout without Background Disc) -->
       <div class="relative flex items-center gap-3">
-        <!-- Floating Speech Hint Bubble -->
-        <div id="aiBotSpeechBubble" class="relative group cursor-pointer bg-slate-900/95 backdrop-blur-md text-white text-xs px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2.5 border border-cyan-400/40 hover:border-cyan-400 transition animate-in fade-in slide-in-from-right-4 duration-300">
-          <div class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-ping shrink-0"></div>
-          <div>
-            <div class="font-bold text-[11px] text-white flex items-center gap-1.5">
-              <span>Hi! I'm your AI Assistant</span>
-              <span class="text-xs">👋</span>
-            </div>
-            <div class="text-[10px] text-cyan-200/90">Ask me to prepare shifts or NOC rules!</div>
-          </div>
-          <button id="btnDismissBotBubble" title="Dismiss" class="text-slate-400 hover:text-white ml-1 p-0.5 rounded-md hover:bg-white/10 transition cursor-pointer">
-            <i class="ph ph-x text-xs"></i>
-          </button>
-        </div>
-
         <!-- 3D Bot Cutout Launcher Platform -->
         <div class="bot-3d-launcher-platform relative flex flex-col items-center select-none" style="perspective: 700px;">
           <!-- Cutout Cute 3D Bot Character Floating Button -->
@@ -442,8 +427,6 @@ export class RosterAiAssistant {
     this.dom.btnSettings = document.getElementById('btnAiSettingsQuick');
     this.dom.chips = document.querySelectorAll('.ai-chip-prompt');
     this.dom.typingIndicator = document.getElementById('aiTypingIndicator');
-    this.dom.speechBubble = document.getElementById('aiBotSpeechBubble');
-    this.dom.btnDismissBubble = document.getElementById('btnDismissBotBubble');
     this.dom.periodIndicator = document.getElementById('aiActivePeriodIndicator');
     this.dom.headerStatusText = document.getElementById('aiHeaderStatusText');
     this.dom.modelFooter = document.getElementById('aiActiveModelFooter');
@@ -476,20 +459,6 @@ export class RosterAiAssistant {
 
     if (this.dom.btnClose) {
       this.dom.btnClose.addEventListener('click', () => this.closePanel());
-    }
-
-    if (this.dom.btnDismissBubble) {
-      this.dom.btnDismissBubble.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (this.dom.speechBubble) this.dom.speechBubble.classList.add('hidden');
-      });
-    }
-
-    if (this.dom.speechBubble) {
-      this.dom.speechBubble.addEventListener('click', (e) => {
-        if (e.target.closest('#btnDismissBotBubble')) return;
-        this.openPanel();
-      });
     }
 
     // Top action bar button trigger (if clicked, open assistant)
@@ -555,9 +524,6 @@ export class RosterAiAssistant {
     this.isOpen = true;
     if (this.dom.panel) {
       this.dom.panel.classList.remove('hidden');
-    }
-    if (this.dom.speechBubble) {
-      this.dom.speechBubble.classList.add('hidden');
     }
     this.updatePeriodIndicator();
     this.updateModelDisplay();
@@ -966,12 +932,16 @@ export class RosterAiAssistant {
     }
 
     // 0.4 Check for Pre-Fill Weekly Offs & Approved Leaves intent (Roster Generation Helper)
-    // Matches: "Can u fill only the default weekly off for the engineers in month grid",
-    // "fill weekly offs only", "fill default weekly off", "pre-fill weekly offs", "roster generation helper", etc.
+    // Matches: "prefill only default week off and leave", "Pre-fill default weekly offs and approved leaves for upcoming month grid",
+    // "Can u fill only the default weekly off for the engineers in month grid", "fill weekly offs only", "fill default weekly off", etc.
     const isPreFillWeeklyOffs = (
-      /(?:fill|populate|apply|set|add)\b.*(?:default\s+weekly\s+off|weekly\s+off|days?\s+off|offs?\s+only)/i.test(qLower) ||
-      /(?:weekly\s+off|days?\s+off|offs?\s+only)\b.*(?:fill|populate|apply|set|grid)/i.test(qLower) ||
-      /(?:roster\s+generation\s+helper|pre-?fill\s+offs|pre-?fill\s+weekly)/i.test(qLower)
+      /pre-?fill/i.test(qLower) && /(?:week\s*offs?|weekly\s*offs?|leaves?|offs?)/i.test(qLower)
+    ) || (
+      /(?:fill|populate|apply|set|add|anchor)\b.*(?:default\s*week(?:ly)?\s*offs?|week(?:ly)?\s*offs?|days?\s*off|offs?\s*only)/i.test(qLower)
+    ) || (
+      /(?:default\s*week(?:ly)?\s*offs?|week(?:ly)?\s*offs?|days?\s*off|offs?\s*only)\b.*(?:fill|populate|apply|set|grid)/i.test(qLower)
+    ) || (
+      /(?:roster\s*generation\s*helper|pre-?fill)/i.test(qLower) && /(?:week|off|leave|grid)/i.test(qLower)
     );
 
     if (isPreFillWeeklyOffs) {
@@ -1146,7 +1116,7 @@ export class RosterAiAssistant {
       await this.app.loadGridRosterForPeriod(targetYear, targetMonth);
     }
 
-    // 2. Fetch approved leave requests for the period
+    // 2. Fetch approved leave requests and fresh engineers metadata from database
     let approvedLeaves = [];
     try {
       if (this.app.atlasService && typeof this.app.atlasService.getLeaveRequests === 'function') {
@@ -1156,6 +1126,20 @@ export class RosterAiAssistant {
       }
     } catch (e) {
       console.warn('[Roster AI Assistant] Could not fetch approved leaves:', e);
+    }
+
+    // Ensure fresh engineers metadata from Atlas DB to get true default_weekly_offs
+    let dbEngineers = Array.isArray(this.app.state?.engineersList) ? this.app.state.engineersList : [];
+    try {
+      if (this.app.atlasService && typeof this.app.atlasService.getEngineers === 'function') {
+        const freshEngs = await this.app.atlasService.getEngineers();
+        if (Array.isArray(freshEngs) && freshEngs.length > 0) {
+          dbEngineers = freshEngs;
+          this.app.state.engineersList = freshEngs;
+        }
+      }
+    } catch (e) {
+      console.warn('[Roster AI Assistant] Using cached engineersList:', e);
     }
 
     // 3. Pre-fill weekly offs and approved leaves
@@ -1177,9 +1161,28 @@ export class RosterAiAssistant {
 
       const engName = String(eng.name || '').trim().toLowerCase();
       const engUname = String(eng.username || '').trim().toLowerCase();
-      const defaultOffs = Array.isArray(eng.default_weekly_offs)
-        ? eng.default_weekly_offs.map(x => String(x).toUpperCase())
-        : ['SATURDAY', 'SUNDAY'];
+      const engId = String(eng.id || '').trim().toLowerCase();
+
+      // Look up true engineer document from database collection
+      const meta = dbEngineers.find(e => {
+        const mName = String(e.name || '').trim().toLowerCase();
+        const mUname = String(e.username || '').trim().toLowerCase();
+        const mId = String(e.id || '').trim().toLowerCase();
+        return (engId && mId === engId) || (engName && mName === engName) || (engUname && mUname === engUname);
+      });
+
+      const rawOffs = (meta && Array.isArray(meta.default_weekly_offs) && meta.default_weekly_offs.length > 0)
+        ? meta.default_weekly_offs
+        : ((typeof this.app.getEngineerWeekOffs === 'function')
+            ? this.app.getEngineerWeekOffs(eng)
+            : (eng.default_weekly_offs || []));
+
+      const defaultOffs = Array.isArray(rawOffs) && rawOffs.length > 0
+        ? rawOffs.map(x => String(x).toUpperCase().trim())
+        : [];
+
+      // Store on grid row for consistency
+      eng.default_weekly_offs = defaultOffs;
 
       for (let day = 1; day <= totalDays; day++) {
         const dStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -1219,7 +1222,12 @@ export class RosterAiAssistant {
     // Save and re-render grid
     this.app.renderRoster();
     this.app.renderDailyCoverage();
-    this.app.saveGridRosterToCache();
+    if (typeof this.app.saveCurrentGridRoster === 'function') {
+      this.app.saveCurrentGridRoster();
+    }
+    if (this.app.atlasService && typeof this.app.atlasService.notifyStatusChange === 'function') {
+      this.app.atlasService.notifyStatusChange('unsaved');
+    }
     this.updatePeriodIndicator();
 
     const text = `🎯 **Roster Generation Helper Applied for ${mFullName}!**\n\n` +

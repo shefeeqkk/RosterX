@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.8"
+SERVER_VERSION = "2.5.9"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -167,27 +167,27 @@ def parse_device_info(headers) -> str:
     return f"{browser} • {os_name}"
 
 def record_audit_event(engineer_name, username, role, platform_name, action, details=None, device=None):
-    """Safely append an operational audit record into database collection 'audit_logs'."""
-    if ATLAS_DB is None:
-        return
-    try:
-        now_ts = time.time()
-        det = details or {}
-        device_str = device or (det.get("device") if isinstance(det, dict) else None)
-        doc = {
-            "engineer_name": engineer_name,
-            "username": username,
-            "role": role,
-            "platform": platform_name,
-            "device": device_str,
-            "action": action,
-            "details": det,
-            "timestamp": now_ts,
-            "datetime": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(now_ts))
-        }
-        ATLAS_DB["audit_logs"].insert_one(doc)
-    except Exception as e:
-        print(f"  [AUDIT LOG ERROR] {e}")
+    """Safely append an operational audit record into database collection 'audit_logs' and in-memory buffer."""
+    now_ts = time.time()
+    det = details or {}
+    device_str = device or (det.get("device") if isinstance(det, dict) else None)
+    doc = {
+        "engineer_name": engineer_name,
+        "username": username,
+        "role": role,
+        "platform": platform_name,
+        "device": device_str,
+        "action": action,
+        "details": det,
+        "timestamp": now_ts,
+        "datetime": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(now_ts))
+    }
+    SERVER_AUDIT_LOGS.appendleft(dict(doc))
+    if ATLAS_DB is not None:
+        try:
+            ATLAS_DB["audit_logs"].insert_one(dict(doc))
+        except Exception as e:
+            print(f"  [AUDIT LOG ERROR] {e}")
 
 def get_leave_system_config() -> dict:
     """Retrieve global leave configuration (capping toggle & annual quota)."""
@@ -508,6 +508,7 @@ def get_ist_time_str(format_12h: bool = True) -> str:
 # Global Live Server Log Ring Buffer (Available for Authenticated Admin Terminal Log Viewer)
 SERVER_LOGS = collections.deque(maxlen=500)
 SERVER_NOTIFICATIONS = collections.deque(maxlen=100)
+SERVER_AUDIT_LOGS = collections.deque(maxlen=200)  # In-memory buffer for operational audit logs
 SERVER_CREDENTIAL_TRACKERS = []  # In-memory fallback if Atlas DB is disconnected
 SERVER_CREDENTIAL_TRACKER_LOGS = collections.deque(maxlen=1000)  # In-memory fallback for audit logs
 SERVER_BROADCAST_TEMPLATES = []  # In-memory fallback for custom broadcast templates
@@ -3626,6 +3627,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         audit_records = list(cursor)
                 except Exception as e:
                     print(f"  [TELEMETRY USERS ERROR] {e}")
+
+            if not audit_records and SERVER_AUDIT_LOGS:
+                audit_records = list(SERVER_AUDIT_LOGS)[:50]
 
             self.send_json_response({
                 "success": True,
