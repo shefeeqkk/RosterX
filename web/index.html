@@ -454,43 +454,10 @@
 
 
     <!-- Header Actions (Lean & Uncluttered) -->
-
     <div class="flex items-center gap-2">
 
-      <!-- 🤖 AI Assistant (Desktop Only — Hidden on Mobile to maximize screen real estate) -->
-
-      <button id="btnOpenAiModal" class="hidden md:flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-indigo-600 via-indigo-700 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 dark:hover:from-slate-800 dark:hover:to-indigo-900 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-cyan-500/20 cursor-pointer group border border-indigo-400/30 dark:border-slate-700">
-
-        <div class="w-5 h-5 sm:w-6 sm:h-6 shrink-0 flex items-center justify-center">
-
-          <img src="assets/bot-3d.png" alt="AI Assistant" class="w-full h-full object-contain group-hover:scale-110 transition drop-shadow-xs" />
-
-        </div>
-
-        <span class="tracking-wide hidden xs:inline">AI Assistant</span>
-
-        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-
-      </button>
-
-      <!-- 🌙 Shift Roster Generator (Night Shift & Baseline Solver) -->
-      <button id="btnOpenShiftGeneratorModal" class="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-indigo-500/20 cursor-pointer group border border-blue-400/30">
-        <i class="ph ph-moon-stars text-amber-300 text-sm"></i>
-        <span class="tracking-wide hidden xs:inline">Shift Generator</span>
-      </button>
-
-
-
-      <!-- 🌓 3-Way Theme Toggle (Light / Dark / System) -->
-      <button id="btnThemeToggle" class="theme-toggle-btn nm-theme-toggle flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs" title="Switch Theme (System / Light / Dark)">
-        <i class="theme-toggle-icon ph ph-desktop text-sm"></i>
-        <span class="theme-toggle-label text-xs font-mono hidden sm:inline">Auto</span>
-      </button>
-
       <!-- 👑 Admin User Pill & Sign Out -->
-
-      <div class="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-300 dark:border-slate-700">
-
+      <div class="flex items-center gap-1.5 sm:gap-2">
         <div id="adminUserPill" class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 cursor-pointer transition" title="View Admin Profile & Change Password">
 
           <div id="adminAvatarBox" class="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
@@ -4520,7 +4487,7 @@
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.26"></script>
+  <script type="module" src="js/app.js?v=2.5.28"></script>
 
 </body>
 

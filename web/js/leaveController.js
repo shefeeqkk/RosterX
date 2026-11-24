@@ -303,12 +303,12 @@ export class LeaveController {
               </div>
 
               <!-- Weekday Header (Compact 1:1 Android Parity S, M, T, W, T, F, S) -->
-              <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;font-weight:800;color:var(--nm-text-muted);padding-bottom:2px;">
+              <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center;font-size:11px;font-weight:800;color:var(--nm-text-muted);padding-bottom:2px;width:100%;box-sizing:border-box;">
                 <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
               </div>
 
-              <!-- Month Grid -->
-              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;width:100%;box-sizing:border-box;">
+              <!-- Month Grid (1:1 Android Parity - Guaranteed Zero Horizontal Spill) -->
+              <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%;box-sizing:border-box;overflow:hidden;">
                 ${dayCells.join('')}
               </div>
 

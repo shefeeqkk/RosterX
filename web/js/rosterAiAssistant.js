@@ -252,10 +252,10 @@ export class RosterAiAssistant {
 
         @media (max-width: 640px) {
           #floatingAiBotWidget {
-            right: 12px !important;
-            left: 12px !important;
+            right: 16px !important;
+            left: auto !important;
             bottom: 84px !important;
-            align-items: center !important;
+            align-items: flex-end !important;
           }
           #aiAssistantPanel {
             width: 100% !important;

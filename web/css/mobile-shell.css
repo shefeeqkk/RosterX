@@ -858,14 +858,19 @@ html.dark .rx-roster-table .rx-sticky-coverage {
 }
 
 /* ==========================================================================
-   Leave & Swap Multi-Date Calendar Picker
+   Leave & Swap Multi-Date Calendar Picker (1:1 Android Parity - Zero Overflow)
    ========================================================================== */
 .rx-cal-day-cell {
-  aspect-ratio: 1.15;
-  min-height: 40px;
-  max-height: 54px;
+  aspect-ratio: 1;
+  width: 100%;
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  max-width: 100%;
+  min-height: 0 !important;
+  min-block-size: 0 !important;
+  max-height: none;
   border: 0;
-  border-radius: 12px;
+  border-radius: 11px;
   background: var(--nm-surface);
   box-shadow: var(--nm-shadow-raised-subtle);
   color: var(--nm-text);
@@ -873,10 +878,12 @@ html.dark .rx-roster-table .rx-sticky-coverage {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
   cursor: pointer;
-  padding: 4px 2px;
+  padding: 3px 1px;
   position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -890,6 +897,11 @@ html.dark .rx-roster-table .rx-sticky-coverage {
   box-shadow: 0 4px 14px var(--nm-accent-glow) !important;
 }
 
+.rx-cal-day-cell.is-selected .rx-cal-cell-off,
+.rx-cal-day-cell.is-selected .rx-cal-cell-shift {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
 .rx-cal-day-cell.is-past {
   opacity: 0.35;
   cursor: not-allowed;
@@ -898,29 +910,66 @@ html.dark .rx-roster-table .rx-sticky-coverage {
 }
 
 .rx-cal-day-cell.is-off {
-  opacity: 0.55;
+  opacity: 0.65;
   cursor: not-allowed;
   background: var(--nm-input-surface);
   box-shadow: none;
 }
 
-.rx-cal-cell-off {
-  font-size: 8.5px;
+.rx-cal-cell-num {
+  font-size: 12px;
   font-weight: 800;
-  color: var(--nm-text-muted);
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.rx-cal-cell-off {
+  font-size: 8px;
+  font-weight: 800;
+  color: #d97706;
   line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .rx-cal-cell-shift {
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 800;
   color: var(--nm-accent);
   line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .rx-cal-day-blank {
   aspect-ratio: 1;
-  min-height: 44px;
+  width: 100%;
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  min-height: 0 !important;
+  min-block-size: 0 !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 380px) {
+  .rx-cal-day-cell {
+    border-radius: 8px;
+    padding: 2px 1px;
+    gap: 0;
+  }
+  .rx-cal-cell-num {
+    font-size: 11px;
+  }
+  .rx-cal-cell-off,
+  .rx-cal-cell-shift {
+    font-size: 7px;
+  }
 }
 
 /* ==========================================================================

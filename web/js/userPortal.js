@@ -31,7 +31,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.3.1';
 
-const APP_VERSION = '2.5.3';
+const APP_VERSION = '2.5.28';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -349,6 +349,17 @@ class RosterXUserPortal {
     this.navShell.mount();
     this.bindGlobalEvents();
     this.updateTopBarUser();
+
+    fetch('/api/server-info')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.version) {
+          this.serverVersion = d.version;
+          const badge = document.getElementById('userPortalVersionBadge');
+          if (badge) badge.textContent = `v${d.version}`;
+        }
+      })
+      .catch(() => {});
 
     await this.refreshAllData();
 
@@ -2181,7 +2192,7 @@ class RosterXUserPortal {
           <div class="rx-card" style="display:flex;flex-direction:column;gap:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <div class="rx-field-label" style="margin:0;color:var(--nm-accent);">ABOUT ROSTERX &amp; SPECS</div>
-              <span style="padding:3px 9px;border-radius:8px;background:var(--nm-accent-soft);color:var(--nm-accent);font-size:11px;font-weight:900;">v${APP_VERSION}</span>
+              <span id="userPortalVersionBadge" style="padding:3px 9px;border-radius:8px;background:var(--nm-accent-soft);color:var(--nm-accent);font-size:11px;font-weight:900;">v${this.serverVersion || APP_VERSION}</span>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Application</span><strong>RosterX Web</strong></div>
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--nm-text-muted);">Production Gateway</span><strong>api.rosterx.online</strong></div>

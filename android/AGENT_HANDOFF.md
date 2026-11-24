@@ -1,7 +1,32 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 22:20 IST** (Target Sprint: **v2.5.27 - Build 202**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 23:25 IST** (Target Sprint: **v2.5.28 - Build 203**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.28 - Build 203 — Header Action Bar Cleanup, Leave Calendar Overlap & Overflow Elimination, Mobile Bot Anchoring, Dynamic Portal Version):
+> *"Vijaya! Gafoorka! User paranja ellam UI and functional polish pin-point precision-il implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.28 (Build 203):
+> 1. **Header Actions Clean-up on Admin Console (`web/index.html`)**:
+>    - Removed the AI Assistant button (`#btnOpenAiModal`), Shift Generator button (`#btnOpenShiftGeneratorModal`), and Theme selector button (`#btnThemeToggle`) from the top header navigation.
+>    - Strictly preserved the Team selector tab (`Register & Team`), the full desktop navigation dock, and the `#adminUserPill` profile menu as mandated by the user.
+> 2. **Leave Request Calendar Overflow & Overlapping Elimination (`web/css/mobile-shell.css`, `web/js/leaveController.js`)**:
+>    - Root cause: `.rx-cal-day-cell` had `min-height: 40px` with `aspect-ratio: 1.15`, and `.rx-cal-day-blank` had `min-height: 44px; aspect-ratio: 1`, while the CSS Grid columns were defined with `1fr` (`minmax(auto, 1fr)`). This transferred an intrinsic min-width of 46px per column, forcing 7 columns + gaps to require over 346px + padding, which spilled out beyond the right edge of `.rx-card` on mobile screens.
+>    - Fix: Updated grid template columns to `repeat(7, minmax(0, 1fr))` for both the weekday header (`S M T W T F S`) and the day buttons grid.
+>    - Set `.rx-cal-day-cell` and `.rx-cal-day-blank` to `aspect-ratio: 1; width: 100%; min-width: 0 !important; min-inline-size: 0 !important; min-height: 0 !important; min-block-size: 0 !important; max-height: none; box-sizing: border-box; overflow: hidden;`.
+>    - Tuned badge font size and number line heights to prevent wrapping or horizontal bulging.
+> 3. **Floating AI Bot Anchoring on Mobile (`web/js/rosterAiAssistant.js`)**:
+>    - Fixed `@media (max-width: 640px)` rule where `#floatingAiBotWidget` had `right: 12px; left: 12px; align-items: center;` which horizontally centered the 3D bot across the screen over cards.
+>    - Changed to `right: 16px !important; left: auto !important; bottom: 84px !important; align-items: flex-end !important;`, keeping it neatly docked in the bottom-right corner.
+> 4. **Dynamic Portal Version Resolution (`web/js/userPortal.js`, `web/user-portal.html`)**:
+>    - Replaced hardcoded `v2.5.3` in Engineer Portal Profile with dynamic fetch from `GET /api/server-info` (`#userPortalVersionBadge`), defaulting to `v2.5.28`.
+>    - Bumped script and stylesheet cache busters to `?v=2.5.28`.
+> 5. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.28"`, `SERVER_BUILD_CODE = 203` in `server.py`.
+>    - Bumped `versionCode = 203`, `versionName = "2.5.28"` in `android/app/build.gradle.kts`.
+>    - Android build verified with `safe_build.bat assembleDebug` and pushing to `main` for instant Render auto-deploy.*
 
 ---
 
