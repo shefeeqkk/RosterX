@@ -185,12 +185,25 @@ export class CredentialTrackerController {
                     <span style="font-weight:700;color:${pill.fg};">Expires: ${escapeHtml(formatCredDate(t.expiry_date))}</span>
                   </div>
 
-                  ${emails.length ? `
-                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--nm-text-muted);">
-                      <span>Alerts:</span>
-                      ${emails.map((e) => `<span style="padding:2px 7px;border-radius:8px;background:var(--nm-surface);color:var(--nm-text-muted);">${escapeHtml(e)}</span>`).join('')}
-                    </div>
-                  ` : ''}
+                  ${emails.length ? (
+                    emails.length <= 2 ? `
+                      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--nm-text-muted);">
+                        <span>Alerts:</span>
+                        ${emails.map((e) => `<span style="padding:2px 7px;border-radius:8px;background:var(--nm-surface);color:var(--nm-text-muted);">${escapeHtml(e)}</span>`).join('')}
+                      </div>
+                    ` : `
+                      <details style="font-size:11px;color:var(--nm-text-muted);">
+                        <summary style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:none;list-style:none;">
+                          <span>Alerts:</span>
+                          <span style="padding:2px 7px;border-radius:8px;background:var(--nm-surface);color:var(--nm-text-muted);">${escapeHtml(emails[0])}</span>
+                          <span style="padding:2px 6px;border-radius:8px;background:rgba(99,102,241,0.12);color:var(--nm-accent);font-weight:700;">+${emails.length - 1} more</span>
+                        </summary>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;padding-left:4px;">
+                          ${emails.map((e) => `<span style="padding:2px 7px;border-radius:8px;background:var(--nm-surface);color:var(--nm-text-muted);">${escapeHtml(e)}</span>`).join('')}
+                        </div>
+                      </details>
+                    `
+                  ) : ''}
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;">
                     ${this.canRenew(t) ? `

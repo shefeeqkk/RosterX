@@ -220,6 +220,9 @@ export class LeaveController {
     for (let d = 1; d <= totalDays; d++) {
       const dStr = `${this.calYear}-${String(this.calMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const isPast = dStr < todayStr;
+      const resDate = String(this.user?.resignation_date || this.user?.resignationDate || '').trim();
+      const isPostResignation = Boolean(resDate && dStr > resDate);
+      const isDisabled = isPast || isPostResignation;
       const isSelected = this.selectedDates.has(dStr);
 
       // Check default weekly offs
@@ -239,20 +242,22 @@ export class LeaveController {
 
       let cellClass = 'rx-cal-day-cell';
       let badgeHtml = '';
-      if (isPast) {
+      if (isDisabled) {
         cellClass += ' is-past';
       }
       if (isSelected) {
         cellClass += ' is-selected';
       }
-      if (isOff) {
+      if (isPostResignation) {
+        badgeHtml = '<span class="rx-cal-cell-off" style="color:#ef4444;font-size:8px;font-weight:700;">RESIGNED</span>';
+      } else if (isOff) {
         badgeHtml = '<span class="rx-cal-cell-off" style="color:#d97706;font-size:9px;font-weight:700;">OFF</span>';
       } else if (shiftCode) {
         badgeHtml = `<span class="rx-cal-cell-shift">${escapeHtml(shiftCode)}</span>`;
       }
 
       dayCells.push(`
-        <button type="button" class="${cellClass}" data-leave-date="${dStr}" data-is-off="${isOff}" data-is-past="${isPast}" ${isPast ? 'disabled' : ''} aria-label="${dStr} ${isOff ? 'Default Off' : ''}">
+        <button type="button" class="${cellClass}" data-leave-date="${dStr}" data-is-off="${isOff}" data-is-past="${isDisabled}" ${isDisabled ? 'disabled' : ''} aria-label="${dStr} ${isPostResignation ? 'After Resignation' : isOff ? 'Default Off' : ''}">
           <span class="rx-cal-cell-num">${d}</span>
           ${badgeHtml}
         </button>
@@ -279,30 +284,31 @@ export class LeaveController {
           <div style="display:flex;flex-direction:column;gap:14px;">
             
             <!-- Calendar Card -->
-            <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;">
-                <div>
-                  <div style="font-size:16px;font-weight:900;">Select Leave Dates</div>
-                  <div style="font-size:11.5px;color:var(--nm-text-muted);">Pick 1 to 5 days (Default OFF indicated)</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <button type="button" id="btnCalPrev" class="rx-btn-surface" style="width:34px;height:34px;padding:0;min-inline-size:34px;border-radius:10px;" aria-label="Previous Month">
-                    <i class="ph ph-caret-left"></i>
-                  </button>
-                  <span style="font-size:13px;font-weight:800;min-width:110px;text-align:center;">${escapeHtml(monthLabel)}</span>
-                  <button type="button" id="btnCalNext" class="rx-btn-surface" style="width:34px;height:34px;padding:0;min-inline-size:34px;border-radius:10px;" aria-label="Next Month">
-                    <i class="ph ph-caret-right"></i>
-                  </button>
-                </div>
+            <div class="rx-card" style="display:flex;flex-direction:column;gap:12px;width:100%;box-sizing:border-box;">
+              <!-- Title & Subtitle -->
+              <div>
+                <div style="font-size:15px;font-weight:800;color:var(--nm-text);">Select Leave Dates</div>
+                <div style="font-size:11.5px;color:var(--nm-text-muted);">Pick 1 to 5 days (Default OFF indicated)</div>
               </div>
 
-              <!-- Weekday Header -->
-              <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;font-weight:800;color:var(--nm-text-muted);padding-bottom:4px;">
-                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+              <!-- Prominent Full-Width Month Switcher Bar (1:1 Android Parity) -->
+              <div style="display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;background:var(--nm-input-surface);border-radius:12px;padding:4px 8px;">
+                <button type="button" id="btnCalPrev" class="rx-btn-surface" style="width:34px;height:34px;padding:0;min-inline-size:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;" aria-label="Previous Month">
+                  <i class="ph ph-caret-left" style="font-size:18px;"></i>
+                </button>
+                <span style="font-size:14px;font-weight:800;color:var(--nm-text);text-align:center;">${escapeHtml(monthLabel)}</span>
+                <button type="button" id="btnCalNext" class="rx-btn-surface" style="width:34px;height:34px;padding:0;min-inline-size:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;" aria-label="Next Month">
+                  <i class="ph ph-caret-right" style="font-size:18px;"></i>
+                </button>
+              </div>
+
+              <!-- Weekday Header (Compact 1:1 Android Parity S, M, T, W, T, F, S) -->
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;font-weight:800;color:var(--nm-text-muted);padding-bottom:2px;">
+                <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
               </div>
 
               <!-- Month Grid -->
-              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;width:100%;box-sizing:border-box;">
                 ${dayCells.join('')}
               </div>
 

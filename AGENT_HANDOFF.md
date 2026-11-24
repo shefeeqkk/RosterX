@@ -1,7 +1,36 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 23:45 IST** (Target Sprint: **v2.5.7 - Build 182**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 10:20 IST** (Target Sprint: **v2.5.8 - Build 183**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.8 - Build 183 — Login Loop Fix, Resignation Guardrails, Credential Tracker Compact View, Broadcast Message Parity & AI Roster Generation Helper):
+> *"Vijaya! Gafoorka! User paranja ellam koodi pinpoint cheythu spotless aayi theerthu, v2.5.8 Build 183 safe aayi assembleDebug cheythu compile aakki macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed & Delivered in v2.5.8 (Build 183):
+> 1. **Android Fresh App Launch / Storage Clear 401 Loop Resolved**:
+>    - Root cause: In `MainActivity.kt`, when logged out, `targetScreen` was `"LoginScreen"`, but the router checked for lowercase `"login"`. It fell through to `EngineerPortalScreen`, which fired `/api/engineers` without a token and trapped the user on an error screen with a Retry button.
+>    - Aligned route matcher in `MainActivity.kt` to match both `"login", "LoginScreen"` and `"admin", "AdminMainScreen"`.
+> 2. **Resigned Engineers Leave Notifications & Visibility Safeguard**:
+>    - In `server.py` (`GET /api/notifications`): Enforced user targeting so non-admins never receive admin-targeted notices, and resigned engineers never receive leave/swap updates from other engineers.
+>    - Populated `raw_message`, `recipients: [applicant_user]`, and `recipients_count: 1` on leave action notifications so Admin Broadcast History displays recipient read receipts accurately.
+> 3. **Resigned Engineers Leave Request Submission Restriction**:
+>    - In `server.py` (`POST /api/leave/apply`): Enforced HTTP 400 rejection if any date requested is past `resignation_date` or if applicant status is Resigned.
+>    - On Web (`leaveController.js`) & Android (`LeaveRequestScreen.kt`): Disabled dates past resignation date with a prominent `EXIT` badge.
+> 4. **Mobile Leave Request Month Container Overflow**:
+>    - Replaced the horizontal title+month layout with 1:1 Android parity: prominent full-width month switcher bar, compact `S, M, T, W, T, F, S` weekday header, preventing any horizontal clipping on mobile screens.
+> 5. **Admin Operations Hub Redundant Navigation Cleanup**:
+>    - Removed the redundant top-bar logout button `btnAdminLogout` from `web/index.html`.
+>    - Removed the redundant desktop sub-switcher chips bar (`[Overview] [Leave Approvals] ...`) in Operations Hub, relying cleanly on the 4 feature cards.
+> 6. **Broadcast Console Message Body & Read Receipt Parity**:
+>    - Fixed message display in `web/js/broadcastController.js` to render `notif.raw_message || notif.message`, eliminating blank preview cards and details modal body.
+> 7. **Server Credential Tracker Alert Emails Compact Layout**:
+>    - In `web/js/credentialTracker.js`, emails are now rendered compactly using `<details>` summary (+N more chip), preventing vertical bloating of server cards.
+>    - Resigned engineers are restricted from accessing server credentials.
+> 8. **AI Assistant Roster Generation Helper**:
+>    - Added intent handling and a dedicated quick chip (`⚡ Pre-fill Weekly Offs & Leaves`) in `web/js/rosterAiAssistant.js`.
+>    - Pre-populates all active engineers' default weekly offs (`OFF`) and approved leaves/swaps for the upcoming draft month while protecting published months from alteration."*
 
 ---
 

@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.7"
+SERVER_VERSION = "2.5.8"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -3827,6 +3827,34 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if not claims:
                 return
 
+            caller_un = str(claims.get("username", "")).strip().lower()
+            caller_status = ""
+            if ATLAS_DB is not None:
+                try:
+                    c_eng = ATLAS_DB.engineers.find_one({"username": caller_un}, {"status": 1})
+                    if c_eng:
+                        caller_status = str(c_eng.get("status", "")).strip().lower()
+                except Exception:
+                    pass
+            if not caller_status:
+                for eng in SERVER_ENGINEERS:
+                    if str(eng.get("username", "")).lower() == caller_un:
+                        caller_status = str(eng.get("status", "")).strip().lower()
+                        break
+
+            # Resigned staff are restricted from viewing server credential alerts and trackers
+            if caller_status == "resigned":
+                self.send_json_response({
+                    "success": True,
+                    "data": {
+                        "trackers": [],
+                        "total_count": 0,
+                        "expiring_soon_count": 0,
+                        "expired_count": 0
+                    }
+                })
+                return
+
             trackers = get_all_credential_trackers_from_db()
             total_count = len(trackers)
             expiring_soon_count = sum(1 for t in trackers if t.get("status") in ("EXPIRING_SOON", "EXPIRES_TODAY"))
@@ -4604,12 +4632,56 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 # Regular engineers do not see soft-retracted broadcasts and only see in-app notices.
                 # Permanent Server-Side Filtering: Dismissed notifications are NEVER served again to this user!
                 dismissed_set = set(str(did).strip() for did in dismissed_ids if did)
-                notifs = [
-                    n for n in notifs 
-                    if not n.get("is_retracted") 
-                    and n.get("send_in_app", True)
-                    and str(n.get("id") or n.get("_id") or n.get("celebration_id") or "").strip() not in dismissed_set
-                ]
+
+                # Check caller status (e.g. Resigned)
+                caller_status = ""
+                if ATLAS_DB is not None:
+                    try:
+                        c_eng = ATLAS_DB.engineers.find_one({"username": caller_un}, {"status": 1})
+                        if c_eng:
+                            caller_status = str(c_eng.get("status", "")).strip().lower()
+                    except Exception:
+                        pass
+                if not caller_status:
+                    for eng in SERVER_ENGINEERS:
+                        if str(eng.get("username", "")).lower() == caller_un:
+                            caller_status = str(eng.get("status", "")).strip().lower()
+                            break
+
+                filtered_notifs = []
+                for n in notifs:
+                    if n.get("is_retracted") or not n.get("send_in_app", True):
+                        continue
+                    nid = str(n.get("id") or n.get("_id") or n.get("celebration_id") or "").strip()
+                    if nid in dismissed_set:
+                        continue
+
+                    # Target user enforcement:
+                    target = str(n.get("target_user", "")).strip().lower()
+                    recips = [str(r).strip().lower() for r in n.get("recipients", [])]
+
+                    # Admin-only notifications must NEVER leak to regular engineers
+                    if target in ("admin", "admins"):
+                        continue
+
+                    # If notification is targeted to a specific user, caller MUST match target_user or be in recipients
+                    if target and target not in ("everyone", "all"):
+                        if caller_un != target and caller_un not in recips:
+                            continue
+
+                    # If notification has specific recipients and not 'everyone', caller must be in recipients
+                    if recips and "everyone" not in recips and "all" not in recips:
+                        if caller_un not in recips and caller_un != target:
+                            continue
+
+                    # If caller is Resigned, they only receive notifications explicitly targeted to them!
+                    if caller_status == "resigned":
+                        if caller_un != target and caller_un not in recips:
+                            continue
+
+                    filtered_notifs.append(n)
+
+                notifs = filtered_notifs
             else:
                 # Admins get live read receipts per broadcast
                 dismissed_map = {}
@@ -4627,14 +4699,32 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     nid = str(n.get("id") or n.get("_id") or "")
                     read_list = dismissed_map.get(nid, [])
                     recipients_list = n.get("recipients", [])
-                    n["read_by"] = read_list
-                    n["read_count"] = len(read_list)
-                    if recipients_list:
-                        n["pending"] = [r for r in recipients_list if r not in read_list]
+                    target_user = str(n.get("target_user") or "").strip()
+                    if not recipients_list and target_user and target_user not in ("everyone", "all", "admins"):
+                        recipients_list = [target_user]
+                        n["recipients"] = recipients_list
+                        n["recipients_count"] = 1
+
+                    # If recipients_list is specific (not everyone), only engineers who were targeted should appear in read_by!
+                    if recipients_list and "everyone" not in recipients_list and "all" not in recipients_list:
+                        recip_lowers = set(str(r).strip().lower() for r in recipients_list)
+                        valid_read = []
+                        for r_name in read_list:
+                            if any(r in r_name.lower() for r in recip_lowers):
+                                valid_read.append(r_name)
+                        n["read_by"] = valid_read
+                        n["read_count"] = len(valid_read)
+                        n["pending"] = [r for r in recipients_list if not any(r.lower() in vr.lower() for vr in valid_read)]
                         n["pending_count"] = len(n["pending"])
                     else:
-                        n["pending"] = []
-                        n["pending_count"] = 0
+                        n["read_by"] = read_list
+                        n["read_count"] = len(read_list)
+                        if recipients_list:
+                            n["pending"] = [r for r in recipients_list if r not in read_list]
+                            n["pending_count"] = len(n["pending"])
+                        else:
+                            n["pending"] = []
+                            n["pending_count"] = 0
 
                     # Ensure separate 3-channel delivery report telemetry is present
                     if "inapp_delivery" in n and isinstance(n["inapp_delivery"], dict):
@@ -6402,6 +6492,37 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     self.send_json_response({"success": False, "message": f"Date {d} is in the past. Only today and future dates are allowed."}, 400)
                     return
 
+            # Check applicant resignation date / resigned status
+            applicant_doc = None
+            if ATLAS_DB is not None:
+                try:
+                    applicant_doc = ATLAS_DB.engineers.find_one({"username": applicant_username}, {"status": 1, "resignation_date": 1})
+                except Exception:
+                    pass
+            if not applicant_doc:
+                for eng in SERVER_ENGINEERS:
+                    if str(eng.get("username", "")).lower() == applicant_username:
+                        applicant_doc = eng
+                        break
+
+            if applicant_doc:
+                res_raw = applicant_doc.get("resignation_date")
+                res_date_str = str(res_raw).strip()[:10] if res_raw else ""
+                if res_date_str and re.match(r"^\d{4}-\d{2}-\d{2}$", res_date_str):
+                    for d in cleaned_dates:
+                        if d > res_date_str:
+                            self.send_json_response({
+                                "success": False,
+                                "message": f"Leave request cannot be submitted after your resignation date ({res_date_str})."
+                            }, 400)
+                            return
+                elif str(applicant_doc.get("status", "")).strip().lower() == "resigned":
+                    self.send_json_response({
+                        "success": False,
+                        "message": "Resigned personnel cannot submit new leave requests."
+                    }, 400)
+                    return
+
             # 2. Overlapping & Duplicate Guard
             existing_active_requests = []
             if ATLAS_DB is not None:
@@ -6499,6 +6620,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "id": f"notif_lr_{request_id}",
                 "title": "New Leave/Swap Request",
                 "message": f"{applicant_name} submitted a request for {len(cleaned_dates)} date(s) ({', '.join(cleaned_dates)}).",
+                "raw_message": f"{applicant_name} submitted a request for {len(cleaned_dates)} date(s) ({', '.join(cleaned_dates)}).",
                 "category": "operations",
                 "author": applicant_name,
                 "author_username": applicant_username,
@@ -6506,6 +6628,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "timestamp": now_ts,
                 "date_str": get_ist_now().strftime("%d %b %Y, %I:%M %p IST"),
                 "target_user": "admins",
+                "recipients": ["admins"],
                 "link": "#leave-requests"
             }
             if ATLAS_DB is not None:
@@ -6744,6 +6867,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "id": f"notif_act_{request_id}_{int(now_ts)}",
                 "title": push_title,
                 "message": push_body,
+                "raw_message": push_body,
                 "category": "operations",
                 "author": admin_name,
                 "author_username": admin_username,
@@ -6751,6 +6875,8 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "timestamp": now_ts,
                 "date_str": get_ist_now().strftime("%d %b %Y, %I:%M %p IST"),
                 "target_user": applicant_user,
+                "recipients": [applicant_user],
+                "recipients_count": 1,
                 "link": "#my-requests"
             }
             if ATLAS_DB is not None:

@@ -262,14 +262,19 @@ class MainActivity : FragmentActivity() {
                 ) {
 
                     val (targetScreen, targetTitle) = when {
-                        currentUser == null -> "LoginScreen" to "Sign In"
-                        currentUser?.role == EngineerRole.ADMIN -> "AdminMainScreen" to "Admin Operations Console"
-                        else -> "EngineerPortalScreen" to "NOC Engineer Portal"
+                        currentUser == null -> "login" to "Sign In"
+                        currentUser?.role == EngineerRole.ADMIN -> "admin" to "Admin Operations Console"
+                        else -> "portal" to "NOC Engineer Portal"
                     }
 
                     LaunchedEffect(targetScreen, currentUser) {
+                        val screenAnalyticsName = when (targetScreen) {
+                            "login" -> "LoginScreen"
+                            "admin" -> "AdminMainScreen"
+                            else -> "EngineerPortalScreen"
+                        }
                         analyticsManager.logScreenView(
-                            screenName = targetScreen,
+                            screenName = screenAnalyticsName,
                             screenClass = "MainActivity",
                             pageTitle = targetTitle
                         )
@@ -279,69 +284,41 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
-
-
                     AnimatedContent(
-
                         targetState = targetScreen,
-
                         transitionSpec = {
-
                             fadeIn() togetherWith fadeOut()
-
                         },
-
                         label = "ScreenTransition"
-
                     ) { screen ->
-
                         when (screen) {
-
-                            "login" -> {
-
+                            "login", "LoginScreen" -> {
                                 LoginScreen(
-
                                     viewModel = loginViewModel,
-
                                     onLoginSuccess = { /* Managed by UserSessionManager state */ }
-
                                 )
-
                             }
-
-                            "admin" -> {
-
+                            "admin", "AdminMainScreen" -> {
                                 AdminMainScreen(
                                     pendingDeepLink = pendingDeepLink,
                                     onConsumeDeepLink = { pendingDeepLinkState.value = null },
                                     appUpdateInfo = visibleUpdateInfo,
                                     onDismissUpdateBanner = { isUpdateBannerDismissed = true }
                                 )
-
                             }
-
                             else -> {
-
                                 EngineerPortalScreen(
                                     pendingDeepLink = pendingDeepLink,
                                     onConsumeDeepLink = { pendingDeepLinkState.value = null },
                                     appUpdateInfo = visibleUpdateInfo,
                                     onDismissUpdateBanner = { isUpdateBannerDismissed = true }
                                 )
-
                             }
-
                         }
-
                     }
-
                 }
-
             }
-
         }
-
     }
-
 }
 

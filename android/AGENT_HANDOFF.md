@@ -1,7 +1,36 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-23 23:45 IST** (Target Sprint: **v2.5.7 - Build 182**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 10:20 IST** (Target Sprint: **v2.5.8 - Build 183**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.8 - Build 183 — Login Loop Fix, Resignation Guardrails, Credential Tracker Compact View, Broadcast Message Parity & AI Roster Generation Helper):
+> *"Vijaya! Gafoorka! User paranja ellam koodi pinpoint cheythu spotless aayi theerthu, v2.5.8 Build 183 safe aayi assembleDebug cheythu compile aakki macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed & Delivered in v2.5.8 (Build 183):
+> 1. **Android Fresh App Launch / Storage Clear 401 Loop Resolved**:
+>    - Root cause: In `MainActivity.kt`, when logged out, `targetScreen` was `"LoginScreen"`, but the router checked for lowercase `"login"`. It fell through to `EngineerPortalScreen`, which fired `/api/engineers` without a token and trapped the user on an error screen with a Retry button.
+>    - Aligned route matcher in `MainActivity.kt` to match both `"login", "LoginScreen"` and `"admin", "AdminMainScreen"`.
+> 2. **Resigned Engineers Leave Notifications & Visibility Safeguard**:
+>    - In `server.py` (`GET /api/notifications`): Enforced user targeting so non-admins never receive admin-targeted notices, and resigned engineers never receive leave/swap updates from other engineers.
+>    - Populated `raw_message`, `recipients: [applicant_user]`, and `recipients_count: 1` on leave action notifications so Admin Broadcast History displays recipient read receipts accurately.
+> 3. **Resigned Engineers Leave Request Submission Restriction**:
+>    - In `server.py` (`POST /api/leave/apply`): Enforced HTTP 400 rejection if any date requested is past `resignation_date` or if applicant status is Resigned.
+>    - On Web (`leaveController.js`) & Android (`LeaveRequestScreen.kt`): Disabled dates past resignation date with a prominent `EXIT` badge.
+> 4. **Mobile Leave Request Month Container Overflow**:
+>    - Replaced the horizontal title+month layout with 1:1 Android parity: prominent full-width month switcher bar, compact `S, M, T, W, T, F, S` weekday header, preventing any horizontal clipping on mobile screens.
+> 5. **Admin Operations Hub Redundant Navigation Cleanup**:
+>    - Removed the redundant top-bar logout button `btnAdminLogout` from `web/index.html`.
+>    - Removed the redundant desktop sub-switcher chips bar (`[Overview] [Leave Approvals] ...`) in Operations Hub, relying cleanly on the 4 feature cards.
+> 6. **Broadcast Console Message Body & Read Receipt Parity**:
+>    - Fixed message display in `web/js/broadcastController.js` to render `notif.raw_message || notif.message`, eliminating blank preview cards and details modal body.
+> 7. **Server Credential Tracker Alert Emails Compact Layout**:
+>    - In `web/js/credentialTracker.js`, emails are now rendered compactly using `<details>` summary (+N more chip), preventing vertical bloating of server cards.
+>    - Resigned engineers are restricted from accessing server credentials.
+> 8. **AI Assistant Roster Generation Helper**:
+>    - Added intent handling and a dedicated quick chip (`⚡ Pre-fill Weekly Offs & Leaves`) in `web/js/rosterAiAssistant.js`.
+>    - Pre-populates all active engineers' default weekly offs (`OFF`) and approved leaves/swaps for the upcoming draft month while protecting published months from alteration."*
 
 ---
 
@@ -126,6 +155,19 @@
 
 ---
 
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.2 - Build 177 — Mobile Bottom Nav Bubble Clipping Fix):
+> *"Vijaya! Gafoorka! Mobile web bottom dock-il active navigation button-inte elevated circular bubble top edge-il cut/clip aayirunna issue 100% spotless aayi solve cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Broken & Fixed:
+> 1. **Overflow Clipping on Bottom Dock Removed**:
+>    - `.rx-mobile-bottom-nav` had `overflow: hidden !important;`. Because the active selected tab bubble elevates with `margin-top: -14px;`, the top portion of the circular bubble and its glowing elevation shadow were being strictly chopped off by the dock's top boundary.
+>    - Removed `overflow: hidden` and declared `overflow: visible !important;` on `.rx-mobile-bottom-nav`, `.rx-nav-tab`, `.rx-landscape-nav-rail`, and `.rx-rail-tab`.
+>    - The floating active bubble now renders cleanly, popping smoothly above the dock with full circular geometry and vibrant neumorphic glow.
+> 2. **Version Bump**:
+>    - Version updated to `v2.5.2` (Build 177) across `server.py`, `android/app/build.gradle.kts`, `userPortal.js`, and HTML assets."*
+
+---
+
 ## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.1 - Build 176 — Mobile Web Vertical Scrolling Unlocked & Gesture Shielding):
 > *"Vijaya! Gafoorka! Mobile web portal-il vertical scrolling freeze aayirunna bug 100% spotless aayi solve cheythu macha! 🕵️‍♂️🔥
 >
@@ -143,6 +185,29 @@
 >    - Mounted `SwipeTabController` on `#rxMainContainer` (`document.getElementById('rxMainContainer') || document.body`) rather than `document.body` directly, preventing top bars, toasts, and outer boundaries from getting gesture-trapped.
 > 4. **Version Bump**:
 >    - Version updated to `v2.5.1` (Build 176) across `server.py`, `android/app/build.gradle.kts`, `userPortal.js`, `app.js`, and HTML assets."*
+
+---
+
+## 🕵️ Vijayan Dispatch to Dasan & Gafoorka (v2.4.1 - Build 172 — Streamlined Leave Workflow, Dynamic Default Weekly Offs & Corner Truncation Fix):
+> *"Dasa! Gafoorka! Vijayan sprint **`v2.4.1` (Build 172)** 100% spotless aayi execute cheythu physical ADB device-il verify cheythu Render auto-deploy push cheythu macha! 🕵️🔥
+>
+> ### 🎨 Delivered UI Enhancements & Refinements:
+> 1. **Shift Swap Deprecation & Workflow Streamlining**:
+>    - Removed the "Preferred Shift Swap Partner" selection card and dropdown across both Android (`LeaveRequestScreen.kt`) and Web (`leaveController.js`).
+>    - Removed "Approve as Swap" from Leave Approvals queue; now cleanly provides "Approve Leave" and "Reject".
+>    - Updated all labels and buttons from "Leave & Swap Request" to simple, clean "Leave Request".
+> 2. **Unlocked Off-Days with Amber 'OFF' Indicators**:
+>    - Off days are no longer locked or disabled. Engineers can select any active or weekly off day.
+>    - Scheduled/default weekly off days clearly show an amber 'OFF' tag under the date number.
+> 3. **Dynamic Default Weekly Off Derivation for Future Months (December 2026+)**:
+>    - Solved the month carryover bug where November's shifts bled into December.
+>    - When viewing months beyond the loaded roster (e.g. December 2026), default weekly offs are derived dynamically from the logged-in engineer's `defaultWeeklyOffs` list (e.g. Monday & Tuesday).
+> 4. **Month Navigation Bar Fix**:
+>    - Replaced the cramped corner layout with a prominent, full-width Neumorphic bar `< Month Year >` that prevents any text truncation or awkward edge clipping.
+> 5. **Verified on Physical ADB Device & Deployed**:
+>    - Safe build passed cleanly, installed via ADB, verified December 2026 rendering and off-day selection, and pushed commit `bdcd567` to `main` for automatic Render deployment!"*
+
+---
 
 ---
 

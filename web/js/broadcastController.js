@@ -12,6 +12,11 @@
  * 8. Audit-Preserving Soft Retraction
  */
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 export class BroadcastController {
   constructor() {
     this.atlasService = null;
@@ -1054,7 +1059,7 @@ export class BroadcastController {
         </div>
 
         <div class="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed whitespace-pre-wrap font-sans">
-          ${notif.raw_message || ''}
+          ${escapeHtml(notif.raw_message || notif.message || '')}
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[11px] text-slate-500">
@@ -1117,7 +1122,7 @@ export class BroadcastController {
 
   cloneToComposer(notif) {
     if (this.dom.titleInput) this.dom.titleInput.value = notif.title || '';
-    if (this.dom.messageInput) this.dom.messageInput.value = notif.raw_message || '';
+    if (this.dom.messageInput) this.dom.messageInput.value = notif.raw_message || notif.message || '';
     
     // Priority
     if (notif.priority) {
@@ -1148,7 +1153,7 @@ export class BroadcastController {
 
     if (this.dom.detailTitle) this.dom.detailTitle.textContent = notif.title || 'Announcement Details';
     if (this.dom.detailMeta) this.dom.detailMeta.textContent = `Dispatched by ${notif.sender || 'Admin'} on ${this.formatDateTime(notif)}`;
-    if (this.dom.detailBody) this.dom.detailBody.textContent = notif.raw_message || '';
+    if (this.dom.detailBody) this.dom.detailBody.textContent = notif.raw_message || notif.message || '';
 
     const targetCount = notif.recipients_count || (notif.recipients ? notif.recipients.length : 0);
     const readCount = notif.read_count || 0;

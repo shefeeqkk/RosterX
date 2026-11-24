@@ -316,6 +316,9 @@ export class RosterAiAssistant {
         <!-- Suggestion Chips Header Row -->
         <div class="px-3 py-2 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border-b border-slate-200/60 dark:border-white/10 overflow-x-auto whitespace-nowrap flex items-center gap-1.5 text-xs no-scrollbar">
           <span class="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 px-1">Try:</span>
+          <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-amber-50/90 dark:hover:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Pre-fill default weekly offs and approved leaves for upcoming month grid">
+            ⚡ Pre-fill Weekly Offs & Leaves
+          </button>
           <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-rose-50/90 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Clear entire month Grid">
             🗑️ Clear Month Grid
           </button>
@@ -962,6 +965,19 @@ export class RosterAiAssistant {
       return await this.executeClearMonthGrid(query);
     }
 
+    // 0.4 Check for Pre-Fill Weekly Offs & Approved Leaves intent (Roster Generation Helper)
+    // Matches: "Can u fill only the default weekly off for the engineers in month grid",
+    // "fill weekly offs only", "fill default weekly off", "pre-fill weekly offs", "roster generation helper", etc.
+    const isPreFillWeeklyOffs = (
+      /(?:fill|populate|apply|set|add)\b.*(?:default\s+weekly\s+off|weekly\s+off|days?\s+off|offs?\s+only)/i.test(qLower) ||
+      /(?:weekly\s+off|days?\s+off|offs?\s+only)\b.*(?:fill|populate|apply|set|grid)/i.test(qLower) ||
+      /(?:roster\s+generation\s+helper|pre-?fill\s+offs|pre-?fill\s+weekly)/i.test(qLower)
+    );
+
+    if (isPreFillWeeklyOffs) {
+      return await this.executePreFillWeeklyOffsAndLeaves(query);
+    }
+
     // 1. Detect if this is a request to prepare roster for a specific day
     // e.g. "Prepare a roster for 24th of this month with minimum Day shift count as 3"
     // e.g. "Prepare roster for 25th with min Day shift count as 4"
@@ -1054,6 +1070,177 @@ export class RosterAiAssistant {
     if (this.dom && this.dom.headerStatusText && !this.isGenerating) {
       this.dom.headerStatusText.textContent = `Online • ${formatted} & Smart Solver`;
     }
+  }
+
+  // --- Roster Generation Helper: Pre-Fill Weekly Offs & Approved Leaves ---
+  async executePreFillWeeklyOffsAndLeaves(query) {
+    const qLower = query.toLowerCase().trim();
+
+    const monthNamesMap = {
+      january: 1, jan: 1,
+      february: 2, feb: 2,
+      march: 3, mar: 3,
+      april: 4, apr: 4,
+      may: 5,
+      june: 6, jun: 6,
+      july: 7, jul: 7,
+      august: 8, aug: 8,
+      september: 9, sep: 9, sept: 9,
+      october: 10, oct: 10,
+      november: 11, nov: 11,
+      december: 12, dec: 12
+    };
+
+    let targetMonth = this.app.state.currentMonth;
+    let targetYear = this.app.state.currentYear;
+
+    // Check if user specifically requested a month
+    for (const [mName, mNum] of Object.entries(monthNamesMap)) {
+      const mRegex = new RegExp(`\\b${mName}\\b`, 'i');
+      if (mRegex.test(qLower)) {
+        targetMonth = mNum;
+        break;
+      }
+    }
+
+    const yearMatch = qLower.match(/\b(202[5-9]|203[0-5])\b/);
+    if (yearMatch) {
+      targetYear = parseInt(yearMatch[1], 10);
+    }
+
+    const monthKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+    const mFullName = monthLabel(monthKey, 'long');
+
+    // 1. Guard against published month
+    let isPublished = false;
+    try {
+      if (this.app.atlasService && typeof this.app.atlasService.getRoster === 'function') {
+        const remoteDoc = await this.app.atlasService.getRoster(monthKey);
+        if (remoteDoc && (remoteDoc.status === 'published' || remoteDoc.is_published === true)) {
+          isPublished = true;
+        }
+      }
+    } catch (_) {}
+
+    // Historical month guard (months prior to current system month are always treated as published/locked)
+    const now = new Date();
+    const curY = now.getFullYear();
+    const curM = now.getMonth() + 1;
+    if (targetYear < curY || (targetYear === curY && targetMonth < curM)) {
+      isPublished = true;
+    }
+
+    if (isPublished) {
+      return {
+        text: `⚠️ **Published Month Protection:** **${mFullName}** is an already published roster!\n\n` +
+              `To protect official operational records and avoid overwriting live team schedules, the **Roster Generation Helper** will not touch published months.\n\n` +
+              `💡 *Please switch to an upcoming draft month (such as December 2026) to pre-fill weekly offs and approved leaves.*`
+      };
+    }
+
+    // Switch view to target month if not already active
+    if (this.app.state.currentYear !== targetYear || this.app.state.currentMonth !== targetMonth) {
+      if (this.app.dom.monthSelect) {
+        this.app.dom.monthSelect.value = monthKey;
+      }
+      await this.app.loadGridRosterForPeriod(targetYear, targetMonth);
+    }
+
+    // 2. Fetch approved leave requests for the period
+    let approvedLeaves = [];
+    try {
+      if (this.app.atlasService && typeof this.app.atlasService.getLeaveRequests === 'function') {
+        const leavesResp = await this.app.atlasService.getLeaveRequests();
+        const allLeaves = Array.isArray(leavesResp?.requests) ? leavesResp.requests : (Array.isArray(leavesResp) ? leavesResp : []);
+        approvedLeaves = allLeaves.filter(r => ['approved', 'approved_leave', 'approved_swap'].includes(String(r.status).toLowerCase()));
+      }
+    } catch (e) {
+      console.warn('[Roster AI Assistant] Could not fetch approved leaves:', e);
+    }
+
+    // 3. Pre-fill weekly offs and approved leaves
+    const totalDays = this.app.state.totalDays || new Date(targetYear, targetMonth, 0).getDate();
+    let totalWeeklyOffsApplied = 0;
+    let totalLeavesApplied = 0;
+    const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+    const activeEngs = this.app.state.gridRoster.filter(eng => {
+      const st = String(eng.status || '').toLowerCase();
+      const rl = String(eng.role || '').toLowerCase();
+      return st !== 'resigned' && rl !== 'admin' && rl !== 'manager';
+    });
+
+    activeEngs.forEach(eng => {
+      if (!Array.isArray(eng.shifts) || eng.shifts.length !== totalDays) {
+        eng.shifts = new Array(totalDays).fill('');
+      }
+
+      const engName = String(eng.name || '').trim().toLowerCase();
+      const engUname = String(eng.username || '').trim().toLowerCase();
+      const defaultOffs = Array.isArray(eng.default_weekly_offs)
+        ? eng.default_weekly_offs.map(x => String(x).toUpperCase())
+        : ['SATURDAY', 'SUNDAY'];
+
+      for (let day = 1; day <= totalDays; day++) {
+        const dStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dateObj = new Date(targetYear, targetMonth - 1, day);
+        const dayOfWeek = dayNames[dateObj.getDay()];
+
+        // Check if matching approved leave for this engineer on this date
+        let matchingLeave = null;
+        for (const req of approvedLeaves) {
+          const rUname = String(req.engineer_id || req.username || '').trim().toLowerCase();
+          const rName = String(req.applicant_name || req.name || '').trim().toLowerCase();
+          const dates = Array.isArray(req.dates) ? req.dates : [];
+          if ((rUname === engUname || (engName && rName === engName)) && dates.includes(dStr)) {
+            matchingLeave = req;
+            break;
+          }
+        }
+
+        if (matchingLeave) {
+          const reqStatus = String(matchingLeave.status).toLowerCase();
+          if (reqStatus === 'approved_swap' && matchingLeave.swap_code) {
+            eng.shifts[day - 1] = matchingLeave.swap_code;
+          } else {
+            eng.shifts[day - 1] = 'OFF';
+          }
+          totalLeavesApplied++;
+        } else if (defaultOffs.includes(dayOfWeek)) {
+          eng.shifts[day - 1] = 'OFF';
+          totalWeeklyOffsApplied++;
+        } else {
+          // Leave working days empty for subsequent shift assignment
+          eng.shifts[day - 1] = '';
+        }
+      }
+    });
+
+    // Save and re-render grid
+    this.app.renderRoster();
+    this.app.renderDailyCoverage();
+    this.app.saveGridRosterToCache();
+    this.updatePeriodIndicator();
+
+    const text = `🎯 **Roster Generation Helper Applied for ${mFullName}!**\n\n` +
+      `✓ **Target Month:** **${mFullName}** (Draft Roster — Published month protected)\n` +
+      `✓ **Engineers Configured:** **${activeEngs.length}** active engineers\n` +
+      `✓ **Default Weekly Offs Filled:** **${totalWeeklyOffsApplied}** \`OFF\` days anchored\n` +
+      `✓ **Approved Leaves & Swaps Applied:** **${totalLeavesApplied}** verified dates anchored\n` +
+      `✓ **Working Days:** Left clean / unassigned ready for desk & night shifts!\n\n` +
+      `*You can now proceed to assign night and day desk shifts or use AI to generate coverage.*`;
+
+    const proposal = {
+      id: 'prop_helper_' + Date.now(),
+      type: 'roster_helper',
+      targetMonth,
+      targetYear,
+      title: `Roster Helper: ${mFullName}`,
+      subtitle: `${activeEngs.length} Engineers • ${totalWeeklyOffsApplied} Offs • ${totalLeavesApplied} Leaves`,
+      applied: true
+    };
+
+    return { text, proposal };
   }
 
   // --- Clear Month Grid Action ---

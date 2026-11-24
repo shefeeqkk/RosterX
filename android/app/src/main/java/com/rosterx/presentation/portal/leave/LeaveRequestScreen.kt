@@ -390,6 +390,10 @@ fun LeaveRequestScreen(
                                         if (dayNum in 1..daysInMonth) {
                                             val date = currentYearMonth.atDay(dayNum)
                                             val isPast = date.isBefore(LocalDate.now())
+                                            val resDateStr = state.loggedInEngineer?.resignationDate?.takeIf { it.isNotBlank() }
+                                            val resDate = try { resDateStr?.let { LocalDate.parse(it.trim().take(10)) } } catch (_: Exception) { null }
+                                            val isPostResignation = resDate != null && date.isAfter(resDate)
+                                            val isDisabled = isPast || isPostResignation
                                             val dayOfWeekName = date.dayOfWeek.name
                                             val isDefaultWeeklyOff = derivedDefaultOffs.any { it.equals(dayOfWeekName, ignoreCase = true) }
 
@@ -409,11 +413,11 @@ fun LeaveRequestScreen(
                                                     .background(
                                                         when {
                                                             isSelected -> NeumorphicTokens.AccentSalmon
-                                                            isPast -> NeumorphicTokens.InputSurface.copy(alpha = 0.5f)
+                                                            isDisabled -> NeumorphicTokens.InputSurface.copy(alpha = 0.5f)
                                                             else -> NeumorphicTokens.InputSurface
                                                         }
                                                     )
-                                                    .clickable(enabled = !isPast) {
+                                                    .clickable(enabled = !isDisabled) {
                                                         if (isSelected) {
                                                             selectedDates.remove(date)
                                                         } else {
@@ -434,11 +438,18 @@ fun LeaveRequestScreen(
                                                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
                                                         color = when {
                                                             isSelected -> Color.White
-                                                            isPast -> NeumorphicTokens.TextMuted.copy(alpha = 0.4f)
+                                                            isDisabled -> NeumorphicTokens.TextMuted.copy(alpha = 0.4f)
                                                             else -> NeumorphicTokens.TextMain
                                                         }
                                                     )
-                                                    if (isOff) {
+                                                    if (isPostResignation) {
+                                                        Text(
+                                                            text = "EXIT",
+                                                            fontSize = 7.5.sp,
+                                                            fontWeight = FontWeight.Black,
+                                                            color = Color(0xFFEF4444)
+                                                        )
+                                                    } else if (isOff) {
                                                         Text(
                                                             text = "OFF",
                                                             fontSize = 8.sp,
