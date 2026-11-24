@@ -1,7 +1,36 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 16:45 IST** (Target Sprint: **v2.5.15 - Build 190**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 17:00 IST** (Target Sprint: **v2.5.16 - Build 191**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.16 - Build 191 — Active Grid Apply Fix & Split Night Shift Blocks):
+> *"Vijaya! Gafoorka! User paranja rendu critical issues-um njaan spot-il fix cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed & Added in v2.5.16 (Build 191):
+> 1. **'Apply to Active Grid' Not Rendering / Updating**:
+>    - Root cause: In `web/js/shiftGenerator.js`, line 496 previously checked `typeof this.app.renderRosterTable === 'function'`, which does not exist in `app.js` (the real method is `renderRoster()`). Therefore, the DOM table was never redrawn after merging generated shifts!
+>    - Fix: Updated `applyToActiveGrid()` to:
+>      - Invoke `this.app.renderRoster()`, `this.app.renderDailyCoverage()`, and `this.app.runRuleAudit()`.
+>      - Persist immediately via `this.app.saveCurrentGridRoster()`.
+>      - Notify unsaved state via `atlasService.notifyStatusChange('unsaved')`.
+>      - If target month differs from active month, cleanly `await this.app.loadGridRosterForPeriod(y, m)` and `this.app.renderHeaders()`.
+> 2. **Split Night Shift Block Option (Max 2 or 3 Consecutive Nights)**:
+>    - User requirement: "some guys don't want continuous shift, night shift. That option need to be there. So for them, we need to be like split. Two or three maximum."
+>    - Frontend: In `web/js/shiftGenerator.js`, added per-engineer Block Limit dropdown:
+>      - `1–5 Nights (Normal)` [default]
+>      - `Max 3 (Split)`
+>      - `Max 2 (Split)`
+>      - `Single (1 Night Only)`
+>    - Backend solver (`server.py`):
+>      - Enforces `max_consecutive_nights` constraint in backtracking search (`solve_backtracking`). An engineer configured with Max 2 or 3 will strictly NEVER receive more than that limit in any consecutive streak!
+>      - For `fixed_5` engineers who select split blocks, the solver places their 5 nights into separate chunks (e.g. 3 + 2 or 2 + 2 + 1) with mandatory rest gaps between chunks.
+> 3. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.16"` in `server.py`.
+>    - Bumped `versionCode = 191`, `versionName = "2.5.16"` in `android/app/build.gradle.kts`.
+>    - Cache-busters updated to `?v=2.5.16` across `web/index.html`, `web/js/app.js`, and `web/js/shiftGenerator.js`.
+>    - All verification and split-streak tests passed with 100% precision!"*
 
 ---
 

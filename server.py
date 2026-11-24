@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.15"
+SERVER_VERSION = "2.5.16"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1102,9 +1102,19 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
     excluded_unames = set()
     fixed_unames = {}  # uname -> {"target": int, "pref_start": int or None}
     flexible_unames = []
+    max_block_by_uname = {}
 
     for uname in grid.keys():
         rule = rules_by_uname[uname]
+        mb = rule.get("max_consecutive_nights") or rule.get("max_block") or 5
+        try:
+            mb = int(mb)
+            if mb < 1:
+                mb = 5
+        except Exception:
+            mb = 5
+        max_block_by_uname[uname] = mb
+
         mode = str(rule.get("mode") or "").lower()
         if mode == "excluded" or rule.get("is_excluded") is True:
             excluded_unames.add(uname)
@@ -1144,36 +1154,69 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
             continue
         req_nights = f_info["target"]
         pref_start = f_info.get("pref_start")
+        max_b = max_block_by_uname.get(f_uname, 5)
 
-        candidate_starts = []
-        if pref_start and 1 <= pref_start <= total_days - req_nights + 1:
-            candidate_starts.append(pref_start - 1)
-        for s in range(0, total_days - req_nights + 1):
-            if s not in candidate_starts:
-                candidate_starts.append(s)
+        if max_b < req_nights:
+            # Engineer requested fixed quota with SPLIT blocks (e.g. 2 or 3 days max per block)
+            chunks = []
+            rem = req_nights
+            while rem > 0:
+                sz = min(rem, max_b)
+                chunks.append(sz)
+                rem -= sz
 
-        best_block = None
-        for start_day in candidate_starts:
-            block_free = True
-            for d in range(start_day, start_day + req_nights):
-                if not can_work_ns(f_uname, d) or assigned_ns[d] is not None:
-                    block_free = False
-                    break
-            if block_free:
-                best_block = list(range(start_day, start_day + req_nights))
-                break
-
-        if best_block:
-            for d in best_block:
-                assigned_ns[d] = f_uname
+            cur_day = pref_start - 1 if pref_start and 1 <= pref_start <= total_days - req_nights + 1 else 0
+            allocated_days = []
+            for sz in chunks:
+                placed = False
+                for s in range(cur_day, total_days - sz + 1):
+                    if allocated_days and (s - allocated_days[-1]) < 2:
+                        continue
+                    if all(can_work_ns(f_uname, d) and assigned_ns[d] is None for d in range(s, s + sz)):
+                        for d in range(s, s + sz):
+                            assigned_ns[d] = f_uname
+                            allocated_days.append(d)
+                        cur_day = s + sz + 2
+                        placed = True
+                        break
+                if not placed:
+                    for s in range(0, total_days - sz + 1):
+                        if all(can_work_ns(f_uname, d) and assigned_ns[d] is None for d in range(s, s + sz)):
+                            for d in range(s, s + sz):
+                                assigned_ns[d] = f_uname
+                                allocated_days.append(d)
+                            break
         else:
-            allocated = 0
-            for start_day in range(0, total_days):
-                if allocated >= req_nights:
+            # Single continuous block
+            candidate_starts = []
+            if pref_start and 1 <= pref_start <= total_days - req_nights + 1:
+                candidate_starts.append(pref_start - 1)
+            for s in range(0, total_days - req_nights + 1):
+                if s not in candidate_starts:
+                    candidate_starts.append(s)
+
+            best_block = None
+            for start_day in candidate_starts:
+                block_free = True
+                for d in range(start_day, start_day + req_nights):
+                    if not can_work_ns(f_uname, d) or assigned_ns[d] is not None:
+                        block_free = False
+                        break
+                if block_free:
+                    best_block = list(range(start_day, start_day + req_nights))
                     break
-                if can_work_ns(f_uname, start_day) and assigned_ns[start_day] is None:
-                    assigned_ns[start_day] = f_uname
-                    allocated += 1
+
+            if best_block:
+                for d in best_block:
+                    assigned_ns[d] = f_uname
+            else:
+                allocated = 0
+                for start_day in range(0, total_days):
+                    if allocated >= req_nights:
+                        break
+                    if can_work_ns(f_uname, start_day) and assigned_ns[start_day] is None:
+                        assigned_ns[start_day] = f_uname
+                        allocated += 1
 
     # 7. Solve remaining days with flexible pool
     if not flexible_unames and None in assigned_ns:
@@ -1204,25 +1247,49 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
 
         moves = []
         for cand in flexible_unames:
-            streak = get_max_free_streak(cand, day_idx, max_len=5)
+            cand_max = max_block_by_uname.get(cand, 5)
+            streak = get_max_free_streak(cand, day_idx, max_len=cand_max)
             if streak <= 0:
                 continue
-            lengths_to_try = sorted(list(set([streak, min(streak, 4), min(streak, 3), min(streak, 2), 1])), reverse=True)
+
+            # Check consecutive days cand already worked prior to day_idx
+            cur_consec = 0
+            back_d = day_idx - 1
+            while back_d >= 0 and assigned_ns[back_d] == cand:
+                cur_consec += 1
+                back_d -= 1
+
+            allowed_additional = cand_max - cur_consec
+            if allowed_additional <= 0:
+                continue
+
+            effective_streak = min(streak, allowed_additional)
+            if effective_streak <= 0:
+                continue
+
+            lengths_to_try = sorted(list(set([
+                effective_streak,
+                min(effective_streak, 4),
+                min(effective_streak, 3),
+                min(effective_streak, 2),
+                1
+            ])), reverse=True)
             for b_len in lengths_to_try:
                 moves.append((cand, b_len))
 
         def move_score(move):
             cand, b_len = move
+            cand_max = max_block_by_uname.get(cand, 5)
             is_prev = 1 if cand == prev_eng else 0
-            rest_violation = 1 if (day_idx - last_night_day[cand]) < 2 else 0
+            rest_violation = 1 if (day_idx - last_night_day[cand]) < 2 and cand != prev_eng else 0
             zero_shifts_bonus = 0 if ns_counts[cand] == 0 else 1
             exceeds_target = 1 if (ns_counts[cand] + b_len > ideal_target + 3) else 0
-            size_penalty = 5 - b_len
+            size_penalty = cand_max - b_len
             return (
-                is_prev,
                 rest_violation,
                 zero_shifts_bonus,
                 exceeds_target,
+                is_prev,
                 ns_counts[cand],
                 size_penalty
             )

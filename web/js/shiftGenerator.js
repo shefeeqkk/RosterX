@@ -13,7 +13,7 @@
  * 5. Admin Web only: Previews generated schedule with 1-click apply to active grid.
  */
 
-import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.15';
+import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.16';
 
 export class ShiftGeneratorController {
   constructor(app) {
@@ -175,6 +175,7 @@ export class ShiftGeneratorController {
       const isFlex = currentRule.mode === 'flexible' || !currentRule.mode;
       const isFixed5 = currentRule.mode === 'fixed_5';
       const isExcluded = currentRule.mode === 'excluded';
+      const maxBlock = currentRule.max_consecutive_nights || 5;
 
       return `
         <div class="p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition" data-uname="${uname}">
@@ -194,7 +195,7 @@ export class ShiftGeneratorController {
             </div>
           </div>
 
-          <div class="flex items-center gap-1.5 flex-wrap">
+          <div class="flex items-center gap-2 flex-wrap">
             <!-- Mode Radio Pills -->
             <div class="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-[11px]">
               <button type="button" class="sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition ${isFlex ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}" data-uname="${uname}" data-mode="flexible">
@@ -208,10 +209,21 @@ export class ShiftGeneratorController {
               </button>
             </div>
 
+            <!-- Block Limit / Split Selector -->
+            <div class="sg-block-wrap ${isExcluded ? 'hidden' : 'flex'} items-center gap-1" id="sgBlockWrap_${uname}">
+              <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Block:</span>
+              <select class="sg-block-select text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 shadow-2xs" data-uname="${uname}" title="Max consecutive nights / split preference">
+                <option value="5" ${maxBlock === 5 ? 'selected' : ''}>1–5 Nights (Normal)</option>
+                <option value="3" ${maxBlock === 3 ? 'selected' : ''}>Max 3 (Split)</option>
+                <option value="2" ${maxBlock === 2 ? 'selected' : ''}>Max 2 (Split)</option>
+                <option value="1" ${maxBlock === 1 ? 'selected' : ''}>Single (1 Night Only)</option>
+              </select>
+            </div>
+
             <!-- Optional preferred start day for fixed_5 -->
-            <div class="sg-start-day-wrap ${isFixed5 ? '' : 'hidden'} items-center gap-1" id="sgStartWrap_${uname}">
-              <span class="text-[10px] text-slate-500">Day:</span>
-              <input type="number" min="1" max="31" placeholder="Auto" value="${currentRule.preferred_start_day || ''}" class="sg-start-input w-12 px-1.5 py-1 text-[11px] font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-center" data-uname="${uname}" title="Preferred starting day of 5-night block (1-31, optional)" />
+            <div class="sg-start-day-wrap ${isFixed5 ? 'flex' : 'hidden'} items-center gap-1" id="sgStartWrap_${uname}">
+              <span class="text-[10px] text-slate-500 font-bold">Start:</span>
+              <input type="number" min="1" max="31" placeholder="Auto" value="${currentRule.preferred_start_day || ''}" class="sg-start-input w-12 px-1.5 py-1 text-[11px] font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-center" data-uname="${uname}" title="Preferred starting day (1-31, optional)" />
             </div>
           </div>
         </div>
@@ -224,6 +236,18 @@ export class ShiftGeneratorController {
         const uname = btn.dataset.uname;
         const mode = btn.dataset.mode;
         this.setEngineerMode(uname, mode);
+      });
+    });
+
+    // Attach event listeners to block select dropdowns
+    this.dom.engineersListContainer.querySelectorAll('.sg-block-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const uname = sel.dataset.uname;
+        const val = parseInt(sel.value, 10);
+        if (!this.engineerRules[uname]) {
+          this.engineerRules[uname] = { mode: 'flexible' };
+        }
+        this.engineerRules[uname].max_consecutive_nights = (!isNaN(val) && val >= 1 && val <= 5) ? val : 5;
       });
     });
 
@@ -264,6 +288,17 @@ export class ShiftGeneratorController {
           b.className = 'sg-mode-btn px-2.5 py-1 rounded-lg font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900';
         }
       });
+
+      const blockWrap = row.querySelector(`#sgBlockWrap_${uname}`);
+      if (blockWrap) {
+        if (mode === 'excluded') {
+          blockWrap.classList.add('hidden');
+          blockWrap.classList.remove('flex');
+        } else {
+          blockWrap.classList.remove('hidden');
+          blockWrap.classList.add('flex');
+        }
+      }
 
       const startWrap = row.querySelector(`#sgStartWrap_${uname}`);
       if (startWrap) {
@@ -445,7 +480,7 @@ export class ShiftGeneratorController {
     }
   }
 
-  applyToActiveGrid() {
+  async applyToActiveGrid() {
     if (!this.currentGeneratedResult || !this.currentGeneratedResult.roster) {
       alert('No generated schedule available to apply.');
       return;
@@ -467,6 +502,12 @@ export class ShiftGeneratorController {
       this.app.state.currentMonth = m;
       if (this.app.dom.monthSelect) {
         this.app.dom.monthSelect.value = targetMonth;
+      }
+      if (typeof this.app.loadGridRosterForPeriod === 'function') {
+        await this.app.loadGridRosterForPeriod(y, m);
+      }
+      if (typeof this.app.renderHeaders === 'function') {
+        this.app.renderHeaders();
       }
     }
 
@@ -492,12 +533,27 @@ export class ShiftGeneratorController {
       });
     }
 
-    // Re-render table and update stats
-    if (typeof this.app.renderRosterTable === 'function') {
-      this.app.renderRosterTable();
+    // Immediately re-render active table, radar, footers and mark state dirty/saved
+    if (typeof this.app.renderRoster === 'function') {
+      this.app.renderRoster();
     }
-    if (typeof this.app.updateSummaryStats === 'function') {
-      this.app.updateSummaryStats();
+    if (typeof this.app.renderDailyCoverage === 'function') {
+      this.app.renderDailyCoverage();
+    }
+    if (typeof this.app.runRuleAudit === 'function') {
+      this.app.runRuleAudit();
+    }
+    if (typeof this.app.saveCurrentGridRoster === 'function') {
+      this.app.saveCurrentGridRoster();
+    }
+    if (this.app.atlasService && typeof this.app.atlasService.notifyStatusChange === 'function') {
+      this.app.atlasService.notifyStatusChange('unsaved');
+    }
+    if (typeof this.app.updatePeriodIndicator === 'function') {
+      this.app.updatePeriodIndicator();
+    }
+    if (typeof this.app.renderOverviewCoverageRadar === 'function') {
+      this.app.renderOverviewCoverageRadar();
     }
 
     if (typeof this.app.showToast === 'function') {
