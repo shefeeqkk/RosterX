@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.13"
+SERVER_VERSION = "2.5.14"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1004,8 +1004,22 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
     # 3. Apply approved leaves and swaps onto baseline
     for req in leaves_data:
         r_uname = str(req.get("engineer_id") or req.get("username") or "").strip().lower()
-        if r_uname not in grid:
+        target_u = r_uname if r_uname in grid else None
+        if not target_u and r_uname in eng_meta_by_key:
+            m_eng = eng_meta_by_key[r_uname]
+            m_u = str(m_eng.get("username") or m_eng.get("id") or "").strip().lower()
+            if m_u in grid:
+                target_u = m_u
+        if not target_u:
+            r_name = str(req.get("engineer_name") or req.get("applicant_name") or req.get("name") or "").strip().lower()
+            if r_name in eng_meta_by_key:
+                m_eng = eng_meta_by_key[r_name]
+                m_u = str(m_eng.get("username") or m_eng.get("id") or "").strip().lower()
+                if m_u in grid:
+                    target_u = m_u
+        if not target_u:
             continue
+
         dates = req.get("dates") or []
         req_status = str(req.get("status") or "").lower()
         swap_code = req.get("swap_shift_code") or req.get("swap_code") or "SWAP"
@@ -1017,9 +1031,9 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
                     day_num = parts[2]
                     if 1 <= day_num <= total_days:
                         if req_status == "approved_swap":
-                            grid[r_uname][day_num - 1] = swap_code
+                            grid[target_u][day_num - 1] = swap_code
                         else:
-                            grid[r_uname][day_num - 1] = "L"
+                            grid[target_u][day_num - 1] = "L"
             except Exception:
                 continue
 
@@ -5964,7 +5978,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
 
         # 3.25 POST /api/roster/generate-night-shifts (Deterministic 24/7 Night Shift Solver)
         if clean_path in ("/api/roster/generate-night-shifts", "/api/roster/generate-night-shifts/"):
-            claims = self.require_auth(["admin"])
+            claims = self.require_auth(["admin", "manager"])
             if not claims:
                 return
 
@@ -6003,8 +6017,11 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             if ATLAS_DB is not None:
                 try:
                     leaves_list = list(ATLAS_DB.leave_requests.find({
-                        "month_keys": month_str,
-                        "status": {"$in": ["approved_leave", "approved_swap"]}
+                        "$or": [
+                            {"month_keys": month_str},
+                            {"dates": {"$regex": f"^{month_str}"}}
+                        ],
+                        "status": {"$in": ["approved", "approved_leave", "approved_swap"]}
                     }))
                 except Exception as e:
                     print(f"  [SOLVER WARNING] Failed to query leave requests: {e}")

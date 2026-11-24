@@ -1185,9 +1185,21 @@ export class RosterAiAssistant {
     // 2. Fetch approved leave requests and fresh engineers metadata from database
     let approvedLeaves = [];
     try {
-      if (this.app.atlasService && typeof this.app.atlasService.getLeaveRequests === 'function') {
-        const leavesResp = await this.app.atlasService.getLeaveRequests();
-        const allLeaves = Array.isArray(leavesResp?.requests) ? leavesResp.requests : (Array.isArray(leavesResp) ? leavesResp : []);
+      let headers = { 'Accept': 'application/json' };
+      if (this.app.atlasService && typeof this.app.atlasService.getAuthHeaders === 'function') {
+        headers = this.app.atlasService.getAuthHeaders();
+      } else {
+        const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('rosterx_auth_token') || localStorage.getItem('rosterx_token'))) ||
+                      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rosterx_auth_token')) || '';
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      }
+      const apiBase = (this.app.atlasService && typeof this.app.atlasService.getApiBase === 'function')
+        ? this.app.atlasService.getApiBase()
+        : '/api';
+      const leavesResp = await fetch(`${apiBase.replace(/\/+$/, '')}/leave/admin-queue`, { headers });
+      if (leavesResp.ok) {
+        const leavesData = await leavesResp.json();
+        const allLeaves = Array.isArray(leavesData?.requests) ? leavesData.requests : [];
         approvedLeaves = allLeaves.filter(r => ['approved', 'approved_leave', 'approved_swap'].includes(String(r.status).toLowerCase()));
       }
     } catch (e) {
@@ -1269,10 +1281,11 @@ export class RosterAiAssistant {
 
         if (matchingLeave) {
           const reqStatus = String(matchingLeave.status).toLowerCase();
-          if (reqStatus === 'approved_swap' && matchingLeave.swap_code) {
-            eng.shifts[day - 1] = matchingLeave.swap_code;
+          const swapCode = matchingLeave.swap_shift_code || matchingLeave.swap_code || matchingLeave.approval?.swap_shift_code;
+          if (reqStatus === 'approved_swap' && swapCode) {
+            eng.shifts[day - 1] = swapCode;
           } else {
-            eng.shifts[day - 1] = 'OFF';
+            eng.shifts[day - 1] = 'L';
           }
           totalLeavesApplied++;
         } else if (defaultOffs.includes(dayOfWeek)) {

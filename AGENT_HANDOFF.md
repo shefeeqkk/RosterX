@@ -1,7 +1,30 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 15:52 IST** (Target Sprint: **v2.5.13 - Build 188**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 16:12 IST** (Target Sprint: **v2.5.14 - Build 189**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.14 - Build 189 — Auth Token Routing & Approved Leave Pre-fill Fix):
+> *"Vijaya! Gafoorka! User share cheytha 'Authentication required' screenshot-um 'Approved leaves not getting filled in pre-filler' complaint-um njaan microscopic investigation nadathi rendu root causes-um potti thakarthu solve cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed in v2.5.14 (Build 189):
+> 1. **'Authentication required. Please log in' in Shift Roster Generator**:
+>    - Root cause: In `web/js/shiftGenerator.js`, line 292 inspected `localStorage.getItem('token')`, whereas RosterX stores session credentials under `rosterx_auth_token` and `rosterx_token` via `atlasService.getAuthHeaders()`. The request went out with an empty Bearer token, causing `server.py` to reject it with 401.
+>    - Fix: Unified request headers to use `this.app.atlasService.getAuthHeaders({ 'Content-Type': 'application/json' })`, resolving the full URL dynamically via `atlasService.getApiBase()`.
+>    - Backend permission: Added `manager` to `self.require_auth(["admin", "manager"])` on `/api/roster/generate-night-shifts`.
+> 2. **Approved Leaves Not Getting Filled in Pre-filler**:
+>    - Root cause 1: In `web/js/rosterAiAssistant.js:1188`, the code called `this.app.atlasService.getLeaveRequests()`, which does not exist on `AtlasService`. Consequently, `approvedLeaves` remained empty `[]`.
+>    - Root cause 2: In `web/js/rosterAiAssistant.js:1275`, when a leave matched, it assigned `eng.shifts[day - 1] = 'OFF';` instead of `eng.shifts[day - 1] = 'L';`!
+>    - Root cause 3: In `server.py`, the solver query was restricted to exact `month_keys: month_str`.
+>    - Fix:
+>      - In `rosterAiAssistant.js`: Fetches live leaves from `/api/leave/admin-queue` using authenticated headers, filters by `status in ('approved', 'approved_leave', 'approved_swap')`, and sets `eng.shifts[day - 1] = 'L'`.
+>      - In `server.py`: Broadened query to `{"$or": [{"month_keys": month_str}, {"dates": {"$regex": f"^{month_str}"}}], "status": {"$in": ["approved", "approved_leave", "approved_swap"]}}`, and added multi-field username/ID/name matching.
+> 3. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.14"` in `server.py`.
+>    - Bumped `versionCode = 189`, `versionName = "2.5.14"` in `android/app/build.gradle.kts`.
+>    - Bumped cache busters to `v=2.5.14` in `web/index.html`, `web/js/app.js`, and `web/js/shiftGenerator.js`.
+>    - Pushed immediately to `main` for instant Render deployment."*
 
 ---
 

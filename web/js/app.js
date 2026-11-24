@@ -75,7 +75,7 @@ import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5
 import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { LeaveApprovalsController } from './leaveController.js?v=2.5.3';
-import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.13';
+import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.14';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 

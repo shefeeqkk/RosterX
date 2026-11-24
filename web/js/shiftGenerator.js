@@ -13,7 +13,7 @@
  * 5. Admin Web only: Previews generated schedule with 1-click apply to active grid.
  */
 
-import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.12';
+import { monthLabel, daysInMonth } from './dateUtils.js?v=2.5.14';
 
 export class ShiftGeneratorController {
   constructor(app) {
@@ -289,13 +289,26 @@ export class ShiftGeneratorController {
     }
 
     try {
-      const token = this.app.atlasService ? this.app.atlasService.token : (localStorage.getItem('token') || '');
-      const resp = await fetch('/api/roster/generate-night-shifts', {
+      let headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+      if (this.app.atlasService && typeof this.app.atlasService.getAuthHeaders === 'function') {
+        headers = this.app.atlasService.getAuthHeaders({ 'Content-Type': 'application/json' });
+      } else {
+        const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('rosterx_auth_token') || localStorage.getItem('rosterx_token'))) ||
+                      (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_token'))) || '';
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const apiBase = (this.app.atlasService && typeof this.app.atlasService.getApiBase === 'function')
+        ? this.app.atlasService.getApiBase()
+        : '/api';
+      const endpoint = `${apiBase.replace(/\/+$/, '')}/roster/generate-night-shifts`;
+
+      const resp = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: JSON.stringify({
           month: selectedMonth,
           engineer_rules: this.engineerRules
