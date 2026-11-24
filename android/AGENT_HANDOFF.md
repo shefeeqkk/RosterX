@@ -1,7 +1,33 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 17:45 IST** (Target Sprint: **v2.5.18 - Build 193**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 18:25 IST** (Target Sprint: **v2.5.19 - Build 194**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.19 - Build 194 — Admin Segregated OFF Breakdown & Strict 5-Night Solver Capacity Guard):
+> *"Vijaya! Gafoorka! User chodicha randu items-um njaan perfect aayi solve cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.19 (Build 194):
+> 1. **Segregated OFF Stats Counter for Admin (Weekly Offs, Leaves, Swaps, Total)**:
+>    - In `web/js/app.js` and `web/index.html`, the `OFF` column in the Roster Matrix is now intelligently role-gated:
+>      - **Admin View**: Displays the prominent total off count (e.g. `11`) alongside segregated sub-badges: `<span class="bg-yellow-100 text-yellow-800">6 OFF</span> <span class="bg-rose-100 text-rose-800">5 L</span> <span class="bg-purple-100 text-purple-800">0 SW</span>` with a detailed tooltip showing the exact breakdown. The column header adapts to `OFF (TOT | SEG)` with widened geometry (`112px`).
+>      - **Non-Admin View**: Retains standard simple numerical count (`11`) to prevent clutter for regular team members.
+> 2. **Strict 5-Night Solver Capping & Capacity Infeasibility Flagging**:
+>    - Found why an engineer was previously assigned 6 shifts: when only 6 engineers were active under a 5-night cap (e.g. 2 excluded and 1 on leave), 6 × 5 = 30 nights max, but a 31-day month requires 31 nights, forcing a 1-night shortfall. Previously, the solver secretly allowed `effective_cap` to expand to 6.
+>    - **New Solver Constraint**: Strictly prohibits exceeding `cand_monthly_cap` (5 nights) under any circumstance without explicit user configuration.
+>    - **Pre-Flight Capacity Detection**: If active capacity < required days (e.g. 30 < 31), the solver flags `capacity_shortfall = True` with exact deficit (`1 night`).
+>    - **Shift Generator Infeasibility Alert & Quick Input**:
+>      - Displays an interactive amber banner in the modal explaining the exact shortfall.
+>      - Surfaces one-click Quick Input buttons:
+>        - `+ Include [Engineer] (1 Night)` from the excluded pool.
+>        - `+ Grant 6th Night to [Engineer]` for flexible engineers.
+>      - Added a per-engineer `Cap` selector dropdown (5 Standard, 6 Extra, 4, 3, 2, 1) directly in each row.
+> 3. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.19"` in `server.py`.
+>    - Bumped `versionCode = 194`, `versionName = "2.5.19"` in `android/app/build.gradle.kts`.
+>    - Cache-busters updated to `?v=2.5.19` in `web/index.html` and `web/js/app.js`.
+>    - Pushed live to Render production (`https://api.rosterx.online`).*
 
 ---
 

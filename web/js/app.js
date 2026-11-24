@@ -75,7 +75,7 @@ import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5
 import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { LeaveApprovalsController } from './leaveController.js?v=2.5.3';
-import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.18';
+import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.19';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -3309,6 +3309,21 @@ class RosterXApp {
       this.dom.periodLabelCell.textContent = monthLabel(activePeriodKey, 'code');
     }
 
+    const activeAuthUser = (window.authService && window.authService.getCurrentUser()) || (this.state && this.state.currentUser) || null;
+    const isAdmin = Boolean(activeAuthUser && (activeAuthUser.role === 'admin' || activeAuthUser.role === 'administrator' || activeAuthUser.username === 'admin'));
+    const thOff = document.getElementById('thOffStats');
+    if (thOff) {
+      if (isAdmin) {
+        thOff.className = 'off-stats-col-admin bg-slate-200 text-amber-950 border-l border-slate-300 text-xs font-black text-center';
+        thOff.innerHTML = 'OFF <span class="text-[9px] text-slate-500 block font-bold leading-none mt-0.5">(TOT | SEG)</span>';
+        thOff.title = 'Total Off Days & Segregated Breakdown (Weekly Offs / Approved Leaves / Swap Offs)';
+      } else {
+        thOff.className = 'cell-box bg-slate-200 text-amber-950 border-l border-slate-300 text-xs font-black';
+        thOff.textContent = 'OFF';
+        thOff.title = 'Total Rest Days';
+      }
+    }
+
 
 
     for (let day = 1; day <= totalDays; day++) {
@@ -3440,10 +3455,11 @@ class RosterXApp {
 
 
       let totalWorking = 0;
-
       let totalNight = 0;
-
       let totalOff = 0;
+      let totalWeeklyOff = 0;
+      let totalLeaves = 0;
+      let totalSwaps = 0;
 
 
 
@@ -3554,48 +3570,54 @@ class RosterXApp {
         if (sClean === 'NS') {
           totalNight++;
         }
-        if (sClean === 'OFF' || sClean === 'L' || sClean.startsWith('SW')) {
+        if (sClean === 'OFF') {
+          totalWeeklyOff++;
+          totalOff++;
+        } else if (sClean === 'L') {
+          totalLeaves++;
+          totalOff++;
+        } else if (sClean.startsWith('SW')) {
+          totalSwaps++;
           totalOff++;
         }
 
       }
 
-
-
       daysContainerTd.appendChild(flexRow);
-
       tr.appendChild(daysContainerTd);
 
-
-
       // 4. Stats Columns
-
       const wrkTd = document.createElement('td');
-
       wrkTd.className = 'cell-box font-black text-sm bg-slate-50 text-slate-900 border-l border-b border-slate-300';
-
       wrkTd.textContent = totalWorking;
-
       tr.appendChild(wrkTd);
 
-
-
       const nsTd = document.createElement('td');
-
       nsTd.className = 'cell-box font-black text-sm bg-indigo-50/50 text-indigo-950 border-l border-b border-slate-300';
-
       nsTd.textContent = totalNight;
-
       tr.appendChild(nsTd);
 
-
+      const activeAuthUser = (window.authService && window.authService.getCurrentUser()) || (this.state && this.state.currentUser) || null;
+      const isAdmin = Boolean(activeAuthUser && (activeAuthUser.role === 'admin' || activeAuthUser.role === 'administrator' || activeAuthUser.username === 'admin'));
 
       const offTd = document.createElement('td');
-
-      offTd.className = 'cell-box font-black text-sm bg-amber-50/50 text-amber-950 border-l border-b border-slate-300';
-
-      offTd.textContent = totalOff;
-
+      if (isAdmin) {
+        offTd.className = 'off-stats-col-admin font-black text-sm bg-amber-50/50 dark:bg-amber-950/30 text-amber-950 dark:text-amber-200 border-l border-b border-slate-300 dark:border-slate-700 text-center px-1';
+        offTd.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-0.5 leading-none select-none" title="Total Offs: ${totalOff} (Weekly Offs: ${totalWeeklyOff}, Approved Leaves: ${totalLeaves}, Swap Offs: ${totalSwaps})">
+            <span class="text-sm font-black text-amber-950 dark:text-amber-200">${totalOff}</span>
+            <div class="flex items-center gap-0.5 text-[9px] font-extrabold tracking-tight mt-0.5 text-slate-500">
+              <span class="px-1 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-300" title="Weekly Offs: ${totalWeeklyOff}">${totalWeeklyOff} OFF</span>
+              <span class="px-1 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300" title="Approved Leaves: ${totalLeaves}">${totalLeaves} L</span>
+              <span class="px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300" title="Swap Offs: ${totalSwaps}">${totalSwaps} SW</span>
+            </div>
+          </div>
+        `;
+      } else {
+        offTd.className = 'cell-box font-black text-sm bg-amber-50/50 text-amber-950 border-l border-b border-slate-300';
+        offTd.textContent = totalOff;
+        offTd.title = `Total Off Days: ${totalOff}`;
+      }
       tr.appendChild(offTd);
 
 

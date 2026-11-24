@@ -37,6 +37,7 @@ export class ShiftGeneratorController {
       btnTriggerToolbar: document.getElementById('btnToolbarShiftGenerator'),
       monthSelect: document.getElementById('sgMonthSelect'),
       engineersListContainer: document.getElementById('sgEngineersListContainer'),
+      capacityAlertContainer: document.getElementById('sgCapacityAlertContainer'),
       btnPreFillOnly: document.getElementById('btnPreFillOnly'),
       btnRun: document.getElementById('btnRunShiftGenerator'),
       btnApply: document.getElementById('btnApplyShiftGenerator'),
@@ -176,6 +177,7 @@ export class ShiftGeneratorController {
       const isFixed5 = currentRule.mode === 'continuous_5' || currentRule.mode === 'fixed_5';
       const isExcluded = currentRule.mode === 'excluded';
       const maxBlock = currentRule.max_consecutive_nights || 5;
+      const monthlyCap = parseInt(currentRule.max_monthly_nights || currentRule.monthly_cap || 5, 10);
 
       return `
         <div class="p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition" data-uname="${uname}">
@@ -220,6 +222,19 @@ export class ShiftGeneratorController {
               </select>
             </div>
 
+            <!-- Monthly Cap Selector -->
+            <div class="sg-cap-wrap ${isExcluded ? 'hidden' : 'flex'} items-center gap-1" id="sgCapWrap_${uname}">
+              <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Cap:</span>
+              <select class="sg-cap-select text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 shadow-2xs" data-uname="${uname}" title="Monthly maximum night shift cap">
+                <option value="5" ${monthlyCap === 5 ? 'selected' : ''}>5 Nights (Std)</option>
+                <option value="6" ${monthlyCap === 6 ? 'selected' : ''}>6 Nights (+1 Extra)</option>
+                <option value="4" ${monthlyCap === 4 ? 'selected' : ''}>4 Nights</option>
+                <option value="3" ${monthlyCap === 3 ? 'selected' : ''}>3 Nights</option>
+                <option value="2" ${monthlyCap === 2 ? 'selected' : ''}>2 Nights</option>
+                <option value="1" ${monthlyCap === 1 ? 'selected' : ''}>1 Night</option>
+              </select>
+            </div>
+
             <!-- Optional preferred start day for continuous_5 -->
             <div class="sg-start-day-wrap ${isFixed5 ? 'flex' : 'hidden'} items-center gap-1" id="sgStartWrap_${uname}">
               <span class="text-[10px] text-slate-500 font-bold">Start:</span>
@@ -251,6 +266,19 @@ export class ShiftGeneratorController {
       });
     });
 
+    // Attach event listeners to monthly cap select dropdowns
+    this.dom.engineersListContainer.querySelectorAll('.sg-cap-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const uname = sel.dataset.uname;
+        const val = parseInt(sel.value, 10);
+        if (!this.engineerRules[uname]) {
+          this.engineerRules[uname] = { mode: 'flexible' };
+        }
+        this.engineerRules[uname].max_monthly_nights = (!isNaN(val) && val >= 1 && val <= 10) ? val : 5;
+        this.updateCapacityIndicator();
+      });
+    });
+
     this.dom.engineersListContainer.querySelectorAll('.sg-start-input').forEach(inp => {
       inp.addEventListener('change', (e) => {
         const uname = inp.dataset.uname;
@@ -261,6 +289,109 @@ export class ShiftGeneratorController {
         this.engineerRules[uname].preferred_start_day = (!isNaN(val) && val >= 1 && val <= 31) ? val : null;
       });
     });
+
+    this.updateCapacityIndicator();
+  }
+
+  updateCapacityIndicator(shortfallData = null) {
+    if (!this.dom.capacityAlertContainer) return;
+    const selectedMonth = this.dom.monthSelect ? this.dom.monthSelect.value : null;
+    let totalDays = 31;
+    if (selectedMonth) {
+      const parts = selectedMonth.split('-');
+      const y = parseInt(parts[0], 10) || 2026;
+      const m = parseInt(parts[1], 10) || 12;
+      totalDays = new Date(y, m, 0).getDate();
+    }
+
+    const engineers = this.getEligibleEngineers();
+    let totalCapacity = 0;
+    const excludedList = [];
+    const flexList = [];
+
+    engineers.forEach(eng => {
+      const uname = String(eng.username || eng.id || '').trim().toLowerCase();
+      const name = eng.name || eng.full_name || uname;
+      const rule = this.engineerRules[uname] || { mode: 'flexible' };
+      const mode = rule.mode || 'flexible';
+      if (mode === 'excluded') {
+        excludedList.push({ uname, name });
+      } else if (mode === 'continuous_5' || mode === 'fixed_5') {
+        const c = parseInt(rule.fixed_nights || 5, 10);
+        totalCapacity += c;
+      } else {
+        const c = parseInt(rule.max_monthly_nights || rule.monthly_cap || 5, 10);
+        totalCapacity += c;
+        flexList.push({ uname, name, cap: c });
+      }
+    });
+
+    const activeCount = engineers.length - excludedList.length;
+    const deficit = totalDays - totalCapacity;
+
+    if (deficit > 0 || (shortfallData && shortfallData.capacity_shortfall)) {
+      const effDeficit = deficit > 0 ? deficit : (shortfallData ? shortfallData.deficit : 1);
+      this.dom.capacityAlertContainer.innerHTML = `
+        <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-950 dark:text-amber-200 text-xs shadow-xs">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+              <span class="font-extrabold text-amber-900 dark:text-amber-300 tracking-wide uppercase text-[11px]">
+                Capacity Shortfall: ${totalDays} Nights Required • Current: ${totalCapacity} Nights (Deficit: ${effDeficit} Night${effDeficit > 1 ? 's' : ''})
+              </span>
+            </div>
+            <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-200 font-bold border border-amber-500/30">Strict 5-Night Cap Enforced</span>
+          </div>
+          <p class="mt-1.5 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
+            With ${activeCount} active engineers capped at 5 nights, 24/7 coverage cannot be completed without exceeding constraints. The solver strictly blocks assigning 6 nights unless you explicitly permit it.
+          </p>
+          <div class="mt-2.5 pt-2 border-t border-amber-500/20 flex flex-wrap items-center gap-2">
+            <span class="font-bold text-[11px] text-slate-800 dark:text-slate-200">Quick Resolve Options:</span>
+            ${excludedList.map(e => `
+              <button type="button" class="sg-quick-include-btn cursor-pointer px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black text-[11px] transition shadow-xs flex items-center gap-1" data-uname="${e.uname}">
+                <i class="ph ph-user-plus"></i> Include ${e.name} (1 Night)
+              </button>
+            `).join('')}
+            ${flexList.map(e => `
+              <button type="button" class="sg-quick-extra-btn cursor-pointer px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-[11px] transition shadow-xs flex items-center gap-1" data-uname="${e.uname}">
+                <i class="ph ph-plus-circle"></i> Grant 6th Night to ${e.name}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      // Attach handlers to quick resolve buttons
+      this.dom.capacityAlertContainer.querySelectorAll('.sg-quick-include-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const u = btn.dataset.uname;
+          this.setEngineerMode(u, 'flexible');
+          if (!this.engineerRules[u]) this.engineerRules[u] = {};
+          this.engineerRules[u].max_consecutive_nights = 1;
+          this.engineerRules[u].max_monthly_nights = 1;
+          this.populateEngineersList();
+        });
+      });
+
+      this.dom.capacityAlertContainer.querySelectorAll('.sg-quick-extra-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const u = btn.dataset.uname;
+          if (!this.engineerRules[u]) this.engineerRules[u] = {};
+          this.engineerRules[u].max_monthly_nights = 6;
+          this.populateEngineersList();
+        });
+      });
+    } else {
+      this.dom.capacityAlertContainer.innerHTML = `
+        <div class="px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i class="ph ph-check-circle text-emerald-600 dark:text-emerald-400 text-sm"></i>
+            <span class="font-bold text-[11px]">Capacity Balanced: ${totalCapacity} available nights across ${activeCount} active engineers (Target: ${totalDays} nights)</span>
+          </div>
+          <span class="text-[10px] font-mono text-emerald-700 dark:text-emerald-300">100% 24/7 Coverage Achievable</span>
+        </div>
+      `;
+    }
   }
 
   setEngineerMode(uname, mode) {
@@ -302,6 +433,17 @@ export class ShiftGeneratorController {
         }
       }
 
+      const capWrap = row.querySelector(`#sgCapWrap_${uname}`);
+      if (capWrap) {
+        if (mode === 'excluded') {
+          capWrap.classList.add('hidden');
+          capWrap.classList.remove('flex');
+        } else {
+          capWrap.classList.remove('hidden');
+          capWrap.classList.add('flex');
+        }
+      }
+
       const startWrap = row.querySelector(`#sgStartWrap_${uname}`);
       if (startWrap) {
         if (mode === 'continuous_5' || mode === 'fixed_5') {
@@ -313,6 +455,7 @@ export class ShiftGeneratorController {
         }
       }
     }
+    this.updateCapacityIndicator();
   }
 
   async generateDraft(baselineOnly = false) {
@@ -363,6 +506,13 @@ export class ShiftGeneratorController {
 
       const result = await resp.json();
       if (!resp.ok || !result.success) {
+        if (result && result.capacity_shortfall) {
+          this.updateCapacityIndicator(result);
+          if (typeof this.app.showToast === 'function') {
+            this.app.showToast(result.message || 'Capacity shortfall under strict 5-night cap. Please choose a resolution option above.', 'warning');
+          }
+          return;
+        }
         throw new Error(result.message || 'Solver failed to satisfy all night coverage constraints.');
       }
 

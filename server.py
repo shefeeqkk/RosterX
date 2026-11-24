@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.18"
+SERVER_VERSION = "2.5.19"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1222,6 +1222,38 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
     if not flexible_unames and None in assigned_ns:
         flexible_unames = [u for u in grid.keys() if u not in excluded_unames]
 
+    # Pre-flight mathematical capacity check
+    cand_caps = {}
+    total_capacity = 0
+    for uname in grid.keys():
+        if uname in excluded_unames:
+            cand_caps[uname] = 0
+        elif uname in fixed_unames:
+            c = fixed_unames[uname]["target"]
+            cand_caps[uname] = c
+            total_capacity += c
+        else:
+            rule = rules_by_uname.get(uname, {})
+            c = int(rule.get("max_monthly_nights") or rule.get("monthly_cap") or 5)
+            cand_caps[uname] = c
+            total_capacity += c
+
+    if not baseline_only and total_capacity < total_days:
+        deficit = total_days - total_capacity
+        active_candidates = [eng_by_uname[u].get("name", u) for u in grid.keys() if u not in excluded_unames]
+        excluded_candidates = [eng_by_uname[u].get("name", u) for u in excluded_unames]
+        return {
+            "success": False,
+            "capacity_shortfall": True,
+            "total_days": total_days,
+            "total_capacity": total_capacity,
+            "deficit": deficit,
+            "active_count": len(active_candidates),
+            "excluded_engineers": excluded_candidates,
+            "flexible_engineers": [eng_by_uname[u].get("name", u) for u in flexible_unames],
+            "message": f"Capacity Shortfall: {total_days} night shifts required for 24/7 coverage, but the {len(active_candidates)} active engineers under current caps can only cover {total_capacity} nights (deficit: {deficit} night{'s' if deficit > 1 else ''}). The solver strictly prevents exceeding caps without your input. Please include an excluded engineer or permit an extra night shift."
+        }
+
     unassigned_count = sum(1 for d in assigned_ns if d is None)
     flex_count = len(flexible_unames)
     ideal_target = (unassigned_count // flex_count) if flex_count > 0 else 5
@@ -1248,11 +1280,9 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
         moves = []
         for cand in flexible_unames:
             cand_max = max_block_by_uname.get(cand, 5)
-            # Monthly night shift capping: default 5
-            cand_rule = rules_by_uname.get(cand, {})
-            cand_monthly_cap = int(cand_rule.get("max_monthly_nights") or cand_rule.get("monthly_cap") or 5)
-            needed_per_flex = (unassigned_count + flex_count - 1) // max(1, flex_count)
-            effective_cap = max(cand_monthly_cap, needed_per_flex)
+            # Monthly night shift capping: strictly enforce configured cap (never silently exceed!)
+            cand_monthly_cap = cand_caps.get(cand, 5)
+            effective_cap = cand_monthly_cap
 
             if ns_counts[cand] >= effective_cap:
                 continue
@@ -1323,8 +1353,13 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
         return False
 
     success = solve_backtracking(0)
-    if not success:
-        return {"success": False, "message": "Could not satisfy 24/7 night coverage with given constraints."}
+    if not success or None in assigned_ns:
+        unassigned_days = [d + 1 for d in range(total_days) if assigned_ns[d] is None]
+        return {
+            "success": False,
+            "unassigned_days": unassigned_days,
+            "message": f"Could not satisfy 24/7 night coverage with strict caps and rest constraints. Days unassigned: {unassigned_days}. Please adjust constraints or allow an extra night."
+        }
 
     # 8. Commit assigned_ns to the grid
     for d in range(total_days):

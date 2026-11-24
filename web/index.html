@@ -165,21 +165,23 @@
     /* Strict Cell Geometry matching Excel density with enhanced readability */
 
     .cell-box {
-
       width: 48px;
-
       min-width: 48px;
-
       max-width: 48px;
-
       height: 42px;
-
       font-size: 13px;
-
       user-select: none;
-
       position: relative;
+    }
 
+    .off-stats-col-admin {
+      width: 112px;
+      min-width: 112px;
+      max-width: 112px;
+      height: 42px;
+      font-size: 13px;
+      user-select: none;
+      position: relative;
     }
 
     .name-col {
@@ -1052,7 +1054,7 @@
 
               <th class="cell-box bg-slate-200 text-indigo-950 border-l border-slate-300 text-xs font-black" title="Total Night Shifts">NS</th>
 
-              <th class="cell-box bg-slate-200 text-amber-950 border-l border-slate-300 text-xs font-black" title="Total Rest Days">OFF</th>
+              <th class="cell-box bg-slate-200 text-amber-950 border-l border-slate-300 text-xs font-black" id="thOffStats" title="Total Rest Days">OFF</th>
 
               <th class="status-col bg-slate-200 text-slate-900 border-l border-slate-300 text-xs font-black">STATUS</th>
 
@@ -2724,6 +2726,9 @@ Operations Desk</textarea>
 
       <!-- Modal Body (Scrollable) -->
       <div class="overflow-y-auto flex-1 my-3 pr-1 space-y-4" style="max-height: calc(92vh - 220px);">
+        <!-- Capacity Alert / Solver Infeasibility Guidance -->
+        <div id="sgCapacityAlertContainer"></div>
+
         <!-- Engineer Rules Table -->
         <div class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-xs">
           <div class="px-4 py-2.5 bg-slate-100/70 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
@@ -4340,7 +4345,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.18"></script>
+  <script type="module" src="js/app.js?v=2.5.19"></script>
 
 </body>
 
