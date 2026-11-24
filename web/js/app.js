@@ -254,16 +254,26 @@ class RosterXApp {
 
 
 
-  sortEngineersByWeekOffs(list) {
-
-    return sortEngineersByWeekOffs(list, (e) => this.getEngineerWeekOffs(e));
-
+  getEngineerRole(eng) {
+    if (!eng) return 'engineer';
+    if (eng.role) return String(eng.role).toLowerCase().trim();
+    const meta = (this.state && Array.isArray(this.state.engineersList)
+      ? this.state.engineersList.find(x =>
+          (x.id && eng.id && x.id === eng.id) ||
+          (x.username && eng.username && x.username === eng.username) ||
+          (x.name && eng.name && x.name.toLowerCase().trim() === eng.name.toLowerCase().trim()) ||
+          (x.full_name && eng.name && x.full_name.toLowerCase().trim() === eng.name.toLowerCase().trim())
+        )
+      : null);
+    return meta?.role ? String(meta.role).toLowerCase().trim() : 'engineer';
   }
 
-
+  sortEngineersByWeekOffs(list) {
+    return sortEngineersByWeekOffs(list, (e) => this.getEngineerWeekOffs(e), (e) => this.getEngineerRole(e));
+  }
 
   sortGridRosterByWeekOffs(grid) {
-    return sortEngineersByWeekOffs(grid, (e) => this.getEngineerWeekOffs(e));
+    return sortEngineersByWeekOffs(grid, (e) => this.getEngineerWeekOffs(e), (e) => this.getEngineerRole(e));
   }
 
   isLeadershipAccount(eng) {
@@ -298,7 +308,12 @@ class RosterXApp {
     if (!Array.isArray(engineers)) return [];
     return engineers.filter(eng => {
       if (!eng) return false;
-      const def = this.state.engineersList.find(x => x.name === eng.name || x.id === eng.id || x.username === eng.username) || {};
+      const def = (this.state && Array.isArray(this.state.engineersList)
+        ? this.state.engineersList.find(x =>
+            x.name === eng.name || x.id === eng.id || x.username === eng.username ||
+            (x.full_name && eng.name && x.full_name.toLowerCase().trim() === eng.name.toLowerCase().trim())
+          )
+        : null) || {};
 
       // 1. Strict Exclusion: Admin and Manager accounts NEVER appear on the Roster Matrix
       if (this.isLeadershipAccount(def) || this.isLeadershipAccount(eng)) {
@@ -312,6 +327,15 @@ class RosterXApp {
       // 3. Resigned engineers: Exclude starting from the month AFTER resignation
       if (this.isEngineerResignedForPeriod(def, year, month) || this.isEngineerResignedForPeriod(eng, year, month)) {
         return false;
+      }
+
+      // Ensure role, default_weekly_offs, and display_order are populated on eng
+      if (!eng.role && def.role) eng.role = def.role;
+      if ((!eng.default_weekly_offs || eng.default_weekly_offs.length === 0) && def.default_weekly_offs) {
+        eng.default_weekly_offs = def.default_weekly_offs;
+      }
+      if (eng.display_order === undefined && def.display_order !== undefined) {
+        eng.display_order = def.display_order;
       }
 
       return true;
@@ -3565,6 +3589,9 @@ class RosterXApp {
       this.state.currentYear,
       this.state.currentMonth
     );
+    this.state.gridRoster.forEach(eng => {
+      if (!eng.role) eng.role = this.getEngineerRole(eng);
+    });
     this.state.gridRoster = this.sortGridRosterByWeekOffs(this.state.gridRoster);
 
 

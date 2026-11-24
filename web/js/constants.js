@@ -271,12 +271,41 @@ export function getEngineerOrderWeight(eng) {
   return 9999;
 }
 
-export function sortEngineersByWeekOffs(engineers, getOffsFn = null) {
+export function sortEngineersByWeekOffs(engineers, getOffsFn = null, getRoleFn = null) {
   if (!Array.isArray(engineers)) return [];
   return [...engineers].sort((a, b) => {
+    // Helper to resolve role for an engineer object
+    const resolveRole = (eng) => {
+      if (!eng) return '';
+      if (getRoleFn) {
+        const r = getRoleFn(eng);
+        if (r) return String(r).toLowerCase().trim();
+      }
+      if (eng.role) return String(eng.role).toLowerCase().trim();
+      if (typeof window !== 'undefined' && window.app && window.app.state && Array.isArray(window.app.state.engineersList)) {
+        const found = window.app.state.engineersList.find(x =>
+          (x.id && eng.id && x.id === eng.id) ||
+          (x.username && eng.username && x.username === eng.username) ||
+          (x.name && eng.name && x.name.toLowerCase().trim() === eng.name.toLowerCase().trim()) ||
+          (x.full_name && eng.name && x.full_name.toLowerCase().trim() === eng.name.toLowerCase().trim())
+        );
+        if (found && found.role) return String(found.role).toLowerCase().trim();
+      }
+      if (typeof DEFAULT_ENGINEERS !== 'undefined' && Array.isArray(DEFAULT_ENGINEERS)) {
+        const found = DEFAULT_ENGINEERS.find(x =>
+          (x.id && eng.id && x.id === eng.id) ||
+          (x.username && eng.username && x.username === eng.username) ||
+          (x.name && eng.name && x.name.toLowerCase().trim() === eng.name.toLowerCase().trim()) ||
+          (x.full_name && eng.name && x.full_name.toLowerCase().trim() === eng.name.toLowerCase().trim())
+        );
+        if (found && found.role) return String(found.role).toLowerCase().trim();
+      }
+      return '';
+    };
+
     // Global Rule: Apprentices are always placed at the very bottom
-    const isApprA = String(a.role || '').toLowerCase() === 'apprentice' ? 1 : 0;
-    const isApprB = String(b.role || '').toLowerCase() === 'apprentice' ? 1 : 0;
+    const isApprA = resolveRole(a) === 'apprentice' ? 1 : 0;
+    const isApprB = resolveRole(b) === 'apprentice' ? 1 : 0;
     if (isApprA !== isApprB) {
       return isApprA - isApprB;
     }

@@ -1,7 +1,33 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 19:00 IST** (Target Sprint: **v2.5.21 - Build 196**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 19:25 IST** (Target Sprint: **v2.5.22 - Build 197**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.22 - Build 197 — Fix Active Grid Apprentice Bottom Sorting Bug):
+> *"Vijaya! Gafoorka! User screen shot kandappol njaan root cause kandupidichu macha! 🕵️‍♂️🔥
+>
+> ### 🐛 Bug Identified from Screenshot:
+> - In the user's uploaded active roster matrix screenshot, **Dhanush P** (Apprentice) was displayed at row **#7**, **Manoj** (Engineer) at row **#8**, and **Rohit N** (Apprentice) at row **#9**!
+> - Manoj was stuck between the two apprentices because all three have Saturday/Sunday weekly offs.
+> - In `web/js/constants.js`, `sortEngineersByWeekOffs` was reading `a.role` directly. However, row objects in `this.state.gridRoster` (`{ id, name, shifts }`) often did not have `role` attached directly on the grid item, causing `isApprA` and `isApprB` to evaluate to 0!
+> - As a result, the tie-breaker fell back to alphabetical name order: `Dhanush P` (starts with D) -> `Manoj` (starts with M) -> `Rohit N` (starts with R)!
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.22 (Build 197):
+> 1. **Robust Role Resolution in `sortEngineersByWeekOffs` (`web/js/constants.js`)**:
+>    - Updated `sortEngineersByWeekOffs(engineers, getOffsFn = null, getRoleFn = null)` to support dynamic role resolution.
+>    - If `a.role` is not present on the row item, it dynamically queries `getRoleFn(a)`, `window.app.state.engineersList`, and `DEFAULT_ENGINEERS` by id, username, name, or full_name.
+>    - Strictly evaluates `resolveRole(a) === 'apprentice'` to guarantee all apprentices are pushed to the very bottom regardless of weekly off day scores.
+> 2. **Master Application Grid Stamping (`web/js/app.js`)**:
+>    - Added `getEngineerRole(eng)` helper method in `RosterXApp`.
+>    - Passed `(e) => this.getEngineerRole(e)` to both `sortEngineersByWeekOffs` and `sortGridRosterByWeekOffs`.
+>    - In `filterGridEngineersForPeriod` and `renderRoster`, ensures `eng.role` is explicitly populated on every grid roster item prior to sorting and rendering.
+>    - Verified with node script: Manoj is now strictly row #7, followed by Dhanush P and Rohit N at rows #8 and #9!
+> 3. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.22"` in `server.py`.
+>    - Bumped `versionCode = 197`, `versionName = "2.5.22"` in `android/app/build.gradle.kts`.
+>    - Updated cache busters to `?v=2.5.22` across `web/index.html` and `web/js/app.js`.*
 
 ---
 
