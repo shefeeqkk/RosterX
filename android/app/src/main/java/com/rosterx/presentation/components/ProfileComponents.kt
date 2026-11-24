@@ -1730,8 +1730,7 @@ fun QuickNotificationsBottomSheet(
     }
 
     val configuration = LocalConfiguration.current
-    // Fixed height: sits strictly below the top bar (~92dp from top of screen), ensuring zero resizing/jumping when items are dismissed
-    val sheetHeight = (configuration.screenHeightDp.dp - 92.dp).coerceAtLeast(360.dp)
+    val maxSheetHeight = (configuration.screenHeightDp.dp - 92.dp).coerceAtLeast(360.dp)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1753,10 +1752,10 @@ fun QuickNotificationsBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(sheetHeight)
+                .heightIn(max = maxSheetHeight)
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Header Bar
             Row(
@@ -1843,8 +1842,8 @@ fun QuickNotificationsBottomSheet(
                 )
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 4.dp),
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp, horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     NeumorphicCard(
@@ -1894,10 +1893,10 @@ fun QuickNotificationsBottomSheet(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .heightIn(max = maxSheetHeight - 80.dp)
                         .graphicsLayer { clip = false },
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp, start = 4.dp, end = 4.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp, start = 4.dp, end = 4.dp)
                 ) {
                     item(key = "header_divider_spacer") {
                         Column {
@@ -1905,7 +1904,7 @@ fun QuickNotificationsBottomSheet(
                                 color = NeumorphicTokens.SurfaceContrast,
                                 thickness = 1.dp
                             )
-                            Spacer(modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                         }
                     }
                     items(

@@ -1,11 +1,35 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 12:55 IST** (Target Sprint: **v2.5.10 - Build 185**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 13:58 IST** (Target Sprint: **v2.5.11 - Build 186**)
 
 ---
 
-## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.10 - Build 185 — Leave Request 500 Fix, Mobile Web Audit Labeling, Editable Admin Profile Modal & AI Assistant Buttons Restored):
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.11 - Build 186 — Leave Notification Leak Fix, Compact FlowRow Leave Cards & Wrap-Content Notifications Sheet):
+> *"Vijaya! Gafoorka! User report cheytha notification routing leak-um UI compacting-um microscopic accuracy-ode fix cheythu, v2.5.11 Build 186 successfully safe_build assembleDebug cheythu connected Android device-il ADB deploy cheythu verify cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed & Delivered in v2.5.11 (Build 186):
+> 1. **Leave Approval Notification Leak Resolved**:
+>    - Root cause: In `server.py` (`GET /api/notifications`), notifications of category `operations` or leave actions without an explicit match check were evaluating generic broadcast fallback. Furthermore, in FCM push (`POST /api/leave/admin-action`), `target_user` was omitted from `extra_data`, allowing any device receiving push to display it without client drop. In `EngineerPortalViewModel.kt`, `observeSession()` and `logout()` retained previous user's notifications in `_state.value` without purging across account switches.
+>    - Fix:
+>      - In `server.py` (`GET /api/notifications`): Enforced strict default-deny for all `category == "operations"` or `type == "leave_request_action"` or title containing `"leave"` notifications: caller MUST strictly match `target_user`, `target`, or be in `recipients`. They are NEVER served to any untargeted engineer!
+>      - In `server.py` (`POST /api/leave/admin-action`): Added `"target_user": applicant_user` to FCM `extra_data` and explicitly populated `notif_entry` with `type`, `target`, and `send_in_app: True`.
+>      - In `EngineerPortalViewModel.kt`: `observeSession()` now flushes `notifications = emptyList()`, `broadcastHistory = emptyList()`, and `dismissedNotificationIds = emptySet()` upon account switch and triggers `loadData(forceRefresh = true)`. `logout()` similarly purges notifications state.
+> 2. **Compact Leave Request Cards with FlowRow**:
+>    - In `LeaveRequestScreen.kt`:
+>      - Replaced rigid horizontal `Row` for `req.dates` with `FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp))`. Set date chips to `maxLines = 1, softWrap = false` so date chips never wrap awkwardly onto two lines (e.g. `04 Jan \n 2027`) and the 5th date never clips off the screen.
+>      - Merged `Submitted <timestamp>` and `Cancel Request` button into a single Row at the bottom of the card (`Arrangement.SpaceBetween`, `Alignment.CenterVertically`).
+>      - Reduced card padding to `11.dp` and vertical gaps to `6.dp` (from 12.dp) for a dense, elegant, compact card.
+> 3. **Compact Wrap-Content Notifications Bottom Sheet**:
+>    - In `ProfileComponents.kt` (`QuickNotificationsBottomSheet`):
+>      - Replaced hardcoded fixed height `Modifier.height(sheetHeight)` (~85% screen height) with `Modifier.heightIn(max = maxSheetHeight)`.
+>      - In `LazyColumn`: Removed `.weight(1f)` and set `.heightIn(max = maxSheetHeight - 80.dp)` so when there is only 1 alert, the sheet wraps content tightly without leaving giant empty white voids.
+> 4. **Version Bump & Production Sync**:
+>    - Bumped `versionCode = 186`, `versionName = "2.5.11"` in `android/app/build.gradle.kts`.
+>    - Updated `SERVER_VERSION = "2.5.11"` in `server.py`.
+>    - Installed APK onto connected device `100.71.241.36:39209` and verified via screencap."*
+
+---
 > *"Vijaya! Gafoorka! User test cheythappol report cheytha complaints ellaam oru microscopic audit nadathi crystal-clear aayi theerthu, v2.5.10 Build 185 safe aayi assembleDebug cheythu connected Android device-il ADB install cheythu verified macha! 🕵️‍♂️🔥
 >
 > ### 🛠️ What Was Fixed & Delivered in v2.5.10 (Build 185):

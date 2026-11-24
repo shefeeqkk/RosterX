@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.10"
+SERVER_VERSION = "2.5.11"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -4688,12 +4688,27 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         continue
 
                     # Target user enforcement:
-                    target = str(n.get("target_user", "")).strip().lower()
-                    recips = [str(r).strip().lower() for r in n.get("recipients", [])]
+                    target = str(n.get("target_user") or n.get("target") or "").strip().lower()
+                    recips = [str(r).strip().lower() for r in (n.get("recipients") or []) if r]
+                    category = str(n.get("category") or "").strip().lower()
+                    title_lower = str(n.get("title") or "").strip().lower()
+                    notif_type = str(n.get("type") or "").strip().lower()
+                    link_val = str(n.get("link") or "").strip().lower()
 
                     # Admin-only notifications must NEVER leak to regular engineers
-                    if target in ("admin", "admins"):
+                    if target in ("admin", "admins") or any(r in ("admin", "admins") for r in recips):
                         continue
+
+                    # Operations & Leave action notifications are STRICTLY default-deny:
+                    # They must NEVER broadcast to any engineer other than the specific applicant/target
+                    is_ops_or_leave = category == "operations" or "leave" in title_lower or notif_type == "leave_request_action" or link_val in ("#my-requests", "#leave-requests")
+                    if is_ops_or_leave:
+                        if not target and not recips:
+                            continue
+                        if target in ("everyone", "all") or "everyone" in recips or "all" in recips:
+                            continue
+                        if caller_un != target and caller_un not in recips:
+                            continue
 
                     # If notification is targeted to a specific user, caller MUST match target_user or be in recipients
                     if target and target not in ("everyone", "all"):
@@ -6885,6 +6900,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     notif_id=f"notif_action_{request_id}",
                     extra_data={
                         "type": "leave_request_action",
+                        "target_user": applicant_user,
                         "request_id": request_id,
                         "status": new_status,
                         "dates": ", ".join(dates),
@@ -6900,14 +6916,17 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 "message": push_body,
                 "raw_message": push_body,
                 "category": "operations",
+                "type": "leave_request_action",
                 "author": admin_name,
                 "author_username": admin_username,
                 "role": "admin",
                 "timestamp": now_ts,
                 "date_str": get_ist_now().strftime("%d %b %Y, %I:%M %p IST"),
                 "target_user": applicant_user,
+                "target": applicant_user,
                 "recipients": [applicant_user],
                 "recipients_count": 1,
+                "send_in_app": True,
                 "link": "#my-requests"
             }
             if ATLAS_DB is not None:

@@ -78,7 +78,7 @@ private fun formatTimestampCompact(tsStr: String): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun LeaveRequestScreen(
     state: PortalState,
@@ -567,17 +567,17 @@ fun LeaveRequestScreen(
                 // MY HISTORY VIEW
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 20.dp)
                 ) {
                     // Quota Summary Banner
                     item {
                         NeumorphicCard(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(16.dp),
                             style = NeumorphicElevationStyle.RaisedSubtle,
                             surfaceColor = NeumorphicTokens.Surface,
-                            contentPadding = 16.dp
+                            contentPadding = 12.dp
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -587,7 +587,7 @@ fun LeaveRequestScreen(
                                 Column {
                                     Text(
                                         text = if (state.leaveCappingEnabled) "ANNUAL LEAVE QUOTA" else "LEAVE REQUESTS",
-                                        fontSize = 10.5.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Black,
                                         color = NeumorphicTokens.AccentSalmon
                                     )
@@ -597,20 +597,20 @@ fun LeaveRequestScreen(
                                         } else {
                                             "Leave Requests"
                                         },
-                                        fontSize = 17.sp,
+                                        fontSize = 15.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = NeumorphicTokens.TextMain
                                     )
                                     if (state.leaveCappingEnabled) {
                                         Text(
                                             text = "${state.leaveApprovedDays} approved days in ${LocalDate.now().year}",
-                                            fontSize = 11.5.sp,
+                                            fontSize = 11.sp,
                                             color = NeumorphicTokens.TextMuted
                                         )
                                     } else {
                                         Text(
                                             text = "Submit and track your annual leave requests",
-                                            fontSize = 11.5.sp,
+                                            fontSize = 11.sp,
                                             color = NeumorphicTokens.TextMuted
                                         )
                                     }
@@ -619,14 +619,14 @@ fun LeaveRequestScreen(
                                 Surface(
                                     shape = CircleShape,
                                     color = NeumorphicTokens.AccentSalmon.copy(alpha = 0.15f),
-                                    modifier = Modifier.size(46.dp)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.Default.CalendarMonth,
                                             contentDescription = null,
                                             tint = NeumorphicTokens.AccentSalmon,
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
@@ -694,12 +694,12 @@ fun LeaveRequestScreen(
 
                             NeumorphicCard(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 style = NeumorphicElevationStyle.RaisedSubtle,
                                 surfaceColor = NeumorphicTokens.Surface,
-                                contentPadding = 14.dp
+                                contentPadding = 11.dp
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -722,20 +722,23 @@ fun LeaveRequestScreen(
                                         }
                                     }
 
-                                    // Requested Dates Chips
-                                    Row(
+                                    // Requested Dates Chips (FlowRow wraps cleanly across lines without text clipping)
+                                    FlowRow(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         req.dates.forEach { d ->
                                             Surface(
-                                                shape = RoundedCornerShape(8.dp),
+                                                shape = RoundedCornerShape(6.dp),
                                                 color = NeumorphicTokens.InputSurface
                                             ) {
                                                 Text(
                                                     text = formatDisplayDateCompact(d),
-                                                    fontSize = 11.5.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    softWrap = false,
                                                     color = NeumorphicTokens.TextMain,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                 )
@@ -746,27 +749,8 @@ fun LeaveRequestScreen(
                                     if (req.reason.isNotBlank()) {
                                         Text(
                                             text = "\"${req.reason}\"",
-                                            fontSize = 12.sp,
+                                            fontSize = 11.5.sp,
                                             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                                            color = NeumorphicTokens.TextMuted
-                                        )
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        val partner = req.approval?.swapPartner?.takeIf { it.isNotBlank() } ?: req.preferredPartner
-                                        if (partner.isNotBlank()) {
-                                            Text(
-                                                text = "Partner: $partner",
-                                                fontSize = 11.sp,
-                                                color = NeumorphicTokens.TextMuted
-                                            )
-                                        }
-                                        Text(
-                                            text = "Submitted ${formatTimestampCompact(req.createdAt)}",
-                                            fontSize = 11.sp,
                                             color = NeumorphicTokens.TextMuted
                                         )
                                     }
@@ -774,29 +758,45 @@ fun LeaveRequestScreen(
                                     req.approval?.adminNote?.takeIf { it.isNotBlank() }?.let { note ->
                                         Text(
                                             text = "Admin Note: $note",
-                                            fontSize = 11.5.sp,
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = if (req.status.contains("reject", ignoreCase = true)) Color(0xFFEF4444) else NeumorphicTokens.TextMuted
                                         )
                                     }
 
-                                    if (req.status.equals("pending", ignoreCase = true) && onCancelRequest != null) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.End
-                                        ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val partner = req.approval?.swapPartner?.takeIf { it.isNotBlank() } ?: req.preferredPartner
+                                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                            if (partner.isNotBlank()) {
+                                                Text(
+                                                    text = "Partner: $partner",
+                                                    fontSize = 10.5.sp,
+                                                    color = NeumorphicTokens.TextMuted
+                                                )
+                                            }
+                                            Text(
+                                                text = "Submitted ${formatTimestampCompact(req.createdAt)}",
+                                                fontSize = 10.5.sp,
+                                                color = NeumorphicTokens.TextMuted
+                                            )
+                                        }
+
+                                        if (req.status.equals("pending", ignoreCase = true) && onCancelRequest != null) {
                                             OutlinedButton(
                                                 onClick = { cancelTarget = req },
                                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
                                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
-                                                shape = RoundedCornerShape(8.dp),
-                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                                modifier = Modifier.height(30.dp)
+                                                shape = RoundedCornerShape(6.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 1.dp),
+                                                modifier = Modifier.height(28.dp)
                                             ) {
-                                                Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Cancel Request", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                                                Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(11.dp))
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text("Cancel Request", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
                                             }
                                         }
                                     }

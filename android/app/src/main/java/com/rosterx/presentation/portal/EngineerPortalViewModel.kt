@@ -219,11 +219,18 @@ class EngineerPortalViewModel @Inject constructor(
         viewModelScope.launch {
             sessionManager.currentUser.collect { user ->
                 if (_state.value.loggedInEngineer?.id != user?.id) {
+                    val prevUser = _state.value.loggedInEngineer
                     _state.value = _state.value.copy(
                         loggedInEngineer = user,
                         assistantMessages = emptyList(),
-                        isAssistantOpen = false
+                        isAssistantOpen = false,
+                        notifications = emptyList(),
+                        broadcastHistory = emptyList(),
+                        dismissedNotificationIds = emptySet()
                     )
+                    if (user != null && prevUser != null) {
+                        loadData(forceRefresh = true)
+                    }
                 } else {
                     _state.value = _state.value.copy(loggedInEngineer = user)
                 }
@@ -955,6 +962,9 @@ class EngineerPortalViewModel @Inject constructor(
             loggedInEngineer = null,
             assistantMessages = emptyList(),
             isAssistantOpen = false,
+            notifications = emptyList(),
+            broadcastHistory = emptyList(),
+            dismissedNotificationIds = emptySet(),
             errorMessage = null
         )
         sessionManager.clearSession()
