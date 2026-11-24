@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.19"
+SERVER_VERSION = "2.5.20"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -1088,6 +1088,7 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
                 "default_weekly_offs": eng_meta.get("default_weekly_offs") or [],
                 "shifts": shifts
             })
+        roster_rows.sort(key=lambda r: (1 if str(r.get("role") or "").lower() == "apprentice" else 0, str(r.get("name") or "").lower()))
         return {
             "success": True,
             "month": month_id,
@@ -1422,6 +1423,8 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
             "default_weekly_offs": eng_meta.get("default_weekly_offs") or [],
             "shifts": shifts
         })
+
+    roster_rows.sort(key=lambda r: (1 if str(r.get("role") or "").lower() == "apprentice" else 0, str(r.get("name") or "").lower()))
 
     return {
         "success": True,

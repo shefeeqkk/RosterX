@@ -75,7 +75,7 @@ import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5
 import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { LeaveApprovalsController } from './leaveController.js?v=2.5.3';
-import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.19';
+import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.20';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -3315,8 +3315,23 @@ class RosterXApp {
     if (thOff) {
       if (isAdmin) {
         thOff.className = 'off-stats-col-admin bg-slate-200 text-amber-950 border-l border-slate-300 text-xs font-black text-center';
-        thOff.innerHTML = 'OFF <span class="text-[9px] text-slate-500 block font-bold leading-none mt-0.5">(TOT | SEG)</span>';
-        thOff.title = 'Total Off Days & Segregated Breakdown (Weekly Offs / Approved Leaves / Swap Offs)';
+        thOff.innerHTML = `
+          <div class="flex items-center justify-center gap-1">
+            <span>OFF</span>
+            <button type="button" id="btnInspectMonthOffs" class="text-slate-500 hover:text-amber-800 dark:hover:text-amber-300 transition cursor-pointer p-0.5 rounded hover:bg-slate-300/50" title="Inspect Monthly Default Weekly Offs distribution for this calendar month">
+              <i class="ph ph-eye text-[12px] font-bold"></i>
+            </button>
+          </div>
+          <span class="text-[9px] text-slate-500 block font-bold leading-none mt-0.5">(TOT | SEG)</span>
+        `;
+        thOff.title = 'Total Off Days & Segregated Breakdown (Weekly Offs / Approved Leaves / Swap Offs) - Click Eye to inspect calendar distribution';
+        const btnInspect = thOff.querySelector('#btnInspectMonthOffs');
+        if (btnInspect) {
+          btnInspect.onclick = (e) => {
+            e.stopPropagation();
+            this.openMonthlyOffsAuditModal();
+          };
+        }
       } else {
         thOff.className = 'cell-box bg-slate-200 text-amber-950 border-l border-slate-300 text-xs font-black';
         thOff.textContent = 'OFF';
@@ -3376,7 +3391,143 @@ class RosterXApp {
 
   }
 
+  // --- Monthly Default Weekly Offs Inspector Modal (Admin Only) ---
+  openMonthlyOffsAuditModal() {
+    const modal = document.getElementById('monthlyOffsAuditModal');
+    if (!modal) return;
 
+    const year = this.state.currentYear;
+    const month = this.state.currentMonth;
+    const totalDays = this.state.totalDays;
+
+    const badge = document.getElementById('auditModalMonthBadge');
+    if (badge) {
+      const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+      badge.textContent = `${monthNames[month - 1] || ''} ${year}`;
+    }
+
+    // 1. Calculate calendar day distribution (how many of each weekday appear)
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    for (let d = 1; d <= totalDays; d++) {
+      const dow = new Date(year, month - 1, d).getDay();
+      counts[dow]++;
+    }
+
+    const fiveDayNames = [];
+    const fourDayNames = [];
+    dayNames.forEach((name, idx) => {
+      if (counts[idx] >= 5) fiveDayNames.push(`${counts[idx]}x ${name}s`);
+      else fourDayNames.push(`${counts[idx]}x ${name}s`);
+    });
+
+    const summaryBar = document.getElementById('auditModalCalendarSummary');
+    if (summaryBar) {
+      summaryBar.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <span class="font-extrabold text-amber-700 dark:text-amber-400">📅 Calendar Month Geometry (${totalDays} Days):</span>
+            <div class="mt-1 text-slate-700 dark:text-slate-300 flex flex-wrap gap-x-3 gap-y-1">
+              <span class="font-bold text-emerald-700 dark:text-emerald-400">5-occurrence days: ${fiveDayNames.join(', ') || 'None'}</span>
+              <span class="text-slate-500">|</span>
+              <span class="text-slate-600 dark:text-slate-400">4-occurrence days: ${fourDayNames.join(', ')}</span>
+            </div>
+          </div>
+          <div class="text-[11px] font-mono text-slate-500 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0 font-bold">
+            Expected Range: 8–10 Days
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. Build rows for active engineers in the grid
+    const tbody = document.getElementById('auditModalTableBody');
+    if (tbody) {
+      const activeRows = (this.state.gridRoster || []).filter(e => !this.isLeadershipAccount(e));
+      const sortedRows = this.sortGridRosterByWeekOffs(activeRows);
+
+      tbody.innerHTML = sortedRows.map(eng => {
+        const meta = (this.state.engineersList || []).find(x => x.name === eng.name || x.id === eng.id) || eng;
+        const offs = (Array.isArray(meta.default_weekly_offs) && meta.default_weekly_offs.length > 0)
+          ? meta.default_weekly_offs
+          : this.getEngineerWeekOffs(meta);
+
+        let expectedOffs = 0;
+        const details = [];
+        offs.forEach(dayStr => {
+          const dClean = String(dayStr).toUpperCase().trim();
+          const dIdx = dayNames.findIndex(n => n.toUpperCase().startsWith(dClean.slice(0, 3)));
+          if (dIdx !== -1) {
+            const cnt = counts[dIdx];
+            expectedOffs += cnt;
+            details.push(`${cnt} ${dayNames[dIdx].slice(0, 3)}s`);
+          }
+        });
+
+        // Actual counts from shifts
+        const shifts = eng.shifts || [];
+        let actualOff = 0;
+        let actualL = 0;
+        let actualSw = 0;
+        shifts.forEach(s => {
+          const sc = String(s || '').trim().toUpperCase();
+          if (sc === 'OFF') actualOff++;
+          else if (sc === 'L') actualL++;
+          else if (sc.startsWith('SW')) actualSw++;
+        });
+        const totalNonWork = actualOff + actualL + actualSw;
+        const isAppr = String(meta.role || '').toLowerCase() === 'apprentice';
+
+        return `
+          <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+            <td class="py-2.5 px-3">
+              <div class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                ${eng.name}
+                ${isAppr ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-extrabold uppercase">Apprentice</span>' : ''}
+              </div>
+            </td>
+            <td class="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-300">
+              ${offs.join(', ') || 'None'}
+            </td>
+            <td class="py-2.5 px-3 text-center text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+              ${details.join(' + ') || '0'}
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-black text-xs border border-indigo-200 dark:border-indigo-800/50">
+                ${expectedOffs} OFF
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-center font-bold text-yellow-700 dark:text-yellow-400">
+              ${actualOff}
+            </td>
+            <td class="py-2.5 px-3 text-center font-bold text-rose-600 dark:text-rose-400">
+              ${actualL}
+            </td>
+            <td class="py-2.5 px-3 text-center font-bold text-purple-600 dark:text-purple-400">
+              ${actualSw}
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="font-black text-xs px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200">
+                ${totalNonWork} Days
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    modal.classList.remove('hidden');
+
+    // Close handlers
+    const closeBtn = document.getElementById('btnCloseMonthlyOffsAuditModal');
+    const dismissBtn = document.getElementById('btnDismissMonthlyOffsAuditModal');
+    const closeFn = () => modal.classList.add('hidden');
+    if (closeBtn) closeBtn.onclick = closeFn;
+    if (dismissBtn) dismissBtn.onclick = closeFn;
+    modal.onclick = (e) => {
+      if (e.target === modal) closeFn();
+    };
+  }
 
   // --- Master Roster Matrix Rendering ---
 
@@ -3600,14 +3751,34 @@ class RosterXApp {
       const activeAuthUser = (window.authService && window.authService.getCurrentUser()) || (this.state && this.state.currentUser) || null;
       const isAdmin = Boolean(activeAuthUser && (activeAuthUser.role === 'admin' || activeAuthUser.role === 'administrator' || activeAuthUser.username === 'admin'));
 
+      let expectedMonthlyOffs = 0;
+      if (isAdmin) {
+        const engOffs = (Array.isArray(eng.default_weekly_offs) && eng.default_weekly_offs.length > 0)
+          ? eng.default_weekly_offs
+          : this.getEngineerWeekOffs(eng);
+        const dayNamesMap = { 'SUN': 0, 'MON': 1, 'TUE': 2, 'WED': 3, 'THU': 4, 'FRI': 5, 'SAT': 6 };
+        engOffs.forEach(oName => {
+          const oClean = String(oName).toUpperCase().trim().slice(0, 3);
+          const targetDow = dayNamesMap[oClean];
+          if (targetDow !== undefined) {
+            for (let dayNum = 1; dayNum <= this.state.totalDays; dayNum++) {
+              if (new Date(this.state.currentYear, this.state.currentMonth - 1, dayNum).getDay() === targetDow) {
+                expectedMonthlyOffs++;
+              }
+            }
+          }
+        });
+      }
+
       const offTd = document.createElement('td');
       if (isAdmin) {
+        const expLabel = expectedMonthlyOffs > 0 ? `<span class="text-[8px] opacity-75">/${expectedMonthlyOffs}</span>` : '';
         offTd.className = 'off-stats-col-admin font-black text-sm bg-amber-50/50 dark:bg-amber-950/30 text-amber-950 dark:text-amber-200 border-l border-b border-slate-300 dark:border-slate-700 text-center px-1';
         offTd.innerHTML = `
-          <div class="flex flex-col items-center justify-center py-0.5 leading-none select-none" title="Total Offs: ${totalOff} (Weekly Offs: ${totalWeeklyOff}, Approved Leaves: ${totalLeaves}, Swap Offs: ${totalSwaps})">
+          <div class="flex flex-col items-center justify-center py-0.5 leading-none select-none cursor-pointer" onclick="window.app?.openMonthlyOffsAuditModal?.()" title="Total Offs: ${totalOff} (Weekly Offs: ${totalWeeklyOff} of ${expectedMonthlyOffs} expected, Approved Leaves: ${totalLeaves}, Swap Offs: ${totalSwaps}) - Click to inspect calendar breakdown">
             <span class="text-sm font-black text-amber-950 dark:text-amber-200">${totalOff}</span>
             <div class="flex items-center gap-0.5 text-[9px] font-extrabold tracking-tight mt-0.5 text-slate-500">
-              <span class="px-1 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-300" title="Weekly Offs: ${totalWeeklyOff}">${totalWeeklyOff} OFF</span>
+              <span class="px-1 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-300" title="Weekly Offs: ${totalWeeklyOff} (Expected: ${expectedMonthlyOffs} based on calendar)">${totalWeeklyOff}${expLabel} OFF</span>
               <span class="px-1 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300" title="Approved Leaves: ${totalLeaves}">${totalLeaves} L</span>
               <span class="px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300" title="Swap Offs: ${totalSwaps}">${totalSwaps} SW</span>
             </div>

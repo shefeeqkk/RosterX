@@ -1,7 +1,28 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 18:25 IST** (Target Sprint: **v2.5.19 - Build 194**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 18:35 IST** (Target Sprint: **v2.5.20 - Build 195**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.20 - Build 195 — Global Apprentice Bottom Sorting & Monthly Default Weekly Offs Eye Inspector):
+> *"Vijaya! Gafoorka! User paranja randu directives-um njaan full parity-il implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.20 (Build 195):
+> 1. **Apprentice Hierarchy: Sorted to the Bottom Globally (Web, Server, & Android)**:
+>    - In `android/app/.../EngineerPortalScreen.kt` (`sortEngineersByWeekOffs`): Added primary sorting tier `compareBy<Engineer> { if (it.role == EngineerRole.APPRENTICE) 1 else 0 }`. Now, across all Android matrix views (`MonthRostersTab`, `EngineerPortalScreen`, team shifts), apprentices are strictly guaranteed to stay at the very end of the list.
+>    - In `web/js/constants.js` (`sortEngineersByWeekOffs`): Added global tier `isApprenticeA - isApprenticeB`, placing apprentices after all shift engineers across the matrix, directory, and excel views.
+>    - In `server.py` (`solve_night_shifts_engine`): Roster rows are sorted so apprentices are returned at the bottom.
+> 2. **Calendar Default Weekly Offs Inspector Modal & Eye Button (`thOffStats`)**:
+>    - Addressed calendar reality: In any given month (e.g. December 2026), some weekdays occur 5 times (e.g. Tue, Wed, Thu) while others occur 4 times (Fri, Sat, Sun, Mon). Engineers with Tue/Wed off naturally get 10 default offs, while engineers with Fri/Sat or Sun/Mon get 8 or 9.
+>    - **Eye Button (`👁️`)**: Positioned on the Admin `OFF` stats header in the active matrix. Clicking it opens the **Calendar Default Weekly Offs Inspector** (`#monthlyOffsAuditModal`).
+>    - **Inspector Dialog**: Displays the month's 5x and 4x occurrence geometry, and a structured breakdown for every engineer showing their assigned off days, expected calendar baseline (e.g. `10 OFF`), actual roster weekly offs, approved leaves (`L`), swap offs (`SW`), and total rest days.
+>    - **In-Grid Admin Pill**: Badges now show `${totalWeeklyOff}/${expectedMonthlyOffs} OFF` so admins instantly recognize when leaves replace calendar offs.
+> 3. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.20"` in `server.py`.
+>    - Bumped `versionCode = 195`, `versionName = "2.5.20"` in `android/app/build.gradle.kts`.
+>    - Cache-busters updated to `?v=2.5.20` across `web/index.html` and `web/js/app.js`.
+>    - Compiled and verified Android safe build (`safe_build.bat assembleDebug`).*
 
 ---
 

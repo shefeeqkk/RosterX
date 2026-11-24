@@ -274,6 +274,13 @@ export function getEngineerOrderWeight(eng) {
 export function sortEngineersByWeekOffs(engineers, getOffsFn = null) {
   if (!Array.isArray(engineers)) return [];
   return [...engineers].sort((a, b) => {
+    // Global Rule: Apprentices are always placed at the very bottom
+    const isApprA = String(a.role || '').toLowerCase() === 'apprentice' ? 1 : 0;
+    const isApprB = String(b.role || '').toLowerCase() === 'apprentice' ? 1 : 0;
+    if (isApprA !== isApprB) {
+      return isApprA - isApprB;
+    }
+
     let offsA = getOffsFn ? getOffsFn(a) : a.default_weekly_offs;
     if (!offsA || offsA.length === 0) {
       const match = typeof DEFAULT_ENGINEERS !== 'undefined' && Array.isArray(DEFAULT_ENGINEERS)

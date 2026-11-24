@@ -240,17 +240,12 @@ fun getEngineerOrderWeight(eng: Engineer): Int {
 
 
 fun sortEngineersByWeekOffs(engineers: List<Engineer>): List<Engineer> {
-
     return engineers.sortedWith(
-
-        compareBy<Engineer> { getWeekOffSortScore(it.defaultWeeklyOffs) }
-
+        compareBy<Engineer> { if (it.role == EngineerRole.APPRENTICE) 1 else 0 }
+            .thenBy { getWeekOffSortScore(it.defaultWeeklyOffs) }
             .thenBy { getEngineerOrderWeight(it) }
-
             .thenBy { it.name }
-
     )
-
 }
 
 

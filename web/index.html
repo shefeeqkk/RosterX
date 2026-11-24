@@ -2790,9 +2790,67 @@ Operations Desk</textarea>
 
 
   <!-- ========================================================================= -->
+  <!-- MODAL: 📅 Monthly Default Weekly Offs Inspector                          -->
+  <!-- ========================================================================= -->
+  <div id="monthlyOffsAuditModal" class="hidden fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-md transition-opacity">
+    <div class="rx-glass-modal relative w-full max-w-3xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 max-h-[90vh]" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%);">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-200/60 dark:border-white/10 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shadow-sm">
+            <i class="ph ph-calendar-check"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+              <span>Calendar Default Weekly Offs</span>
+              <span id="auditModalMonthBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 font-mono font-bold">DECEMBER 2026</span>
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Monthly breakdown of expected weekly offs based on calendar day counts (4 vs 5 occurrences)</p>
+          </div>
+        </div>
+        <button id="btnCloseMonthlyOffsAuditModal" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/10 transition cursor-pointer text-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
 
+      <!-- Calendar Occurrences Summary Bar -->
+      <div id="auditModalCalendarSummary" class="my-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 text-xs shrink-0">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Table of Engineers & Off Counts -->
+      <div class="overflow-y-auto flex-1 pr-1" style="max-height: calc(90vh - 220px);">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-100/50 dark:bg-slate-800/30">
+              <th class="py-2.5 px-3">Engineer</th>
+              <th class="py-2.5 px-3">Default Weekly Offs</th>
+              <th class="py-2.5 px-3 text-center">Calendar Breakdown</th>
+              <th class="py-2.5 px-3 text-center">Expected</th>
+              <th class="py-2.5 px-3 text-center">Actual OFF</th>
+              <th class="py-2.5 px-3 text-center">Leaves (L)</th>
+              <th class="py-2.5 px-3 text-center">Swaps (SW)</th>
+              <th class="py-2.5 px-3 text-center">Total Rest</th>
+            </tr>
+          </thead>
+          <tbody id="auditModalTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div class="pt-3 border-t border-slate-200/60 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 shrink-0">
+        <span>Engineers with 5x occurrences for their off days naturally receive 9 or 10 default offs in this month.</span>
+        <button id="btnDismissMonthlyOffsAuditModal" class="px-4 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold transition cursor-pointer">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- MODAL: 📥 Import Roster from Excel (.xlsx)                                 -->
-
   <!-- ========================================================================= -->
 
   <div id="importModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
@@ -4345,7 +4403,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.19"></script>
+  <script type="module" src="js/app.js?v=2.5.20"></script>
 
 </body>
 
