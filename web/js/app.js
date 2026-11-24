@@ -3434,7 +3434,7 @@ class RosterXApp {
             </div>
           </div>
           <div class="text-[11px] font-mono text-slate-500 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0 font-bold">
-            Expected Range: 8–10 Days
+            Expected: 8–10 Days (Apprentice: 6 Days)
           </div>
         </div>
       `;
@@ -3452,17 +3452,38 @@ class RosterXApp {
           ? meta.default_weekly_offs
           : this.getEngineerWeekOffs(meta);
 
+        const isAppr = String(meta.role || '').toLowerCase() === 'apprentice';
         let expectedOffs = 0;
         const details = [];
-        offs.forEach(dayStr => {
-          const dClean = String(dayStr).toUpperCase().trim();
-          const dIdx = dayNames.findIndex(n => n.toUpperCase().startsWith(dClean.slice(0, 3)));
-          if (dIdx !== -1) {
-            const cnt = counts[dIdx];
-            expectedOffs += cnt;
-            details.push(`${cnt} ${dayNames[dIdx].slice(0, 3)}s`);
+
+        if (isAppr) {
+          // Apprentice alternating schedule: Week 1: 2d, Week 2: 1d, Week 3: 2d, Week 4: 1d (6 days total)
+          const primaryDow = offs[0] ? dayNames.findIndex(n => n.toUpperCase().startsWith(String(offs[0]).toUpperCase().trim().slice(0, 3))) : -1;
+          const secondaryDow = offs[1] ? dayNames.findIndex(n => n.toUpperCase().startsWith(String(offs[1]).toUpperCase().trim().slice(0, 3))) : -1;
+
+          for (let dayNum = 1; dayNum <= Math.min(28, totalDays); dayNum++) {
+            const dow = new Date(year, month - 1, dayNum).getDay();
+            const weekIdx = Math.floor((dayNum - 1) / 7) + 1;
+            const isTwoDayWeek = (weekIdx % 2 !== 0);
+
+            if (dow === primaryDow) {
+              expectedOffs++;
+            } else if (isTwoDayWeek && dow === secondaryDow) {
+              expectedOffs++;
+            }
           }
-        });
+          details.push("Alt: W1(2d)+W2(1d)+W3(2d)+W4(1d) = 6 OFF");
+        } else {
+          offs.forEach(dayStr => {
+            const dClean = String(dayStr).toUpperCase().trim();
+            const dIdx = dayNames.findIndex(n => n.toUpperCase().startsWith(dClean.slice(0, 3)));
+            if (dIdx !== -1) {
+              const cnt = counts[dIdx];
+              expectedOffs += cnt;
+              details.push(`${cnt} ${dayNames[dIdx].slice(0, 3)}s`);
+            }
+          });
+        }
 
         // Actual counts from shifts
         const shifts = eng.shifts || [];
@@ -3476,7 +3497,6 @@ class RosterXApp {
           else if (sc.startsWith('SW')) actualSw++;
         });
         const totalNonWork = actualOff + actualL + actualSw;
-        const isAppr = String(meta.role || '').toLowerCase() === 'apprentice';
 
         return `
           <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
@@ -3753,21 +3773,42 @@ class RosterXApp {
 
       let expectedMonthlyOffs = 0;
       if (isAdmin) {
+        const engMeta = (this.state.engineersList || []).find(e => e.name === eng.name || e.id === eng.id) || eng;
+        const isAppr = String(engMeta.role || eng.role || '').toLowerCase() === 'apprentice';
         const engOffs = (Array.isArray(eng.default_weekly_offs) && eng.default_weekly_offs.length > 0)
           ? eng.default_weekly_offs
           : this.getEngineerWeekOffs(eng);
         const dayNamesMap = { 'SUN': 0, 'MON': 1, 'TUE': 2, 'WED': 3, 'THU': 4, 'FRI': 5, 'SAT': 6 };
-        engOffs.forEach(oName => {
-          const oClean = String(oName).toUpperCase().trim().slice(0, 3);
-          const targetDow = dayNamesMap[oClean];
-          if (targetDow !== undefined) {
-            for (let dayNum = 1; dayNum <= this.state.totalDays; dayNum++) {
-              if (new Date(this.state.currentYear, this.state.currentMonth - 1, dayNum).getDay() === targetDow) {
-                expectedMonthlyOffs++;
-              }
+
+        if (isAppr) {
+          // Apprentice alternating schedule: Week 1: 2d, Week 2: 1d, Week 3: 2d, Week 4: 1d = 6 days total
+          const primaryDow = engOffs[0] ? dayNamesMap[String(engOffs[0]).toUpperCase().trim().slice(0, 3)] : undefined;
+          const secondaryDow = engOffs[1] ? dayNamesMap[String(engOffs[1]).toUpperCase().trim().slice(0, 3)] : undefined;
+
+          for (let dayNum = 1; dayNum <= Math.min(28, this.state.totalDays); dayNum++) {
+            const dow = new Date(this.state.currentYear, this.state.currentMonth - 1, dayNum).getDay();
+            const weekIdx = Math.floor((dayNum - 1) / 7) + 1;
+            const isTwoDayWeek = (weekIdx % 2 !== 0);
+
+            if (dow === primaryDow) {
+              expectedMonthlyOffs++;
+            } else if (isTwoDayWeek && dow === secondaryDow) {
+              expectedMonthlyOffs++;
             }
           }
-        });
+        } else {
+          engOffs.forEach(oName => {
+            const oClean = String(oName).toUpperCase().trim().slice(0, 3);
+            const targetDow = dayNamesMap[oClean];
+            if (targetDow !== undefined) {
+              for (let dayNum = 1; dayNum <= this.state.totalDays; dayNum++) {
+                if (new Date(this.state.currentYear, this.state.currentMonth - 1, dayNum).getDay() === targetDow) {
+                  expectedMonthlyOffs++;
+                }
+              }
+            }
+          });
+        }
       }
 
       const offTd = document.createElement('td');

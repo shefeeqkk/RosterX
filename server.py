@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.20"
+SERVER_VERSION = "2.5.21"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -994,20 +994,44 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
 
         # Default weekly offs (supports full names like "SATURDAY" or 3-letter abbreviations like "SAT")
         raw_offs = eng.get("default_weekly_offs") or []
+        is_apprentice = str(eng.get("role") or "").lower() == "apprentice"
         def_offs = set()
-        for x in raw_offs:
+        primary_off = set()
+        for idx, x in enumerate(raw_offs):
             s = str(x).upper().strip()
             if s:
                 def_offs.add(s)
                 if len(s) >= 3:
                     def_offs.add(s[:3])
+                if idx == 0:
+                    primary_off.add(s)
+                    if len(s) >= 3:
+                        primary_off.add(s[:3])
 
         for day in range(1, total_days + 1):
             dt = datetime(year, month, day)
             day_name = day_names[dt.weekday()]
             day_abbr = day_name[:3]
-            if day_name in def_offs or day_abbr in def_offs:
-                grid[uname][day - 1] = "OFF"
+            week_idx = ((day - 1) // 7) + 1
+            is_two_day_week = (week_idx % 2 != 0)  # Week 1, 3, 5 get 2 days; Week 2, 4 get 1 day
+
+            if is_apprentice:
+                # Apprentice alternating schedule per operational directive:
+                # Week 1: 2 days (both weekly offs)
+                # Week 2: 1 day (primary off only)
+                # Week 3: 2 days (both weekly offs)
+                # Week 4: 1 day (primary off only)
+                # Strictly 6 days across the month (2 + 1 + 2 + 1 = 6)
+                if day <= 28:
+                    if is_two_day_week:
+                        if day_name in def_offs or day_abbr in def_offs:
+                            grid[uname][day - 1] = "OFF"
+                    else:
+                        if day_name in primary_off or day_abbr in primary_off:
+                            grid[uname][day - 1] = "OFF"
+            else:
+                if day_name in def_offs or day_abbr in def_offs:
+                    grid[uname][day - 1] = "OFF"
 
     # 3. Apply approved leaves and swaps onto baseline
     for req in leaves_data:
@@ -1117,7 +1141,8 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
         max_block_by_uname[uname] = mb
 
         mode = str(rule.get("mode") or "").lower()
-        if mode == "excluded" or rule.get("is_excluded") is True:
+        is_appr = str(eng_by_uname[uname].get("role") or "").lower() == "apprentice"
+        if mode == "excluded" or rule.get("is_excluded") is True or is_appr:
             excluded_unames.add(uname)
         elif mode in ("fixed_5", "fixed", "continuous_5", "continuous") or rule.get("fixed_nights") is not None:
             target = int(rule.get("fixed_nights") or 5)

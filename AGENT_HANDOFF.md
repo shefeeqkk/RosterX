@@ -1,7 +1,32 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 18:35 IST** (Target Sprint: **v2.5.20 - Build 195**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 19:00 IST** (Target Sprint: **v2.5.21 - Build 196**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.21 - Build 196 — Apprentice Alternating Weekly Off Policy & Expected Stats Sync):
+> *"Vijaya! Gafoorka! User paranja apprentice alternating weekly off rule njaan full perfection-il implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.21 (Build 196):
+> 1. **Apprentice Alternating Weekly Off Policy (Week 1: 2d, Week 2: 1d, Week 3: 2d, Week 4: 1d = 6 Days Total)**:
+>    - Addressed user directive: For Apprentices, instead of 8 standard offs across 4 weeks, they follow an alternating pattern:
+>      - **Week 1 (Days 1–7)**: 2 weekly off days (both primary and secondary default weekly off days stamped).
+>      - **Week 2 (Days 8–14)**: 1 weekly off day (only primary default weekly off day stamped).
+>      - **Week 3 (Days 15–21)**: 2 weekly off days (both primary and secondary default weekly off days stamped).
+>      - **Week 4 (Days 22–28)**: 1 weekly off day (only primary default weekly off day stamped).
+>      - **Total**: Exactly `2 + 1 + 2 + 1 = 6 days` across the month!
+> 2. **Backend Baseline & Solver (`server.py`)**:
+>    - In `solve_night_shifts_engine`: If engineer role is `apprentice`, it applies the alternating schedule across days 1–28, stamping exactly 6 `OFF` shifts in the baseline.
+>    - Automatically added apprentices to `excluded_unames` so they are strictly exempted from night shifts.
+> 3. **Expected OFFs Counters in Admin Roster Grid & Inspector (`web/js/app.js`)**:
+>    - In `renderRoster()`: For apprentices, `expectedMonthlyOffs` now computes to `6` (instead of 8 or 10), so the admin badge displays `6/6 OFF` when all 6 alternating offs are present!
+>    - In `openMonthlyOffsAuditModal()`: Displays `6 OFF` expected with explanation pill `"Alt: W1(2d)+W2(1d)+W3(2d)+W4(1d) = 6 OFF"`.
+>    - Removed duplicate declaration of `isAppr` in `openMonthlyOffsAuditModal`.
+> 4. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.21"` in `server.py`.
+>    - Bumped `versionCode = 196`, `versionName = "2.5.21"` in `android/app/build.gradle.kts`.
+>    - Updated cache busters to `?v=2.5.21` in `web/index.html` and `web/js/app.js`.*
 
 ---
 
