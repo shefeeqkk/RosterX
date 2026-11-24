@@ -1,7 +1,29 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 19:25 IST** (Target Sprint: **v2.5.22 - Build 197**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 20:05 IST** (Target Sprint: **v2.5.23 - Build 198**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.23 - Build 198 — Click-and-Drag Multi-Cell Selection & Admin Segregated Day Coverage Counters):
+> *"Vijaya! Gafoorka! User chodicha randu important features-um njaan rocket speed-il implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.23 (Build 198):
+> 1. **Click-and-Drag Multi-Day Selection & Floating Quick-Apply Bar**:
+>    - **Drag & Sweep**: Users can now click and drag across multiple days (e.g., Monday through Sunday for an entire week) to highlight all cells in the range.
+>    - **Ctrl / Cmd + Click**: Supports holding Ctrl/Cmd to select non-contiguous days or toggle specific cells.
+>    - **Visual Highlighting**: Selected cells glow with an indigo border and tinted highlight (`.shift-cell-selected`).
+>    - **Floating Quick-Apply Action Bar (`#batchShiftActionBar`)**: When multiple cells are selected, a sleek floating bar appears with shift pills: `FS`, `FG`, `G`, `SG`, `SS`, `NS`, `OFF`, `L`, and `Clear`. Clicking any pill applies that shift across all selected cells in one click!
+>    - **Direct Keyboard Shortcuts**: While cells are selected, pressing `F` (FS), `S` (SS), `G` (General), `N` (Night), `O` (OFF), `L` (Leave), or `Delete` applies that shift immediately. Pressing `Escape` deselects.
+>    - **Atomic Undo**: Batch shift application pushes a single undo snapshot (`Ctrl+Z`), allowing one-step revert.
+> 2. **Admin Segregated Day Coverage Counters (FS & SS Sub-Counts)**:
+>    - In the bottom footer row (`Coverage: Day Shift`), administrators now see both the aggregate daytime coverage number (e.g. `3`) and segregated sub-badges: `${fsCount}F` (First Shift) and `${ssCount}S` (Second Shift).
+>    - A comprehensive hover tooltip details the full breakdown: `Day Coverage: 3 (First Shift [FS]: 1, Second Shift [SS]: 1, General/Other: 1) - Target >=3`.
+>    - Non-admin view remains clean with the standard aggregate headcount.
+> 3. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.23"` in `server.py`.
+>    - Bumped `versionCode = 198`, `versionName = "2.5.23"` in `android/app/build.gradle.kts`.
+>    - Updated cache busters to `?v=2.5.23` across `web/index.html` and `web/js/app.js`.*
 
 ---
 

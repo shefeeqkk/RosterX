@@ -1108,7 +1108,7 @@
 
               <td class="name-col sticky left-0 z-30 bg-slate-200 border-r border-slate-300 text-left px-3 text-slate-800 nm-table-sticky-col">
 
-                Coverage: Day Shift <span class="text-[10px] text-slate-500 font-normal block leading-tight">(Combined Excl. NS)</span>
+                Coverage: Day Shift <span class="text-[10px] text-slate-500 font-normal block leading-tight" id="footerDayLabelSub">(Combined Excl. NS)</span>
 
               </td>
 
@@ -2505,7 +2505,30 @@ Operations Desk</textarea>
 
   </div>
 
-
+  <!-- Floating Batch Shift Quick-Apply Bar (Multi-day Click & Drag) -->
+  <div id="batchShiftActionBar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] bg-slate-900/95 dark:bg-slate-800/95 text-white backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
+    <div class="flex items-center gap-2 border-r border-slate-700 pr-3">
+      <div class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse"></div>
+      <div class="flex flex-col">
+        <span id="batchShiftSelectionCount" class="text-xs font-black tracking-wide text-slate-100 whitespace-nowrap">0 Days Selected</span>
+        <span class="text-[9px] text-slate-400 font-medium">Click shift or press shortcut</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 flex-wrap" id="batchShiftButtonsContainer">
+      <button type="button" data-batch-code="FS" class="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition active:scale-95 shadow-sm" title="First Shift (07:30 - 16:30) • Press 'F'">FS</button>
+      <button type="button" data-batch-code="FG" class="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-700 hover:bg-emerald-600 text-white transition active:scale-95 shadow-sm" title="First General (08:30 - 17:30)">FG</button>
+      <button type="button" data-batch-code="G" class="px-2.5 py-1 rounded-lg text-xs font-black bg-sky-500 hover:bg-sky-400 text-slate-950 transition active:scale-95 shadow-sm" title="General Shift (09:30 - 18:30) • Press 'G'">G</button>
+      <button type="button" data-batch-code="SG" class="px-2.5 py-1 rounded-lg text-xs font-black bg-orange-600 hover:bg-orange-500 text-white transition active:scale-95 shadow-sm" title="Second General (11:00 - 20:00)">SG</button>
+      <button type="button" data-batch-code="SS" class="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 shadow-sm" title="Second Shift (13:00 - 22:00) • Press 'S'">SS</button>
+      <button type="button" data-batch-code="NS" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white transition active:scale-95 shadow-sm" title="Night Shift (21:00 - 07:30) • Press 'N'">NS</button>
+      <button type="button" data-batch-code="OFF" class="px-2.5 py-1 rounded-lg text-xs font-black bg-yellow-400 hover:bg-yellow-300 text-slate-950 transition active:scale-95 shadow-sm" title="Weekly Off • Press 'O'">OFF</button>
+      <button type="button" data-batch-code="L" class="px-2.5 py-1 rounded-lg text-xs font-black bg-rose-500 hover:bg-rose-400 text-white transition active:scale-95 shadow-sm" title="Leave • Press 'L'">L</button>
+      <button type="button" data-batch-code="" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition active:scale-95 shadow-sm" title="Clear Shift • Press Delete">Clear</button>
+    </div>
+    <button type="button" id="btnCancelBatchSelection" class="ml-1 text-slate-400 hover:text-white p-1 rounded-lg text-base transition" title="Deselect (Escape)">
+      <i class="ph ph-x font-bold"></i>
+    </button>
+  </div>
 
   <!-- Settings Modals (Gemini & Atlas) -->
 
@@ -4403,7 +4426,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.22"></script>
+  <script type="module" src="js/app.js?v=2.5.23"></script>
 
 </body>
 

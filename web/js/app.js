@@ -1657,6 +1657,12 @@ class RosterXApp {
 
     this.dom.footerTargetNs = document.getElementById('footerTargetNs');
 
+    // Floating Batch Shift Action Bar
+    this.dom.batchShiftActionBar = document.getElementById('batchShiftActionBar');
+    this.dom.batchShiftSelectionCount = document.getElementById('batchShiftSelectionCount');
+    this.dom.batchShiftButtonsContainer = document.getElementById('batchShiftButtonsContainer');
+    this.dom.btnCancelBatchSelection = document.getElementById('btnCancelBatchSelection');
+
 
 
     // Real-Time Rule Audit Banner
@@ -2034,11 +2040,55 @@ class RosterXApp {
     document.getElementById('btnToolbarUndo')?.addEventListener('click', () => this.undoRosterEdit());
     document.getElementById('btnToolbarRedo')?.addEventListener('click', () => this.redoRosterEdit());
 
-    // Recommended Keyboard Shortcuts (Ctrl+Z Undo, Ctrl+Y / Ctrl+Shift+Z Redo, Ctrl+S Publish, Escape Close)
+    // Recommended Keyboard Shortcuts (Ctrl+Z Undo, Ctrl+Y / Ctrl+Shift+Z Redo, Ctrl+S Publish, Escape Close, Batch Keys)
     window.addEventListener('keydown', (e) => {
       const activeEl = document.activeElement;
       const tag = (activeEl?.tagName || '').toLowerCase();
       const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || activeEl?.isContentEditable;
+
+      // Batch Shift Selection Keys (when cells are highlighted)
+      if (this._selectedCellsMap && this._selectedCellsMap.size > 0 && !isInput) {
+        if (e.key === 'Escape') {
+          this.clearCellSelection();
+          return;
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          this.applyBatchShift('');
+          return;
+        }
+        const k = e.key.toUpperCase();
+        if (k === 'O') {
+          e.preventDefault();
+          this.applyBatchShift('OFF');
+          return;
+        }
+        if (k === 'F') {
+          e.preventDefault();
+          this.applyBatchShift('FS');
+          return;
+        }
+        if (k === 'S' && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          this.applyBatchShift('SS');
+          return;
+        }
+        if (k === 'G') {
+          e.preventDefault();
+          this.applyBatchShift('G');
+          return;
+        }
+        if (k === 'N') {
+          e.preventDefault();
+          this.applyBatchShift('NS');
+          return;
+        }
+        if (k === 'L') {
+          e.preventDefault();
+          this.applyBatchShift('L');
+          return;
+        }
+      }
 
       // Escape: Close active pickers / modals
       if (e.key === 'Escape') {
@@ -2085,6 +2135,19 @@ class RosterXApp {
         return;
       }
     });
+
+    // Batch Shift Floating Bar Actions
+    this.dom.btnCancelBatchSelection?.addEventListener('click', () => this.clearCellSelection());
+    this.dom.batchShiftButtonsContainer?.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-batch-code]');
+      if (btn) {
+        const code = btn.dataset.batchCode !== undefined ? btn.dataset.batchCode : '';
+        this.applyBatchShift(code);
+      }
+    });
+
+    // Global mouseup to release drag selection
+    window.addEventListener('mouseup', () => this.handleGridMouseUp());
 
     if (this.dom.btnOpenConstraintsModal) {
       this.dom.btnOpenConstraintsModal.addEventListener('click', () => this.openConstraintsModal());
@@ -3742,16 +3805,19 @@ class RosterXApp {
         }
 
         cell.tabIndex = 0;
-
         cell.dataset.engIndex = actualIndex;
-
         cell.dataset.dayIndex = d;
+        cell.dataset.engName = eng.name;
 
+        // Restore highlight if cell is currently in batch selection
+        if (this._selectedCellsMap && this._selectedCellsMap.has(`${actualIndex}_${d}`)) {
+          cell.classList.add('shift-cell-selected');
+        }
 
-
-        cell.onclick = () => this.openPicker(actualIndex, d, eng.name, shift, isLocked);
-
-
+        cell.onmousedown = (e) => this.handleCellMouseDown(e, actualIndex, d, eng.name);
+        cell.onmouseenter = (e) => this.handleCellMouseEnter(e, actualIndex, d, eng.name);
+        cell.oncontextmenu = (e) => this.handleCellContextMenu(e, actualIndex, d, eng.name);
+        cell.onclick = (e) => this.handleCellClick(e, actualIndex, d, eng.name, shift, isLocked);
 
         flexRow.appendChild(cell);
 
@@ -3932,89 +3998,79 @@ class RosterXApp {
 
 
     const c = this.state.constraints;
-
     const minDayStaff = c.daytimeOverlapMin || 3;
-
     const hasAnyShifts = this.state.gridRoster.some(e => e.shifts && e.shifts.some(s => s && s.trim() !== ''));
 
+    const activeAuthUser = (window.authService && window.authService.getCurrentUser()) || (this.state && this.state.currentUser) || null;
+    const isAdmin = Boolean(activeAuthUser && (activeAuthUser.role === 'admin' || activeAuthUser.role === 'administrator' || activeAuthUser.username === 'admin'));
 
+    const dayLabelSub = document.getElementById('footerDayLabelSub');
+    if (dayLabelSub) {
+      dayLabelSub.textContent = isAdmin ? '(Total | FS · SS)' : '(Combined Excl. NS)';
+    }
 
     for (let d = 0; d < this.state.totalDays; d++) {
-
       let dayCount = 0;
-
+      let fsCount = 0;
+      let ssCount = 0;
+      let otherDayCount = 0;
       let nsCount = 0;
 
-
-
       if (hasAnyShifts) {
-
         this.state.gridRoster.forEach(eng => {
-
           // Look up engineer metadata for role
-
-          const meta = this.state.engineersList.find(e => e.name === eng.name || e.id === eng.id);
-
+          const meta = (this.state.engineersList || []).find(e => e.name === eng.name || e.id === eng.id);
           const role = (meta && meta.role) || eng.role || 'engineer';
 
-
-
           // NOTE: Apprentice Engineers shifts are strictly NOT considered in coverage
-
           if (role === 'apprentice') {
-
             return;
-
           }
 
-
-
-          const s = eng.shifts[d];
-
+          const s = (eng.shifts[d] || '').trim().toUpperCase();
           if (s === 'NS') {
-
             nsCount++;
-
-          } else if (s && s !== 'OFF' && !s.startsWith('SW') && s !== 'L' && s.trim() !== '') {
-
+          } else if (s && s !== 'OFF' && !s.startsWith('SW') && s !== 'L') {
             // Combined Day Shift (all active operational shifts except Night Shift and Rest/Leave/Swap)
-
             dayCount++;
-
+            if (s === 'FS') {
+              fsCount++;
+            } else if (s === 'SS') {
+              ssCount++;
+            } else {
+              otherDayCount++;
+            }
           }
-
         });
-
       }
 
-
-
       // Day Shift Cell (Target >= minDayStaff)
-
       if (dayContainer) {
-
         const dayCell = document.createElement('div');
-
         if (!hasAnyShifts) {
-
           dayCell.className = 'cell-box flex items-center justify-center border-r border-slate-300 text-slate-400 font-bold';
-
           dayCell.textContent = '—';
-
-        } else {
-
-          dayCell.className = `cell-box flex items-center justify-center border-r border-slate-300 font-black text-sm ${
-
-            dayCount < minDayStaff ? 'bg-amber-100 text-amber-900 font-black' : 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300'
-
+        } else if (isAdmin) {
+          const isUnderstaffed = dayCount < minDayStaff;
+          dayCell.className = `cell-box flex flex-col items-center justify-center border-r border-slate-300 leading-none py-0.5 select-none ${
+            isUnderstaffed ? 'bg-amber-100 text-amber-900' : 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300'
           }`;
-
+          dayCell.title = `Day Coverage: ${dayCount} (First Shift [FS]: ${fsCount}, Second Shift [SS]: ${ssCount}, General/Other: ${otherDayCount}) - Target ≥${minDayStaff}`;
+          dayCell.innerHTML = `
+            <span class="text-xs font-black">${dayCount}</span>
+            <div class="flex items-center gap-0.5 text-[8px] font-extrabold tracking-tight mt-0.5">
+              <span class="px-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-black" title="First Shift (FS): ${fsCount}">${fsCount}F</span>
+              <span class="px-0.5 rounded bg-orange-100 dark:bg-orange-900/60 text-orange-800 dark:text-orange-300 font-black" title="Second Shift (SS): ${ssCount}">${ssCount}S</span>
+            </div>
+          `;
+        } else {
+          dayCell.className = `cell-box flex items-center justify-center border-r border-slate-300 font-black text-sm ${
+            dayCount < minDayStaff ? 'bg-amber-100 text-amber-900 font-black' : 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300'
+          }`;
           dayCell.textContent = dayCount;
-
+          dayCell.title = `Day Coverage: ${dayCount} (Target ≥${minDayStaff})`;
         }
-
         dayContainer.appendChild(dayCell);
-
       }
 
 
@@ -4199,6 +4255,135 @@ class RosterXApp {
   }
 
 
+
+  // --- Multi-Cell Batch Range Selection (Click-and-Drag / Ctrl-Click) ---
+
+  handleCellMouseDown(e, engIndex, dayIndex, engName) {
+    if (e.button !== 0) return; // Only left click initiates drag
+    const activeAuthUser = (window.authService && window.authService.getCurrentUser()) || null;
+    if (activeAuthUser && activeAuthUser.role === 'manager') return; // Read-only for manager
+
+    const isMultiKey = e.ctrlKey || e.metaKey || e.shiftKey;
+    if (!isMultiKey) {
+      this.clearCellSelection();
+    }
+    this._isDraggingCells = true;
+    this._dragStartCell = { engIndex, dayIndex, engName };
+    this.toggleCellSelection(engIndex, dayIndex, engName, true);
+  }
+
+  handleCellMouseEnter(e, engIndex, dayIndex, engName) {
+    if (!this._isDraggingCells || !this._dragStartCell) return;
+    const startEng = this._dragStartCell.engIndex;
+    const startDay = this._dragStartCell.dayIndex;
+    const minEng = Math.min(startEng, engIndex);
+    const maxEng = Math.max(startEng, engIndex);
+    const minDay = Math.min(startDay, dayIndex);
+    const maxDay = Math.max(startDay, dayIndex);
+
+    // If not holding Ctrl/Cmd, selection is strictly the rectangle from dragStart to current
+    if (!e.ctrlKey && !e.metaKey) {
+      this.clearCellSelection(false);
+    }
+
+    for (let ei = minEng; ei <= maxEng; ei++) {
+      const rowEng = this.state.gridRoster[ei];
+      if (!rowEng) continue;
+      for (let di = minDay; di <= maxDay; di++) {
+        this.toggleCellSelection(ei, di, rowEng.name, true);
+      }
+    }
+    this.updateBatchSelectionUI();
+  }
+
+  handleGridMouseUp() {
+    if (this._isDraggingCells) {
+      this._isDraggingCells = false;
+      this.updateBatchSelectionUI();
+    }
+  }
+
+  handleCellClick(e, engIndex, dayIndex, engName, shift, isLocked) {
+    // If multiple cells were selected by dragging or Ctrl-click, don't open the modal!
+    if (this._selectedCellsMap && this._selectedCellsMap.size > 1) {
+      return;
+    }
+    this.openPicker(engIndex, dayIndex, engName, shift, isLocked);
+  }
+
+  handleCellContextMenu(e, engIndex, dayIndex, engName) {
+    e.preventDefault();
+    if (!this._selectedCellsMap || !this._selectedCellsMap.has(`${engIndex}_${dayIndex}`)) {
+      this.clearCellSelection();
+      this.toggleCellSelection(engIndex, dayIndex, engName, true);
+    }
+    this.updateBatchSelectionUI();
+  }
+
+  toggleCellSelection(engIndex, dayIndex, engName, forceSelect = null) {
+    if (!this._selectedCellsMap) this._selectedCellsMap = new Map();
+    const key = `${engIndex}_${dayIndex}`;
+    const el = document.querySelector(`.cell-box[data-eng-index="${engIndex}"][data-day-index="${dayIndex}"]`);
+    const isCurrentlySelected = this._selectedCellsMap.has(key);
+    const shouldSelect = forceSelect !== null ? forceSelect : !isCurrentlySelected;
+
+    if (shouldSelect) {
+      this._selectedCellsMap.set(key, { engIndex, dayIndex, engName });
+      if (el) el.classList.add('shift-cell-selected');
+    } else {
+      this._selectedCellsMap.delete(key);
+      if (el) el.classList.remove('shift-cell-selected');
+    }
+  }
+
+  clearCellSelection(hideUI = true) {
+    if (this._selectedCellsMap) {
+      document.querySelectorAll('.shift-cell-selected').forEach(el => el.classList.remove('shift-cell-selected'));
+      this._selectedCellsMap.clear();
+    }
+    if (hideUI && this.dom.batchShiftActionBar) {
+      this.dom.batchShiftActionBar.classList.add('hidden');
+    }
+  }
+
+  updateBatchSelectionUI() {
+    if (!this.dom.batchShiftActionBar) return;
+    const count = this._selectedCellsMap ? this._selectedCellsMap.size : 0;
+    if (count > 1) {
+      if (this.dom.batchShiftSelectionCount) {
+        this.dom.batchShiftSelectionCount.textContent = `${count} Days Selected`;
+      }
+      this.dom.batchShiftActionBar.classList.remove('hidden');
+    } else {
+      this.dom.batchShiftActionBar.classList.add('hidden');
+    }
+  }
+
+  applyBatchShift(shiftCode) {
+    if (!this._selectedCellsMap || this._selectedCellsMap.size === 0) return;
+    const count = this._selectedCellsMap.size;
+    const label = shiftCode ? `Batch Set ${shiftCode} (${count} cells)` : `Batch Clear (${count} cells)`;
+
+    this.pushRosterUndoSnapshot(label);
+
+    this._selectedCellsMap.forEach(({ engIndex, dayIndex }) => {
+      const eng = this.state.gridRoster[engIndex];
+      if (eng && Array.isArray(eng.shifts)) {
+        const isLocked = Boolean(this.state.lockedCells && this.state.lockedCells[`${eng.name}_${dayIndex}`]);
+        if (!isLocked) {
+          eng.shifts[dayIndex] = shiftCode;
+        }
+      }
+    });
+
+    this.saveCurrentGridRoster();
+    this.clearCellSelection();
+    this.renderRoster();
+    if (typeof this.renderDailyCoverage === 'function') this.renderDailyCoverage();
+    if (typeof this.runRuleAudit === 'function') this.runRuleAudit();
+    this.atlasService.notifyStatusChange('unsaved');
+    this.showToast(`✅ Applied "${shiftCode || 'Clear'}" across ${count} days!`);
+  }
 
   // --- Cell Override Popover (Module 4) ---
 

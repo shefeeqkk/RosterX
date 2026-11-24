@@ -700,3 +700,14 @@ body.nm-theme,
   margin: 0 auto 1.25rem auto;
 }
 
+/* Multi-Cell Batch Drag & Range Selection */
+.shift-cell-selected {
+  outline: 2.5px solid #6366f1 !important;
+  outline-offset: -2.5px !important;
+  background-color: rgba(99, 102, 241, 0.28) !important;
+  box-shadow: inset 0 0 0 2px #4f46e5, 0 0 8px rgba(99, 102, 241, 0.4) !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+
