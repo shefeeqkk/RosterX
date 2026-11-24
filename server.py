@@ -51,7 +51,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.9"
+SERVER_VERSION = "2.5.10"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -113,6 +113,18 @@ def format_uptime(seconds):
     parts.append(f"{secs}s")
     return " ".join(parts)
 
+def detect_client_platform(headers) -> str:
+    """Accurately identify client platform distinguishing native Android App from Web Portal."""
+    if not headers:
+        return "Web Portal"
+    # Native Android App transmits custom X-Device-Info header or OkHttp user-agent
+    if headers.get("X-Device-Info") or str(headers.get("X-Client-Platform", "")).lower() == "android":
+        return "Android App"
+    ua = str(headers.get("User-Agent") or "").lower()
+    if "okhttp" in ua or "com.rosterx" in ua:
+        return "Android App"
+    return "Web Portal"
+
 def parse_device_info(headers) -> str:
     """Parse HTTP headers into a concise, human-readable device/platform string."""
     if not headers:
@@ -125,18 +137,33 @@ def parse_device_info(headers) -> str:
     if not ua:
         return "Unknown Device"
 
+    # Apple iOS Web Browsers
+    if "iPhone" in ua or "iPad" in ua:
+        browser = "Safari"
+        if "CriOS" in ua: browser = "Chrome"
+        elif "FxiOS" in ua: browser = "Firefox"
+        elif "EdgiOS" in ua: browser = "Edge"
+        device_type = "iPhone" if "iPhone" in ua else "iPad"
+        return f"{browser} • Apple {device_type}"
+
+    # Android Mobile Web Browsers
     if "Android" in ua:
         match = re.search(r"Android\s+([0-9.]+)(?:;\s*([^;)]+))?", ua)
-        if match:
-            version = match.group(1)
-            model = match.group(2).strip() if match.group(2) else ""
-            return f"{model} (Android {version})" if model else f"Android {version}"
-        return "Android Device"
+        version = match.group(1) if match else ""
+        model = match.group(2).strip() if (match and match.group(2)) else ""
+        if model == "K":  # Chrome Android Build ID placeholder
+            model = ""
+        browser = "Browser"
+        if "Chrome/" in ua: browser = "Chrome"
+        elif "Firefox/" in ua: browser = "Firefox"
+        elif "EdgA/" in ua: browser = "Edge"
+        elif "SamsungBrowser" in ua: browser = "Samsung Internet"
 
-    if "iPhone" in ua:
-        return "Apple iPhone"
-    if "iPad" in ua:
-        return "Apple iPad"
+        if model:
+            return f"{browser} • {model} (Android {version})"
+        elif version:
+            return f"{browser} • Android {version}"
+        return f"{browser} • Android"
 
     os_name = "Unknown OS"
     if "Windows NT 10.0" in ua:
@@ -4941,7 +4968,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                             "calendar_accounts": user.get("calendar_accounts", [])
                         }
                         token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
-                        platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                        platform_client = detect_client_platform(self.headers)
                         device_client = parse_device_info(self.headers)
                         record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In", details={"device": device_client}, device=device_client)
                         if ATLAS_DB is not None:
@@ -4986,7 +5013,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         "calendar_accounts": user.get("calendar_accounts", [])
                     }
                     token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
-                    platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                    platform_client = detect_client_platform(self.headers)
                     device_client = parse_device_info(self.headers)
                     record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In", details={"device": device_client}, device=device_client)
                     if ATLAS_DB is not None:
@@ -5044,7 +5071,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     "profile_picture": admin_doc.get("profile_picture")
                 }
                 token = create_jwt({**user_payload, "exp": int(time.time()) + 7 * 86400})
-                platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                platform_client = detect_client_platform(self.headers)
                 device_client = parse_device_info(self.headers)
                 record_audit_event(user_payload.get("name"), user_payload.get("username"), user_payload.get("role"), platform_client, "User Sign-In", details={"device": device_client}, device=device_client)
                 self.send_json_response({
@@ -5885,7 +5912,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                         {"username": target_user},
                         {"$unset": {"profile_picture": ""}, "$set": {"updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}}
                     )
-                    platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                    platform_client = detect_client_platform(self.headers)
                     record_audit_event(
                         claims.get("name") or caller_user,
                         caller_user,
@@ -5926,7 +5953,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     self.send_json_response({"success": False, "message": f"User '{target_user}' not found in database."}, 404)
                     return
 
-                platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                platform_client = detect_client_platform(self.headers)
                 record_audit_event(
                     claims.get("name") or caller_user,
                     caller_user,
@@ -6049,7 +6076,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                     self.send_json_response({"success": False, "message": f"User '{target_user}' not found in database."}, 404)
                     return
 
-                platform_client = "Android App" if any(k in str(self.headers.get("User-Agent", "")).lower() for k in ("okhttp", "android", "mobile")) else "Web Portal"
+                platform_client = detect_client_platform(self.headers)
                 record_audit_event(
                     update_fields.get("name", target_user),
                     caller_user,
@@ -6551,13 +6578,13 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             # 3. Annual Quota Enforcement (Only approved leaves deduct from quota if capping is enabled)
             current_year = int(today_ist[:4])
             stats = get_engineer_leave_stats(applicant_username, current_year)
-            capping_enabled = stats.get("capping_enabled", True)
-            annual_quota = int(stats.get("annual_quota", 14))
+            capping_enabled = bool(stats.get("capping_enabled", True))
+            annual_quota = int(stats.get("annual_quota") or 14)
 
-            if capping_enabled and (stats["approved_leave_days"] + len(cleaned_dates) > annual_quota):
+            if capping_enabled and (int(stats.get("approved_leave_days") or 0) + len(cleaned_dates) > annual_quota):
                 self.send_json_response({
                     "success": False,
-                    "message": f"Annual leave allowance exceeded. Max {annual_quota} days per calendar year (You have used {stats['approved_leave_days']} days, requesting {len(cleaned_dates)})."
+                    "message": f"Annual leave allowance exceeded. Max {annual_quota} days per calendar year (You have used {stats.get('approved_leave_days', 0)} days, requesting {len(cleaned_dates)})."
                 }, 400)
                 return
 
@@ -6646,7 +6673,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 applicant_name,
                 applicant_username,
                 claims.get("role", "engineer"),
-                "Web Portal" if "web" in str(self.headers.get("User-Agent", "")).lower() else "Android App",
+                detect_client_platform(self.headers),
                 "LEAVE_REQUEST_SUBMITTED",
                 {"request_id": request_id, "dates": cleaned_dates, "days_count": len(cleaned_dates)}
             )
@@ -6894,7 +6921,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 admin_name,
                 admin_username,
                 claims.get("role", "admin"),
-                "Web Portal" if "web" in str(self.headers.get("User-Agent", "")).lower() else "Android App",
+                detect_client_platform(self.headers),
                 f"LEAVE_REQUEST_{action.upper()}",
                 {"request_id": request_id, "applicant": applicant_user, "action": action, "status": new_status, "swap_partner": swap_partner}
             )

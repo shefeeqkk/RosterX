@@ -5589,7 +5589,7 @@ class RosterXApp {
 
       month: targetMonth,
 
-      monthName: curMonthName,
+      monthName: monthLabel(targetKey, 'long'),
 
       totalDays,
 

@@ -3311,61 +3311,89 @@ Operations Desk</textarea>
 
 
 
-      <div id="tabContentAdminProfile" class="space-y-3">
+      <div id="tabContentAdminProfile" class="space-y-4">
 
-        <div class="grid grid-cols-2 gap-3 text-xs">
-
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Full Name</span>
-
-            <div class="flex items-center justify-between">
-              <span id="adminProfileFullName" class="font-bold text-slate-800 text-xs">System Administrator</span>
-              <button type="button" id="btnEditAdminFullName" class="text-purple-600 text-xs hover:underline cursor-pointer"><i class="ph ph-pencil-simple"></i> Edit</button>
+        <!-- VIEW MODE -->
+        <div id="adminProfileViewMode" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold block">Full Name</span>
+              <span id="adminProfileFullName" class="font-bold text-slate-800 text-xs block truncate">System Administrator</span>
             </div>
 
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold block">Username</span>
+              <span id="adminProfileUsername" class="font-mono font-bold text-purple-700 text-xs block truncate">admin</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold block">Email</span>
+              <span id="adminProfileEmail" class="font-semibold text-slate-700 text-xs block truncate">admin@rosterx.dev</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold block">Contact Phone</span>
+              <span id="adminProfilePhone" class="font-semibold text-slate-700 text-xs block truncate">+91 98110 01100</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold block">Access Role</span>
+              <span class="font-bold text-purple-700 text-xs block">Full Administrative Root</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold block">System Status</span>
+              <span class="font-bold text-emerald-700 text-xs block">Active Live</span>
+            </div>
           </div>
 
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <!-- Action Buttons (Edit Profile Details + Sign Out) -->
+          <div class="pt-2 flex items-center justify-between gap-3 border-t border-slate-100">
+            <button type="button" id="btnToggleEditAdminProfile" class="flex-1 py-2 px-3 rounded-xl font-bold text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs">
+              <i class="ph ph-pencil-simple text-sm"></i>
+              <span>Edit Profile Details</span>
+            </button>
 
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Username</span>
+            <button type="button" id="btnAdminModalLogout" class="py-2 px-4 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs">
+              <i class="ph ph-sign-out text-sm"></i>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
 
-            <span id="adminProfileUsername" class="font-mono font-bold text-purple-700 text-xs">admin</span>
-
+        <!-- EDIT MODE (Initially Hidden) -->
+        <div id="adminProfileEditMode" class="hidden space-y-3">
+          <div id="adminProfileEditAlert" class="hidden p-2.5 rounded-xl text-xs flex items-center gap-2">
+            <i class="ph ph-info text-base shrink-0"></i>
+            <span id="adminProfileEditAlertText"></span>
           </div>
 
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="space-y-2.5 text-xs">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Full Name</label>
+              <input type="text" id="adminInputFullName" placeholder="Enter Full Name" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600 font-medium" />
+            </div>
 
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Email</span>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Email Address</label>
+              <input type="email" id="adminInputEmail" placeholder="e.g. admin@example.com" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600 font-medium" />
+            </div>
 
-            <span id="adminProfileEmail" class="font-semibold text-slate-700 text-xs">admin@rosterx.dev</span>
-
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Contact Phone</label>
+              <input type="tel" id="adminInputPhone" placeholder="e.g. +91 98110 01100" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600 font-medium" />
+            </div>
           </div>
 
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Contact Phone</span>
-
-            <span id="adminProfilePhone" class="font-semibold text-slate-700 text-xs">+91 98110 01100</span>
-
+          <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+            <button type="button" id="btnCancelEditAdminProfile" class="py-2 px-3 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer">
+              Cancel
+            </button>
+            <button type="button" id="btnSaveAdminProfile" class="py-2 px-4 rounded-xl font-bold text-xs bg-purple-700 hover:bg-purple-800 text-white transition cursor-pointer flex items-center gap-1.5 shadow-md">
+              <i class="ph ph-check-circle text-sm"></i>
+              <span>Save Changes</span>
+            </button>
           </div>
-
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Access Role</span>
-
-            <span class="font-bold text-purple-700 text-xs">Full Administrative Root</span>
-
-          </div>
-
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">System Status</span>
-
-            <span class="font-bold text-emerald-700 text-xs">Active Live</span>
-
-          </div>
-
         </div>
 
       </div>
@@ -3852,6 +3880,7 @@ Operations Desk</textarea>
 
           document.getElementById('adminChangePassAlert').classList.add('hidden');
 
+          if (typeof closeEditMode === 'function') closeEditMode();
           tabProfile.click();
 
           modal.classList.remove('hidden');
@@ -3976,17 +4005,54 @@ Operations Desk</textarea>
           });
         }
 
-        const handleEditAdminName = async () => {
+        const viewMode = document.getElementById('adminProfileViewMode');
+        const editMode = document.getElementById('adminProfileEditMode');
+        const editAlert = document.getElementById('adminProfileEditAlert');
+        const editAlertText = document.getElementById('adminProfileEditAlertText');
+
+        const btnToggleEdit = document.getElementById('btnToggleEditAdminProfile');
+        const btnCancelEdit = document.getElementById('btnCancelEditAdminProfile');
+        const btnSaveProfile = document.getElementById('btnSaveAdminProfile');
+        const btnModalLogout = document.getElementById('btnAdminModalLogout');
+
+        const openEditMode = () => {
           const u = authService.getCurrentUser() || {};
-          const currentName = document.getElementById('adminProfileFullName')?.textContent || u.name || 'System Administrator';
-          const newName = prompt('Enter updated Administrator Full Name:', currentName);
-          if (newName === null) return;
-          const trimmed = newName.trim();
-          if (!trimmed || trimmed.length < 2 || trimmed.length > 60) {
-            alert('Name must be between 2 and 60 characters.');
+          const fullEl = document.getElementById('adminProfileFullName');
+          const emailEl = document.getElementById('adminProfileEmail');
+          const phoneEl = document.getElementById('adminProfilePhone');
+
+          document.getElementById('adminInputFullName').value = fullEl?.textContent || u.name || '';
+          document.getElementById('adminInputEmail').value = emailEl?.textContent || u.email || '';
+          document.getElementById('adminInputPhone').value = phoneEl?.textContent || u.phone || '';
+          editAlert?.classList.add('hidden');
+          viewMode?.classList.add('hidden');
+          editMode?.classList.remove('hidden');
+          setTimeout(() => document.getElementById('adminInputFullName')?.focus(), 50);
+        };
+
+        const closeEditMode = () => {
+          editMode?.classList.add('hidden');
+          viewMode?.classList.remove('hidden');
+        };
+
+        btnToggleEdit?.addEventListener('click', openEditMode);
+        document.getElementById('btnEditAdminName')?.addEventListener('click', openEditMode);
+        btnCancelEdit?.addEventListener('click', closeEditMode);
+
+        btnSaveProfile?.addEventListener('click', async () => {
+          const nameVal = document.getElementById('adminInputFullName').value.trim();
+          const emailVal = document.getElementById('adminInputEmail').value.trim();
+          const phoneVal = document.getElementById('adminInputPhone').value.trim();
+
+          if (!nameVal || nameVal.length < 2) {
+            editAlertText.textContent = 'Name must be at least 2 characters.';
+            editAlert.className = 'p-2.5 rounded-xl text-xs flex items-center gap-2 bg-rose-50 text-rose-700 border border-rose-200';
+            editAlert.classList.remove('hidden');
             return;
           }
-          if (trimmed === currentName) return;
+
+          btnSaveProfile.disabled = true;
+          btnSaveProfile.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> <span>Saving...</span>';
 
           try {
             const token = localStorage.getItem('rosterx_auth_token') || sessionStorage.getItem('rosterx_auth_token');
@@ -3996,33 +4062,51 @@ Operations Desk</textarea>
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
-              body: JSON.stringify({ name: trimmed })
+              body: JSON.stringify({ name: nameVal, email: emailVal, phone: phoneVal })
             });
             const data = await res.json();
             if (data.success) {
-              u.name = data.name || trimmed;
-              u.full_name = data.name || trimmed;
+              const u = authService.getCurrentUser() || {};
+              u.name = data.name || nameVal;
+              u.full_name = data.name || nameVal;
+              u.email = emailVal;
+              u.phone = phoneVal;
               localStorage.setItem('rosterx_auth_user', JSON.stringify(u));
-              const titleEl = document.getElementById('adminModalName');
-              if (titleEl) titleEl.textContent = u.name;
-              const fullEl = document.getElementById('adminProfileFullName');
-              if (fullEl) fullEl.textContent = u.name;
+
+              document.getElementById('adminProfileFullName').textContent = u.name;
+              document.getElementById('adminProfileEmail').textContent = u.email;
+              document.getElementById('adminProfilePhone').textContent = u.phone;
+              document.getElementById('adminModalName').textContent = u.name;
               const pillName = document.getElementById('adminUserPillName');
               if (pillName) pillName.textContent = u.name;
+
+              closeEditMode();
+              if (window.rosterApp?.showToast) {
+                window.rosterApp.showToast('✓ Administrator profile updated successfully!');
+              }
             } else {
-              alert('Failed to update name: ' + (data.message || 'Error'));
+              editAlertText.textContent = data.message || 'Failed to update profile.';
+              editAlert.className = 'p-2.5 rounded-xl text-xs flex items-center gap-2 bg-rose-50 text-rose-700 border border-rose-200';
+              editAlert.classList.remove('hidden');
             }
           } catch (err) {
-            alert('Error updating name: ' + err.message);
+            editAlertText.textContent = err.message || 'Network error updating profile.';
+            editAlert.className = 'p-2.5 rounded-xl text-xs flex items-center gap-2 bg-rose-50 text-rose-700 border border-rose-200';
+            editAlert.classList.remove('hidden');
+          } finally {
+            btnSaveProfile.disabled = false;
+            btnSaveProfile.innerHTML = '<i class="ph ph-check-circle text-sm"></i> <span>Save Changes</span>';
           }
-        };
+        });
 
-        const btnEditAdminName = document.getElementById('btnEditAdminName');
-        const btnEditAdminFullName = document.getElementById('btnEditAdminFullName');
-        btnEditAdminName?.addEventListener('click', handleEditAdminName);
-        btnEditAdminFullName?.addEventListener('click', handleEditAdminName);
+        btnModalLogout?.addEventListener('click', () => {
+          authService.logout();
+        });
 
-        btnClose?.addEventListener('click', () => modal.classList.add('hidden'));
+        btnClose?.addEventListener('click', () => {
+          closeEditMode();
+          modal.classList.add('hidden');
+        });
 
 
 

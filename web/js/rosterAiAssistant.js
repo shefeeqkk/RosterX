@@ -496,9 +496,7 @@ export class RosterAiAssistant {
     // Clear chat
     if (this.dom.btnClear) {
       this.dom.btnClear.addEventListener('click', () => {
-        if (confirm('Clear chat history with AI Assistant?')) {
-          this.clearChat();
-        }
+        this.clearChat();
       });
     }
 
@@ -557,7 +555,18 @@ export class RosterAiAssistant {
     if (typeof localStorage !== 'undefined') {
       try {
         const stored = localStorage.getItem(STORAGE_KEYS.CHAT_HISTORY);
-        if (stored) this.messages = JSON.parse(stored);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            // Sanitize messages so historical malformed proposals never break UI
+            this.messages = parsed.map(m => {
+              if (m && m.proposal && m.proposal.type !== 'cleared_grid' && m.proposal.type !== 'roster_helper' && !Array.isArray(m.proposal.assignments)) {
+                m.proposal.assignments = [];
+              }
+              return m;
+            });
+          }
+        }
       } catch (e) {}
     }
 
@@ -588,41 +597,54 @@ export class RosterAiAssistant {
 
   clearChat() {
     this.messages = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEYS.CHAT_HISTORY);
+      } catch (e) {}
+    }
+    this.setGenerating(false);
     this.loadChatHistory();
+    if (this.app && typeof this.app.showToast === 'function') {
+      this.app.showToast('🧹 AI Assistant chat history cleared');
+    }
   }
 
   renderMessages() {
     if (!this.dom.chatMessages) return;
-    this.dom.chatMessages.innerHTML = this.messages.map(m => this.renderMessageItem(m)).join('');
+    try {
+      this.dom.chatMessages.innerHTML = this.messages.map(m => this.renderMessageItem(m)).join('');
 
-    // Wire up apply button handlers
-    this.dom.chatMessages.querySelectorAll('.btn-apply-proposal').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const proposalId = e.currentTarget.getAttribute('data-proposal-id');
-        this.applyProposalToGrid(proposalId);
+      // Wire up apply button handlers
+      this.dom.chatMessages.querySelectorAll('.btn-apply-proposal').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const proposalId = e.currentTarget.getAttribute('data-proposal-id');
+          this.applyProposalToGrid(proposalId);
+        });
       });
-    });
 
-    // Wire up undo clear grid handlers
-    this.dom.chatMessages.querySelectorAll('.btn-undo-cleared-grid').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const res = this.executeUndoClearGrid();
-        this.addAssistantMessage(res.text);
+      // Wire up undo clear grid handlers
+      this.dom.chatMessages.querySelectorAll('.btn-undo-cleared-grid').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const res = this.executeUndoClearGrid();
+          this.addAssistantMessage(res.text);
+        });
       });
-    });
 
-    // Wire up generate fresh roster handlers
-    this.dom.chatMessages.querySelectorAll('.btn-generate-cleared-grid').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const prompt = e.currentTarget.getAttribute('data-prompt') || 'Prepare a full month roster with 24/7 night coverage';
-        if (this.dom.chatInput) {
-          this.dom.chatInput.value = prompt;
-          this.handleUserSubmit();
-        }
+      // Wire up generate fresh roster handlers
+      this.dom.chatMessages.querySelectorAll('.btn-generate-cleared-grid').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const prompt = e.currentTarget.getAttribute('data-prompt') || 'Prepare a full month roster with 24/7 night coverage';
+          if (this.dom.chatInput) {
+            this.dom.chatInput.value = prompt;
+            this.handleUserSubmit();
+          }
+        });
       });
-    });
 
-    this.scrollToBottom();
+      this.scrollToBottom();
+    } catch (renderErr) {
+      console.error('[AI Assistant] Error rendering messages:', renderErr);
+    }
   }
 
   renderMessageItem(msg) {
@@ -667,6 +689,31 @@ export class RosterAiAssistant {
   }
 
   renderProposalCard(p) {
+    if (!p) return '';
+
+    if (p.type === 'roster_helper') {
+      return `
+        <div class="mt-3 p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/40 rounded-xl space-y-2 text-xs backdrop-blur-xs">
+          <div class="flex items-center justify-between pb-1.5 border-b border-amber-200/80 dark:border-amber-900/40">
+            <div>
+              <div class="font-extrabold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                <i class="ph ph-lightning text-amber-600 dark:text-amber-400 text-base"></i>
+                <span>${this.escapeHtml(p.title)}</span>
+              </div>
+              <div class="text-[10px] text-amber-700/80 dark:text-amber-300/80 font-medium">${this.escapeHtml(p.subtitle || '')}</div>
+            </div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800/50">
+              ✓ Applied to Grid
+            </span>
+          </div>
+          <div class="pt-1 text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1">
+            <i class="ph ph-check-circle-fill text-emerald-500"></i>
+            <span>Weekly offs and approved leaves anchored from database.</span>
+          </div>
+        </div>
+      `;
+    }
+
     if (p.type === 'cleared_grid') {
       const mName = monthLabel(`${p.targetYear}-${String(p.targetMonth || 1).padStart(2, '0')}`, 'long');
       const promptText = `Prepare a full month roster for ${mName} with 24/7 night coverage and balanced day desk`;
@@ -696,6 +743,11 @@ export class RosterAiAssistant {
           </div>
         </div>
       `;
+    }
+
+    const assignments = Array.isArray(p.assignments) ? p.assignments : [];
+    if (assignments.length === 0) {
+      return '';
     }
 
     const isApplied = p.applied;

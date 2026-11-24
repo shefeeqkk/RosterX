@@ -1,7 +1,34 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 12:10 IST** (Target Sprint: **v2.5.9 - Build 184**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 12:55 IST** (Target Sprint: **v2.5.10 - Build 185**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.10 - Build 185 — Leave Request 500 Fix, Mobile Web Audit Labeling, Editable Admin Profile Modal & AI Assistant Buttons Restored):
+> *"Vijaya! Gafoorka! User test cheythappol report cheytha complaints ellaam oru microscopic audit nadathi crystal-clear aayi theerthu, v2.5.10 Build 185 safe aayi assembleDebug cheythu connected Android device-il ADB install cheythu verified macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed & Delivered in v2.5.10 (Build 185):
+> 1. **Leave Request Submission 500 Error ("Server temporarily unavailable")**:
+>    - Root cause: In `server.py` (`POST /api/leave/apply`, line 6583), when leave capping was disabled, `get_engineer_leave_stats()` returned `"annual_quota": None`. Doing `int(stats.get("annual_quota", 14))` still received `None` and threw `TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'`, crashing the server handler with HTTP 500. Android Retrofit's error parser mapped 500 to *"Server temporarily unavailable. Please try again later."*
+>    - Fix: Defensive extraction `annual_quota = int(stats.get("annual_quota") or 14)`. Leave requests now apply smoothly on both Android and Web!
+> 2. **Mobile Web Sign-ins Mislabeled as "Android App" in Operational Audit Stream**:
+>    - Root cause: Backend checked `if "mobile" in user_agent.lower()` and marked all mobile web browsers as `"Android App"`, even when accessed via Chrome on Android 10 or Safari on iPhone, with Chrome build IDs like `"K"`.
+>    - Fix: Implemented `detect_client_platform(headers)` helper. Native Android apps are identified strictly by `X-Device-Info` or `okhttp`/`com.rosterx` in User-Agent; all browser sessions default to `"Web Portal"`.
+>    - Refined `parse_device_info(headers)`: Strips build ID `"K"` on Android and formats clean device/browser badges like `Chrome • Android 10` or `Safari • Apple iPhone`.
+> 3. **Administrator Profile Modal (Editable Details + Sign Out Button)**:
+>    - Replaced the static text and alert prompts with full View / Edit mode toggle in `web/index.html`.
+>    - Added input fields for Full Name, Email, and Phone with Save (`POST /api/users/profile`) and Cancel buttons.
+>    - Added a prominent `Sign Out` button wired directly to `authService.logout()`.
+> 4. **AI Assistant Buttons Unresponsive After Pre-fill & Clear Grid Fix**:
+>    - Root cause 1: `executePreFillWeeklyOffsAndLeaves()` returned `type: 'roster_helper'`, which lacked `p.assignments`. When `renderProposalCard` attempted `p.assignments.map()`, it threw an unhandled `TypeError` inside `addAssistantMessage`, freezing the UI.
+>    - Fix 1: Added dedicated card rendering for `p.type === 'roster_helper'` and guarded `assignments` with `Array.isArray()`.
+>    - Root cause 2: In `web/js/app.js` (`clearMonthGrid`), line 5592 referenced `curMonthName`, which was undefined in scope and threw `ReferenceError: curMonthName is not defined`. Aligned to `monthLabel(targetKey, 'long')`.
+>    - Root cause 3: `btnClearAiChat` previously relied on `window.confirm()`, which was suppressed in mobile webviews, and `loadChatHistory()` was re-reading from localStorage without removing. Aligned to remove `localStorage.removeItem(STORAGE_KEYS.CHAT_HISTORY)` and clear instantly with toast notification.
+> 5. **Version Bump & ADB Deployment**:
+>    - Bumped `versionCode = 185`, `versionName = "2.5.10"` in `android/app/build.gradle.kts`.
+>    - Updated `SERVER_VERSION = "2.5.10"` in `server.py`.
+>    - Pushed APK via ADB to connected wireless device `100.71.241.36:39209`."*
 
 ---
 
