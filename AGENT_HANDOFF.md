@@ -1,7 +1,27 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 17:00 IST** (Target Sprint: **v2.5.16 - Build 191**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 17:20 IST** (Target Sprint: **v2.5.17 - Build 192**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.17 - Build 192 — Mandatory Post-Night Rest Protection & Off Stamping):
+> *"Vijaya! Gafoorka! User report cheytha 'there is no leave or off post the night shift for one person' issue njaan spot-il solve cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Fixed in v2.5.17 (Build 192):
+> 1. **Post-Night Rest Protection & Auto-Stamping (`server.py`)**:
+>    - Root cause: In `solve_night_shifts_engine`, Step 8 committed `NS` to the grid, but if an engineer's regular default weekly offs fell on different days of the week, the days immediately following their night shift block remained completely blank (`""`), leaving them with neither an off nor a leave post-night duty!
+>    - Fix: Added Step 8b: **Mandatory Post-Night Rest Protection (24h–48h)**. Immediately following any completed night shift block, any blank day (`""`) within the post-night rest window (1–2 days) is automatically stamped as `OFF`!
+>    - If the engineer already has an approved leave (`L`), swap (`SW*`), or scheduled weekly off (`OFF`), their existing status is preserved.
+>    - In `solve_backtracking`, candidates who have not completed their mandatory post-night rest are strictly prohibited from being re-assigned to night shifts prematurely.
+> 2. **Constraint Synchronization (`shiftGenerator.js`)**:
+>    - Passes `post_night_rest_days` (default 2) from active operational constraints to `/api/roster/generate-night-shifts`.
+> 3. **Verification & Testing**:
+>    - Added `test_post_night_rest.py`: Verified 0 violations across split and normal configurations with 100% pass rate.
+> 4. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.17"` in `server.py`.
+>    - Bumped `versionCode = 192`, `versionName = "2.5.17"` in `android/app/build.gradle.kts`.
+>    - Updated cache-busters `?v=2.5.17` across `web/index.html`, `web/js/app.js`, and `web/js/shiftGenerator.js`."*
 
 ---
 

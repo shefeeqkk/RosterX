@@ -52,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.16"
+SERVER_VERSION = "2.5.17"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -931,7 +931,7 @@ def is_eligible_roster_row(e: dict, month_id: str, eng_meta_by_key: dict = None)
 
     return True
 
-def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leaves_data: list = None, engineer_rules: dict = None, baseline_only: bool = False) -> dict:
+def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leaves_data: list = None, engineer_rules: dict = None, baseline_only: bool = False, post_night_rest_days: int = 2) -> dict:
     """
     Deterministic constraint solver for night shift (NS) allocation.
     Focuses EXCLUSIVELY on:
@@ -1281,7 +1281,7 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
             cand, b_len = move
             cand_max = max_block_by_uname.get(cand, 5)
             is_prev = 1 if cand == prev_eng else 0
-            rest_violation = 1 if (day_idx - last_night_day[cand]) < 2 and cand != prev_eng else 0
+            rest_violation = 1 if (day_idx - last_night_day[cand]) < (post_night_rest_days + 1) and cand != prev_eng else 0
             zero_shifts_bonus = 0 if ns_counts[cand] == 0 else 1
             exceeds_target = 1 if (ns_counts[cand] + b_len > ideal_target + 3) else 0
             size_penalty = cand_max - b_len
@@ -1322,6 +1322,31 @@ def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leave
         worker = assigned_ns[d]
         if worker and worker in grid:
             grid[worker][d] = "NS"
+
+    # 8b. Mandatory Post-Night Rest Protection:
+    # Immediately following any completed night shift block, the engineer MUST
+    # receive post-night recovery rest ('OFF').
+    # Any blank day ('') within the post-night rest window is stamped as 'OFF'.
+    post_rest_window = max(1, int(post_night_rest_days or 2))
+    for uname, shifts in grid.items():
+        d = 0
+        while d < total_days:
+            if shifts[d] == "NS":
+                streak_end = d
+                while streak_end + 1 < total_days and shifts[streak_end + 1] == "NS":
+                    streak_end += 1
+
+                # Stamp blank days immediately following the night block as 'OFF'
+                for r in range(1, post_rest_window + 1):
+                    post_d = streak_end + r
+                    if post_d < total_days:
+                        # If already 'L', 'SW*', or 'OFF', rest is satisfied; if blank, stamp 'OFF'
+                        if shifts[post_d] == "":
+                            shifts[post_d] = "OFF"
+
+                d = streak_end + 1
+            else:
+                d += 1
 
     # 9. Format response payload
     roster_rows = []
@@ -6157,8 +6182,9 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             engineer_rules = body.get("engineer_rules") or body.get("constraints") or {}
             apply_to_grid = bool(body.get("apply_to_grid", False))
             baseline_only = bool(body.get("baseline_only", False))
+            post_night_rest_days = int(body.get("post_night_rest_days") or 2)
 
-            result = solve_night_shifts_engine(year_val, month_val, engineers_list, leaves_list, engineer_rules, baseline_only=baseline_only)
+            result = solve_night_shifts_engine(year_val, month_val, engineers_list, leaves_list, engineer_rules, baseline_only=baseline_only, post_night_rest_days=post_night_rest_days)
             if not result.get("success"):
                 self.send_json_response(result, 422)
                 return
