@@ -316,6 +316,9 @@ export class RosterAiAssistant {
         <!-- Suggestion Chips Header Row -->
         <div class="px-3 py-2 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border-b border-slate-200/60 dark:border-white/10 overflow-x-auto whitespace-nowrap flex items-center gap-1.5 text-xs no-scrollbar">
           <span class="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 px-1">Try:</span>
+          <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-indigo-50/90 dark:hover:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Open Shift Generator for Night Shifts">
+            🌙 Night Shift Generator
+          </button>
           <button class="ai-chip-prompt px-3 py-1 bg-white/80 dark:bg-slate-800/80 hover:bg-amber-50/90 dark:hover:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-slate-200/70 dark:border-white/10 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer shadow-2xs backdrop-blur-xs" data-prompt="Pre-fill default weekly offs and approved leaves for upcoming month grid">
             ⚡ Pre-fill Weekly Offs & Leaves
           </button>
@@ -981,6 +984,17 @@ export class RosterAiAssistant {
 
     if (isClearGrid) {
       return await this.executeClearMonthGrid(query);
+    }
+
+    // 0.35 Check for Shift Roster Generator intent (Night Shift & Baseline Modal)
+    const isShiftGenIntent = (
+      /(?:night\s*shift\s*generator|shift\s*generator|night\s*roster|night\s*shifts?\s*only|generate\s*night)/i.test(qLower)
+    );
+    if (isShiftGenIntent) {
+      if (this.app && this.app.shiftGenerator) {
+        this.app.shiftGenerator.openModal();
+        return `I have opened the dedicated **Shift Roster Generator** window for you. You can configure per-engineer night quotas (like Fixed 5 Nights), exclude specific members, preview 24/7 coverage, and apply it directly to the active grid!`;
+      }
     }
 
     // 0.4 Check for Pre-Fill Weekly Offs & Approved Leaves intent (Roster Generation Helper)

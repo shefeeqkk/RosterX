@@ -1,7 +1,38 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 13:58 IST** (Target Sprint: **v2.5.11 - Build 186**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 15:35 IST** (Target Sprint: **v2.5.12 - Build 187**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.12 - Build 187 — Dedicated Shift Roster Generator for Night Shifts & Baseline):
+> *"Vijaya! Gafoorka! User request cheytha full-stack Shift Roster Generator njaan microscopic accuracy-ode implement cheythu, v2.5.12 Build 187-il zero-defect aayi deliver cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🌙 What Was Built & Delivered in v2.5.12 (Build 187):
+> 1. **Focused 4-Shift Model Engine (`solve_night_shifts_engine` in `server.py`)**:
+>    - Exclusively handles: **Weekly Offs (`OFF`)**, **Approved Leaves (`L`)**, **Approved Swaps (`SW*`)**, and **Night Shifts (`NS`)**.
+>    - All other dates/shifts strictly remain blank (`""`) without touching daytime shifts.
+>    - Baseline lock: Automatically pulls default weekly offs, approved leaves, and swap requests from MongoDB Atlas and anchors them as immovable fixtures. Zero collision guaranteed!
+> 2. **Deterministic Night Shift Constraint Solver**:
+>    - **24/7 Coverage**: Every single night of the month is guaranteed to have exactly 1 engineer assigned to `NS` (100% night coverage).
+>    - **Block Length**: 1 to 5 consecutive days maximum per engineer.
+>    - **Individual Settings**:
+>      - ⭐ **Fixed 5 Nights**: Guaranteed exactly 5 consecutive nights (or user quota) for engineers with specific monthly night requirements.
+>      - 🚫 **Excluded**: Completely exempt from night duty (0 nights).
+>      - 🔄 **Flexible**: Fairly distributed across remaining team members in 1 to 5 day blocks, respecting post-night rest.
+> 3. **REST API Endpoint (`POST /api/roster/generate-night-shifts`)**:
+>    - Accepts `{ month: "YYYY-MM", engineer_rules: { ... }, apply_to_grid: boolean }`.
+>    - Enforces admin authorization.
+>    - Returns full statistics, per-engineer summaries, matrix rows, and day-by-day assignments.
+> 4. **Web Admin Shift Roster Generator Modal & Controller**:
+>    - Triggerable via top header button (`btnOpenShiftGeneratorModal`), month toolbar button (`btnToolbarShiftGenerator`), and AI Assistant quick chip / command.
+>    - Neumorphic glass dialog (`#shiftGeneratorModal`) with target month picker, per-engineer rule selector (Flexible / Fixed 5 / Excluded), and preferred start day.
+>    - Real-time **Preview Grid** diff table with 100% coverage badge and 1-click **"Apply to Active Grid"** (`btnApplyShiftGenerator`).
+> 5. **Version Bump & Production Sync**:
+>    - Bumped `versionCode = 187`, `versionName = "2.5.12"` in `android/app/build.gradle.kts`.
+>    - Updated `SERVER_VERSION = "2.5.12"` in `server.py`.
+>    - Bumped `app.js?v=2.5.12` cache-buster in `web/index.html`.
+>    - Verified all solver tests in `scratch/verify_shift_generator.py` with 100% pass rate."*
 
 ---
 

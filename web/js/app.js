@@ -75,6 +75,7 @@ import { MobileNavShell, consumeDeepLinkHash } from './mobileNavShell.js?v=2.0.5
 import { SwipeTabController } from './swipeTabController.js?v=2.5.1';
 import { CredentialTrackerController } from './credentialTracker.js?v=2.0.5';
 import { LeaveApprovalsController } from './leaveController.js?v=2.5.3';
+import { ShiftGeneratorController } from './shiftGenerator.js?v=2.5.12';
 
 if (typeof window !== 'undefined') window.ExcelService = ExcelService;
 
@@ -105,6 +106,7 @@ class RosterXApp {
     this.atlasService = new AtlasService();
     this.aiEngine = new RosterAiEngine();
     this.aiAssistant = new RosterAiAssistant(this);
+    this.shiftGenerator = new ShiftGeneratorController(this);
     this.activeTab = 'dashboard';
 
 
@@ -721,6 +723,11 @@ class RosterXApp {
     // Initialize Conversational AI Assistant
     if (this.aiAssistant) {
       this.aiAssistant.init();
+    }
+
+    // Initialize Shift Roster Generator
+    if (this.shiftGenerator) {
+      this.shiftGenerator.init();
     }
 
     // Initialize Broadcast Console Controller
@@ -5187,6 +5194,13 @@ class RosterXApp {
   }
 
 
+
+  // --- MODAL: Shift Roster Generator (Night Shift & Baseline) ---
+  openShiftGeneratorModal() {
+    if (this.shiftGenerator) {
+      this.shiftGenerator.openModal();
+    }
+  }
 
   // --- MODAL 4: Gemini AI Smart Roster Assistant ---
 

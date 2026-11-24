@@ -461,6 +461,12 @@
 
       </button>
 
+      <!-- 🌙 Shift Roster Generator (Night Shift & Baseline Solver) -->
+      <button id="btnOpenShiftGeneratorModal" class="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm hover:shadow-indigo-500/20 cursor-pointer group border border-blue-400/30">
+        <i class="ph ph-moon-stars text-amber-300 text-sm"></i>
+        <span class="tracking-wide hidden xs:inline">Shift Generator</span>
+      </button>
+
 
 
       <!-- 🌓 3-Way Theme Toggle (Light / Dark / System) -->
@@ -751,6 +757,9 @@
           </div>
           <button id="btnOpenConstraintsModal" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 transition shadow-xs cursor-pointer">
             <i class="ph ph-sliders text-base text-purple-600 dark:text-purple-400"></i> Constraints
+          </button>
+          <button id="btnToolbarShiftGenerator" class="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-300 dark:border-indigo-800 transition shadow-xs cursor-pointer" title="Open Shift Roster Generator for Night Shifts & Baseline">
+            <i class="ph ph-moon-stars text-base text-indigo-600 dark:text-indigo-400"></i> Night Shifts
           </button>
         </div>
 
@@ -2663,6 +2672,102 @@ Operations Desk</textarea>
 
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- MODAL: 🌙 Shift Roster Generator (Night Shift & Baseline Solver)           -->
+  <!-- ========================================================================= -->
+  <div id="shiftGeneratorModal" class="hidden fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-md transition-opacity">
+    <div class="rx-glass-modal relative w-full max-w-4xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.4)] p-5 md:p-6 overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 max-h-[92vh]" style="background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%);">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-200/60 dark:border-white/10 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shadow-sm">
+            <i class="ph ph-moon-stars font-bold text-amber-400"></i>
+          </div>
+          <div>
+            <h2 class="text-base md:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              Shift Roster Generator
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700">Night + Baseline</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Automated mapping for Weekly Offs (<span class="font-mono font-bold text-red-500">OFF</span>), Approved Leaves (<span class="font-mono font-bold text-amber-500">L</span>), Swaps, and Night Shifts (<span class="font-mono font-bold text-indigo-500">NS</span>)</p>
+          </div>
+        </div>
+        <button id="btnCloseShiftGeneratorModal" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/10 transition cursor-pointer text-lg">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Controls Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-white/5 shrink-0 bg-slate-50/50 dark:bg-slate-900/30 px-3 rounded-xl mt-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Target Month:</span>
+          <select id="sgMonthSelect" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs text-slate-800 dark:text-slate-200 shadow-xs focus:ring-2 focus:ring-indigo-500">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-medium border border-emerald-200 dark:border-emerald-800/40">
+            <i class="ph ph-check-circle"></i> 24/7 Night Coverage (1 NS/Day)
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-medium border border-purple-200 dark:border-purple-800/40">
+            <i class="ph ph-shield-check"></i> 1–5 Days/Block
+          </span>
+        </div>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="overflow-y-auto flex-1 my-3 pr-1 space-y-4" style="max-height: calc(92vh - 220px);">
+        <!-- Engineer Rules Table -->
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-xs">
+          <div class="px-4 py-2.5 bg-slate-100/70 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <h4 class="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="ph ph-users text-indigo-500"></i> Engineer Night Shift Settings
+            </h4>
+            <span class="text-[11px] text-slate-500">Configure quotas or exclude specific members</span>
+          </div>
+          <div id="sgEngineersListContainer" class="divide-y divide-slate-100 dark:divide-slate-800">
+            <!-- Dynamically populated rows -->
+            <div class="p-4 text-center text-xs text-slate-400">Loading active engineers...</div>
+          </div>
+        </div>
+
+        <!-- Preview Result Section (Hidden until generated) -->
+        <div id="sgPreviewSection" class="hidden rounded-2xl border border-indigo-200 dark:border-indigo-800/60 overflow-hidden bg-white dark:bg-slate-900 shadow-md">
+          <div class="px-4 py-3 bg-indigo-50/70 dark:bg-indigo-950/40 border-b border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <h4 class="text-xs font-extrabold text-indigo-950 dark:text-indigo-200 uppercase tracking-wider">Generated Schedule Preview</h4>
+            </div>
+            <div id="sgStatsBadges" class="flex items-center gap-2 text-xs">
+              <!-- Stats badges populated dynamically -->
+            </div>
+          </div>
+          <div class="p-3 overflow-x-auto">
+            <div id="sgPreviewGridContainer" class="text-xs">
+              <!-- Matrix preview populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="flex items-center justify-between pt-3 border-t border-slate-200/60 dark:border-white/10 shrink-0 gap-3">
+        <button id="btnCancelShiftGenerator" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+          Cancel
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="btnRunShiftGenerator" class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md hover:shadow-indigo-500/25 cursor-pointer">
+            <i class="ph ph-sparkle text-amber-300 text-sm"></i>
+            <span>Generate Draft</span>
+          </button>
+          <button id="btnApplyShiftGenerator" class="hidden flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md hover:shadow-emerald-500/25 cursor-pointer">
+            <i class="ph ph-check-circle text-sm"></i>
+            <span>Apply to Active Grid</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
 
 
@@ -4223,7 +4328,7 @@ Operations Desk</textarea>
   <!-- Adaptive 5-Tab Fluid Neumorphic Bottom Dock (Mobile Portrait) & Left Rail (Mobile Landscape) mounted dynamically by MobileNavShell -->
 
   <!-- Master Application Script (ES Module) -->
-  <script type="module" src="js/app.js?v=2.5.7"></script>
+  <script type="module" src="js/app.js?v=2.5.12"></script>
 
 </body>
 

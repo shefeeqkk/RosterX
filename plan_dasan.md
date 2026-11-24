@@ -1,6 +1,6 @@
 # 📋 Execution Plan for Dasan (Backend & Server Infrastructure Lead)
 
-**Status:** `COMPLETED` (Sprint v2.4.0 - Build 171: Leave & Swap Request Engine, MongoDB Atlas Schemas, 14-Day Quota Enforcement, FCM Push Alerts & Audit Logging Verified & Synced)
+**Status:** `COMPLETED` (Sprint v2.5.12 - Build 187: Dedicated Shift Roster Generator Engine, 24/7 Night Shift Constraint Solver, Fixed Quotas & Exclusions, Web Admin Modal & 1-Click Grid Application)
 
 ---
 
@@ -12,7 +12,21 @@
 
 ---
 
-## 🚀 Architectural Contract: Leave & Swap Request System (Sprint v2.4.0 - Build 171)
+## 🚀 Architectural Contract: Shift Roster Generator (Sprint v2.5.12 - Build 187)
+
+### 1. Focused 4-Shift Model
+- **Week Offs (`OFF`)**: Loaded from engineers' default weekly offs.
+- **Approved Leaves (`L`)**: Filtered from `leave_requests` where status is `approved_leave`.
+- **Approved Swaps (`SW*`)**: Preserved from `leave_requests` where status is `approved_swap`.
+- **Night Shifts (`NS`)**: Solved deterministically with 100% 24/7 coverage (exactly 1 NS per calendar day).
+- **All Other Days**: Strictly remain unassigned (`""`).
+
+### 2. Constraint Solver Engine (`solve_night_shifts_engine` in `server.py`)
+- **Block size**: 1 to 5 consecutive days maximum per engineer.
+- **Fixed Quota**: Fixed 5-night guarantee allocated first around baseline offs.
+- **Exclusions**: Excluded team members guaranteed 0 night shifts.
+- **Flexible Rotation**: Fair distribution across eligible flexible team members with post-night rest protection.
+- **API Endpoint**: `POST /api/roster/generate-night-shifts`.
 
 ### 1. MongoDB Atlas Schema & Collections (`server.py`)
 Create/manage collection `leave_requests` in `ATLAS_DB`:

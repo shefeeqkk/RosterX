@@ -38,6 +38,7 @@ import urllib.parse
 import random
 import copy
 import traceback
+import calendar
 
 try:
     from google import genai
@@ -51,7 +52,7 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.11"
+SERVER_VERSION = "2.5.12"
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():
@@ -929,6 +930,304 @@ def is_eligible_roster_row(e: dict, month_id: str, eng_meta_by_key: dict = None)
                 return False
 
     return True
+
+def solve_night_shifts_engine(year: int, month: int, engineers_data: list, leaves_data: list = None, engineer_rules: dict = None) -> dict:
+    """
+    Deterministic constraint solver for night shift (NS) allocation.
+    Focuses EXCLUSIVELY on:
+      - Week Off (OFF)
+      - Approved Leave (L)
+      - Approved Swap (SW*)
+      - Night Shift (NS)
+    All other shifts remain empty string ("").
+
+    Constraints:
+      1. Baseline: OFF, L, and Swaps are locked and inviolable.
+      2. Exactly 1 NS per calendar day across the entire team (24/7 coverage).
+      3. Consecutive block length per engineer: 1 to 5 nights maximum.
+      4. Excluded engineers (mode == 'excluded' or is_excluded == True) get 0 night shifts.
+      5. Fixed quota engineers (e.g., mode == 'fixed_5' or fixed_nights == 5) receive
+         their exact quota (e.g. 5 days, preferably as a single contiguous block).
+      6. Flexible engineers rotate in blocks of 1 to 5 consecutive days (preferring 2 to 5 days).
+      7. No engineer works NS on an OFF, L, or Swap day.
+      8. Post-night rest: after completing a night shift block, the engineer should have adequate rest.
+    """
+    leaves_data = leaves_data or []
+    engineer_rules = engineer_rules or {}
+
+    total_days = calendar.monthrange(year, month)[1]
+    month_id = f"{year}-{str(month).zfill(2)}"
+    day_names = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+
+    # 1. Filter active eligible roster engineers
+    eng_meta_by_key = {}
+    for e in engineers_data:
+        for f in ("username", "name", "full_name", "id", "engineer_id"):
+            v = str(e.get(f) or "").strip().lower()
+            if v:
+                eng_meta_by_key[v] = e
+
+    active_engineers = []
+    for eng in engineers_data:
+        if not is_eligible_roster_row(eng, month_id, eng_meta_by_key):
+            continue
+        uname = str(eng.get("username") or eng.get("id") or "").strip().lower()
+        if not uname:
+            continue
+        active_engineers.append(eng)
+
+    if not active_engineers:
+        return {"success": False, "message": "No active engineers available for scheduling."}
+
+    # 2. Build baseline grid
+    grid = {}
+    eng_by_uname = {}
+    rules_by_uname = {}
+
+    for eng in active_engineers:
+        uname = str(eng.get("username") or eng.get("id") or "").strip().lower()
+        eng_by_uname[uname] = eng
+        grid[uname] = [""] * total_days
+
+        rule = engineer_rules.get(uname) or engineer_rules.get(eng.get("username")) or {}
+        rules_by_uname[uname] = rule
+
+        # Default weekly offs
+        raw_offs = eng.get("default_weekly_offs") or []
+        def_offs = [str(x).upper().strip() for x in raw_offs]
+        for day in range(1, total_days + 1):
+            dt = datetime(year, month, day)
+            day_name = day_names[dt.weekday()]
+            if day_name in def_offs:
+                grid[uname][day - 1] = "OFF"
+
+    # 3. Apply approved leaves and swaps onto baseline
+    for req in leaves_data:
+        r_uname = str(req.get("engineer_id") or req.get("username") or "").strip().lower()
+        if r_uname not in grid:
+            continue
+        dates = req.get("dates") or []
+        req_status = str(req.get("status") or "").lower()
+        swap_code = req.get("swap_shift_code") or req.get("swap_code") or "SWAP"
+
+        for d_str in dates:
+            try:
+                parts = [int(p) for p in d_str.split("-")]
+                if len(parts) == 3 and parts[0] == year and parts[1] == month:
+                    day_num = parts[2]
+                    if 1 <= day_num <= total_days:
+                        if req_status == "approved_swap":
+                            grid[r_uname][day_num - 1] = swap_code
+                        else:
+                            grid[r_uname][day_num - 1] = "L"
+            except Exception:
+                continue
+
+    # 4. Classify engineers by rules
+    excluded_unames = set()
+    fixed_unames = {}  # uname -> {"target": int, "pref_start": int or None}
+    flexible_unames = []
+
+    for uname in grid.keys():
+        rule = rules_by_uname[uname]
+        mode = str(rule.get("mode") or "").lower()
+        if mode == "excluded" or rule.get("is_excluded") is True:
+            excluded_unames.add(uname)
+        elif mode in ("fixed_5", "fixed") or rule.get("fixed_nights") is not None:
+            target = int(rule.get("fixed_nights") or 5)
+            pref_start = rule.get("preferred_start_day")
+            try:
+                pref_start = int(pref_start) if pref_start is not None else None
+            except Exception:
+                pref_start = None
+            fixed_unames[uname] = {"target": target, "pref_start": pref_start}
+        else:
+            flexible_unames.append(uname)
+
+    # 5. Day assignment array
+    assigned_ns = [None] * total_days
+
+    def can_work_ns(uname, d):
+        if uname in excluded_unames:
+            return False
+        if grid[uname][d] != "":
+            return False
+        return True
+
+    def get_max_free_streak(uname, start_d, max_len=5):
+        streak = 0
+        while (start_d + streak < total_days) and streak < max_len:
+            d = start_d + streak
+            if not can_work_ns(uname, d) or assigned_ns[d] is not None:
+                break
+            streak += 1
+        return streak
+
+    # 6. Priority allocation: Fixed quota engineers (e.g. 5 days)
+    for f_uname, f_info in fixed_unames.items():
+        if f_uname in excluded_unames:
+            continue
+        req_nights = f_info["target"]
+        pref_start = f_info.get("pref_start")
+
+        candidate_starts = []
+        if pref_start and 1 <= pref_start <= total_days - req_nights + 1:
+            candidate_starts.append(pref_start - 1)
+        for s in range(0, total_days - req_nights + 1):
+            if s not in candidate_starts:
+                candidate_starts.append(s)
+
+        best_block = None
+        for start_day in candidate_starts:
+            block_free = True
+            for d in range(start_day, start_day + req_nights):
+                if not can_work_ns(f_uname, d) or assigned_ns[d] is not None:
+                    block_free = False
+                    break
+            if block_free:
+                best_block = list(range(start_day, start_day + req_nights))
+                break
+
+        if best_block:
+            for d in best_block:
+                assigned_ns[d] = f_uname
+        else:
+            allocated = 0
+            for start_day in range(0, total_days):
+                if allocated >= req_nights:
+                    break
+                if can_work_ns(f_uname, start_day) and assigned_ns[start_day] is None:
+                    assigned_ns[start_day] = f_uname
+                    allocated += 1
+
+    # 7. Solve remaining days with flexible pool
+    if not flexible_unames and None in assigned_ns:
+        flexible_unames = [u for u in grid.keys() if u not in excluded_unames]
+
+    unassigned_count = sum(1 for d in assigned_ns if d is None)
+    flex_count = len(flexible_unames)
+    ideal_target = (unassigned_count // flex_count) if flex_count > 0 else 5
+
+    ns_counts = {u: 0 for u in grid.keys()}
+    for d in range(total_days):
+        if assigned_ns[d] is not None:
+            ns_counts[assigned_ns[d]] += 1
+
+    last_night_day = {u: -999 for u in grid.keys()}
+    for d in range(total_days):
+        if assigned_ns[d] is not None:
+            last_night_day[assigned_ns[d]] = d
+
+    def solve_backtracking(day_idx):
+        if day_idx >= total_days:
+            return True
+
+        if assigned_ns[day_idx] is not None:
+            return solve_backtracking(day_idx + 1)
+
+        prev_eng = assigned_ns[day_idx - 1] if day_idx > 0 else None
+
+        moves = []
+        for cand in flexible_unames:
+            streak = get_max_free_streak(cand, day_idx, max_len=5)
+            if streak <= 0:
+                continue
+            lengths_to_try = sorted(list(set([streak, min(streak, 4), min(streak, 3), min(streak, 2), 1])), reverse=True)
+            for b_len in lengths_to_try:
+                moves.append((cand, b_len))
+
+        def move_score(move):
+            cand, b_len = move
+            is_prev = 1 if cand == prev_eng else 0
+            rest_violation = 1 if (day_idx - last_night_day[cand]) < 2 else 0
+            zero_shifts_bonus = 0 if ns_counts[cand] == 0 else 1
+            exceeds_target = 1 if (ns_counts[cand] + b_len > ideal_target + 3) else 0
+            size_penalty = 5 - b_len
+            return (
+                is_prev,
+                rest_violation,
+                zero_shifts_bonus,
+                exceeds_target,
+                ns_counts[cand],
+                size_penalty
+            )
+
+        sorted_moves = sorted(moves, key=move_score)
+
+        for cand, b_size in sorted_moves:
+            prev_last = last_night_day[cand]
+            for offset in range(b_size):
+                assigned_ns[day_idx + offset] = cand
+            ns_counts[cand] += b_size
+            last_night_day[cand] = day_idx + b_size - 1
+
+            if solve_backtracking(day_idx + b_size):
+                return True
+
+            for offset in range(b_size):
+                assigned_ns[day_idx + offset] = None
+            ns_counts[cand] -= b_size
+            last_night_day[cand] = prev_last
+
+        return False
+
+    success = solve_backtracking(0)
+    if not success:
+        return {"success": False, "message": "Could not satisfy 24/7 night coverage with given constraints."}
+
+    # 8. Commit assigned_ns to the grid
+    for d in range(total_days):
+        worker = assigned_ns[d]
+        if worker and worker in grid:
+            grid[worker][d] = "NS"
+
+    # 9. Format response payload
+    roster_rows = []
+    stats = {
+        "total_days": total_days,
+        "nights_scheduled": sum(1 for d in assigned_ns if d is not None),
+        "coverage_percentage": round((sum(1 for d in assigned_ns if d is not None) / total_days) * 100, 1),
+        "engineers_count": len(grid),
+        "per_engineer_stats": {}
+    }
+
+    for uname, shifts in grid.items():
+        eng_meta = eng_by_uname[uname]
+        ns_count = shifts.count("NS")
+        off_count = shifts.count("OFF")
+        l_count = shifts.count("L")
+        stats["per_engineer_stats"][uname] = {
+            "name": eng_meta.get("name") or eng_meta.get("full_name") or uname,
+            "ns_count": ns_count,
+            "off_count": off_count,
+            "leave_count": l_count,
+            "rule": rules_by_uname.get(uname, {})
+        }
+        roster_rows.append({
+            "id": eng_meta.get("id") or uname,
+            "username": uname,
+            "name": eng_meta.get("name") or eng_meta.get("full_name") or uname,
+            "role": eng_meta.get("role") or "engineer",
+            "default_weekly_offs": eng_meta.get("default_weekly_offs") or [],
+            "shifts": shifts
+        })
+
+    return {
+        "success": True,
+        "month": month_id,
+        "total_days": total_days,
+        "stats": stats,
+        "roster": roster_rows,
+        "assigned_daily_nights": [
+            {
+                "day": d + 1,
+                "date": f"{year}-{str(month).zfill(2)}-{str(d + 1).zfill(2)}",
+                "username": assigned_ns[d],
+                "name": (eng_by_uname.get(assigned_ns[d]) or {}).get("name") if assigned_ns[d] else None
+            }
+            for d in range(total_days)
+        ]
+    }
 
 def is_login_rate_limited(ip: str, identifier: str) -> bool:
     """Rate limit: Max 5 failed attempts per 5 minutes per IP/identifier."""
@@ -4908,7 +5207,7 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
             "/users/profile-picture",
             "/users/calendar-sync", "/users/calendar-sync/clear",
             "/users/calendar-accounts"
-        ) or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/users/calendar-sync") or norm_path.startswith("/users/calendar-accounts") or norm_path.startswith("/leave/"):
+        ) or norm_path.startswith("/roster/") or norm_path.startswith("/roster-backups/") or norm_path.startswith("/credentials/") or norm_path.startswith("/broadcast-templates/") or norm_path.startswith("/users/calendar-sync") or norm_path.startswith("/users/calendar-accounts") or norm_path.startswith("/leave/"):
             norm_path = "/api" + norm_path
         norm_path = self._normalize_api_aliases(norm_path)
 
@@ -5661,6 +5960,84 @@ class SecureRosterHandler(SimpleHTTPRequestHandler):
                 })
             except Exception as e:
                 self.send_json_response({"success": False, "message": f"Restore failed: {e}"}, 500)
+            return
+
+        # 3.25 POST /api/roster/generate-night-shifts (Deterministic 24/7 Night Shift Solver)
+        if clean_path in ("/api/roster/generate-night-shifts", "/api/roster/generate-night-shifts/"):
+            claims = self.require_auth(["admin"])
+            if not claims:
+                return
+
+            month_str = str(body.get("month") or "").strip()
+            y = body.get("year")
+            m = body.get("month_num") or body.get("m")
+            if not month_str and y and m:
+                month_str = f"{y}-{str(m).zfill(2)}"
+
+            if not month_str or len(month_str) < 7:
+                self.send_json_response({"success": False, "message": "Missing or invalid 'month' parameter (expected 'YYYY-MM')"}, 400)
+                return
+
+            try:
+                parts = [int(p) for p in month_str[:7].split("-")]
+                year_val = parts[0]
+                month_val = parts[1]
+                if not (2020 <= year_val <= 2040 and 1 <= month_val <= 12):
+                    raise ValueError("Year or month out of range")
+            except Exception as e:
+                self.send_json_response({"success": False, "message": f"Invalid month format: {e}"}, 400)
+                return
+
+            # Fetch active engineers
+            engineers_list = []
+            if ATLAS_DB is not None:
+                try:
+                    engineers_list = list(ATLAS_DB.engineers.find({}, {"password": 0}))
+                except Exception as e:
+                    print(f"  [SOLVER WARNING] Failed to query Atlas engineers: {e}")
+            if not engineers_list:
+                engineers_list = list(SERVER_ENGINEERS)
+
+            # Fetch leaves and swaps for target month
+            leaves_list = []
+            if ATLAS_DB is not None:
+                try:
+                    leaves_list = list(ATLAS_DB.leave_requests.find({
+                        "month_keys": month_str,
+                        "status": {"$in": ["approved_leave", "approved_swap"]}
+                    }))
+                except Exception as e:
+                    print(f"  [SOLVER WARNING] Failed to query leave requests: {e}")
+
+            engineer_rules = body.get("engineer_rules") or body.get("constraints") or {}
+            apply_to_grid = bool(body.get("apply_to_grid", False))
+
+            result = solve_night_shifts_engine(year_val, month_val, engineers_list, leaves_list, engineer_rules)
+            if not result.get("success"):
+                self.send_json_response(result, 422)
+                return
+
+            # Optional immediate persistence to Atlas if apply_to_grid is True
+            if apply_to_grid and ATLAS_DB is not None:
+                try:
+                    doc_id = month_str
+                    roster_payload = {
+                        "_id": doc_id,
+                        "year": year_val,
+                        "month": month_val,
+                        "status": "draft",
+                        "engineers": result["roster"],
+                        "roster": result["roster"],
+                        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "published_by": claims.get("name") or "Admin (Night Solver)"
+                    }
+                    ATLAS_DB.rosters.update_one({"_id": doc_id}, {"$set": roster_payload}, upsert=True)
+                    result["saved_to_atlas"] = True
+                except Exception as s_err:
+                    result["saved_to_atlas"] = False
+                    result["atlas_save_error"] = str(s_err)
+
+            self.send_json_response(result, 200)
             return
 
         # 3.3 POST /api/constraints (Update Operational Policies)
