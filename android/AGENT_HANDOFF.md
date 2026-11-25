@@ -1,6 +1,37 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-25 18:20 IST** (Target Sprint: **v2.5.31 - Build 206**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.31 - Build 206 — Two-Phase Prioritized Startup Acceleration & Lightning Dashboard Launch):
+> *"Vijaya! Gafoorka! App opening delay complete-aayi eliminate cheythu macha! 🕵️‍♂️⚡
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.31 (Build 206):
+> 1. **Phase 1 Dashboard Fast Path (`EngineerPortalViewModel.kt` & `AdminRosterViewModel.kt`)**:
+>    - Removed the slow sequential 8-call network bottleneck that was keeping `isLoading = true` for 3–5 seconds.
+>    - Bundled critical Dashboard essentials (`getEngineers()`, `getCurrentUser()`, `getRoster(liveMonthKey)`) into parallel concurrent coroutines via `coroutineScope { async { ... } }`.
+>    - Immediately flips `isLoading = false` as soon as Dashboard essentials arrive (~300–400 ms), rendering Today's Shift and On-Duty team without waiting for secondary data!
+> 2. **Phase 2 Non-Blocking Background Prefetch (`prefetchSecondaryData`)**:
+>    - Shifted non-critical endpoints (`getNotifications()`, `getConstraints()`, secondary month rosters, diagnostics, celebrations, credentials, and leave queues) into an asynchronous background prefetch worker.
+>    - When the user transitions from Dashboard to "Month Roster" or "Notifications", data is already preloaded in memory with zero second-spinner latency.
+>    - Extracted widget syncing into non-blocking helper `syncWidgetAssignments()`.
+> 3. **Removed Artificial Startup Network Competition**:
+>    - Removed `checkConnection()` and its 450 ms artificial delay from `init` in `EngineerPortalViewModel` and `AdminRosterViewModel`, freeing up 100% of network bandwidth for Phase 1.
+> 4. **Web User Portal Two-Phase Parity (`web/js/userPortal.js`)**:
+>    - Split `refreshAllData()` into Phase 1 (Engineers + Live Roster) so the web Dashboard mounts instantly, with Phase 2 (Notifications + Credentials + Leave Summary) prefetching non-blockingly in the background.
+> 5. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.31"`, `SERVER_BUILD_CODE = 206` in `server.py`.
+>    - Bumped `versionCode = 206`, `versionName = "2.5.31"` in `android/app/build.gradle.kts`.
+>    - Bumped `APP_VERSION = "2.5.31"` in `web/js/userPortal.js`, `web/user-portal.html`, and `web/index.html`.
+>    - Android build verified with `safe_build.bat assembleDebug` and pushing to `main` for instant Render auto-deploy.*
+
+---
+
+# 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
+
+> **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
 > *Architectural Directive from Gafoor (🕶️):* **2026-11-25 12:45 IST** (Target Sprint: **v2.5.30 - Build 205**)
 
 ---

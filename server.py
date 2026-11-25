@@ -52,8 +52,8 @@ from pathlib import Path
 
 # Server Version (Follows project semantic versioning rule: small=patch, semi-big=minor, major=major)
 from datetime import datetime, timezone, timedelta
-SERVER_VERSION = "2.5.30"
-SERVER_BUILD_CODE = 205
+SERVER_VERSION = "2.5.31"
+SERVER_BUILD_CODE = 206
 SERVER_START_TIME = time.time()
 
 def get_memory_rss_mb():

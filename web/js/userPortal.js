@@ -31,7 +31,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.3.1';
 
-const APP_VERSION = '2.5.30';
+const APP_VERSION = '2.5.31';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -497,14 +497,16 @@ class RosterXUserPortal {
 
   async refreshAllData(showFeedback = false) {
     try {
-      const [engRes, notifRes, credRes] = await Promise.allSettled([
-        this.atlas.getEngineers(),
-        this.atlas.getNotifications(),
-        fetch('/api/credentials', { headers: getAuthHeaders() }).then((r) => r.json())
+      const now = getIstNow();
+
+      // --- PHASE 1: DASHBOARD ESSENTIALS (CONCURRENT FAST PATH) ---
+      const [engRes] = await Promise.all([
+        this.atlas.getEngineers().catch(() => []),
+        this.ensureRosterLoaded(now.getFullYear(), now.getMonth() + 1).catch(() => null)
       ]);
 
-      if (engRes.status === 'fulfilled' && Array.isArray(engRes.value)) {
-        this.engineers = engRes.value;
+      if (Array.isArray(engRes) && engRes.length > 0) {
+        this.engineers = engRes;
         const freshSelf = this.getSelfEngineer();
         if (freshSelf) {
           this.user = { ...this.user, ...freshSelf };
@@ -515,9 +517,43 @@ class RosterXUserPortal {
         this.updateTopBarUser();
       }
 
-      if (notifRes.status === 'fulfilled') {
+      // Render Dashboard immediately with Phase 1 essentials!
+      this.renderActiveView();
+
+      // --- PHASE 2: BACKGROUND AUTO-PREFETCH (NON-BLOCKING) ---
+      this.prefetchSecondaryData(showFeedback);
+    } catch (err) {
+      this.toast(`Sync warning: ${err.message}`, 'error');
+    }
+  }
+
+  async prefetchSecondaryData(showFeedback = false) {
+    try {
+      const promises = [
+        this.atlas.getNotifications().catch(() => null),
+        fetch('/api/credentials', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => null)
+      ];
+
+      const now = getIstNow();
+      if (this.gridYear && this.gridMonth && (this.gridYear !== now.getFullYear() || this.gridMonth !== (now.getMonth() + 1))) {
+        promises.push(this.ensureRosterLoaded(this.gridYear, this.gridMonth).catch(() => null));
+      }
+
+      if (this.isManager) {
+        promises.push(this.atlas.getServerTelemetry().catch(() => null));
+        promises.push(this.atlas.getBroadcastTemplates().catch(() => null));
+        promises.push(fetch('/api/leave/admin-queue', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => null));
+      } else {
+        promises.push(fetch('/api/leave/my-requests', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => null));
+      }
+
+      const results = await Promise.allSettled(promises);
+      const notifRes = results[0]?.value;
+      const credRes = results[1]?.value;
+
+      if (notifRes) {
         try {
-          const payload = notifRes.value || {};
+          const payload = notifRes || {};
           const list = Array.isArray(payload.notifications)
             ? payload.notifications
             : Array.isArray(payload.data?.notifications)
@@ -544,9 +580,9 @@ class RosterXUserPortal {
         }
       }
 
-      if (credRes.status === 'fulfilled' && credRes.value?.success) {
+      if (credRes && credRes.success) {
         try {
-          const payload = credRes.value;
+          const payload = credRes;
           const trackers = Array.isArray(payload?.data?.trackers)
             ? payload.data.trackers
             : Array.isArray(payload?.trackers)
@@ -565,50 +601,31 @@ class RosterXUserPortal {
       }
 
       if (this.isManager) {
-        const [telRes, tplRes] = await Promise.allSettled([
-          this.atlas.getServerTelemetry(),
-          this.atlas.getBroadcastTemplates()
-        ]);
-        if (telRes.status === 'fulfilled') this.telemetry = telRes.value?.data || telRes.value;
-        if (tplRes.status === 'fulfilled') this.templates = tplRes.value?.templates || tplRes.value?.data || [];
-      }
-
-      // Fetch live leave quota balance and pending approvals queue summary
-      try {
-        if (this.isManager || String(this.user?.role || '').toLowerCase() === 'admin') {
-          const qRes = await fetch('/api/leave/admin-queue', { headers: getAuthHeaders() });
-          const qData = await qRes.json();
-          if (qData.success) {
-            this.leaveApprovalsSummary = {
-              pendingCount: (qData.pending_requests || []).length
-            };
-          }
-        } else {
-          const lRes = await fetch('/api/leave/my-requests', { headers: getAuthHeaders() });
-          const lData = await lRes.json();
-          if (lData.success) {
-            const reqs = lData.requests || [];
-            this.leaveStatsSummary = {
-              remainingDays: lData.remaining_leave_balance ?? 14,
-              approvedDays: lData.approved_leave_days ?? 0,
-              cappingEnabled: lData.capping_enabled !== false,
-              activeCount: reqs.filter((r) => String(r.status || '').toUpperCase() === 'PENDING').length
-            };
-          }
+        const telRes = results[3]?.value;
+        const tplRes = results[4]?.value;
+        const qData = results[5]?.value;
+        if (telRes) this.telemetry = telRes.data || telRes;
+        if (tplRes) this.templates = tplRes.templates || tplRes.data || [];
+        if (qData && qData.success) {
+          this.leaveApprovalsSummary = {
+            pendingCount: (qData.pending_requests || []).length
+          };
         }
-      } catch (leaveErr) {
-        console.warn('Leave summary fetch guard:', leaveErr);
+      } else {
+        const lData = results[2]?.value;
+        if (lData && lData.success) {
+          const reqs = lData.requests || [];
+          this.leaveStatsSummary = {
+            remainingDays: lData.remaining_leave_balance ?? 14,
+            approvedDays: lData.approved_leave_days ?? 0,
+            cappingEnabled: lData.capping_enabled !== false,
+            activeCount: reqs.filter((r) => String(r.status || '').toUpperCase() === 'PENDING').length
+          };
+        }
       }
 
-      const now = getIstNow();
-      await this.ensureRosterLoaded(now.getFullYear(), now.getMonth() + 1);
-      await this.ensureRosterLoaded(this.gridYear, this.gridMonth);
-
-      this.renderActiveView();
       if (showFeedback) this.toast('Synced latest shifts & status from database', 'success');
-    } catch (err) {
-      this.toast(`Sync warning: ${err.message}`, 'error');
-    }
+    } catch (_) {}
   }
 
   async ensureRosterLoaded(year, month) {

@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 import java.time.LocalDate
 
@@ -115,8 +117,6 @@ class AdminRosterViewModel @Inject constructor(
     }
 
     init {
-        checkConnection()
-        refreshTelemetry()
         loadData()
         loadNotifications()
         viewModelScope.launch {
@@ -219,8 +219,6 @@ class AdminRosterViewModel @Inject constructor(
     }
 
     fun loadData(silent: Boolean = false, onComplete: (() -> Unit)? = null) {
-        checkConnection()
-        refreshTelemetry()
         viewModelScope.launch {
             try {
                 val monthKey = String.format(Locale.US, "%d-%02d", _state.value.currentYear, _state.value.currentMonth)
@@ -234,8 +232,13 @@ class AdminRosterViewModel @Inject constructor(
                     _state.value = _state.value.copy(isLoading = true, errorMessage = null)
                 }
 
-                // 1. Load Engineers
-                val engineersResult = repository.getEngineers()
+                // --- PHASE 1: PARALLEL CONCURRENT FETCH FOR DASHBOARD ESSENTIALS ---
+                val (engineersResult, rosterResult) = coroutineScope {
+                    val engDef = async { repository.getEngineers() }
+                    val rosterDef = async { repository.getRoster(monthKey) }
+                    engDef.await() to rosterDef.await()
+                }
+
                 val engineers = engineersResult.getOrElse { emptyList() }
 
                 // Sync active user profile if updated in Team Management or backend
@@ -249,10 +252,8 @@ class AdminRosterViewModel @Inject constructor(
                     }
                 }
 
-                // 2. Load Roster for current month/year
-                val rosterResult = repository.getRoster(monthKey)
+                // Process Roster
                 val rosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
-
                 if (rosterResult.isSuccess) {
                     val rawRoster = rosterResult.getOrNull() ?: emptyMap()
                     rawRoster.forEach { (engId, daysMap) ->
@@ -267,40 +268,53 @@ class AdminRosterViewModel @Inject constructor(
                     rosterCache.remove(monthKey)
                 }
 
-                // 3. Load Operational Constraints
-                val constraintsResult = repository.getConstraints()
-                val loadedConstraints = constraintsResult.getOrDefault(com.rosterx.domain.model.OperationalConstraints())
-
+                // --- PHASE 1 COMPLETE: DISMISS LOADING SPINNER IMMEDIATELY ---
                 _state.value = _state.value.copy(
                     isLoading = false,
                     engineers = if (engineers.isNotEmpty()) engineers else _state.value.engineers,
-                    roster = if (rosterResult.isSuccess) rosterMap else emptyMap(),
-                    constraints = loadedConstraints
+                    roster = if (rosterResult.isSuccess) rosterMap else emptyMap()
                 )
 
-                // 4. Sync Operations Radar Widget for Admin
-                if (rosterResult.isSuccess && engineers.isNotEmpty()) {
-                    val fullStringRoster = mutableMapOf<String, Map<String, String>>()
-                    val rawRoster = rosterResult.getOrNull() ?: emptyMap()
-                    rawRoster.forEach { (engId, daysMap) ->
-                        fullStringRoster[engId] = daysMap
-                    }
-                    val currentAdmin = sessionManager.currentUser.value
-                    val adminName = currentAdmin?.fullName?.takeIf { it.isNotBlank() }
-                        ?: currentAdmin?.name
-                        ?: "Operations Administrator"
+                onComplete?.invoke()
 
-                    com.rosterx.widget.RosterXAppWidgetProvider.syncManagerOrAdminRoster(
-                        context = context,
-                        managerName = adminName,
-                        engineers = engineers,
-                        roster = fullStringRoster,
-                        monthKey = monthKey
-                    )
+                // --- PHASE 2: BACKGROUND AUTO-PREFETCH (NON-BLOCKING) ---
+                launch {
+                    try {
+                        val constraintsResult = repository.getConstraints()
+                        val loadedConstraints = constraintsResult.getOrDefault(com.rosterx.domain.model.OperationalConstraints())
+                        _state.value = _state.value.copy(constraints = loadedConstraints)
+
+                        // Sync Operations Radar Widget for Admin
+                        if (rosterResult.isSuccess && engineers.isNotEmpty()) {
+                            val fullStringRoster = mutableMapOf<String, Map<String, String>>()
+                            val rawRoster = rosterResult.getOrNull() ?: emptyMap()
+                            rawRoster.forEach { (engId, daysMap) ->
+                                fullStringRoster[engId] = daysMap
+                            }
+                            val currentAdmin = sessionManager.currentUser.value
+                            val adminName = currentAdmin?.fullName?.takeIf { it.isNotBlank() }
+                                ?: currentAdmin?.name
+                                ?: "Operations Administrator"
+
+                            com.rosterx.widget.RosterXAppWidgetProvider.syncManagerOrAdminRoster(
+                                context = context,
+                                managerName = adminName,
+                                engineers = engineers,
+                                roster = fullStringRoster,
+                                monthKey = monthKey
+                            )
+                        }
+
+                        loadBackups()
+                        checkConnection()
+                        refreshTelemetry()
+                    } catch (_: Exception) {}
                 }
-
-                loadBackups()
-            } finally {
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message ?: "Failed to load data"
+                )
                 onComplete?.invoke()
             }
         }

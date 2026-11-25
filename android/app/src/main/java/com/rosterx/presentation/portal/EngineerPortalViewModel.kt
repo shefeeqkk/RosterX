@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -152,13 +154,8 @@ class EngineerPortalViewModel @Inject constructor(
 
 
     init {
-
-        checkConnection()
-
         observeSession()
-
         loadData()
-
     }
 
 
@@ -272,7 +269,13 @@ class EngineerPortalViewModel @Inject constructor(
                     _state.value = _state.value.copy(isLoading = true, errorMessage = null)
                 }
 
-            val engineersResult = repository.getEngineers()
+            // --- PHASE 1: DASHBOARD ESSENTIALS (PARALLEL CONCURRENT FETCH) ---
+            val (engineersResult, meResult, liveRosterResult) = coroutineScope {
+                val engDeferred = async { repository.getEngineers() }
+                val meDeferred = async { repository.getCurrentUser() }
+                val liveRosterDeferred = async { repository.getRoster(liveMonthKey) }
+                Triple(engDeferred.await(), meDeferred.await(), liveRosterDeferred.await())
+            }
 
             // If connection failed immediately, abort loading logic to clear spinner faster
             if (engineersResult.isFailure) {
@@ -285,13 +288,13 @@ class EngineerPortalViewModel @Inject constructor(
                     isConnected = false,
                     errorMessage = errorMsg
                 )
+                onComplete?.invoke()
                 return@launch
             }
 
             val engineers = engineersResult.getOrElse { emptyList() }
 
             // 1.1 Refresh authoritative logged-in user profile from /api/auth/me
-            val meResult = repository.getCurrentUser()
             var current = if (meResult.isSuccess) {
                 val me = meResult.getOrNull()
                 if (me != null) {
@@ -328,7 +331,6 @@ class EngineerPortalViewModel @Inject constructor(
             }
 
             // 2. Load Live Operational Roster for selectedDate
-            val liveRosterResult = repository.getRoster(liveMonthKey)
             val liveRosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
             if (liveRosterResult.isSuccess) {
                 val rawRoster = liveRosterResult.getOrNull() ?: emptyMap()
@@ -342,25 +344,6 @@ class EngineerPortalViewModel @Inject constructor(
                 rosterCache[liveMonthKey] = liveRosterMap
             }
 
-            // 3. Load Grid Roster for Month Grid section
-            val gridRosterResult = if (gridMonthKey == liveMonthKey) liveRosterResult else repository.getRoster(gridMonthKey)
-            val gridRosterMap = mutableMapOf<String, Map<String, ShiftCode>>()
-            if (gridRosterResult.isSuccess) {
-                val rawRoster = gridRosterResult.getOrNull() ?: emptyMap()
-                rawRoster.forEach { (engId, daysMap) ->
-                    val shiftMap = mutableMapOf<String, ShiftCode>()
-                    daysMap.forEach { (day, shiftStr) ->
-                        shiftMap[day] = ShiftCode.fromString(shiftStr)
-                    }
-                    gridRosterMap[engId] = shiftMap
-                }
-                rosterCache[gridMonthKey] = gridRosterMap
-            }
-
-            val notifs = repository.getNotifications().getOrElse { emptyList() }
-            val savedDismissed = sessionManager.getDismissedNotifications()
-            val loadedConstraints = repository.getConstraints().getOrDefault(com.rosterx.domain.model.OperationalConstraints())
-
             // Resolve yesterday's roster to handle overnight Night Shift (NS) rollovers (00:00 - 07:30 AM)
             val todayDate = LocalDate.now()
             val yesterdayDate = todayDate.minusDays(1)
@@ -369,9 +352,71 @@ class EngineerPortalViewModel @Inject constructor(
             val yesterdayRosterMap = if (yesterdayMonthKey == liveMonthKey) {
                 effectiveLive
             } else {
-                if (rosterCache.containsKey(yesterdayMonthKey)) {
-                    rosterCache[yesterdayMonthKey] ?: emptyMap()
-                } else {
+                rosterCache[yesterdayMonthKey] ?: emptyMap()
+            }
+
+            // --- PHASE 1 COMPLETE: DISMISS LOADING SPINNER AND SHOW DASHBOARD INSTANTLY ---
+            _state.value = _state.value.copy(
+                isLoading = false,
+                engineers = engineers,
+                liveRoster = effectiveLive,
+                yesterdayRoster = yesterdayRosterMap,
+                gridRoster = if (gridMonthKey == liveMonthKey) effectiveLive else (_state.value.gridRoster.ifEmpty { effectiveLive }),
+                isConnected = true,
+                errorMessage = null
+            )
+
+            onComplete?.invoke()
+
+            // --- PHASE 2: BACKGROUND AUTO-PREFETCH (NON-BLOCKING) ---
+            prefetchSecondaryData(
+                liveMonthKey = liveMonthKey,
+                gridMonthKey = gridMonthKey,
+                yesterdayMonthKey = yesterdayMonthKey,
+                effectiveLive = effectiveLive,
+                engineers = engineers
+            )
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(
+                isLoading = false,
+                errorMessage = e.message ?: "Failed to load dashboard data."
+            )
+            onComplete?.invoke()
+        }
+    }
+}
+
+    private fun prefetchSecondaryData(
+        liveMonthKey: String,
+        gridMonthKey: String,
+        yesterdayMonthKey: String,
+        effectiveLive: Map<String, Map<String, ShiftCode>>,
+        engineers: List<Engineer>
+    ) {
+        viewModelScope.launch {
+            try {
+                // 1. Grid Roster (if different from liveMonthKey)
+                var gridRosterMap = _state.value.gridRoster
+                if (gridMonthKey != liveMonthKey && !rosterCache.containsKey(gridMonthKey)) {
+                    val gridRes = repository.getRoster(gridMonthKey)
+                    if (gridRes.isSuccess) {
+                        val rawRoster = gridRes.getOrNull() ?: emptyMap()
+                        val map = mutableMapOf<String, Map<String, ShiftCode>>()
+                        rawRoster.forEach { (engId, daysMap) ->
+                            val shiftMap = mutableMapOf<String, ShiftCode>()
+                            daysMap.forEach { (day, shiftStr) ->
+                                shiftMap[day] = ShiftCode.fromString(shiftStr)
+                            }
+                            map[engId] = shiftMap
+                        }
+                        rosterCache[gridMonthKey] = map
+                        gridRosterMap = map
+                    }
+                }
+
+                // 2. Overnight Yesterday Roster (if needed and across month boundary)
+                var resolvedYesterday = _state.value.yesterdayRoster
+                if (yesterdayMonthKey != liveMonthKey && resolvedYesterday.isEmpty()) {
                     val prevResult = repository.getRoster(yesterdayMonthKey)
                     if (prevResult.isSuccess) {
                         val raw = prevResult.getOrNull() ?: emptyMap()
@@ -384,266 +429,268 @@ class EngineerPortalViewModel @Inject constructor(
                             prevMap[engId] = shiftMap
                         }
                         rosterCache[yesterdayMonthKey] = prevMap
-                        prevMap
-                    } else {
-                        emptyMap()
-                    }
-                }
-            }
-
-            val currentRole = _state.value.loggedInEngineer?.role
-            val isManagementUser = _state.value.loggedInEngineer?.isManagementAccount == true ||
-                currentRole == com.rosterx.domain.model.EngineerRole.ADMIN ||
-                currentRole == com.rosterx.domain.model.EngineerRole.MANAGER
-
-            // Detect newly discovered notifications during active app polling and play soothing chime (Shift engineers only)
-            val prevNotifs = _state.value.notifications
-            val prevIds = prevNotifs.mapNotNull { it.id }.toSet()
-            if (!isManagementUser && prevIds.isNotEmpty()) {
-                val newIncoming = notifs.filter { n ->
-                    val nid = n.id ?: ""
-                    nid.isNotBlank() && nid !in prevIds && nid !in savedDismissed
-                }
-                if (newIncoming.isNotEmpty()) {
-                    try {
-                        com.rosterx.util.RosterXSoundManager.playNotificationChime(context)
-                    } catch (_: Exception) {}
-                }
-            }
-
-            // Exclude Admin and Manager from operational notifications feed & bell badge
-            val displayNotifs = if (isManagementUser) emptyList() else notifs
-
-            // Also fetch server diagnostics to keep cluster, database, and latency current
-            val diag = repository.getServerDiagnostics()
-
-            _state.value = _state.value.copy(
-                isLoading = false,
-                engineers = engineers,
-                liveRoster = effectiveLive,
-                yesterdayRoster = yesterdayRosterMap,
-                gridRoster = if (gridRosterResult.isSuccess) gridRosterMap else (rosterCache[gridMonthKey] ?: emptyMap()),
-                constraints = loadedConstraints,
-                notifications = displayNotifs,
-                broadcastHistory = notifs,
-                dismissedNotificationIds = savedDismissed,
-                isConnected = engineersResult.isSuccess && diag.isConnected,
-                clusterName = diag.cluster.ifBlank { "Cluster0" },
-                databaseName = diag.database.ifBlank { "rosterx" },
-                latencyMs = diag.latencyMs
-            )
-
-            if (isManagementUser && _state.value.broadcastTemplates.isEmpty()) {
-                loadBroadcastTemplates()
-            }
-
-            loadCredentialTrackers(silent = true)
-            loadTodayCelebrations()
-            loadLeaveRequests(silent = true)
-            if (isManagementUser) {
-                loadAdminLeaveQueue(silent = true)
-            }
-
-            // Auto-sync Home Screen App Widget with latest duty assignments for ALL users
-            val currentEng = _state.value.loggedInEngineer
-            if (currentEng != null) {
-                val today = LocalDate.now()
-                val todayDayStr = today.dayOfMonth.toString()
-                val yesterday = today.minusDays(1)
-                val yesterdayDayStr = yesterday.dayOfMonth.toString()
-                val activeEngineers = engineers.filter { it.isEligibleForShiftRoster(today) }
-                val nowTime = java.time.LocalTime.now()
-                val nowMin = nowTime.hour * 60 + nowTime.minute
-                val isPostMidnightMorning = nowMin < 450 // 00:00 to 07:30 AM
-
-                val onDutyItems = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
-                val restItems = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
-                val overnightActiveEngNames = mutableSetOf<String>()
-
-                // 1. Overnight Shift Rollover: If between 00:00 and 07:30 AM, yesterday's NS engineer is actively on duty!
-                if (isPostMidnightMorning) {
-                    activeEngineers.forEach { eng ->
-                        val yShiftMap = findShiftMap(eng, yesterdayRosterMap) ?: findShiftMap(eng, effectiveLive)
-                        val yShift = yShiftMap?.get(yesterdayDayStr) ?: com.rosterx.domain.model.ShiftCode.OFF
-                        val yCode = yShift.code.uppercase()
-                        if (yCode == "NS") {
-                            overnightActiveEngNames.add(eng.name.lowercase())
-                            overnightActiveEngNames.add(eng.id.lowercase())
-                            overnightActiveEngNames.add(eng.username.lowercase())
-                            onDutyItems.add(
-                                com.rosterx.widget.WidgetDutyItem(
-                                    engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
-                                    shiftCode = "NS",
-                                    shiftName = "Night Shift",
-                                    timing = "09:00 PM – 07:30 AM (+1)",
-                                    bgHex = yShift.bgColorHex.ifBlank { "#020617" },
-                                    textHex = yShift.textColorHex.ifBlank { "#FFFFFF" },
-                                    isActiveNow = true,
-                                    itemType = com.rosterx.widget.WidgetDutyItem.TYPE_DUTY
-                                )
-                            )
-                        }
+                        resolvedYesterday = prevMap
                     }
                 }
 
-                // 2. Add today's scheduled engineers
-                activeEngineers.forEach { eng ->
-                    val isOvernightActive = eng.name.lowercase() in overnightActiveEngNames ||
-                            eng.id.lowercase() in overnightActiveEngNames ||
-                            eng.username.lowercase() in overnightActiveEngNames
+                // 3. Notifications & Constraints
+                val notifs = repository.getNotifications().getOrElse { emptyList() }
+                val savedDismissed = sessionManager.getDismissedNotifications()
+                val loadedConstraints = repository.getConstraints().getOrDefault(com.rosterx.domain.model.OperationalConstraints())
 
-                    val shiftMap = findShiftMap(eng, effectiveLive)
-                    val shift = shiftMap?.get(todayDayStr) ?: com.rosterx.domain.model.ShiftCode.OFF
-                    val code = shift.code.uppercase()
+                val currentRole = _state.value.loggedInEngineer?.role
+                val isManagementUser = _state.value.loggedInEngineer?.isManagementAccount == true ||
+                    currentRole == com.rosterx.domain.model.EngineerRole.ADMIN ||
+                    currentRole == com.rosterx.domain.model.EngineerRole.MANAGER
 
-                    val isRest = code in setOf("OFF", "L") || code.startsWith("SW")
-                    if (!isRest) {
-                        val meta = com.rosterx.widget.RosterXAppWidgetProvider.resolveMeta(code)
-                        val isActive = when (code) {
-                            "FS" -> nowMin in 450..990
-                            "FG" -> nowMin in 510..1050
-                            "G"  -> nowMin in 570..1110
-                            "SG" -> nowMin in 660..1200
-                            "SS" -> nowMin in 780..1320
-                            "NS" -> nowMin >= 1260 // Today's NS is only active after 21:00 PM tonight!
-                            else -> false
-                        }
-
-                        // Avoid duplicate if already added as active overnight NS engineer
-                        val alreadyAdded = onDutyItems.any {
-                            it.engineerName.equals(eng.name, ignoreCase = true) ||
-                            (eng.fullName.isNotBlank() && it.engineerName.equals(eng.fullName, ignoreCase = true))
-                        }
-                        if (!alreadyAdded) {
-                            onDutyItems.add(
-                                com.rosterx.widget.WidgetDutyItem(
-                                    engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
-                                    shiftCode = code,
-                                    shiftName = meta.name,
-                                    timing = meta.timing,
-                                    bgHex = shift.bgColorHex,
-                                    textHex = shift.textColorHex,
-                                    isActiveNow = isActive,
-                                    itemType = com.rosterx.widget.WidgetDutyItem.TYPE_DUTY
-                                )
-                            )
-                        }
-                    } else {
-                        // If they are actively on duty overnight, do not add to restItems!
-                        if (!isOvernightActive) {
-                            val restDesc = when {
-                                code.startsWith("SW") -> "Swap Off"
-                                code == "L" -> "Approved Leave"
-                                else -> "Scheduled Rest"
-                            }
-                            restItems.add(
-                                com.rosterx.widget.WidgetDutyItem(
-                                    engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
-                                    shiftCode = code,
-                                    shiftName = restDesc,
-                                    timing = "Rest Day",
-                                    bgHex = shift.bgColorHex.ifBlank { "#FEF3C7" },
-                                    textHex = shift.textColorHex.ifBlank { "#92400E" },
-                                    isActiveNow = false,
-                                    itemType = com.rosterx.widget.WidgetDutyItem.TYPE_REST
-                                )
-                            )
-                        }
+                val prevNotifs = _state.value.notifications
+                val prevIds = prevNotifs.mapNotNull { it.id }.toSet()
+                if (!isManagementUser && prevIds.isNotEmpty()) {
+                    val newIncoming = notifs.filter { n ->
+                        val nid = n.id ?: ""
+                        nid.isNotBlank() && nid !in prevIds && nid !in savedDismissed
+                    }
+                    if (newIncoming.isNotEmpty()) {
+                        try {
+                            com.rosterx.util.RosterXSoundManager.playNotificationChime(context)
+                        } catch (_: Exception) {}
                     }
                 }
 
-                // Sort On Duty: Active overnight NS engineer first (-180 min), then by shift start time
-                fun shiftStartMin(item: com.rosterx.widget.WidgetDutyItem): Int {
-                    if (item.isActiveNow && item.shiftCode == "NS" && isPostMidnightMorning) return -180
-                    return when (item.shiftCode) {
-                        "FS" -> 450
-                        "FG" -> 510
-                        "G"  -> 570
-                        "SG" -> 660
-                        "SS" -> 780
-                        "NS" -> 1260
-                        else -> 9999
-                    }
-                }
-                onDutyItems.sortBy { shiftStartMin(it) }
+                val displayNotifs = if (isManagementUser) emptyList() else notifs
 
-                val finalWidgetList = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
-                if (onDutyItems.isNotEmpty()) {
-                    finalWidgetList.add(
-                        com.rosterx.widget.WidgetDutyItem(
-                            itemType = com.rosterx.widget.WidgetDutyItem.TYPE_HEADER,
-                            sectionTitle = "⚡ ON DUTY",
-                            sectionCount = if (onDutyItems.size == 1) "1 Engineer" else "${onDutyItems.size} Engineers"
-                        )
-                    )
-                    finalWidgetList.addAll(onDutyItems)
-                }
+                // 4. Server Diagnostics
+                val diag = repository.getServerDiagnostics()
 
-                if (restItems.isNotEmpty()) {
-                    finalWidgetList.add(
-                        com.rosterx.widget.WidgetDutyItem(
-                            itemType = com.rosterx.widget.WidgetDutyItem.TYPE_HEADER,
-                            sectionTitle = "☕ REST & LEAVE",
-                            sectionCount = if (restItems.size == 1) "1 Engineer" else "${restItems.size} Engineers"
-                        )
-                    )
-                    finalWidgetList.addAll(restItems)
-                }
-
-                val dateFormatted = today.format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd"))
-                val summaryStr = "Total on Duty: ${onDutyItems.size} Engineers | Rest: ${restItems.size} Engineers"
-
-                val fullStringRoster = effectiveLive.mapValues { entry ->
-                    entry.value.mapValues { it.value.code }
-                }
-                val yesterdayStringRoster = yesterdayRosterMap.mapValues { entry ->
-                    entry.value.mapValues { it.value.code }
-                }
-
-                val isManagerRole = currentEng.role == com.rosterx.domain.model.EngineerRole.MANAGER ||
-                                     currentEng.role == com.rosterx.domain.model.EngineerRole.ADMIN
-
-                if (isManagerRole) {
-                    // 1. Save team duty roster and full dataset for Operations Radar widget
-                    com.rosterx.widget.RosterXAppWidgetProvider.saveManagerDutyRoster(
-                        context = context,
-                        managerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
-                        dateFormatted = dateFormatted,
-                        dutyList = finalWidgetList,
-                        summaryText = summaryStr,
-                        fullRoster = fullStringRoster,
-                        yesterdayRoster = yesterdayStringRoster,
-                        engineers = activeEngineers,
-                        monthKey = liveMonthKey
-                    )
-                } else {
-                    // 2. Engineer: Save logged-in user's individual shift schedule for Personal widget (Strict Role-Based)
-                    val engShifts = findShiftMap(currentEng, effectiveLive) ?: emptyMap()
-                    if (engShifts.isNotEmpty()) {
-                        val stringMap = engShifts.mapValues { it.value.code }
-                        com.rosterx.widget.RosterXAppWidgetProvider.saveWidgetData(
-                            context = context,
-                            engineerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
-                            shiftsMap = stringMap,
-                            monthKey = liveMonthKey,
-                            keepManagerMode = false
-                        )
-                    }
-                }
-            }
-
-            if (engineersResult.isFailure) {
                 _state.value = _state.value.copy(
-                    errorMessage = engineersResult.exceptionOrNull()?.message ?: "Failed to load data. Please check connection."
+                    gridRoster = gridRosterMap,
+                    yesterdayRoster = resolvedYesterday,
+                    constraints = loadedConstraints,
+                    notifications = displayNotifs,
+                    broadcastHistory = notifs,
+                    dismissedNotificationIds = savedDismissed,
+                    clusterName = diag.cluster.ifBlank { "Cluster0" },
+                    databaseName = diag.database.ifBlank { "rosterx" },
+                    latencyMs = diag.latencyMs
                 )
-            }
-            } finally {
-                withContext(Dispatchers.Main) {
-                    _state.value = _state.value.copy(isLoading = false)
-                    onComplete?.invoke()
+
+                if (isManagementUser && _state.value.broadcastTemplates.isEmpty()) {
+                    loadBroadcastTemplates()
                 }
+
+                loadCredentialTrackers(silent = true)
+                loadTodayCelebrations()
+                loadLeaveRequests(silent = true)
+                if (isManagementUser) {
+                    loadAdminLeaveQueue(silent = true)
+                }
+
+                // 5. Auto-sync Home Screen App Widget with latest duty assignments
+                val currentEng = _state.value.loggedInEngineer
+                if (currentEng != null) {
+                    syncWidgetAssignments(currentEng, engineers, effectiveLive, resolvedYesterday, liveMonthKey)
+                }
+
+                // 6. Telemetry & server version
+                refreshDiagnostics()
+            } catch (e: Exception) {
+                // Secondary prefetch error is non-fatal; dashboard remains interactive
             }
         }
+    }
+
+    private fun syncWidgetAssignments(
+        currentEng: Engineer,
+        engineers: List<Engineer>,
+        effectiveLive: Map<String, Map<String, ShiftCode>>,
+        yesterdayRosterMap: Map<String, Map<String, ShiftCode>>,
+        liveMonthKey: String
+    ) {
+        try {
+            val today = LocalDate.now()
+            val todayDayStr = today.dayOfMonth.toString()
+            val yesterday = today.minusDays(1)
+            val yesterdayDayStr = yesterday.dayOfMonth.toString()
+            val activeEngineers = engineers.filter { it.isEligibleForShiftRoster(today) }
+            val nowTime = java.time.LocalTime.now()
+            val nowMin = nowTime.hour * 60 + nowTime.minute
+            val isPostMidnightMorning = nowMin < 450 // 00:00 to 07:30 AM
+
+            val onDutyItems = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
+            val restItems = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
+            val overnightActiveEngNames = mutableSetOf<String>()
+
+            // 1. Overnight Shift Rollover: If between 00:00 and 07:30 AM, yesterday's NS engineer is actively on duty!
+            if (isPostMidnightMorning) {
+                activeEngineers.forEach { eng ->
+                    val yShiftMap = findShiftMap(eng, yesterdayRosterMap) ?: findShiftMap(eng, effectiveLive)
+                    val yShift = yShiftMap?.get(yesterdayDayStr) ?: com.rosterx.domain.model.ShiftCode.OFF
+                    val yCode = yShift.code.uppercase()
+                    if (yCode == "NS") {
+                        overnightActiveEngNames.add(eng.name.lowercase())
+                        overnightActiveEngNames.add(eng.id.lowercase())
+                        overnightActiveEngNames.add(eng.username.lowercase())
+                        onDutyItems.add(
+                            com.rosterx.widget.WidgetDutyItem(
+                                engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                shiftCode = "NS",
+                                shiftName = "Night Shift",
+                                timing = "09:00 PM – 07:30 AM (+1)",
+                                bgHex = yShift.bgColorHex.ifBlank { "#020617" },
+                                textHex = yShift.textColorHex.ifBlank { "#FFFFFF" },
+                                isActiveNow = true,
+                                itemType = com.rosterx.widget.WidgetDutyItem.TYPE_DUTY
+                            )
+                        )
+                    }
+                }
+            }
+
+            // 2. Add today's scheduled engineers
+            activeEngineers.forEach { eng ->
+                val isOvernightActive = eng.name.lowercase() in overnightActiveEngNames ||
+                        eng.id.lowercase() in overnightActiveEngNames ||
+                        eng.username.lowercase() in overnightActiveEngNames
+
+                val shiftMap = findShiftMap(eng, effectiveLive)
+                val shift = shiftMap?.get(todayDayStr) ?: com.rosterx.domain.model.ShiftCode.OFF
+                val code = shift.code.uppercase()
+
+                val isRest = code in setOf("OFF", "L") || code.startsWith("SW")
+                if (!isRest) {
+                    val meta = com.rosterx.widget.RosterXAppWidgetProvider.resolveMeta(code)
+                    val isActive = when (code) {
+                        "FS" -> nowMin in 450..990
+                        "FG" -> nowMin in 510..1050
+                        "G"  -> nowMin in 570..1110
+                        "SG" -> nowMin in 660..1200
+                        "SS" -> nowMin in 780..1320
+                        "NS" -> nowMin >= 1260 // Today's NS is only active after 21:00 PM tonight!
+                        else -> false
+                    }
+
+                    // Avoid duplicate if already added as active overnight NS engineer
+                    val alreadyAdded = onDutyItems.any {
+                        it.engineerName.equals(eng.name, ignoreCase = true) ||
+                        (eng.fullName.isNotBlank() && it.engineerName.equals(eng.fullName, ignoreCase = true))
+                    }
+                    if (!alreadyAdded) {
+                        onDutyItems.add(
+                            com.rosterx.widget.WidgetDutyItem(
+                                engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                shiftCode = code,
+                                shiftName = meta.name,
+                                timing = meta.timing,
+                                bgHex = shift.bgColorHex,
+                                textHex = shift.textColorHex,
+                                isActiveNow = isActive,
+                                itemType = com.rosterx.widget.WidgetDutyItem.TYPE_DUTY
+                            )
+                        )
+                    }
+                } else {
+                    // If they are actively on duty overnight, do not add to restItems!
+                    if (!isOvernightActive) {
+                        val restDesc = when {
+                            code.startsWith("SW") -> "Swap Off"
+                            code == "L" -> "Approved Leave"
+                            else -> "Scheduled Rest"
+                        }
+                        restItems.add(
+                            com.rosterx.widget.WidgetDutyItem(
+                                engineerName = eng.fullName.takeIf { it.isNotBlank() } ?: eng.name,
+                                shiftCode = code,
+                                shiftName = restDesc,
+                                timing = "Rest Day",
+                                bgHex = shift.bgColorHex.ifBlank { "#FEF3C7" },
+                                textHex = shift.textColorHex.ifBlank { "#92400E" },
+                                isActiveNow = false,
+                                itemType = com.rosterx.widget.WidgetDutyItem.TYPE_REST
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Sort On Duty: Active overnight NS engineer first (-180 min), then by shift start time
+            fun shiftStartMin(item: com.rosterx.widget.WidgetDutyItem): Int {
+                if (item.isActiveNow && item.shiftCode == "NS" && isPostMidnightMorning) return -180
+                return when (item.shiftCode) {
+                    "FS" -> 450
+                    "FG" -> 510
+                    "G"  -> 570
+                    "SG" -> 660
+                    "SS" -> 780
+                    "NS" -> 1260
+                    else -> 9999
+                }
+            }
+            onDutyItems.sortBy { shiftStartMin(it) }
+
+            val finalWidgetList = mutableListOf<com.rosterx.widget.WidgetDutyItem>()
+            if (onDutyItems.isNotEmpty()) {
+                finalWidgetList.add(
+                    com.rosterx.widget.WidgetDutyItem(
+                        itemType = com.rosterx.widget.WidgetDutyItem.TYPE_HEADER,
+                        sectionTitle = "⚡ ON DUTY",
+                        sectionCount = if (onDutyItems.size == 1) "1 Engineer" else "${onDutyItems.size} Engineers"
+                    )
+                )
+                finalWidgetList.addAll(onDutyItems)
+            }
+
+            if (restItems.isNotEmpty()) {
+                finalWidgetList.add(
+                    com.rosterx.widget.WidgetDutyItem(
+                        itemType = com.rosterx.widget.WidgetDutyItem.TYPE_HEADER,
+                        sectionTitle = "☕ REST & LEAVE",
+                        sectionCount = if (restItems.size == 1) "1 Engineer" else "${restItems.size} Engineers"
+                    )
+                )
+                finalWidgetList.addAll(restItems)
+            }
+
+            val dateFormatted = today.format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd"))
+            val summaryStr = "Total on Duty: ${onDutyItems.size} Engineers | Rest: ${restItems.size} Engineers"
+
+            val fullStringRoster = effectiveLive.mapValues { entry ->
+                entry.value.mapValues { it.value.code }
+            }
+            val yesterdayStringRoster = yesterdayRosterMap.mapValues { entry ->
+                entry.value.mapValues { it.value.code }
+            }
+
+            val isManagerRole = currentEng.role == com.rosterx.domain.model.EngineerRole.MANAGER ||
+                                 currentEng.role == com.rosterx.domain.model.EngineerRole.ADMIN
+
+            if (isManagerRole) {
+                // 1. Save team duty roster and full dataset for Operations Radar widget
+                com.rosterx.widget.RosterXAppWidgetProvider.saveManagerDutyRoster(
+                    context = context,
+                    managerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
+                    dateFormatted = dateFormatted,
+                    dutyList = finalWidgetList,
+                    summaryText = summaryStr,
+                    fullRoster = fullStringRoster,
+                    yesterdayRoster = yesterdayStringRoster,
+                    engineers = activeEngineers,
+                    monthKey = liveMonthKey
+                )
+            } else {
+                // 2. Engineer: Save logged-in user's individual shift schedule for Personal widget (Strict Role-Based)
+                val engShifts = findShiftMap(currentEng, effectiveLive) ?: emptyMap()
+                if (engShifts.isNotEmpty()) {
+                    val stringMap = engShifts.mapValues { it.value.code }
+                    com.rosterx.widget.RosterXAppWidgetProvider.saveWidgetData(
+                        context = context,
+                        engineerName = currentEng.fullName.takeIf { it.isNotBlank() } ?: currentEng.name,
+                        shiftsMap = stringMap,
+                        monthKey = liveMonthKey,
+                        keepManagerMode = false
+                    )
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     fun resetToCurrentDateAndMonth() {
