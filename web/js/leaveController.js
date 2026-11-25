@@ -293,12 +293,12 @@ export class LeaveController {
 
               <!-- Prominent Full-Width Month Switcher Bar (1:1 Android Parity) -->
               <div style="display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;background:var(--nm-input-surface);border-radius:12px;padding:4px 8px;">
-                <button type="button" id="btnCalPrev" class="rx-btn-surface" style="width:34px;height:34px;padding:0;min-inline-size:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;" aria-label="Previous Month">
-                  <i class="ph ph-caret-left" style="font-size:18px;"></i>
+                <button type="button" id="btnCalPrev" style="width:36px;height:36px;padding:0;background:transparent;border:0;box-shadow:none;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--nm-text);" aria-label="Previous Month">
+                  <i class="ph ph-caret-left" style="font-size:20px;"></i>
                 </button>
                 <span style="font-size:14px;font-weight:800;color:var(--nm-text);text-align:center;">${escapeHtml(monthLabel)}</span>
-                <button type="button" id="btnCalNext" class="rx-btn-surface" style="width:34px;height:34px;padding:0;min-inline-size:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;" aria-label="Next Month">
-                  <i class="ph ph-caret-right" style="font-size:18px;"></i>
+                <button type="button" id="btnCalNext" style="width:36px;height:36px;padding:0;background:transparent;border:0;box-shadow:none;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--nm-text);" aria-label="Next Month">
+                  <i class="ph ph-caret-right" style="font-size:20px;"></i>
                 </button>
               </div>
 
@@ -337,7 +337,7 @@ export class LeaveController {
                 <label for="inputLeaveReason" style="display:block;font-size:13.5px;font-weight:800;margin-bottom:3px;">
                   Reason / Operational Notes <span style="font-size:11px;font-weight:400;color:var(--nm-text-muted);">(Optional)</span>
                 </label>
-                <textarea id="inputLeaveReason" rows="2" class="rx-well" placeholder="Brief note for shift supervisor..." style="width:100%;border:0;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--nm-text);box-sizing:border-box;resize:vertical;">${escapeHtml(this.reason)}</textarea>
+                <textarea id="inputLeaveReason" rows="2" class="rx-well" placeholder="Brief note for supervisor or partner..." style="width:100%;border:0;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--nm-text);box-sizing:border-box;resize:vertical;">${escapeHtml(this.reason)}</textarea>
               </div>
 
               <!-- Submit Button -->

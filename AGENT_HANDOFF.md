@@ -1,7 +1,31 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
-> *Architectural Directive from Gafoor (🕶️):* **2026-11-24 23:25 IST** (Target Sprint: **v2.5.28 - Build 203**)
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-25 11:20 IST** (Target Sprint: **v2.5.29 - Build 204**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.29 - Build 204 — Flat Calendar UI Parity with Android, Transparent Switcher Chevrons, Subtitle Parity):
+> *"Vijaya! Gafoorka! User paranja 1:1 Android flat theme calendar styling pin-point precision-il implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.29 (Build 204):
+> 1. **1:1 Android Parity Flat Calendar Day Cells (`web/css/mobile-shell.css`)**:
+>    - Removed all embossed 3D drop-shadows and raised bevels from `.rx-cal-day-cell`.
+>    - Set day background to flat `var(--nm-input-surface)` with `box-shadow: none !important; border-radius: 10px;`.
+>    - Matches Android Compose (`LeaveRequestScreen.kt`) lines 412-419: `.clip(RoundedCornerShape(10.dp)).background(NeumorphicTokens.InputSurface)`.
+> 2. **Pure Flat Accent Selection State (`web/css/mobile-shell.css`)**:
+>    - Removed outer neon glowing halo (`0 4px 14px var(--nm-accent-glow)`).
+>    - Selected dates now render with a crisp, pure solid accent fill `var(--nm-accent)` and white text (`#ffffff`), with "OFF" label rendered in crisp semi-transparent white (`rgba(255, 255, 255, 0.95)`).
+> 3. **Month Switcher Chevrons Parity (`web/js/leaveController.js`)**:
+>    - Removed the raised square button wrapper (`rx-btn-surface`) from the `<` and `>` chevrons.
+>    - Converted to flat transparent icon buttons sitting directly inside the gray input-surface bar, matching Android's `IconButton` implementation.
+> 4. **Textarea & Subtitle Parity (`web/js/leaveController.js`, `web/js/userPortal.js`, `web/user-portal.html`)**:
+>    - Updated reason textarea placeholder from "Brief note for shift supervisor..." to "Brief note for supervisor or partner...", matching Android verbatim.
+>    - Added dynamic subtitle to topbar: "Annual leave application & balance tracking" when navigating into Leave Request.
+> 5. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.29"`, `SERVER_BUILD_CODE = 204` in `server.py`.
+>    - Bumped `versionCode = 204`, `versionName = "2.5.29"` in `android/app/build.gradle.kts`.
+>    - Android build verified with `safe_build.bat assembleDebug` and pushing to `main` for instant Render auto-deploy.*
 
 ---
 

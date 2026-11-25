@@ -31,7 +31,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.3.1';
 
-const APP_VERSION = '2.5.28';
+const APP_VERSION = '2.5.29';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -827,8 +827,25 @@ class RosterXUserPortal {
       leave_request: 'Leave Request',
       leave_approvals: 'Leave Approvals'
     };
+    const subtitleMap = {
+      credentials: 'Team infrastructure keys and connections',
+      my_team: 'Operational roster team profiles',
+      profile: 'Preferences, security and account details',
+      leave_request: 'Annual leave application & balance tracking',
+      leave_approvals: 'Review and action operational team leaves'
+    };
     const activeSubTitle = titleMap[viewName] || 'Operations Hub';
     document.getElementById('rxTopBarTitle').textContent = activeSubTitle;
+    const subEl = document.getElementById('rxTopBarSubtitle');
+    if (subEl) {
+      const subText = subtitleMap[viewName];
+      if (subText) {
+        subEl.textContent = subText;
+        subEl.classList.remove('rx-hidden');
+      } else {
+        subEl.classList.add('rx-hidden');
+      }
+    }
     document.title = `RosterX — ${activeSubTitle}`;
 
     document.querySelectorAll('.rx-tab-panel').forEach((p) => p.classList.add('rx-hidden'));
@@ -844,6 +861,7 @@ class RosterXUserPortal {
 
   closeSubView() {
     this.activeSubView = null;
+    document.getElementById('rxTopBarSubtitle')?.classList.add('rx-hidden');
     this.switchTab(this.activeTab);
   }
 

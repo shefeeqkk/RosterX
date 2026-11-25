@@ -858,7 +858,7 @@ html.dark .rx-roster-table .rx-sticky-coverage {
 }
 
 /* ==========================================================================
-   Leave & Swap Multi-Date Calendar Picker (1:1 Android Parity - Zero Overflow)
+   Leave & Swap Multi-Date Calendar Picker (1:1 Android Parity - Flat Theme)
    ========================================================================== */
 .rx-cal-day-cell {
   aspect-ratio: 1;
@@ -870,9 +870,9 @@ html.dark .rx-roster-table .rx-sticky-coverage {
   min-block-size: 0 !important;
   max-height: none;
   border: 0;
-  border-radius: 11px;
-  background: var(--nm-surface);
-  box-shadow: var(--nm-shadow-raised-subtle);
+  border-radius: 10px;
+  background: var(--nm-input-surface);
+  box-shadow: none !important;
   color: var(--nm-text);
   display: flex;
   flex-direction: column;
@@ -884,7 +884,7 @@ html.dark .rx-roster-table .rx-sticky-coverage {
   position: relative;
   box-sizing: border-box;
   overflow: hidden;
-  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.12s ease, background 0.15s ease;
 }
 
 .rx-cal-day-cell:active:not(:disabled) {
@@ -892,9 +892,9 @@ html.dark .rx-roster-table .rx-sticky-coverage {
 }
 
 .rx-cal-day-cell.is-selected {
-  background: var(--nm-accent-gradient) !important;
+  background: var(--nm-accent) !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 14px var(--nm-accent-glow) !important;
+  box-shadow: none !important;
 }
 
 .rx-cal-day-cell.is-selected .rx-cal-cell-off,
@@ -903,21 +903,19 @@ html.dark .rx-roster-table .rx-sticky-coverage {
 }
 
 .rx-cal-day-cell.is-past {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: not-allowed;
   background: var(--nm-input-surface);
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
 .rx-cal-day-cell.is-off {
-  opacity: 0.65;
-  cursor: not-allowed;
   background: var(--nm-input-surface);
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
 .rx-cal-cell-num {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1.1;
   pointer-events: none;
@@ -964,11 +962,11 @@ html.dark .rx-roster-table .rx-sticky-coverage {
     gap: 0;
   }
   .rx-cal-cell-num {
-    font-size: 11px;
+    font-size: 11.5px;
   }
   .rx-cal-cell-off,
   .rx-cal-cell-shift {
-    font-size: 7px;
+    font-size: 7.5px;
   }
 }
 
