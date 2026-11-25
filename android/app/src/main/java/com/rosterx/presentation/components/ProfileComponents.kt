@@ -986,7 +986,8 @@ fun UnifiedEditProfileDialog(
         else -> currentProfilePicture
     }
 
-    // Password fields
+    // Password fields (Collapsible by default)
+    var isPasswordExpanded by remember(show) { mutableStateOf(false) }
     var currentPassword by remember(show) { mutableStateOf("") }
     var currentPasswordVisible by remember { mutableStateOf(false) }
     var newPassword by remember(show) { mutableStateOf("") }
@@ -1033,10 +1034,10 @@ fun UnifiedEditProfileDialog(
 
     val isNameValid = nameInput.trim().length in 2..60
     val isEmailValid = emailInput.isBlank() || (emailInput.contains("@") && emailInput.contains("."))
-    val isPasswordChangeAttempted = currentPassword.isNotEmpty() || newPassword.isNotEmpty() || confirmPassword.isNotEmpty()
-    val isCurrentPasswordOk = !isPasswordChangeAttempted || currentPassword.isNotBlank()
-    val isPasswordLengthOk = !isPasswordChangeAttempted || newPassword.length >= 6
-    val isPasswordMatch = !isPasswordChangeAttempted || (newPassword == confirmPassword && newPassword.isNotEmpty())
+    val isPasswordChangeAttempted = isPasswordExpanded && (currentPassword.isNotEmpty() || newPassword.isNotEmpty() || confirmPassword.isNotEmpty())
+    val isCurrentPasswordOk = !isPasswordExpanded || (!isPasswordChangeAttempted || currentPassword.isNotBlank())
+    val isPasswordLengthOk = !isPasswordExpanded || (!isPasswordChangeAttempted || newPassword.length >= 6)
+    val isPasswordMatch = !isPasswordExpanded || (!isPasswordChangeAttempted || (newPassword == confirmPassword && newPassword.isNotEmpty()))
     val canSave = isNameValid && isEmailValid && isCurrentPasswordOk && isPasswordLengthOk && isPasswordMatch
 
     Dialog(
@@ -1238,99 +1239,122 @@ fun UnifiedEditProfileDialog(
                     )
                 }
 
-                // Security Section Header
+                // Collapsible Password Section Toggle Button
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(NeumorphicTokens.InputSurface)
+                        .clickable {
+                            isPasswordExpanded = !isPasswordExpanded
+                            if (!isPasswordExpanded) {
+                                currentPassword = ""
+                                newPassword = ""
+                                confirmPassword = ""
+                            }
+                        }
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "SECURITY & PASSWORD",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = activeAccent,
-                        letterSpacing = 0.5.sp
-                    )
-                    Text(
-                        text = "(Leave blank to keep current)",
-                        fontSize = 10.5.sp,
-                        color = NeumorphicTokens.TextMuted
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Lock",
+                            tint = activeAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Change Password",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeumorphicTokens.TextMain
+                        )
+                    }
+                    Icon(
+                        imageVector = if (isPasswordExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Toggle Password Section",
+                        tint = NeumorphicTokens.TextMuted,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                // Row 4 (Single-Column 100%): Current password
-                NeumorphicFormInput(
-                    value = currentPassword,
-                    onValueChange = { currentPassword = it },
-                    label = "Current password",
-                    placeholder = "Required only if changing password",
-                    visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        Icon(
-                            imageVector = if (currentPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = "Toggle password",
-                            tint = NeumorphicTokens.TextMuted,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable { currentPasswordVisible = !currentPasswordVisible }
+                if (isPasswordExpanded) {
+                    // Row 4 (Single-Column 100%): Current password
+                    NeumorphicFormInput(
+                        value = currentPassword,
+                        onValueChange = { currentPassword = it },
+                        label = "Current password *",
+                        placeholder = "Required only if changing password",
+                        visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        trailingIcon = {
+                            Icon(
+                                imageVector = if (currentPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = "Toggle password",
+                                tint = NeumorphicTokens.TextMuted,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { currentPasswordVisible = !currentPasswordVisible }
+                            )
+                        },
+                        isError = isPasswordChangeAttempted && currentPassword.isBlank(),
+                        errorMessage = if (isPasswordChangeAttempted && currentPassword.isBlank()) "Current password required" else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Row 5 (Dual-Column 50/50): New password | Confirm password
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        NeumorphicFormInput(
+                            value = newPassword,
+                            onValueChange = { newPassword = it },
+                            label = "New password",
+                            placeholder = "Min 6 chars",
+                            visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "Toggle password",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { newPasswordVisible = !newPasswordVisible }
+                                )
+                            },
+                            isError = isPasswordChangeAttempted && !isPasswordLengthOk,
+                            errorMessage = if (isPasswordChangeAttempted && !isPasswordLengthOk) "Min 6 characters" else null,
+                            modifier = Modifier.weight(1f)
                         )
-                    },
-                    isError = isPasswordChangeAttempted && currentPassword.isBlank(),
-                    errorMessage = if (isPasswordChangeAttempted && currentPassword.isBlank()) "Current password required" else null,
-                    modifier = Modifier.fillMaxWidth()
-                )
 
-                // Row 5 (Dual-Column 50/50): New password | Confirm password
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    NeumorphicFormInput(
-                        value = newPassword,
-                        onValueChange = { newPassword = it },
-                        label = "New password",
-                        placeholder = "Min 6 chars",
-                        visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            Icon(
-                                imageVector = if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Toggle password",
-                                tint = NeumorphicTokens.TextMuted,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { newPasswordVisible = !newPasswordVisible }
-                            )
-                        },
-                        isError = isPasswordChangeAttempted && !isPasswordLengthOk,
-                        errorMessage = if (isPasswordChangeAttempted && !isPasswordLengthOk) "Min 6 characters" else null,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    NeumorphicFormInput(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
-                        label = "Confirm password",
-                        placeholder = "Confirm password",
-                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            Icon(
-                                imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Toggle password",
-                                tint = NeumorphicTokens.TextMuted,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { confirmPasswordVisible = !confirmPasswordVisible }
-                            )
-                        },
-                        isError = isPasswordChangeAttempted && !isPasswordMatch,
-                        errorMessage = if (isPasswordChangeAttempted && !isPasswordMatch) "Passwords mismatch" else null,
-                        modifier = Modifier.weight(1f)
-                    )
+                        NeumorphicFormInput(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it },
+                            label = "Confirm password",
+                            placeholder = "Confirm password",
+                            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "Toggle password",
+                                    tint = NeumorphicTokens.TextMuted,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { confirmPasswordVisible = !confirmPasswordVisible }
+                                )
+                            },
+                            isError = isPasswordChangeAttempted && !isPasswordMatch,
+                            errorMessage = if (isPasswordChangeAttempted && !isPasswordMatch) "Passwords mismatch" else null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
                 // Action Row
@@ -1377,8 +1401,8 @@ fun UnifiedEditProfileDialog(
                                 val trimmedEmail = emailInput.trim().lowercase()
                                 val trimmedJoinDate = joinDateInput.trim()
                                 val trimmedBirthday = birthdayInput.trim()
-                                val currPassToVerify = currentPassword.trim().takeIf { it.isNotBlank() }
-                                val passToUpdate = newPassword.trim().takeIf { it.isNotBlank() }
+                                val currPassToVerify = if (isPasswordExpanded) currentPassword.trim().takeIf { it.isNotBlank() } else null
+                                val passToUpdate = if (isPasswordExpanded) newPassword.trim().takeIf { it.isNotBlank() } else null
 
                                 onSave(
                                     trimmedName,

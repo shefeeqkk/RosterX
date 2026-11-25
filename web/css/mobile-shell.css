@@ -808,11 +808,34 @@ html.dark .rx-roster-table .rx-sticky-coverage {
 /* ==========================================================================
    7. Personal My Calendar Grid & Today Breathing Glow
    ========================================================================== */
-.rx-cal-weekdays,
+.rx-calendar-split {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.rx-land-grid-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#subview_profile,
+#panel_my_calendar {
+  padding-bottom: 64px !important;
+}
+
+.rx-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
 .rx-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
+  padding-bottom: 8px;
 }
 
 .rx-cal-weekday {

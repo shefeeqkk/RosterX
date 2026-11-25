@@ -1,6 +1,50 @@
 # 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
 
 > **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
+> *Architectural Directive from Gafoor (🕶️):* **2026-11-25 12:45 IST** (Target Sprint: **v2.5.30 - Build 205**)
+
+---
+
+## 🕵️‍♂️ Dasan Dispatch to Vijayan & Gafoorka (v2.5.30 - Build 205 — Swap Shift in Legends, Calendar & Profile Card Drop Shadow Overlap Fixes, Collapsible Password Section):
+> *"Vijaya! Gafoorka! User paranja 5 UI & security architecture updates pin-point precision-il Android-lum Web-lum implement cheythu macha! 🕵️‍♂️🔥
+>
+> ### 🛠️ What Was Built & Fixed in v2.5.30 (Build 205):
+> 1. **Calendar Drop Shadow Overlap Elimination (`web/css/mobile-shell.css`)**:
+>    - Root cause: `.rx-calendar-split` had 0 gap in mobile portrait, causing the `SHIFT LEGEND & TIMINGS` card's top-left neumorphic shadow (`-6px -6px 14px`) to spill upward and cast directly over days 28-31 of the calendar grid.
+>    - Added explicit vertical separation: `.rx-calendar-split { display: flex; flex-direction: column; gap: 22px; }` and `.rx-cal-grid { padding-bottom: 8px; }`.
+> 2. **Add "Swap Shift" (SW) to Shift Legend & Timings (`web/js/userPortal.js`)**:
+>    - Added standard legend entry: `SW: { name: 'Swap Shift', timing: 'Swapped Duty / Off', bg: '#FEF08A', fg: '#854D0E', order: 8 }`.
+>    - Included `'SW'` in `STANDARD_LEGEND = ['FS', 'FG', 'G', 'SG', 'SS', 'NS', 'OFF', 'SW', 'L']`.
+>    - Updated `getShiftVisual()` fallback to properly return `"Swap Shift"` and `"Swapped Duty / Off"`.
+> 3. **Appearance & Theme Card Overlap & Sign Out Clipping (`web/css/mobile-shell.css`)**:
+>    - Root cause: `.rx-land-grid-2` in portrait mode had no vertical gap between the `ACCOUNT DETAILS` card and `APPEARANCE & THEME` card, causing shadow collision.
+>    - Fix: Added `.rx-land-grid-2 { display: flex; flex-direction: column; gap: 14px; }`.
+>    - Added bottom breathing room `#subview_profile, #panel_my_calendar { padding-bottom: 64px !important; }` to eliminate clipping on the Sign Out button and bottom viewport dock.
+> 4. **Edit Profile Form Field Reordering (`web/js/userPortal.js`)**:
+>    - Row 1: Dual-column `1fr 1fr` with `FULL NAME` and `MOBILE` (matching Android).
+>    - Row 2: Full-width `100%` for `EMAIL`, eliminating email text cutoff.
+>    - Row 3: Dual-column `1fr 1fr` with `COMPANY JOIN DATE` and `BIRTHDAY`.
+> 5. **Collapsible "Change Password" (Android Jetpack Compose & Web)**:
+>    - **Web (`web/js/userPortal.js`)**:
+>      - Added a clean clickable button `#btnToggleChangePassword` with lock icon and rotating chevron.
+>      - Hidden by default (`display: none`); expands current, new, and confirm password fields on tap.
+>      - Password validation and verification are bypassed completely when collapsed.
+>    - **Android (`ProfileComponents.kt`)**:
+>      - Added `isPasswordExpanded` state (default `false`).
+>      - Neumorphic toggle button styled with `NeumorphicTokens.InputSurface`, Lock icon, "Change Password" text, and chevron arrow.
+>      - Wrapped password inputs inside `if (isPasswordExpanded) { ... }`.
+>      - Save handler only sends `currPassToVerify` and `passToUpdate` if `isPasswordExpanded` is true.
+> 6. **Version Bump & Production Sync**:
+>    - Bumped `SERVER_VERSION = "2.5.30"`, `SERVER_BUILD_CODE = 205` in `server.py`.
+>    - Bumped `versionCode = 205`, `versionName = "2.5.30"` in `android/app/build.gradle.kts`.
+>    - Bumped `APP_VERSION = "2.5.30"` in `web/js/userPortal.js`, `web/user-portal.html`, and `web/index.html`.
+>    - Pushing to `main` for instant Render auto-deploy and pushing APK to connected ADB device.*
+
+---
+
+# 🕵️‍♂️ Dasan (Antigravity Agent 1) ⇄ 🕵️ Vijayan (Antigravity Agent 2) Handoff Bridge
+
+> **"Gafoorka lays out the master architecture; Dasan orchestrates backend & builds; Vijayan crafts Jetpack Compose UI & client features!"**  
 > *Architectural Directive from Gafoor (🕶️):* **2026-11-25 11:20 IST** (Target Sprint: **v2.5.29 - Build 204**)
 
 ---

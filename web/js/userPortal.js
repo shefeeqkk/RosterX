@@ -31,7 +31,7 @@ import {
   getAuthHeaders
 } from './pwaHelper.js?v=2.3.1';
 
-const APP_VERSION = '2.5.29';
+const APP_VERSION = '2.5.30';
 const WORKING_SHIFT_CODES = new Set(['FS', 'FG', 'G', 'SG', 'SS', 'NS']);
 const OFF_OR_LEAVE_CODES = new Set(['OFF', 'L', 'CO', 'AL', 'SL', 'ML']);
 
@@ -59,19 +59,20 @@ const SHIFT_META = {
   SS:  { name: 'Second Shift',   timing: '01:00 PM – 10:00 PM', bg: '#FED7AA', fg: '#7C2D12', order: 5 },
   NS:  { name: 'Night Shift',    timing: '09:00 PM – 07:30 AM', bg: '#020617', fg: '#FFFFFF', order: 6 },
   OFF: { name: 'Weekly Off',     timing: 'Rest Day',            bg: '#FEF08A', fg: '#854D0E', order: 7 },
-  L:   { name: 'Approved Leave', timing: 'Approved Leave',      bg: '#DC2626', fg: '#FFFFFF', order: 8 }
+  SW:  { name: 'Swap Shift',     timing: 'Swapped Duty / Off',  bg: '#FEF08A', fg: '#854D0E', order: 8 },
+  L:   { name: 'Approved Leave', timing: 'Approved Leave',      bg: '#DC2626', fg: '#FFFFFF', order: 9 }
 };
 
-const STANDARD_LEGEND = ['FS', 'FG', 'G', 'SG', 'SS', 'NS', 'OFF', 'L'];
+const STANDARD_LEGEND = ['FS', 'FG', 'G', 'SG', 'SS', 'NS', 'OFF', 'SW', 'L'];
 const WEEKDAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function getShiftVisual(rawCode) {
   const code = String(rawCode || 'OFF').trim().toUpperCase();
   if (SHIFT_META[code]) return { code, ...SHIFT_META[code] };
   if (code.startsWith('SW')) {
-    return { code, name: 'Swap Off', timing: 'Rest Day', bg: '#FEF08A', fg: '#854D0E', order: 7 };
+    return { code, name: 'Swap Shift', timing: 'Swapped Duty / Off', bg: '#FEF08A', fg: '#854D0E', order: 8 };
   }
-  return { code: code || 'OFF', name: code || 'Rest', timing: 'Rest Day', bg: '#E2E8F0', fg: '#334155', order: 9 };
+  return { code: code || 'OFF', name: code || 'Rest', timing: 'Rest Day', bg: '#E2E8F0', fg: '#334155', order: 10 };
 }
 
 function getIstNow() {
@@ -2279,19 +2280,19 @@ class RosterXUserPortal {
           </div>
 
           <form id="rxEditProfileForm" style="display:flex;flex-direction:column;gap:10px;">
-            <div>
-              <div class="rx-field-label">FULL NAME</div>
-              <input type="text" name="name" value="${escapeHtml(eng?.full_name || eng?.name || '')}" required style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
-            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
               <div>
-                <div class="rx-field-label">PHONE</div>
-                <input type="tel" name="phone" value="${escapeHtml(eng?.phone || '')}" placeholder="+1 555-0100" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+                <div class="rx-field-label">FULL NAME</div>
+                <input type="text" name="name" value="${escapeHtml(eng?.full_name || eng?.name || '')}" required style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
               </div>
               <div>
-                <div class="rx-field-label">EMAIL</div>
-                <input type="email" name="email" value="${escapeHtml(eng?.email || '')}" placeholder="user@example.com" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
+                <div class="rx-field-label">MOBILE</div>
+                <input type="tel" name="phone" value="${escapeHtml(eng?.phone || '')}" placeholder="+1 555-0100" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
               </div>
+            </div>
+            <div>
+              <div class="rx-field-label">EMAIL</div>
+              <input type="email" name="email" value="${escapeHtml(eng?.email || '')}" placeholder="user@example.com" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13.5px;" />
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
               <div>
@@ -2305,11 +2306,15 @@ class RosterXUserPortal {
             </div>
 
             <div style="margin-top:4px;border-top:1px solid var(--nm-border);padding-top:10px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                <span class="rx-field-label" style="margin:0;color:var(--nm-accent);font-size:11px;font-weight:800;">SECURITY &amp; PASSWORD</span>
-                <span style="font-size:10.5px;color:var(--nm-text-muted);">(Leave blank to keep current)</span>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:8px;">
+              <button type="button" id="btnToggleChangePassword" class="rx-btn-surface" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-radius:12px;cursor:pointer;font-size:12.5px;font-weight:800;color:var(--nm-text);">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <i class="ph ph-lock-key" style="font-size:16px;color:var(--nm-accent);"></i>
+                  <span>Change Password</span>
+                </div>
+                <i class="ph ph-caret-down rx-pwd-caret" style="font-size:14px;transition:transform 0.2s ease;"></i>
+              </button>
+
+              <div id="rxPasswordFields" style="display:none;margin-top:10px;flex-direction:column;gap:8px;">
                 <div style="position:relative;">
                   <input type="password" name="current_password" id="rxCurrentPwd" placeholder="Current password..." autocomplete="current-password" style="width:100%;padding:10px 36px 10px 12px;border-radius:12px;border:1px solid var(--nm-border);background:var(--nm-input-surface);color:var(--nm-text);font-size:13px;" />
                   <button type="button" class="rx-pwd-toggle" data-rx-toggle="rxCurrentPwd" aria-label="Toggle password visibility" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--nm-text-muted);cursor:pointer;padding:4px;display:flex;align-items:center;"><i class="ph ph-eye"></i></button>
@@ -2399,6 +2404,24 @@ class RosterXUserPortal {
         openNeumorphicDialog(cDlg);
       });
 
+      let isPwdOpen = false;
+      const togglePwdBtn = dlg.querySelector('#btnToggleChangePassword');
+      const pwdFields = dlg.querySelector('#rxPasswordFields');
+      const pwdCaret = togglePwdBtn?.querySelector('.rx-pwd-caret');
+      togglePwdBtn?.addEventListener('click', () => {
+        isPwdOpen = !isPwdOpen;
+        if (pwdFields) pwdFields.style.display = isPwdOpen ? 'flex' : 'none';
+        if (pwdCaret) pwdCaret.style.transform = isPwdOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+        if (!isPwdOpen) {
+          const c = dlg.querySelector('#rxCurrentPwd');
+          const n = dlg.querySelector('#rxNewPwd');
+          const cf = dlg.querySelector('#rxConfirmPwd');
+          if (c) c.value = '';
+          if (n) n.value = '';
+          if (cf) cf.value = '';
+        }
+      });
+
       dlg.querySelectorAll('.rx-pwd-toggle').forEach((btn) => {
         btn.addEventListener('click', () => {
           const targetId = btn.getAttribute('data-rx-toggle');
@@ -2417,11 +2440,11 @@ class RosterXUserPortal {
         e.preventDefault();
         const f = e.target;
 
-        const curPwd = f.current_password?.value?.trim() || '';
-        const newPwd = f.new_password?.value?.trim() || '';
-        const confirmPwd = f.confirm_password?.value?.trim() || '';
+        const curPwd = isPwdOpen ? (f.current_password?.value?.trim() || '') : '';
+        const newPwd = isPwdOpen ? (f.new_password?.value?.trim() || '') : '';
+        const confirmPwd = isPwdOpen ? (f.confirm_password?.value?.trim() || '') : '';
 
-        if (newPwd || curPwd || confirmPwd) {
+        if (isPwdOpen) {
           if (!curPwd) {
             this.toast('Current password is required to change password', 'error');
             return;
